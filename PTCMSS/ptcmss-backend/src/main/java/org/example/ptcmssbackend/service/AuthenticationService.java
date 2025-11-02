@@ -10,7 +10,8 @@ public interface AuthenticationService {
 
     TokenResponse getRefreshToken(String request);
 
-    String removeToken(HttpServletRequest request);
+    String verifyAccount(String token);
 
+    String removeToken(HttpServletRequest request);
 
 }

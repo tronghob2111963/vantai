@@ -13,6 +13,7 @@ import org.example.ptcmssbackend.dto.response.TokenResponse;
 import org.example.ptcmssbackend.service.AuthenticationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j(topic = "AUTH_CONTROLLER")
@@ -78,5 +79,22 @@ public class AuthController {
         log.info("[LOGOUT] Logout request received");
         String message = authService.removeToken(request);
         return ResponseEntity.ok(message);
+    }
+
+    // ---------------- VERIFY TOKEN ----------------
+    @Operation(
+            summary = "Xác thực token từ email",
+            description = "Người dùng nhấp vào link trong email, backend xác thực token và chuyển hướng tới trang đặt mật khẩu của frontend.",
+            responses = {
+                    @ApiResponse(responseCode = "302", description = "Chuyển hướng thành công đến trang frontend"),
+                    @ApiResponse(responseCode = "400", description = "Token không hợp lệ hoặc đã hết hạn")
+            }
+    )
+    @GetMapping("/verify")
+    public RedirectView verifyAccount(@RequestParam("token") String token) {
+        log.info("[VERIFY] Verifying token");
+        String frontendUrl = authService.verifyAccount(token);
+        log.info("[VERIFY] Redirecting to frontend: {}", frontendUrl);
+        return new RedirectView(frontendUrl);
     }
 }

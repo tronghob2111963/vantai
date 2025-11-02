@@ -22,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import static org.example.ptcmssbackend.common.TokenType.ACCESS_TOKEN;
+import static org.example.ptcmssbackend.common.TokenType.EMAIL_VERIFY_TOKEN;
 import static org.example.ptcmssbackend.common.TokenType.REFRESH_TOKEN;
 
 @Service
@@ -125,5 +126,28 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         final String userName = jwtService.extractUsername(jwt, ACCESS_TOKEN);
         tokenService.delete(userName);
         return "Removed!";
+    }
+
+    @Override
+    public String verifyAccount(String token) {
+        final String frontendSetPasswordUrl = "http://localhost:5173/set-password?token=";
+
+        if (!org.springframework.util.StringUtils.hasLength(token)) {
+            throw new InvalidDataException("Verification token must not be blank");
+        }
+
+        try {
+            // 1. Xác thực token và lấy username
+            String username = jwtService.extractUsername(token, EMAIL_VERIFY_TOKEN);
+
+            // 2. (Quan trọng) Tạo một token mới, ngắn hạn, chỉ dành cho việc đặt mật khẩu
+            // Điều này ngăn người dùng sử dụng lại link xác thực email để đặt lại mật khẩu nhiều lần.
+            String passwordResetToken = jwtService.generatePasswordResetToken(username);
+
+            // 3. Trả về URL của frontend kèm theo token mới
+            return frontendSetPasswordUrl + passwordResetToken;
+        } catch (Exception e) {
+            throw new ForBiddenException("Invalid or expired verification token. " + e.getMessage());
+        }
     }
 }
