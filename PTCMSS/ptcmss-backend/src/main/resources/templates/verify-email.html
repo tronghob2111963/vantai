@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Xác thực tài khoản</title>
+</head>
+<body>
+<h2>Chào <span th:text="${fullName}">Người dùng</span>,</h2>
+
+<p>Bạn đã được tạo tài khoản nhân viên tại hệ thống của chúng tôi.</p>
+
+<p>Vui lòng nhấn vào liên kết dưới đây để kích hoạt tài khoản và thiết lập mật khẩu lần đầu:</p>
+
+<p>
+    <a th:href="${verifyUrl}" target="_blank" style="font-weight:bold;color:#0d6efd;">
+        Xác thực tài khoản ngay
+    </a>
+</p>
+
+<br>
+<p>Nếu bạn không yêu cầu tạo tài khoản, vui lòng bỏ qua email này.</p>
+
+<p>Trân trọng,<br/>Phòng Nhân sự</p>
+</body>
+</html>

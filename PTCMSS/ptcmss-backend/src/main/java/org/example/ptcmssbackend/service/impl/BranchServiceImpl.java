@@ -41,10 +41,9 @@ public class BranchServiceImpl implements BranchService {
         branch.setBranchName(request.getBranchName());
         branch.setLocation(request.getLocation());
         if (request.getManagerId() != null) {
-            Users manager = usersRepository.findById(request.getManagerId())
-                    .orElseThrow(() -> new RuntimeException("Manager not found"));
-            // giả sử Employees thay bằng Users
-            branch.setManager((Employees) (Object) manager);
+            Employees manager = employeeRepository.findByUserId(request.getManagerId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy employee tương ứng với userId: " + request.getManagerId()));
+            branch.setManager(manager);
         }
         branch.setStatus(BranchStatus.ACTIVE);
         branchesRepository.save(branch);

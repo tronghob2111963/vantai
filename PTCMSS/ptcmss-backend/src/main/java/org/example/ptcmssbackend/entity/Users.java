@@ -7,13 +7,17 @@ import lombok.Getter;
 import lombok.Setter;
 import org.example.ptcmssbackend.enums.UserStatus;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 
 @Getter
 @Setter
 @Entity
-public class Users {
+public class Users implements UserDetails {
     @Id
     @Column(name = "userId", nullable = false)
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,8 +59,44 @@ public class Users {
     @Column(name = "status")
     private UserStatus status = UserStatus.ACTIVE;
 
+    @Column(name = "email_verified")
+    private Boolean emailVerified = false;
+
+    @Column(name = "verification_token", length = 64)
+    private String verificationToken;
+
+
     @CreationTimestamp
     @Column(name = "createdAt")
     private Instant createdAt;
 
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of((GrantedAuthority) () -> "ROLE_" + role.getRoleName());
+    }
+
+    @Override
+    public String getPassword() {
+        return passwordHash;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return UserDetails.super.isAccountNonExpired();
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return UserDetails.super.isAccountNonLocked();
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return UserDetails.super.isCredentialsNonExpired();
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return UserDetails.super.isEnabled();
+    }
 }

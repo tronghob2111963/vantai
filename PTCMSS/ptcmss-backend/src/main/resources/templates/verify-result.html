@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Kết quả xác thực</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; }
+        .container { border: 1px solid #ddd; padding: 40px; border-radius: 10px; width: 400px; margin: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        a.btn { display: inline-block; padding: 10px 20px; margin-top: 20px;
+            background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2 th:text="${message}"></h2>
+
+    <div th:if="${token != null}">
+        <a class="btn" th:href="@{'/set-password?token=' + ${token}}">Thiết lập mật khẩu</a>
+    </div>
+</div>
+</body>
+</html>

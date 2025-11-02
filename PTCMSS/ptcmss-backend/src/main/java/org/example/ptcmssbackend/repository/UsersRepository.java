@@ -15,4 +15,8 @@ public interface UsersRepository extends JpaRepository<Users, Integer> {
 
     List<Users> findByRole_Id(Integer roleId);
     List<Users> findByStatus(UserStatus status);
+
+    Optional<Users> findByVerificationToken(String token);
+
+
 }
