@@ -26,29 +26,3 @@ public class VerificationController {
     }
 }
 
-//package org.example.ptcmssbackend.controller;
-//
-//import lombok.RequiredArgsConstructor;
-//import lombok.extern.slf4j.Slf4j;
-//import org.example.ptcmssbackend.service.VerificationService;
-//import org.springframework.stereotype.Controller;
-//import org.springframework.ui.Model;
-//import org.springframework.web.bind.annotation.GetMapping;
-//import org.springframework.web.bind.annotation.RequestParam;
-//import org.springframework.web.bind.annotation.RestController;
-//
-//@Slf4j(topic = "VERIFICATION_CONTROLLER")
-//@RestController("/api/verification")
-//@RequiredArgsConstructor
-//public class VerificationController {
-//
-//    private final VerificationService verificationService;
-//
-//    @GetMapping("/verify")
-//    public String verify(@RequestParam("token") String token, Model model) {
-//        String message = verificationService.verifyAccount(token);
-//        model.addAttribute("message", message);
-//        model.addAttribute("token", token);
-//        return "verify-result";
-//    }
-//}

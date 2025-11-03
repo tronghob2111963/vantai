@@ -1,4 +1,5 @@
 package org.example.ptcmssbackend.config;
+
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -10,16 +11,17 @@ import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 
 import java.util.List;
+
+@Configuration
 public class OpenApiConfig {
 
     @Bean
     public GroupedOpenApi publicApi(@Value("${openapi.service.api-docs}") String apiDocs) {
         return GroupedOpenApi.builder()
                 .group(apiDocs)
-                .packagesToScan("com.trong.Computer_sell.controller")
+                .packagesToScan("org.example.ptcmssbackend.controller") // chỉnh đúng package controller của bạn
                 .build();
     }
 
@@ -28,22 +30,26 @@ public class OpenApiConfig {
             @Value("${openapi.service.title}") String title,
             @Value("${openapi.service.version}") String version,
             @Value("${openapi.service.server}") String serverUrl) {
+
         final String securitySchemeName = "bearerAuth";
+
         return new OpenAPI()
                 .servers(List.of(new Server().url(serverUrl)))
-                .components(
-                        new Components()
-                                .addSecuritySchemes(
-                                        securitySchemeName,
-                                        new SecurityScheme()
-                                                .type(SecurityScheme.Type.HTTP)
-                                                .scheme("bearer")
-                                                .bearerFormat("JWT")))
-                .security(List.of(new SecurityRequirement().addList(securitySchemeName)))
-                .info(new Info().title(title)
-                        .description("API documents for Transport Application")
+                .components(new Components()
+                        .addSecuritySchemes(securitySchemeName,
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .in(SecurityScheme.In.HEADER)
+                                        .name("Authorization")
+                        )
+                )
+                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+                .info(new Info()
+                        .title(title)
+                        .description("API documents for Transport Management System")
                         .version(version)
                         .license(new License().name("Apache 2.0").url("http://springdoc.org")));
     }
-
 }

@@ -17,6 +17,7 @@ import org.example.ptcmssbackend.enums.UserStatus;
 import org.example.ptcmssbackend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -43,6 +44,7 @@ public class UserController {
 
     @Operation(summary = "Cập nhật người dùng", description = "Cập nhật thông tin người dùng (dành cho Admin hoặc chính người đó).")
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseData<?> updateUser(
             @Parameter(description = "ID người dùng") @PathVariable Integer id,
             @RequestBody UpdateUserRequest request) {
@@ -55,6 +57,7 @@ public class UserController {
 
     @Operation(summary = "Lấy danh sách người dùng", description = "Lọc theo từ khóa, vai trò, trạng thái.")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseData<List<UserResponse>> getAllUsers(
             @Parameter(description = "Từ khóa tìm kiếm (tên hoặc email)") @RequestParam(required = false) String keyword,
             @Parameter(description = "ID vai trò") @RequestParam(required = false) Integer roleId,
@@ -68,6 +71,7 @@ public class UserController {
 
     @Operation(summary = "Xem chi tiết người dùng", description = "Lấy thông tin chi tiết của 1 người dùng.")
     @GetMapping("/{id}")
+
     public ResponseData<?> getUserById(@Parameter(description = "ID người dùng") @PathVariable Integer id) {
        try{
            return new ResponseData<>(HttpStatus.OK.value(), "Get user by id successfully", userService.getUserById(id));

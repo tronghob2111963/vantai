@@ -78,6 +78,20 @@ public class JwtServiceImpl implements JwtService {
         return extractClaim(tokenType, token, Claims::getSubject);
     }
 
+    @Override
+    public String generatePasswordResetToken(String username) {
+        log.info("Generating password reset token for user: {}", username);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("username", username);
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expriMinutes * 60 * 1000))
+                .signWith(getSecretKey(ACCESS_TOKEN), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     private <T> T extractClaim(TokenType type, String token, Function<Claims, T> claimsExtractor) {
         final Claims claims = extractAllClaim(token, type);
         return claimsExtractor.apply(claims);

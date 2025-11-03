@@ -12,6 +12,7 @@ import org.example.ptcmssbackend.entity.Branches;
 import org.example.ptcmssbackend.service.BranchService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.List;
 @RequestMapping("/api/branches")
 @RequiredArgsConstructor
 @Tag(name = "Branch Management", description = "Quản lý chi nhánh, thêm - sửa - xem - vô hiệu hóa")
+@PreAuthorize("hasRole('ADMIN')")
 public class BranchController {
 
     private final BranchService branchService;

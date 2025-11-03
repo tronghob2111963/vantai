@@ -10,4 +10,7 @@ public interface JwtService {
     String generateRefreshToken(Integer userId, String username, Collection<? extends GrantedAuthority> authorities);
 
     String extractUsername(String token,  TokenType tokenType);
+
+
+    String generatePasswordResetToken(String username);
 }
