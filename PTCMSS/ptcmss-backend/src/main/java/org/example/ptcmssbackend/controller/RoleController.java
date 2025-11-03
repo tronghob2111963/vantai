@@ -10,6 +10,7 @@ import org.example.ptcmssbackend.entity.Roles;
 import org.example.ptcmssbackend.enums.UserStatus;
 import org.example.ptcmssbackend.service.RoleService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class RoleController {
 
     @Operation(summary = "Tạo vai trò mới", description = "Thêm vai trò mới cho hệ thống.")
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Roles> createRole(@RequestBody CreateRoleRequest request) {
         return ResponseEntity.ok(roleService.createRole(request));
     }
@@ -38,6 +40,7 @@ public class RoleController {
 
     @Operation(summary = "Danh sách vai trò", description = "Lấy danh sách tất cả các vai trò trong hệ thống.")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Roles>> getAllRoles(
             @Parameter(description = "Từ khóa tìm kiếm") @RequestParam(required = false) String keyword,
             @Parameter(description = "Trạng thái vai trò") @RequestParam(required = false) UserStatus status) {
@@ -46,12 +49,14 @@ public class RoleController {
 
     @Operation(summary = "Chi tiết vai trò", description = "Xem thông tin chi tiết của một vai trò.")
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Roles> getRoleById(@Parameter(description = "ID vai trò") @PathVariable Integer id) {
         return ResponseEntity.ok(roleService.getRoleById(id));
     }
 
     @Operation(summary = "Vô hiệu hóa vai trò", description = "Đánh dấu vai trò là INACTIVE.")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteRole(@Parameter(description = "ID vai trò") @PathVariable Integer id) {
         roleService.deleteRole(id);
         return ResponseEntity.ok("Role disabled successfully");

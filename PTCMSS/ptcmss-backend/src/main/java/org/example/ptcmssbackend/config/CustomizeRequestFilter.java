@@ -10,6 +10,7 @@ import org.example.ptcmssbackend.common.TokenType;
 import org.example.ptcmssbackend.service.JwtService;
 import org.example.ptcmssbackend.service.UserServiceDetail;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 
 @Component
 @Slf4j(topic = "CUSTOMIZE_REQUEST_FILTER")
@@ -25,23 +25,18 @@ import java.util.List;
 public class CustomizeRequestFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserServiceDetail userDetailsService;
+    private final UserServiceDetail userServiceDetail;
 
-    // Mở rộng EXCLUDED_PATHS: Thêm verification và password endpoints
-    private static final List<String> EXCLUDED_PATHS = List.of(
-            "/v3/api-docs", "/v3/api-docs/", "/v3/api-docs/swagger-config",
-            "/swagger-ui", "/swagger-ui/", "/swagger-ui/index.html",
-            "/swagger-ui/swagger-ui.css", "/swagger-ui/swagger-ui-bundle.js",
-            "/swagger-ui/swagger-ui-standalone-preset.js", "/swagger-ui/swagger-initializer.js",
-            "/swagger-resources", "/swagger-resources/",
-            "/webjars/", "/webjars/**",
-            "/actuator",
-            "/api/auth/login", "/api/auth/register", "/api/auth/refresh-token",
-            "/api/users",
-            // THÊM MỚI: Verification & Password (bỏ qua JWT)
-            "/verify", "/set-password",
-            "/.well-known/**", "/favicon.ico"
-            );
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/swagger-ui",
+            "/v3/api-docs",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/refresh-token",
+            "/verify",
+            "/set-password"
+    };
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -51,53 +46,54 @@ public class CustomizeRequestFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         log.info("{} {}", request.getMethod(), uri);
 
-        // Bỏ qua Swagger, Actuator và các API public
-        if (isExcluded(uri)) {
-            // Xử lý OPTIONS preflight cho excluded paths (trả 200 để browser pass)
-            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-                response.setStatus(HttpServletResponse.SC_OK);
-                return;
-            }
+        // Thêm CORS header cho tất cả request
+        setCorsHeaders(response);
+
+        // Bỏ qua preflight OPTIONS request
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
+        // Bỏ qua các endpoint công khai
+        if (isPublicEndpoint(uri)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Xử lý OPTIONS preflight cho non-excluded (CORS)
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            setCorsHeaders(request, response);
+        // Kiểm tra Authorization header
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
             return;
         }
 
-        // Set CORS headers cho các request khác
-        setCorsHeaders(request, response);
+        String token = authHeader.substring(7);
+        try {
+            String username = jwtService.extractUsername(token, TokenType.ACCESS_TOKEN);
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userServiceDetail.loadUserByUsername(username);
 
-        // Xử lý JWT cho non-excluded
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            try {
-                String username = jwtService.extractUsername(token, TokenType.ACCESS_TOKEN);
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
-            } catch (Exception e) {
-                log.error("Lỗi xác thực token: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
-                return;
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                SecurityContext context = SecurityContextHolder.createEmptyContext();
+                context.setAuthentication(authentication);
+                SecurityContextHolder.setContext(context);
             }
+        } catch (Exception e) {
+            log.error("JWT validation error: {}", e.getMessage());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+            return;
         }
 
         filterChain.doFilter(request, response);
     }
 
-    // Tách riêng method set CORS để tránh set cho excluded paths
-    private void setCorsHeaders(HttpServletRequest request, HttpServletResponse response) {
+    private void setCorsHeaders(HttpServletResponse response) {
         response.setHeader("Access-Control-Allow-Origin", "http://localhost:4200");
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
@@ -105,8 +101,11 @@ public class CustomizeRequestFilter extends OncePerRequestFilter {
         response.setHeader("Access-Control-Max-Age", "3600");
     }
 
-    private boolean isExcluded(String uri) {
-        return EXCLUDED_PATHS.stream().anyMatch(excluded ->
-                uri.startsWith(excluded) || excluded.startsWith(uri)); // Cải thiện match (hai chiều cho exact)
+    private boolean isPublicEndpoint(String uri) {
+        for (String path : PUBLIC_ENDPOINTS) {
+            if (uri.startsWith(path)) return true;
+        }
+        return false;
     }
 }
+

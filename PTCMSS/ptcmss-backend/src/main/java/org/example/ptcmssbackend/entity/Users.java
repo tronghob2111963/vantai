@@ -8,23 +8,27 @@ import lombok.Setter;
 import org.example.ptcmssbackend.enums.UserStatus;
 import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
 
 @Getter
 @Setter
 @Entity
+@Table(name = "users")
 public class Users implements UserDetails {
+
     @Id
-    @Column(name = "userId", nullable = false)
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "userId", nullable = false)
     private Integer id;
 
+    // ✅ Load luôn role để tránh LazyInitializationException khi Spring Security gọi getAuthorities()
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "roleId", nullable = false)
     private Roles role;
 
@@ -35,7 +39,7 @@ public class Users implements UserDetails {
 
     @Size(max = 50)
     @NotNull
-    @Column(name = "username", nullable = false, length = 50)
+    @Column(name = "username", nullable = false, length = 50, unique = true)
     private String username;
 
     @Size(max = 255)
@@ -56,7 +60,7 @@ public class Users implements UserDetails {
     private String address;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "status", length = 20)
     private UserStatus status = UserStatus.ACTIVE;
 
     @Column(name = "email_verified")
@@ -65,14 +69,19 @@ public class Users implements UserDetails {
     @Column(name = "verification_token", length = 64)
     private String verificationToken;
 
-
     @CreationTimestamp
-    @Column(name = "createdAt")
+    @Column(name = "createdAt", updatable = false)
     private Instant createdAt;
+
+    // ================================================================
+    //  Spring Security UserDetails implementation
+    // ================================================================
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of((GrantedAuthority) () -> "ROLE_" + role.getRoleName());
+        // ✅ Role sẽ luôn được load (EAGER), không còn lỗi "no Session"
+        String roleName = role != null ? role.getRoleName().toUpperCase() : "USER";
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
     }
 
     @Override
@@ -81,22 +90,27 @@ public class Users implements UserDetails {
     }
 
     @Override
+    public String getUsername() {
+        return username;
+    }
+
+    @Override
     public boolean isAccountNonExpired() {
-        return UserDetails.super.isAccountNonExpired();
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return UserDetails.super.isAccountNonLocked();
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return UserDetails.super.isCredentialsNonExpired();
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return UserDetails.super.isEnabled();
+        return status == UserStatus.ACTIVE;
     }
 }

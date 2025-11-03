@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.LoginRequest;
 import org.example.ptcmssbackend.dto.response.TokenResponse;
 import org.example.ptcmssbackend.service.AuthenticationService;
+import org.example.ptcmssbackend.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.servlet.view.RedirectView;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthenticationService authService;
+
 
     // ---------------- LOGIN ----------------
     @Operation(

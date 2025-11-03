@@ -3,7 +3,6 @@ package org.example.ptcmssbackend.config;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
@@ -21,35 +20,32 @@ public class OpenApiConfig {
     public GroupedOpenApi publicApi(@Value("${openapi.service.api-docs}") String apiDocs) {
         return GroupedOpenApi.builder()
                 .group(apiDocs)
-                .packagesToScan("org.example.ptcmssbackend.controller") // chỉnh đúng package controller của bạn
+                .packagesToScan("org.example.ptcmssbackend.controller")
                 .build();
     }
 
     @Bean
-    public OpenAPI openAPI(
+    public OpenAPI customOpenAPI(
             @Value("${openapi.service.title}") String title,
             @Value("${openapi.service.version}") String version,
             @Value("${openapi.service.server}") String serverUrl) {
 
-        final String securitySchemeName = "bearerAuth";
+        final String securitySchemeName = "Bearer Authentication";
 
         return new OpenAPI()
-                .servers(List.of(new Server().url(serverUrl)))
+                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,
                                 new SecurityScheme()
+                                        .name("Authorization")
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
-                                        .in(SecurityScheme.In.HEADER)
-                                        .name("Authorization")
-                        )
-                )
-                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+                                        .in(SecurityScheme.In.HEADER)))
+                .servers(List.of(new Server().url(serverUrl)))
                 .info(new Info()
                         .title(title)
-                        .description("API documents for Transport Management System")
                         .version(version)
-                        .license(new License().name("Apache 2.0").url("http://springdoc.org")));
+                        .description("API documentation for Transport Management System"));
     }
 }
