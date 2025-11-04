@@ -26,7 +26,7 @@ public class Users implements UserDetails {
     @Column(name = "userId", nullable = false)
     private Integer id;
 
-    // ✅ Load luôn role để tránh LazyInitializationException khi Spring Security gọi getAuthorities()
+    //  Load luôn role để tránh LazyInitializationException khi Spring Security gọi getAuthorities()
     @NotNull
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "roleId", nullable = false)
@@ -72,6 +72,8 @@ public class Users implements UserDetails {
     @CreationTimestamp
     @Column(name = "createdAt", updatable = false)
     private Instant createdAt;
+
+
 
     // ================================================================
     //  Spring Security UserDetails implementation

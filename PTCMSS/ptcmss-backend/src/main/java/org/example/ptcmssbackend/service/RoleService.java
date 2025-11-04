@@ -1,7 +1,7 @@
 package org.example.ptcmssbackend.service;
 
-import org.example.ptcmssbackend.dto.request.CreateRoleRequest;
-import org.example.ptcmssbackend.dto.request.UpdateRoleRequest;
+import org.example.ptcmssbackend.dto.request.Role.CreateRoleRequest;
+import org.example.ptcmssbackend.dto.request.Role.UpdateRoleRequest;
 import org.example.ptcmssbackend.entity.Roles;
 import org.example.ptcmssbackend.enums.UserStatus;
 

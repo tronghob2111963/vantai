@@ -1,8 +1,8 @@
 package org.example.ptcmssbackend.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.ptcmssbackend.dto.request.CreateUserRequest;
-import org.example.ptcmssbackend.dto.request.UpdateUserRequest;
+import org.example.ptcmssbackend.dto.request.User.CreateUserRequest;
+import org.example.ptcmssbackend.dto.request.User.UpdateUserRequest;
 import org.example.ptcmssbackend.dto.response.UserResponse;
 import org.example.ptcmssbackend.entity.Roles;
 import org.example.ptcmssbackend.entity.Users;
@@ -127,8 +127,8 @@ public class UserServiceImpl implements UserService {
 //package org.example.ptcmssbackend.service.impl;
 //
 //import lombok.RequiredArgsConstructor;
-//import org.example.ptcmssbackend.dto.request.CreateUserRequest;
-//import org.example.ptcmssbackend.dto.request.UpdateUserRequest;
+//import org.example.ptcmssbackend.dto.request.User.CreateUserRequest;
+//import org.example.ptcmssbackend.dto.request.User.UpdateUserRequest;
 //import org.example.ptcmssbackend.dto.response.UserResponse;
 //import org.example.ptcmssbackend.entity.Roles;
 //import org.example.ptcmssbackend.entity.Users;

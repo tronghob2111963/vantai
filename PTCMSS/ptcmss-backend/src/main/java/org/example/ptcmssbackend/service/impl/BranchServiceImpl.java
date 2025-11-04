@@ -2,13 +2,12 @@ package org.example.ptcmssbackend.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ptcmssbackend.dto.request.CreateBranchRequest;
-import org.example.ptcmssbackend.dto.request.UpdateBranchRequest;
+import org.example.ptcmssbackend.dto.request.Branch.CreateBranchRequest;
+import org.example.ptcmssbackend.dto.request.Branch.UpdateBranchRequest;
 import org.example.ptcmssbackend.dto.response.BranchResponse;
 import org.example.ptcmssbackend.dto.response.common.PageResponse;
 import org.example.ptcmssbackend.entity.Branches;
 import org.example.ptcmssbackend.entity.Employees;
-import org.example.ptcmssbackend.entity.Users;
 import org.example.ptcmssbackend.enums.BranchStatus;
 import org.example.ptcmssbackend.repository.BranchesRepository;
 import org.example.ptcmssbackend.repository.EmployeeRepository;
