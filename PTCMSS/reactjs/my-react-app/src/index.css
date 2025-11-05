@@ -1,0 +1,9 @@
+/* Cách A - v4 style */
+@import "tailwindcss";
+
+/* -- hoặc -- */
+
+/* Cách B - v3 style (v4 vẫn hỗ trợ) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

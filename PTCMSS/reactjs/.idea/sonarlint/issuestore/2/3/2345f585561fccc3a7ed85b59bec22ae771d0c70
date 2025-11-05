@@ -1,0 +1,16 @@
+
+Hjavascript:S6774#"%'open' is missing in props validation(‰ÒĞ8éÆµ®¡3
+Ijavascript:S6774#"&'order' is missing in props validation(‰ÒĞ8éÆµ®¡3
+Kjavascript:S6774#"('onClose' is missing in props validation(‰ÒĞ8éÆµ®¡3
+Njavascript:S6774#"+'onAssigned' is missing in props validation(‰ÒĞ8éÆµ®¡3
+Ljavascript:S6774.")'order.id' is missing in props validation(•ÌºÊ8éÆµ®¡3
+ìjavascript:S6848"ÂAvoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element.(ÍŞËòúÿÿÿÿ8øÆµ®¡3
+ˆjavascript:S1082"_Visible, non-interactive elements with click handlers must have at least one keyboard listener.(ÍŞËòúÿÿÿÿ8øÆµ®¡3
+ìjavascript:S6848‘"ÂAvoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element.(‘·Ó‚şÿÿÿÿ8øÆµ®¡3
+ˆjavascript:S1082‘"_Visible, non-interactive elements with click handlers must have at least one keyboard listener.(‘·Ó‚şÿÿÿÿ8øÆµ®¡3
+[javascript:S6774¡"2'order.pickup_time' is missing in props validation(¤¼àîÿÿÿÿÿ8øÆµ®¡3
+\javascript:S6774¦"3'order.vehicle_type' is missing in props validation(²Î¦Èøÿÿÿÿ8øÆµ®¡3
+[javascript:S6774«"2'order.branch_name' is missing in props validation(¡õŒ–şÿÿÿÿ8øÆµ®¡3
+mjavascript:S3358º"DExtract this nested ternary operation into an independent statement.(ïğÙ‡şÿÿÿÿ8øÆµ®¡3
+vjavascript:S6847Á"RNon-interactive elements should not be assigned mouse or keyboard event listeners.(şëÄ¹8øÆµ®¡3
+ƒjavascript:S1082Á"_Visible, non-interactive elements with click handlers must have at least one keyboard listener.(şëÄ¹8øÆµ®¡3
