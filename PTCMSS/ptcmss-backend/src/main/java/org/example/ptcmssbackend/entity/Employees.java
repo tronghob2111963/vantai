@@ -32,6 +32,7 @@ public class Employees {
     @JoinColumn(name = "roleId", nullable = false)
     private Roles role;
 
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private EmployeeStatus status= EmployeeStatus.ACTIVE;

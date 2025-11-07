@@ -16,9 +16,11 @@ import org.example.ptcmssbackend.entity.Users;
 import org.example.ptcmssbackend.enums.UserStatus;
 import org.example.ptcmssbackend.service.UserService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -34,14 +36,14 @@ public class UserController {
     @ApiResponse(responseCode = "200", description = "Tạo thành công",
             content = @Content(schema = @Schema(implementation = Users.class)))
     @PostMapping("/register")
-    @PreAuthorize("hasRole('ADMIN')") // ✅ Chỉ admin mới được tạo user
+    @PreAuthorize("hasRole('ADMIN')") //  Chỉ admin mới được tạo user
     public ResponseData<?> createUser(@RequestBody CreateUserRequest request) {
         return new ResponseData<>(HttpStatus.OK.value(), "Create user successfully", userService.createUser(request));
     }
 
     @Operation(summary = "Cập nhật người dùng", description = "Cập nhật thông tin người dùng (dành cho Admin hoặc chính người đó).")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id") // ✅ Cho phép admin hoặc chính user đó
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id") //  Cho phép admin hoặc chính user đó
     public ResponseData<?> updateUser(
             @Parameter(description = "ID người dùng") @PathVariable Integer id,
             @RequestBody UpdateUserRequest request) {
@@ -75,6 +77,32 @@ public class UserController {
             @Parameter(description = "ID người dùng") @PathVariable Integer id) {
         userService.toggleUserStatus(id);
         return ResponseEntity.ok("User status updated successfully");
+    }
+
+    // ------------------- Upload Avatar -------------------
+
+    @Operation(
+            summary = "Cập nhật ảnh đại diện người dùng",
+            description = "Người dùng hoặc Admin có thể tải lên ảnh đại diện mới",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Cập nhật ảnh thành công"),
+                    @ApiResponse(responseCode = "404", description = "Không tìm thấy người dùng")
+            }
+    )
+    @PostMapping(
+            value = "/{id}/avatar",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+    public ResponseEntity<ResponseData<String>> uploadAvatar(
+            @PathVariable Integer id,
+            @Parameter(description = "File ảnh cần upload", required = true)
+            @RequestParam("file") MultipartFile file) {
+
+        String imageUrl = userService.updateAvatar(id, file);
+        return ResponseEntity.ok(
+                new ResponseData<>(HttpStatus.OK.value(), "Avatar updated successfully", imageUrl)
+        );
     }
 }
 

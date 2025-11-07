@@ -2,6 +2,7 @@ package org.example.ptcmssbackend.service.impl;
 
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.Auth.LoginRequest;
@@ -79,6 +80,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return TokenResponse.builder()
                 .AccessToken(accessToken)
                 .RefreshToken(refreshToken)
+                .userId(user.getId())
                 .username(user.getUsername())
                 .roleName(user.getRole().getRoleName())
                 .build();
@@ -117,13 +119,46 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public String removeToken(HttpServletRequest request) {
         log.info("---------- removeToken ----------");
 
-        final String token = request.getHeader("Authorization");
-        if (StringUtils.isBlank(token)) {
+        // 1) Try Authorization header (case-insensitive)
+        String authHeader = request.getHeader("Authorization");
+        if (!org.springframework.util.StringUtils.hasLength(authHeader)) {
+            authHeader = request.getHeader("authorization");
+        }
+
+        String jwt = null;
+        if (org.springframework.util.StringUtils.hasLength(authHeader)) {
+            jwt = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader.trim();
+        }
+
+        // 2) Fallback to cookie "accessToken"
+        if (!org.springframework.util.StringUtils.hasLength(jwt)) {
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie c : cookies) {
+                    if ("accessToken".equals(c.getName())) {
+                        jwt = c.getValue();
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3) Fallback to request parameter
+        if (!org.springframework.util.StringUtils.hasLength(jwt)) {
+            jwt = request.getParameter("accessToken");
+        }
+
+        if (!org.springframework.util.StringUtils.hasLength(jwt)) {
             throw new InvalidDataException("Token must not be blank");
         }
 
-        final String jwt = token.replace("Bearer ", "");
-        final String userName = jwtService.extractUsername(jwt, ACCESS_TOKEN);
+        String userName;
+        try {
+            userName = jwtService.extractUsername(jwt, ACCESS_TOKEN);
+        } catch (Exception ex) {
+            log.error("[LOGOUT] ACCESS token invalid signature. Trying REFRESH. cause: {}", ex.getMessage());
+            userName = jwtService.extractUsername(jwt, REFRESH_TOKEN);
+        }
         tokenService.delete(userName);
         return "Removed!";
     }

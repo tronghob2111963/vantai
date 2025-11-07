@@ -1,0 +1,668 @@
+﻿import React from "react";
+import {
+    Routes,
+    Route,
+    Navigate,
+    NavLink,
+    Outlet,
+} from "react-router-dom";
+
+import {
+    Settings,
+    Users,
+    CarFront,
+    ClipboardList,
+    CalendarClock,
+    DollarSign,
+    BarChart3,
+    ChevronRight,
+    ChevronDown,
+    Bell,
+    Search,
+} from "lucide-react";
+import { logout as apiLogout } from "./api/auth";
+
+/* ========= IMPORT CÁC PAGE ========= */
+/* Module 1 – Quản trị hệ thống */
+import SystemSettingsPage from "./components/module 1/SystemSettingsPage.jsx";
+import CreateBranchPage from "./components/module 1/CreateBranchPage.jsx";
+import AdminBranchesPage from "./components/module 1/AdminBranchesPage.jsx";
+import AdminBranchDetailPage from "./components/module 1/AdminBranchDetailPage.jsx";
+import AdminCreateUserPage from "./components/module 1/AdminCreateUserPage.jsx";
+import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
+import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
+import UpdateProfilePage from "./components/module 1/UpdateProfilePage.jsx";
+import LoginPage from "./components/module 1/LoginPage.jsx";
+
+/* Module 2 – Tài xế */
+import DriverDashboard from "./components/module 2/DriverDashboard.jsx";
+import DriverNotificationsPage from "./components/module 2/DriverNotificationsPage.jsx";
+import DriverProfilePage from "./components/module 2/DriverProfilePage.jsx";
+import DriverSchedulePage from "./components/module 2/DriverSchedulePage.jsx";
+import DriverLeaveRequestPage from "./components/module 2/DriverLeaveRequestPage.jsx";
+import DriverTripDetailPage from "./components/module 2/DriverTripDetailPage.jsx";
+
+/* Module 3 – Phương tiện */
+import VehicleCategoryPage from "./components/module 3/VehicleCategoryPage.jsx";
+import VehicleCategoryManagePage from "./components/module 3/VehicleCategoryManagePage.jsx";
+import VehicleCreatePage from "./components/module 3/VehicleCreatePage.jsx";
+import VehicleListPage from "./components/module 3/VehicleListPage.jsx";
+import VehicleDetailPage from "./components/module 3/VehicleDetailPage.jsx";
+
+/* Module 4 – Báo giá & Đơn hàng */
+import ConsultantDashboardPage from "./components/module 4/ConsultantDashboardPage.jsx";
+import CreateOrderPage from "./components/module 4/CreateOrderPage.jsx";
+import ConsultantOrderListPage from "./components/module 4/ConsultantOrderListPage.jsx";
+import OrderDetailPage from "./components/module 4/OrderDetailPage.jsx";
+import EditOrderPage from "./components/module 4/EditOrderPage.jsx";
+
+/* Module 5 – Điều phối / Lịch chạy */
+import CoordinatorTimelinePro from "./components/module 5/CoordinatorTimelinePro.jsx";
+import ExpenseRequestForm from "./components/module 5/ExpenseRequestForm.jsx";
+import NotificationsWidget from "./components/module 5/NotificationsWidget.jsx";
+
+/* DemoAssign – mở AssignDriverDialog */
+import DemoAssign from "./DemoAssign.jsx";
+
+/* Module 6 – Kế toán & Thanh toán */
+import AccountantDashboard from "./components/module 6/AccountantDashboard.jsx";
+import InvoiceManagement from "./components/module 6/InvoiceManagement.jsx";
+import ExpenseReportPage from "./components/module 6/ExpenseReportPage.jsx";
+import ReportRevenuePage from "./components/module 6/ReportRevenuePage.jsx";
+
+/* Module 7 – Báo cáo & Phân tích */
+import AdminDashboardPro from "./components/module 7/AdminDashboard.jsx";
+import ManagerDashboardPro from "./components/module 7/ManagerDashboard.jsx";
+
+/* ---------------------------------------------------
+   SidebarSection (controlled)
+   - KHÃ”NG cÃ²n useState tá»± má»Ÿ/táº¯t
+   - Nháº­n activeSection + setActiveSection tá»« SidebarNav
+   - Má»—i section cÃ³ sectionId duy nháº¥t
+   - Item active cÃ³ viá»n Tài xế + ná»n xanh nháº¡t
+--------------------------------------------------- */
+function SidebarSection({
+                            sectionId,
+                            icon,
+                            label,
+                            items,
+                            activeSection,
+                            setActiveSection,
+                        }) {
+    const open = activeSection === sectionId;
+
+    const handleToggle = () => {
+        setActiveSection((curr) =>
+            curr === sectionId ? "" : sectionId
+        );
+    };
+
+    return (
+        <div className="text-[13px] text-slate-700">
+            {/* header group */}
+            <button
+                type="button"
+                onClick={handleToggle}
+                className="w-full flex items-center justify-between rounded-md px-3 py-2
+                           text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+                <span className="flex items-center gap-2">
+                    {React.createElement(icon, {
+                        className: "h-4 w-4 text-sky-600",
+                    })}
+                    <span className="font-medium leading-none text-slate-800">
+                        {label}
+                    </span>
+                </span>
+
+                {open ? (
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                ) : (
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                )}
+            </button>
+
+            {/* submenu */}
+            {open && (
+                <ul className="mt-1 mb-3 ml-2 flex flex-col border-l border-slate-200">
+                    {items.map((item) => (
+                        <li key={item.to}>
+                            <NavLink
+                                to={item.to}
+                                className={({ isActive }) => {
+                                    const base =
+                                        "relative flex items-center justify-between pl-3 pr-3 py-2 text-[12px] rounded-md transition-colors border border-transparent";
+                                    if (isActive) {
+                                        return [
+                                            base,
+                                            "bg-sky-50 text-sky-700 border-sky-200 font-medium",
+                                            "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-sky-600 before:rounded-r",
+                                        ].join(" ");
+                                    }
+                                    return [
+                                        base,
+                                        "text-slate-600 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-200",
+                                    ].join(" ");
+                                }}
+                            >
+                                <span className="truncate">
+                                    {item.label}
+                                </span>
+                                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                            </NavLink>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+/* ---------------------------------------------------
+   SidebarNav
+   - ná»n tráº¯ng
+   - border pháº£i xÃ¡m nháº¡t
+   - header app vá»›i chip mÃ u sky-600
+   - QUAN TRá»ŒNG: quáº£n lÃ½ state má»Ÿ/Ä‘Ã³ng cho toÃ n bá»™ sidebar
+--------------------------------------------------- */
+function SidebarNav() {
+    // section Ä‘ang má»Ÿ. cho "admin" má»Ÿ máº·c Ä‘á»‹nh
+    const [activeSection, setActiveSection] = React.useState("admin");
+
+    return (
+        <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
+            {/* brand / account mini */}
+            <div className="px-4 py-4 border-b border-slate-200 flex items-start gap-2">
+                <div className="h-9 w-9 rounded-md bg-sky-600 flex items-center justify-center text-white font-semibold text-sm shadow-[0_8px_24px_rgba(2,132,199,.35)]">
+                    TM
+                </div>
+                <div className="flex flex-col leading-tight">
+                    <div className="text-slate-900 font-semibold text-sm">
+                        TranspoManager
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                        báº£n thá»­ nghiá»‡m ná»™i bá»™
+                    </div>
+                </div>
+            </div>
+
+            {/* groups */}
+            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-sm">
+                {/* Quản trị hệ thốngng */}
+                <SidebarSection
+                    sectionId="admin"
+                    icon={Settings}
+                    label="Quản trị hệ thốngng"
+                    activeSection={activeSection}
+                    setActiveSection={setActiveSection}
+                    items={[
+                        {
+                            label: "Cáº¥u hÃ¬nh há»‡ thá»‘ng",
+                            to: "/admin/settings",
+                        },
+                        {
+                            label: "Danh sÃ¡ch chi nhÃ¡nh",
+                            to: "/admin/branches",
+                        },
+                        {
+                            label: "Táº¡o chi nhÃ¡nh",
+                            to: "/admin/branches/new",
+                        },
+                        {
+                            label: "Quáº£n lÃ½ chi nhÃ¡nh",
+                            to: "/admin/managers",
+                        },
+                        {
+                            label: "Táº¡o tÃ i khoáº£n",
+                            to: "/admin/users/new",
+                        },
+                        {
+                            label: "Chi tiáº¿t tÃ i khoáº£n (demo)",
+                            to: "/admin/users/123",
+                        },
+                        {
+                            label: "Há»“ sÆ¡ cÃ¡ nhÃ¢n",
+                            to: "/me/profile",
+                        },
+                    ]}
+                />
+
+                {/* TÃ i xáº¿ */}
+                <SidebarSection
+                    sectionId="driver"
+                    icon={Users}
+                    label="TÃ i xáº¿"
+                    activeSection={activeSection}
+                    setActiveSection={setActiveSection}
+                    items={[
+                        {
+                            label: "Báº£ng Ä‘iá»u khiá»ƒn tÃ i xáº¿",
+                            to: "/driver/dashboard",
+                        },
+                        {
+                            label: "ThÃ´ng bÃ¡o",
+                            to: "/driver/notifications",
+                        },
+                        {
+                            label: "Lá»‹ch lÃ m viá»‡c",
+                            to: "/driver/schedule",
+                        },
+                        {
+                            label: "Xin nghá»‰ phÃ©p",
+                            to: "/driver/leave-request",
+                        },
+                        {
+                            label: "Há»“ sÆ¡ tÃ i xáº¿",
+                            to: "/driver/profile",
+                        },
+                        {
+                            label: "Chi tiáº¿t chuyáº¿n (demo)",
+                            to: "/driver/trips/123",
+                        },
+                    ]}
+                />
+
+                {/* PhÆ°Æ¡ng tiá»‡n */}
+                <SidebarSection
+                    sectionId="vehicle"
+                    icon={CarFront}
+                    label="PhÆ°Æ¡ng tiá»‡n"
+                    activeSection={activeSection}
+                    setActiveSection={setActiveSection}
+                    items={[
+                        {
+                            label: "Danh sÃ¡ch xe",
+                            to: "/vehicles",
+                        },
+                        {
+                            label: "Tạo xe mới",
+                            to: "/vehicles/new",
+                        },
+                        {
+                            label: "Danh mục xe",
+                            to: "/vehicles/categories",
+                        },
+                        {
+                            label: "Tạo danh mục",
+                            to: "/vehicles/categories/new",
+                        },
+                        {
+                            label: "Chi tiết xe",
+                            to: "/vehicles/1",
+                        },
+                    ]}
+                />
+
+                {/* BÃ¡o giÃ¡ & ÄÆ¡n hÃ ng */}
+                <SidebarSection
+                    sectionId="orders"
+                    icon={ClipboardList}
+                    label="BÃ¡o giÃ¡ & ÄÆ¡n hÃ ng"
+                    activeSection={activeSection}
+                    setActiveSection={setActiveSection}
+                    items={[
+                        {
+                            label: "Báº£ng CSKH / BÃ¡o giÃ¡",
+                            to: "/orders/dashboard",
+                        },
+                        {
+                            label: "Danh sÃ¡ch Ä‘Æ¡n hÃ ng",
+                            to: "/orders",
+                        },
+                        {
+                            label: "Táº¡o Ä‘Æ¡n hÃ ng",
+                            to: "/orders/new",
+                        },
+                        {
+                            label: "GÃ¡n tÃ i xáº¿ / Sá»­a Ä‘Æ¡n",
+                            to: "/orders/ABC123/edit",
+                        },
+                        {
+                            label: "Chi tiáº¿t Ä‘Æ¡n hÃ ng",
+                            to: "/orders/1",
+                        },
+                    ]}
+                />
+
+                {/* Äiá»u phá»‘i / Lá»‹ch cháº¡y */}
+                <SidebarSection
+                    sectionId="dispatch"
+                    icon={CalendarClock}
+                    label="Äiá»u phá»‘i / Lá»‹ch cháº¡y"
+                    activeSection={activeSection}
+                    setActiveSection={setActiveSection}
+                    items={[
+                        {
+                            label: "Báº£ng Ä‘iá»u phá»‘i",
+                            to: "/dispatch",
+                        },
+                        {
+                            label: "Phiáº¿u táº¡m á»©ng tÃ i xáº¿",
+                            to: "/dispatch/expense-request",
+                        },
+                        {
+                            label: "GÃ¡n tÃ i xáº¿ (demo)",
+                            to: "/dispatch/AssignDriverDialog",
+                        },
+                        {
+                            label: "ThÃ´ng bÃ¡o Ä‘iá»u phá»‘i",
+                            to: "/dispatch/notifications",
+                        },
+                    ]}
+                />
+
+                {/* Káº¿ toÃ¡n & Thanh toÃ¡n */}
+                <SidebarSection
+                    sectionId="accounting"
+                    icon={DollarSign}
+                    label="Káº¿ toÃ¡n & Thanh toÃ¡n"
+                    activeSection={activeSection}
+                    setActiveSection={setActiveSection}
+                    items={[
+                        {
+                            label: "Tá»•ng quan káº¿ toÃ¡n",
+                            to: "/accounting",
+                        },
+                        {
+                            label: "HÃ³a Ä‘Æ¡n / Thanh toÃ¡n",
+                            to: "/accounting/invoices",
+                        },
+                        {
+                            label: "BÃ¡o cÃ¡o chi phÃ­",
+                            to: "/accounting/expenses",
+                        },
+                        {
+                            label: "BÃ¡o cÃ¡o doanh thu",
+                            to: "/accounting/revenue-report",
+                        },
+                    ]}
+                />
+
+                {/* BÃ¡o cÃ¡o & PhÃ¢n tÃ­ch */}
+                <SidebarSection
+                    sectionId="analytics"
+                    icon={BarChart3}
+                    label="BÃ¡o cÃ¡o & PhÃ¢n tÃ­ch"
+                    activeSection={activeSection}
+                    setActiveSection={setActiveSection}
+                    items={[
+                        {
+                            label: "Dashboard CÃ´ng ty",
+                            to: "/analytics/admin",
+                        },
+                        {
+                            label: "Dashboard Chi nhÃ¡nh",
+                            to: "/analytics/manager",
+                        },
+                    ]}
+                />
+            </nav>
+
+            <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500">
+                v0.1 thá»­ nghiá»‡m
+            </div>
+        </aside>
+    );
+}
+
+/* ---------------------------------------------------
+   Topbar
+   - ná»n tráº¯ng
+   - viá»n dÆ°á»›i + bÃ³ng má» nháº¹
+   - search pill ná»n slate-50
+--------------------------------------------------- */
+function Topbar() {
+    const getCookie = (name) => {
+        try {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+        } catch {}
+        return "";
+    };
+    const username = (getCookie("username") || localStorage.getItem("username") || "John Doe");
+    const roleName = (getCookie("roleName") || localStorage.getItem("roleName") || "Quản trị viên");
+    const initials = String(username).trim().split(/\s+/).map(s => s && s[0]).filter(Boolean).slice(0,2).join("").toUpperCase() || "JD";
+    const onLogout = () => { try { apiLogout(); } catch {} window.location.href = "/login"; };
+    return (
+        <header className="flex items-center gap-4 border-b border-slate-200 bg-white px-5 py-3 shadow-sm">
+            {/* search */}
+            <div className="flex-1 max-w-md flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 focus-within:ring-2 focus-within:ring-sky-500/30 focus-within:border-sky-500/40">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                    className="bg-transparent outline-none flex-1 text-slate-700 placeholder:text-slate-400 text-sm"
+                    placeholder="Tìm nhanh..."
+                />
+            </div>
+
+            {/* bell */}
+            <button className="relative rounded-md border border-slate-200 bg-white p-2 hover:border-sky-500/40 hover:bg-sky-50 transition-colors">
+                <Bell className="h-4 w-4 text-sky-600" />
+                <span className="absolute -top-1 -right-1 bg-sky-600 text-[10px] font-semibold text-white rounded-full px-1 leading-none shadow-sm">3</span>
+            </button>
+
+            {/* user chip + logout */}
+            <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm shadow-sm">
+                    <div className="h-8 w-8 rounded-full bg-sky-600 flex items-center justify-center text-[10px] font-medium text-white">{initials}</div>
+                    <div className="hidden sm:flex flex-col leading-tight text-left">
+                        <span className="text-slate-800 text-xs font-medium">{username}</span>
+                        <span className="text-slate-500 text-[10px]">{roleName}</span>
+                    </div>
+                </div>
+                <button onClick={onLogout} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 shadow-sm">Đăng xuất</button>
+            </div>
+        </header>
+    );
+}/* ---------------------------------------------------
+   ShellLayout
+   - ná»n tá»•ng thá»ƒ bg-slate-50
+   - vÃ¹ng content scrollable
+--------------------------------------------------- */
+function ShellLayout() {
+    // Redirect unauthenticated users to login
+    let hasToken = false;
+    try { hasToken = !!localStorage.getItem("access_token"); } catch {}
+    if (!hasToken) {
+        return <Navigate to="/login" replace />;
+    }
+    return (
+        <div className="flex min-h-screen bg-slate-50 text-slate-900">
+            <SidebarNav />
+
+            <div className="flex-1 flex flex-col min-w-0">
+                <Topbar />
+
+                <main className="flex-1 overflow-y-auto p-5">
+                    {/* Ghi chÃº:
+                       Má»™t sá»‘ mÃ n con (vÃ­ dá»¥ dashboard tÃ i xáº¿) hiá»‡n váº«n theme dark.
+                       Sau nÃ y mÃ¬nh cÃ³ thá»ƒ refactor sang ná»n sÃ¡ng thá»‘ng nháº¥t.
+                    */}
+                    <Outlet />
+                </main>
+            </div>
+        </div>
+    );
+}
+
+/* ---------------------------------------------------
+   ROUTES TREE
+--------------------------------------------------- */
+export default function AppLayout() {
+    return (
+        <Routes>
+            {/* Trang Ä‘Äƒng nháº­p khÃ´ng dÃ¹ng shell */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+
+            {/* CÃ¡c route cÃ²n láº¡i dÃ¹ng ShellLayout */}
+            <Route element={<ShellLayout />}>
+                {/* default redirect */}
+                <Route
+                    index
+                    element={<Navigate to="/analytics/admin" replace />}
+                />
+
+                {/* BÃ¡o cÃ¡o & PhÃ¢n tÃ­ch */}
+                <Route
+                    path="/analytics/admin"
+                    element={<AdminDashboardPro />}
+                />
+                <Route
+                    path="/analytics/manager"
+                    element={<ManagerDashboardPro />}
+                />
+
+                {/* Quản trị hệ thốngng */}
+                <Route
+                    path="/admin/settings"
+                    element={<SystemSettingsPage />}
+                />
+                <Route
+                    path="/admin/branches"
+                    element={<AdminBranchesPage />}
+                />
+                <Route
+                    path="/admin/branches/new"
+                    element={<CreateBranchPage />}
+                />
+                <Route
+                    path="/admin/branches/:branchId"
+                    element={<AdminBranchDetailPage />}
+                />
+                <Route
+                    path="/admin/managers"
+                    element={<AdminManagersPage />}
+                />
+                <Route
+                    path="/admin/users/new"
+                    element={<AdminCreateUserPage />}
+                />
+                <Route
+                    path="/admin/users/:userId"
+                    element={<UserDetailPage />}
+                />
+                <Route
+                    path="/me/profile"
+                    element={<UpdateProfilePage />}
+                />
+
+                {/* TÃ i xáº¿ */}
+                <Route
+                    path="/driver/dashboard"
+                    element={<DriverDashboard />}
+                />
+                <Route
+                    path="/driver/notifications"
+                    element={<DriverNotificationsPage />}
+                />
+                <Route
+                    path="/driver/profile"
+                    element={<DriverProfilePage />}
+                />
+                <Route
+                    path="/driver/schedule"
+                    element={<DriverSchedulePage />}
+                />
+                <Route
+                    path="/driver/leave-request"
+                    element={<DriverLeaveRequestPage />}
+                />
+                <Route
+                    path="/driver/trips/:tripId"
+                    element={<DriverTripDetailPage />}
+                />
+
+                {/* PhÆ°Æ¡ng tiá»‡n */}
+                <Route
+                    path="/vehicles"
+                    element={<VehicleListPage />}
+                />
+                <Route
+                    path="/vehicles/new"
+                    element={<VehicleCreatePage />}
+                />
+                <Route
+                    path="/vehicles/:vehicleId"
+                    element={<VehicleDetailPage />}
+                />
+                <Route
+                    path="/vehicles/categories"
+                    element={<VehicleCategoryManagePage />}
+                />
+                <Route
+                    path="/vehicles/categories/new"
+                    element={<VehicleCategoryPage />}
+                />
+
+                {/* BÃ¡o giÃ¡ & ÄÆ¡n hÃ ng */}
+                <Route
+                    path="/orders/dashboard"
+                    element={<ConsultantDashboardPage />}
+                />
+                <Route
+                    path="/orders"
+                    element={<ConsultantOrderListPage />}
+                />
+                <Route
+                    path="/orders/new"
+                    element={<CreateOrderPage />}
+                />
+                <Route
+                    path="/orders/:orderId"
+                    element={<OrderDetailPage />}
+                />
+                <Route
+                    path="/orders/:orderId/edit"
+                    element={<EditOrderPage />}
+                />
+
+                {/* Äiá»u phá»‘i / Lá»‹ch cháº¡y */}
+                <Route
+                    path="/dispatch"
+                    element={<CoordinatorTimelinePro />}
+                />
+                <Route
+                    path="/dispatch/expense-request"
+                    element={<ExpenseRequestForm />}
+                />
+                <Route
+                    path="/dispatch/AssignDriverDialog"
+                    element={<DemoAssign />}
+                />
+                <Route
+                    path="/dispatch/notifications"
+                    element={<NotificationsWidget />}
+                />
+
+                {/* Káº¿ toÃ¡n & Thanh toÃ¡n */}
+                <Route
+                    path="/accounting"
+                    element={<AccountantDashboard />}
+                />
+                <Route
+                    path="/accounting/invoices"
+                    element={<InvoiceManagement />}
+                />
+                <Route
+                    path="/accounting/expenses"
+                    element={<ExpenseReportPage />}
+                />
+                <Route
+                    path="/accounting/revenue-report"
+                    element={<ReportRevenuePage />}
+                />
+            </Route>
+
+            {/* fallback: path láº¡ -> vá» dashboard cÃ´ng ty */}
+            <Route
+                path="*"
+                element={<Navigate to="/analytics/admin" replace />}
+            />
+        </Routes>
+    );
+}
+
+
+
+

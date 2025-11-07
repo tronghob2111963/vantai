@@ -12,6 +12,7 @@ public interface DriverService {
     DriverDashboardResponse getDashboard(Integer driverId);
     List<DriverScheduleResponse> getSchedule(Integer driverId);
     DriverProfileResponse getProfile(Integer driverId);
+    DriverProfileResponse getProfileByUserId(Integer userId);
     DriverProfileResponse updateProfile(Integer driverId, DriverProfileUpdateRequest request);
     DriverDayOffResponse requestDayOff(Integer driverId, DriverDayOffRequest request);
     Integer startTrip(Integer tripId, Integer driverId);

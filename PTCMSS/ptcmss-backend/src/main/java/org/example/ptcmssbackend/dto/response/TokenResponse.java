@@ -14,5 +14,6 @@ public class TokenResponse {
     private String AccessToken;
     private String RefreshToken;
     private String username;
+    private Integer userId;
     private String roleName;
 }

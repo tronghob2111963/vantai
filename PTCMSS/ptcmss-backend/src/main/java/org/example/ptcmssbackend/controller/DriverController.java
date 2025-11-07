@@ -84,6 +84,23 @@ public class DriverController {
         }
     }
 
+    // Endpoint tra cứu theo userId để FE dễ gọi khi chỉ có userId trong phiên
+    @Operation(summary = "Xem hồ sơ theo userId", description = "Dùng khi FE chỉ có userId trong session")
+    @GetMapping("/by-user/{userId}/profile")
+    @PreAuthorize("hasAnyRole('DRIVER', 'MANAGER', 'ADMIN')")
+    public ResponseData<DriverProfileResponse> getDriverProfileByUser(
+            @Parameter(description = "ID user") @PathVariable Integer userId) {
+        try {
+            log.info("Get driver profile by userId successfully");
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Get driver profile by userId successfully",
+                    driverService.getProfileByUserId(userId));
+        } catch (Exception e) {
+            log.error("Get driver profile by userId failed", e);
+            throw new RuntimeException(e);
+        }
+    }
+
     @Operation(summary = "Cập nhật hồ sơ tài xế", description = "Tài xế có thể chỉnh sửa số điện thoại, địa chỉ hoặc ghi chú.")
     @PutMapping("/{driverId}/profile")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','DRIVER')")

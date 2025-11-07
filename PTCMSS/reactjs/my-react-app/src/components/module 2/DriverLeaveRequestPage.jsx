@@ -1,5 +1,7 @@
+import { getCookie } from '../../utils/cookies';
 // src/components/driver/DriverLeaveRequestPage.jsx
 import React from "react";
+import { getDriverProfileByUser, requestDayOff } from "../../api/drivers";
 import {
     Calendar,
     Send,
@@ -102,6 +104,10 @@ export default function DriverLeaveRequestPage() {
         };
 
         try {
+            const uid = getCookie("userId");
+            if (!uid) throw new Error("NO_USER");
+            const profile = await getDriverProfileByUser(uid);
+            await requestDayOff(profile.driverId, { startDate, endDate, reason: reason.trim() });
             await new Promise((r) => setTimeout(r, 500));
 
             push(

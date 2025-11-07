@@ -74,6 +74,16 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    public DriverProfileResponse getProfileByUserId(Integer userId) {
+        log.info("[DriverProfile] Loading profile by userId {}", userId);
+        var employee = employeeRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Employee not found for user"));
+        var driver = driverRepository.findByEmployee_Id(employee.getId())
+                .orElseThrow(() -> new RuntimeException("Driver not found for employee"));
+        return new DriverProfileResponse(driver);
+    }
+
+    @Override
     public DriverProfileResponse updateProfile(Integer driverId, DriverProfileUpdateRequest request) {
         log.info("[DriverProfile] Updating profile for driver {}", driverId);
         var driver = driverRepository.findById(driverId)

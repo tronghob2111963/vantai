@@ -67,6 +67,7 @@ public class BranchServiceImpl implements BranchService {
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy employee tương ứng với userId: " + request.getManagerId()));
             branch.setManager(manager);
         }
+        branchesRepository.save(branch);
         return branch.getId();
     }
 
