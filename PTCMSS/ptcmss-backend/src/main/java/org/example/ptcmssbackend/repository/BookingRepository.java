@@ -19,7 +19,7 @@ public interface BookingRepository extends JpaRepository<Bookings, Integer> {
     List<Bookings> findByStatus(BookingStatus status);
     
     // Tìm booking theo consultant
-    List<Bookings> findByConsultant_EmployeeId(Integer consultantId);
+    List<Bookings> findByConsultant_Id(Integer consultantId);
     
     // Tìm booking theo branch
     List<Bookings> findByBranch_Id(Integer branchId);
@@ -39,7 +39,7 @@ public interface BookingRepository extends JpaRepository<Bookings, Integer> {
     @Query("SELECT b FROM Bookings b WHERE " +
            "(:status IS NULL OR b.status = :status) AND " +
            "(:branchId IS NULL OR b.branch.id = :branchId) AND " +
-           "(:consultantId IS NULL OR b.consultant.employeeId = :consultantId) AND " +
+           "(:consultantId IS NULL OR b.consultant.id = :consultantId) AND " +
            "(:startDate IS NULL OR b.bookingDate >= :startDate) AND " +
            "(:endDate IS NULL OR b.bookingDate <= :endDate) AND " +
            "(:keyword IS NULL OR " +
@@ -59,7 +59,7 @@ public interface BookingRepository extends JpaRepository<Bookings, Integer> {
     // Lấy bookings theo status cho dashboard
     @Query("SELECT COUNT(b) FROM Bookings b WHERE b.status = :status " +
            "AND (:branchId IS NULL OR b.branch.id = :branchId) " +
-           "AND (:consultantId IS NULL OR b.consultant.employeeId = :consultantId)")
+           "AND (:consultantId IS NULL OR b.consultant.id = :consultantId)")
     Long countByStatus(
             @Param("status") BookingStatus status,
             @Param("branchId") Integer branchId,
@@ -69,7 +69,7 @@ public interface BookingRepository extends JpaRepository<Bookings, Integer> {
     // Lấy bookings chờ báo giá (PENDING)
     @Query("SELECT b FROM Bookings b WHERE b.status = 'PENDING' " +
            "AND (:branchId IS NULL OR b.branch.id = :branchId) " +
-           "AND (:consultantId IS NULL OR b.consultant.employeeId = :consultantId) " +
+           "AND (:consultantId IS NULL OR b.consultant.id = :consultantId) " +
            "ORDER BY b.createdAt DESC")
     List<Bookings> findPendingBookings(
             @Param("branchId") Integer branchId,
@@ -79,7 +79,7 @@ public interface BookingRepository extends JpaRepository<Bookings, Integer> {
     // Lấy bookings đã gửi báo giá (CONFIRMED - khách đã đồng ý)
     @Query("SELECT b FROM Bookings b WHERE b.status = 'CONFIRMED' " +
            "AND (:branchId IS NULL OR b.branch.id = :branchId) " +
-           "AND (:consultantId IS NULL OR b.consultant.employeeId = :consultantId) " +
+           "AND (:consultantId IS NULL OR b.consultant.id = :consultantId) " +
            "ORDER BY b.createdAt DESC")
     List<Bookings> findConfirmedBookings(
             @Param("branchId") Integer branchId,

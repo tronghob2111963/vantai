@@ -7,16 +7,20 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.Booking.CreateBookingRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CreateDepositRequest;
 import org.example.ptcmssbackend.dto.request.Booking.UpdateBookingRequest;
 import org.example.ptcmssbackend.dto.response.Booking.BookingListResponse;
 import org.example.ptcmssbackend.dto.response.Booking.BookingResponse;
 import org.example.ptcmssbackend.dto.response.Booking.ConsultantDashboardResponse;
+import org.example.ptcmssbackend.dto.response.Booking.PaymentResponse;
+import org.example.ptcmssbackend.dto.response.Booking.QRCodeResponse;
 import org.example.ptcmssbackend.dto.response.common.ApiResponse;
 import org.example.ptcmssbackend.dto.response.common.PageResponse;
 import org.example.ptcmssbackend.entity.Employees;
 import org.example.ptcmssbackend.entity.Users;
 import org.example.ptcmssbackend.repository.EmployeeRepository;
 import org.example.ptcmssbackend.service.BookingService;
+import org.example.ptcmssbackend.service.PaymentService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +40,7 @@ import java.util.List;
 public class BookingController {
     
     private final BookingService bookingService;
+    private final PaymentService paymentService;
     private final EmployeeRepository employeeRepository;
     
     /**
@@ -123,7 +128,7 @@ public class BookingController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<?>> getAll(
-            @Parameter(description = "Lọc theo trạng thái (PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED)") @RequestParam(required = false) String status,
+            @Parameter(description = "Lọc theo trạng thái (PENDING, QUOTATION_SENT, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED)") @RequestParam(required = false) String status,
             @Parameter(description = "Lọc theo ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Lọc theo ID tư vấn viên") @RequestParam(required = false) Integer consultantId,
             @Parameter(description = "Ngày bắt đầu (ISO format)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
@@ -237,6 +242,84 @@ public class BookingController {
             return ResponseEntity.badRequest().body(ApiResponse.<java.math.BigDecimal>builder()
                     .success(false)
                     .message("Lỗi khi tính giá: " + e.getMessage())
+                    .build());
+        }
+    }
+    
+    /**
+     * Generate QR code thanh toán
+     */
+    @Operation(summary = "Tạo QR code thanh toán", description = "Tạo QR code thanh toán cho đơn hàng (đặt cọc hoặc thanh toán)")
+    @PostMapping("/{id}/payment/qr")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<QRCodeResponse>> generateQRCode(
+            @Parameter(description = "ID đơn hàng") @PathVariable Integer id,
+            @Parameter(description = "Số tiền (optional, nếu null sẽ dùng depositAmount hoặc remainingAmount)") @RequestParam(required = false) java.math.BigDecimal amount
+    ) {
+        try {
+            QRCodeResponse response = paymentService.generateQRCode(id, amount);
+            return ResponseEntity.ok(ApiResponse.<QRCodeResponse>builder()
+                    .success(true)
+                    .message("Tạo QR code thành công")
+                    .data(response)
+                    .build());
+        } catch (Exception e) {
+            log.error("Generate QR code failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.<QRCodeResponse>builder()
+                    .success(false)
+                    .message("Lỗi khi tạo QR code: " + e.getMessage())
+                    .build());
+        }
+    }
+    
+    /**
+     * Ghi nhận tiền cọc/thanh toán
+     */
+    @Operation(summary = "Ghi nhận tiền cọc/thanh toán", description = "Ghi nhận tiền cọc hoặc thanh toán cho đơn hàng")
+    @PostMapping("/{id}/deposit")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<PaymentResponse>> createDeposit(
+            @Parameter(description = "ID đơn hàng") @PathVariable Integer id,
+            @Valid @RequestBody CreateDepositRequest request
+    ) {
+        try {
+            Integer employeeId = getCurrentConsultantEmployeeId();
+            PaymentResponse response = paymentService.createDeposit(id, request, employeeId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.<PaymentResponse>builder()
+                    .success(true)
+                    .message("Ghi nhận thanh toán thành công")
+                    .data(response)
+                    .build());
+        } catch (Exception e) {
+            log.error("Create deposit failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.<PaymentResponse>builder()
+                    .success(false)
+                    .message("Lỗi khi ghi nhận thanh toán: " + e.getMessage())
+                    .build());
+        }
+    }
+    
+    /**
+     * Lấy lịch sử thanh toán
+     */
+    @Operation(summary = "Lịch sử thanh toán", description = "Lấy danh sách các giao dịch thanh toán của đơn hàng")
+    @GetMapping("/{id}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentHistory(
+            @Parameter(description = "ID đơn hàng") @PathVariable Integer id
+    ) {
+        try {
+            List<PaymentResponse> payments = paymentService.getPaymentHistory(id);
+            return ResponseEntity.ok(ApiResponse.<List<PaymentResponse>>builder()
+                    .success(true)
+                    .message("Lấy lịch sử thanh toán thành công")
+                    .data(payments)
+                    .build());
+        } catch (Exception e) {
+            log.error("Get payment history failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.<List<PaymentResponse>>builder()
+                    .success(false)
+                    .message("Lỗi khi lấy lịch sử thanh toán: " + e.getMessage())
                     .build());
         }
     }

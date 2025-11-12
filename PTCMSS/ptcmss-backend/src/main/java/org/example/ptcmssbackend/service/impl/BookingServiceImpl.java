@@ -48,6 +48,7 @@ public class BookingServiceImpl implements BookingService {
     private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
     private final TripDriverRepository tripDriverRepository;
     private final TripVehicleRepository tripVehicleRepository;
+    private final InvoiceRepository invoiceRepository;
     
     @Override
     @Transactional
@@ -397,12 +398,15 @@ public class BookingServiceImpl implements BookingService {
     public ConsultantDashboardResponse getConsultantDashboard(Integer consultantEmployeeId, Integer branchId) {
         // Lấy danh sách bookings theo status
         List<Bookings> pendingBookings = bookingRepository.findPendingBookings(branchId, consultantEmployeeId);
+        List<Bookings> sentQuotations = bookingRepository.filterBookings(
+                BookingStatus.QUOTATION_SENT, branchId, consultantEmployeeId, null, null, null, Pageable.unpaged()
+        ).getContent();
         List<Bookings> confirmedBookings = bookingRepository.findConfirmedBookings(branchId, consultantEmployeeId);
         
         // Đếm số lượng
         Long totalPendingCount = bookingRepository.countByStatus(BookingStatus.PENDING, branchId, consultantEmployeeId);
-        Long totalSentCount = bookingRepository.countByStatus(BookingStatus.CONFIRMED, branchId, consultantEmployeeId);
-        Long totalConfirmedCount = totalSentCount; // CONFIRMED = đã gửi báo giá
+        Long totalSentCount = bookingRepository.countByStatus(BookingStatus.QUOTATION_SENT, branchId, consultantEmployeeId);
+        Long totalConfirmedCount = bookingRepository.countByStatus(BookingStatus.CONFIRMED, branchId, consultantEmployeeId);
         
         // Tính doanh số trong tháng
         YearMonth currentMonth = YearMonth.now();
@@ -464,7 +468,7 @@ public class BookingServiceImpl implements BookingService {
         
         return ConsultantDashboardResponse.builder()
                 .pendingBookings(pendingBookings.stream().map(this::toListResponse).collect(Collectors.toList()))
-                .sentQuotations(confirmedBookings.stream().map(this::toListResponse).collect(Collectors.toList()))
+                .sentQuotations(sentQuotations.stream().map(this::toListResponse).collect(Collectors.toList()))
                 .confirmedBookings(confirmedBookings.stream().map(this::toListResponse).collect(Collectors.toList()))
                 .totalPendingCount(totalPendingCount)
                 .totalSentCount(totalSentCount)
@@ -550,8 +554,8 @@ public class BookingServiceImpl implements BookingService {
                     .build();
         }).collect(Collectors.toList());
         
-        // Tính paidAmount và remainingAmount từ Invoices (TODO: cần InvoiceRepository)
-        BigDecimal paidAmount = BigDecimal.ZERO; // TODO: Tính từ Invoices
+        // Tính paidAmount và remainingAmount từ Invoices
+        BigDecimal paidAmount = invoiceRepository.calculatePaidAmountByBookingId(booking.getId());
         BigDecimal remainingAmount = booking.getTotalCost() != null
                 ? booking.getTotalCost().subtract(paidAmount)
                 : BigDecimal.ZERO;
