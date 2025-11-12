@@ -31,6 +31,8 @@ public class CustomizeRequestFilter extends OncePerRequestFilter {
             "/swagger-ui",
             "/v3/api-docs",
             "/api/auth/",
+
+            "/api/test/",          // test endpoints (generate hash, test password)
             "/verify",
             "/set-password"
     };
@@ -69,9 +71,11 @@ public class CustomizeRequestFilter extends OncePerRequestFilter {
         }
         try {
             String username = jwtService.extractUsername(token, TokenType.ACCESS_TOKEN);
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (username != null) {
                 UserDetails userDetails = userServiceDetail.loadUserByUsername(username);
-
+                
+                log.debug("[Filter] Setting authentication for user: {} with authorities: {}", 
+                        username, userDetails.getAuthorities());
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -81,9 +85,11 @@ public class CustomizeRequestFilter extends OncePerRequestFilter {
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(authentication);
                 SecurityContextHolder.setContext(context);
+                
+                log.debug("[Filter] Authentication set successfully for user: {}", username);
             }
         } catch (Exception e) {
-            log.error("JWT validation error: {}", e.getMessage());
+            log.error("JWT validation error: {}", e.getMessage(), e);
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
             return;
         }

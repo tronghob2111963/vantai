@@ -2,7 +2,7 @@ package org.example.ptcmssbackend.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.example.ptcmssbackend.dto.request.Vehicle.VehicleCategoryRequest;
-import org.example.ptcmssbackend.dto.response.VehicleCategoryResponse;
+import org.example.ptcmssbackend.dto.response.Vehicle.VehicleCategoryResponse;
 import org.example.ptcmssbackend.entity.VehicleCategoryPricing;
 import org.example.ptcmssbackend.enums.VehicleCategoryStatus;
 import org.example.ptcmssbackend.repository.VehicleCategoryPricingRepository;

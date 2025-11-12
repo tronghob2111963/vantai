@@ -2,7 +2,7 @@ package org.example.ptcmssbackend.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.ptcmssbackend.dto.request.Vehicle.VehicleCategoryRequest;
-import org.example.ptcmssbackend.dto.response.VehicleCategoryResponse;
+import org.example.ptcmssbackend.dto.response.Vehicle.VehicleCategoryResponse;
 import org.example.ptcmssbackend.dto.response.common.ApiResponse;
 import org.example.ptcmssbackend.service.VehicleCategoryService;
 import org.springframework.http.ResponseEntity;

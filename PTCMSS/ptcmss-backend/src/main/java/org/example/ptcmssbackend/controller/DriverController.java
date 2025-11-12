@@ -9,7 +9,12 @@ import org.example.ptcmssbackend.dto.request.Driver.CreateDriverRequest;
 import org.example.ptcmssbackend.dto.request.Driver.DriverDayOffRequest;
 import org.example.ptcmssbackend.dto.request.Driver.DriverProfileUpdateRequest;
 import org.example.ptcmssbackend.dto.request.Driver.ReportIncidentRequest;
-import org.example.ptcmssbackend.dto.response.*;
+import org.example.ptcmssbackend.dto.response.Driver.DriverDashboardResponse;
+import org.example.ptcmssbackend.dto.response.Driver.DriverDayOffResponse;
+import org.example.ptcmssbackend.dto.response.Driver.DriverProfileResponse;
+import org.example.ptcmssbackend.dto.response.Driver.DriverResponse;
+import org.example.ptcmssbackend.dto.response.Driver.DriverScheduleResponse;
+import org.example.ptcmssbackend.dto.response.Driver.TripIncidentResponse;
 import org.example.ptcmssbackend.dto.response.common.ResponseData;
 import org.example.ptcmssbackend.dto.response.common.ResponseError;
 import org.example.ptcmssbackend.service.DriverService;
@@ -49,16 +54,20 @@ public class DriverController {
     // ======================================================
     //  2️  Lịch làm việc cá nhân
     // ======================================================
-    @Operation(summary = "Lịch làm việc tài xế", description = "Lấy danh sách chuyến đi trong ngày hoặc trong tuần của tài xế.")
+    @Operation(summary = "Lịch làm việc tài xế", description = "Lấy danh sách chuyến đi trong ngày hoặc trong tuần của tài xế. Có thể filter theo startDate và endDate.")
     @GetMapping("/{driverId}/schedule")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','DRIVER')")
     public ResponseData<List<DriverScheduleResponse>> getDriverSchedule(
-            @Parameter(description = "ID tài xế") @PathVariable Integer driverId) {
+            @Parameter(description = "ID tài xế") @PathVariable Integer driverId,
+            @Parameter(description = "Ngày bắt đầu (ISO format: yyyy-MM-ddTHH:mm:ssZ)") @RequestParam(required = false) String startDate,
+            @Parameter(description = "Ngày kết thúc (ISO format: yyyy-MM-ddTHH:mm:ssZ)") @RequestParam(required = false) String endDate) {
          try{
-             log.info("Get driver schedule successfully");
+             log.info("Get driver schedule for driver {} from {} to {}", driverId, startDate, endDate);
+             java.time.Instant start = startDate != null ? java.time.Instant.parse(startDate) : null;
+             java.time.Instant end = endDate != null ? java.time.Instant.parse(endDate) : null;
              return new ResponseData<>(HttpStatus.OK.value(),
                      "Get driver schedule successfully",
-                     driverService.getSchedule(driverId));
+                     driverService.getSchedule(driverId, start, end));
          } catch (Exception e) {
              log.error("Get driver schedule failed", e);
              throw new RuntimeException(e);
@@ -138,6 +147,22 @@ public class DriverController {
         }
     }
 
+    @Operation(summary = "Lịch sử nghỉ phép", description = "Lấy danh sách các yêu cầu nghỉ phép của tài xế (đã gửi, đã duyệt, bị từ chối).")
+    @GetMapping("/{driverId}/dayoff")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','DRIVER')")
+    public ResponseData<List<DriverDayOffResponse>> getDayOffHistory(
+            @Parameter(description = "ID tài xế") @PathVariable Integer driverId) {
+        try {
+            log.info("Get day off history for driver {}", driverId);
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Get day off history successfully",
+                    driverService.getDayOffHistory(driverId));
+        } catch (Exception e) {
+            log.error("Get day off history failed", e);
+            throw new RuntimeException(e);
+        }
+    }
+
     // ======================================================
     //  5 Bắt đầu và hoàn thành chuyến đi
     // ======================================================
@@ -186,7 +211,7 @@ public class DriverController {
             return new ResponseData<>(HttpStatus.OK.value(), "Report incident successfully", driverService.reportIncident(request));
         } catch (Exception e) {
             log.error("Report incident failed", e);
-            return new ResponseError(HttpStatus.BAD_REQUEST.value(), "Report incident failed");
+            throw new RuntimeException("Report incident failed: " + e.getMessage(), e);
         }
     }
 

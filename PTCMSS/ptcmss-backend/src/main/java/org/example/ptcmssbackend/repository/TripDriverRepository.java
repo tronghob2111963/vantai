@@ -7,10 +7,21 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 @Repository
 public interface TripDriverRepository extends JpaRepository<TripDrivers, TripDriverId> {
     @Query("SELECT td FROM TripDrivers td JOIN FETCH td.trip WHERE td.driver.id = :driverId ORDER BY td.trip.startTime DESC")
     List<TripDrivers> findAllByDriverId(@Param("driverId") Integer driverId);
+    
+    @Query("SELECT td FROM TripDrivers td JOIN FETCH td.trip " +
+           "WHERE td.driver.id = :driverId " +
+           "AND (:startDate IS NULL OR td.trip.startTime >= :startDate) " +
+           "AND (:endDate IS NULL OR td.trip.startTime <= :endDate) " +
+           "ORDER BY td.trip.startTime DESC")
+    List<TripDrivers> findAllByDriverIdAndDateRange(
+            @Param("driverId") Integer driverId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate);
 }

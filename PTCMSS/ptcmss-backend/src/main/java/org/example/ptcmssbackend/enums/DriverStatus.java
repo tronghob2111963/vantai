@@ -1,7 +1,7 @@
 package org.example.ptcmssbackend.enums;
 
 public enum DriverStatus {
-    AVAILABLE,
-    ON_TRIP,
-    INACTIVE
+    Available,    // Match với database: 'Available'
+    OnTrip,       // Match với database: 'OnTrip'
+    Inactive      // Match với database: 'Inactive'
 }

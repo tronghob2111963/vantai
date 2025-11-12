@@ -1,8 +1,8 @@
 package org.example.ptcmssbackend.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.ptcmssbackend.dto.request.SystemSettingRequest;
-import org.example.ptcmssbackend.dto.response.SystemSettingResponse;
+import org.example.ptcmssbackend.dto.request.SystemSetting.SystemSettingRequest;
+import org.example.ptcmssbackend.dto.response.SystemSetting.SystemSettingResponse;
 import org.example.ptcmssbackend.entity.Employees;
 import org.example.ptcmssbackend.entity.SystemSetting;
 import org.example.ptcmssbackend.enums.SettingStatus;
@@ -53,6 +53,9 @@ public class SystemSettingServiceImpl implements SystemSettingService {
         SystemSetting setting = SystemSetting.builder()
                 .settingKey(request.getSettingKey())
                 .settingValue(request.getSettingValue())
+                .effectiveStartDate(request.getEffectiveStartDate() != null ? 
+                        request.getEffectiveStartDate() : java.time.LocalDate.now())
+                .effectiveEndDate(request.getEffectiveEndDate())
                 .valueType(request.getValueType())
                 .category(request.getCategory())
                 .description(request.getDescription())
@@ -77,6 +80,10 @@ public class SystemSettingServiceImpl implements SystemSettingService {
 
         setting.setSettingKey(request.getSettingKey());
         setting.setSettingValue(request.getSettingValue());
+        if (request.getEffectiveStartDate() != null) {
+            setting.setEffectiveStartDate(request.getEffectiveStartDate());
+        }
+        setting.setEffectiveEndDate(request.getEffectiveEndDate());
         setting.setValueType(request.getValueType());
         setting.setCategory(request.getCategory());
         setting.setDescription(request.getDescription());
@@ -100,6 +107,8 @@ public class SystemSettingServiceImpl implements SystemSettingService {
                 .id(entity.getId())
                 .settingKey(entity.getSettingKey())
                 .settingValue(entity.getSettingValue())
+                .effectiveStartDate(entity.getEffectiveStartDate())
+                .effectiveEndDate(entity.getEffectiveEndDate())
                 .valueType(entity.getValueType())
                 .category(entity.getCategory())
                 .description(entity.getDescription())

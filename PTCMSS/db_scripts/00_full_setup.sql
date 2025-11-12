@@ -16,7 +16,8 @@ USE ptcmss_db;
 CREATE TABLE IF NOT EXISTS Roles (
   roleId INT AUTO_INCREMENT PRIMARY KEY,
   roleName VARCHAR(50) NOT NULL,
-  description VARCHAR(255)
+  description VARCHAR(255),
+  status ENUM('ACTIVE','INACTIVE','SUSPENDED') DEFAULT 'ACTIVE'
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS Users (
@@ -29,7 +30,9 @@ CREATE TABLE IF NOT EXISTS Users (
   phone VARCHAR(20),
   avatar VARCHAR(255),
   address VARCHAR(255),
-  status ENUM('Active','Inactive','Suspended') DEFAULT 'Active',
+  status ENUM('ACTIVE','INACTIVE','SUSPENDED') DEFAULT 'ACTIVE',
+  email_verified BOOLEAN DEFAULT FALSE,
+  verification_token VARCHAR(64),
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_users_role FOREIGN KEY (roleId) REFERENCES Roles(roleId)
 ) ENGINE=InnoDB;
@@ -44,7 +47,7 @@ CREATE TABLE IF NOT EXISTS Branches (
   branchName VARCHAR(100) NOT NULL,
   location VARCHAR(255),
   managerId INT NULL,
-  status ENUM('Active', 'Inactive', 'UnderReview', 'Closed') DEFAULT 'Active',
+  status ENUM('ACTIVE', 'INACTIVE', 'UNDERREVIEW', 'CLOSED') DEFAULT 'ACTIVE',
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -56,7 +59,7 @@ CREATE TABLE IF NOT EXISTS Employees (
   userId INT NOT NULL,
   branchId INT NOT NULL,
   roleId INT NOT NULL,
-  status ENUM('Active','Inactive','OnLeave') DEFAULT 'Active',
+  status ENUM('ACTIVE','INACTIVE','ONLEAVE') DEFAULT 'ACTIVE',
   CONSTRAINT fk_emp_user   FOREIGN KEY (userId)  REFERENCES Users(userId),
   CONSTRAINT fk_emp_branch FOREIGN KEY (branchId) REFERENCES Branches(branchId),
   CONSTRAINT fk_emp_role   FOREIGN KEY (roleId)  REFERENCES Roles(roleId)
@@ -79,7 +82,7 @@ CREATE TABLE IF NOT EXISTS Drivers (
   rating DECIMAL(3,2) DEFAULT 5.00 CHECK (rating >= 0 AND rating <= 5),
   priorityLevel INT DEFAULT 1 CHECK (priorityLevel BETWEEN 1 AND 10),
   note VARCHAR(255),
-  status ENUM('Available','OnTrip','Inactive') DEFAULT 'Available',
+  status ENUM('AVAILABLE','ONTRIP','INACTIVE') DEFAULT 'AVAILABLE',
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_drivers_emp    FOREIGN KEY (employeeId) REFERENCES Employees(employeeId),
   CONSTRAINT fk_drivers_branch FOREIGN KEY (branchId)   REFERENCES Branches(branchId)
@@ -94,7 +97,7 @@ CREATE TABLE IF NOT EXISTS DriverDayOff (
   endDate DATE NOT NULL,
   reason VARCHAR(255),
   approvedBy INT NULL,
-  status ENUM('Pending','Approved','Rejected') DEFAULT 'Pending',
+  status ENUM('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_doff_driver  FOREIGN KEY (driverId)  REFERENCES Drivers(driverId),
   CONSTRAINT fk_doff_approve FOREIGN KEY (approvedBy) REFERENCES Employees(employeeId),
@@ -115,7 +118,7 @@ CREATE TABLE IF NOT EXISTS Customers (
   note VARCHAR(255),
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   createdBy INT NULL,
-  status ENUM('Active','Inactive') DEFAULT 'Active',
+  status ENUM('ACTIVE','INACTIVE') DEFAULT 'ACTIVE',
   CONSTRAINT fk_cust_createdBy FOREIGN KEY (createdBy) REFERENCES Employees(employeeId)
 ) ENGINE=InnoDB;
 
@@ -133,7 +136,7 @@ CREATE TABLE IF NOT EXISTS VehicleCategoryPricing (
   highwayFee DECIMAL(10,2),
   fixedCosts DECIMAL(10,2),
   effectiveDate DATE DEFAULT (CURRENT_DATE),
-  status ENUM('Active','Inactive') DEFAULT 'Active',
+  status ENUM('ACTIVE','INACTIVE') DEFAULT 'ACTIVE',
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -143,11 +146,14 @@ CREATE TABLE IF NOT EXISTS Vehicles (
   branchId INT NOT NULL,
   licensePlate VARCHAR(20) NOT NULL UNIQUE,
   model VARCHAR(100),
+  brand VARCHAR(100),
   capacity INT,
   productionYear INT CHECK (productionYear >= 1980),
   registrationDate DATE,
   inspectionExpiry DATE,
-  status ENUM('Available','InUse','Maintenance','Inactive') DEFAULT 'Available',
+  insuranceExpiry DATE,
+  odometer BIGINT,
+  status ENUM('AVAILABLE','INUSE','MAINTENANCE','INACTIVE') DEFAULT 'AVAILABLE',
   CONSTRAINT fk_veh_cat    FOREIGN KEY (categoryId) REFERENCES VehicleCategoryPricing(categoryId),
   CONSTRAINT fk_veh_branch FOREIGN KEY (branchId)   REFERENCES Branches(branchId)
 ) ENGINE=InnoDB;
@@ -176,7 +182,7 @@ CREATE TABLE IF NOT EXISTS Bookings (
   estimatedCost DECIMAL(12,2),
   depositAmount DECIMAL(12,2) DEFAULT 0,
   totalCost DECIMAL(12,2) DEFAULT 0,
-  status ENUM('Pending','Confirmed','InProgress','Completed','Cancelled') DEFAULT 'Pending',
+  status ENUM('PENDING','CONFIRMED','INPROGRESS','COMPLETED','CANCELLED') DEFAULT 'PENDING',
   note VARCHAR(255),
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -211,7 +217,7 @@ CREATE TABLE IF NOT EXISTS Trips (
   startLocation VARCHAR(255),
   endLocation VARCHAR(255),
   incidentalCosts DECIMAL(10,2) DEFAULT 0,
-  status ENUM('Scheduled','Ongoing','Completed','Cancelled') DEFAULT 'Scheduled',
+  status ENUM('SCHEDULED','ONGOING','COMPLETED','CANCELLED') DEFAULT 'SCHEDULED',
   CONSTRAINT fk_trip_booking FOREIGN KEY (bookingId) REFERENCES Bookings(bookingId),
   CHECK ((startTime IS NULL OR endTime IS NULL) OR (startTime < endTime))
 ) ENGINE=InnoDB;
@@ -261,8 +267,8 @@ CREATE TABLE IF NOT EXISTS Invoices (
   isDeposit BOOLEAN NOT NULL DEFAULT FALSE,
   amount DECIMAL(18,2) NOT NULL CHECK (amount > 0),
   paymentMethod VARCHAR(50),
-  paymentStatus ENUM('Unpaid','Paid','Refunded') DEFAULT 'Unpaid',
-  status ENUM('Active','Cancelled') DEFAULT 'Active',
+  paymentStatus ENUM('UNPAID','PAID','REFUNDED') DEFAULT 'UNPAID',
+  status ENUM('ACTIVE','CANCELLED') DEFAULT 'ACTIVE',
   invoiceDate DATETIME DEFAULT CURRENT_TIMESTAMP,
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   img VARCHAR(255),
@@ -305,7 +311,7 @@ CREATE TABLE IF NOT EXISTS AccountsReceivable (
   remainingAmount DECIMAL(18,2) AS (totalAmount - paidAmount) STORED,
   dueDate DATE,
   lastPaymentDate DATE,
-  status ENUM('Unpaid','PartiallyPaid','Paid') DEFAULT 'Unpaid',
+  status ENUM('UNPAID','PARTIALLYPAID','PAID') DEFAULT 'UNPAID',
   note VARCHAR(255),
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -317,7 +323,19 @@ CREATE TABLE IF NOT EXISTS AccountsReceivable (
 CREATE INDEX IX_AR_Status_DueDate ON AccountsReceivable(status, dueDate);
 
 -- ==========================================================
--- 9) System Settings, Triggers, Views
+-- 9) Token (JWT Token Storage)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS token (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  access_token TEXT,
+  refresh_token TEXT
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_Token_Username ON token(username);
+
+-- ==========================================================
+-- 10) System Settings, Triggers, Views
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS SystemSettings (
   settingId INT AUTO_INCREMENT PRIMARY KEY,
@@ -330,7 +348,7 @@ CREATE TABLE IF NOT EXISTS SystemSettings (
   description VARCHAR(255),
   updatedBy INT NULL,
   updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  status ENUM('Active','Inactive') DEFAULT 'Active',
+  status ENUM('ACTIVE','INACTIVE') DEFAULT 'ACTIVE',
   CONSTRAINT fk_sys_updBy FOREIGN KEY (updatedBy) REFERENCES Employees(employeeId)
 ) ENGINE=InnoDB;
 
@@ -370,23 +388,23 @@ JOIN Drivers d ON d.driverId = td.driverId
 JOIN Trips   t ON t.tripId   = td.tripId
 GROUP BY d.driverId, YEAR(t.startTime), MONTH(t.startTime);
 
--- ==========================================================
--- 10) Seed Data
--- ==========================================================
-INSERT INTO Roles (roleId, roleName, description) VALUES
-(1, 'Admin', 'Quản trị viên hệ thống'),
-(2, 'Manager', 'Quản lý chi nhánh'),
-(3, 'Consultant', 'Điều hành/Tư vấn'),
-(4, 'Driver', 'Tài xế'),
-(5, 'Accountant', 'Kế toán')
-ON DUPLICATE KEY UPDATE roleName = VALUES(roleName), description = VALUES(description);
+-- ===========================================================
+-- 11) Seed Data
+-- ===========================================================
+INSERT INTO Roles (roleId, roleName, description, status) VALUES
+(1, 'Admin', 'Quản trị viên hệ thống', 'ACTIVE'),
+(2, 'Manager', 'Quản lý chi nhánh', 'ACTIVE'),
+(3, 'Consultant', 'Điều hành/Tư vấn', 'ACTIVE'),
+(4, 'Driver', 'Tài xế', 'ACTIVE'),
+(5, 'Accountant', 'Kế toán', 'ACTIVE')
+ON DUPLICATE KEY UPDATE roleName = VALUES(roleName), description = VALUES(description), status = VALUES(status);
 
 INSERT INTO VehicleCategoryPricing (categoryId, categoryName, description, baseFare, pricePerKm, highwayFee, fixedCosts, status) VALUES
-(1, 'Xe 9 chỗ (Limousine)', 'DCar/Solati Limousine', 800000.00, 15000.00, 100000.00, 0.00, 'Active'),
-(2, 'Xe 16 chỗ', 'Ford Transit, Mercedes Sprinter', 1200000.00, 18000.00, 120000.00, 0.00, 'Active'),
-(3, 'Xe 29 chỗ', 'Hyundai County, Samco Isuzu', 1800000.00, 22000.00, 150000.00, 0.00, 'Active'),
-(4, 'Xe 45 chỗ', 'Hyundai Universe', 2500000.00, 28000.00, 200000.00, 0.00, 'Active'),
-(5, 'Xe giường nằm (40 chỗ)', 'Xe giường nằm Thaco/Hyundai', 3000000.00, 30000.00, 250000.00, 0.00, 'Active')
+(1, 'Xe 9 chỗ (Limousine)', 'DCar/Solati Limousine', 800000.00, 15000.00, 100000.00, 0.00, 'ACTIVE'),
+(2, 'Xe 16 chỗ', 'Ford Transit, Mercedes Sprinter', 1200000.00, 18000.00, 120000.00, 0.00, 'ACTIVE'),
+(3, 'Xe 29 chỗ', 'Hyundai County, Samco Isuzu', 1800000.00, 22000.00, 150000.00, 0.00, 'ACTIVE'),
+(4, 'Xe 45 chỗ', 'Hyundai Universe', 2500000.00, 28000.00, 200000.00, 0.00, 'ACTIVE'),
+(5, 'Xe giường nằm (40 chỗ)', 'Xe giường nằm Thaco/Hyundai', 3000000.00, 30000.00, 250000.00, 0.00, 'ACTIVE')
 ON DUPLICATE KEY UPDATE categoryName = VALUES(categoryName), description = VALUES(description);
 
 INSERT INTO HireTypes (hireTypeId, code, name, description, isActive) VALUES
@@ -398,45 +416,45 @@ INSERT INTO HireTypes (hireTypeId, code, name, description, isActive) VALUES
 ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), isActive = VALUES(isActive);
 
 INSERT INTO Branches (branchId, branchName, location, managerId, status) VALUES
-(1, 'Chi nhánh Hà Nội', '123 Láng Hạ, Đống Đa, Hà Nội', NULL, 'Active'),
-(2, 'Chi nhánh Đà Nẵng', '456 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', NULL, 'Active'),
-(3, 'Chi nhánh TP. HCM', '789 Võ Thị Sáu, Quận 3, TP. HCM', NULL, 'Active'),
-(4, 'Chi nhánh Hải Phòng', '10 Lê Hồng Phong, Ngô Quyền, Hải Phòng', NULL, 'Inactive'),
-(5, 'Chi nhánh Quảng Ninh', '55 Trần Hưng Đạo, Hạ Long, Quảng Ninh', NULL, 'Active')
+(1, 'Chi nhánh Hà Nội', '123 Láng Hạ, Đống Đa, Hà Nội', NULL, 'ACTIVE'),
+(2, 'Chi nhánh Đà Nẵng', '456 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', NULL, 'ACTIVE'),
+(3, 'Chi nhánh TP. HCM', '789 Võ Thị Sáu, Quận 3, TP. HCM', NULL, 'ACTIVE'),
+(4, 'Chi nhánh Hải Phòng', '10 Lê Hồng Phong, Ngô Quyền, Hải Phòng', NULL, 'INACTIVE'),
+(5, 'Chi nhánh Quảng Ninh', '55 Trần Hưng Đạo, Hạ Long, Quảng Ninh', NULL, 'ACTIVE')
 ON DUPLICATE KEY UPDATE branchName = VALUES(branchName), location = VALUES(location), status = VALUES(status);
 
 INSERT INTO Users (userId, roleId, fullName, username, passwordHash, email, phone, status) VALUES
-(1, 1, 'Admin Tổng', 'admin', '$2a$10$placeholderadminhash', 'admin@ptcmss.com', '0900000001', 'Active'),
-(2, 2, 'Quản Lý Hà Nội', 'manager_hn', '$2a$10$placeholdermanager1', 'manager.hn@ptcmss.com', '0900000002', 'Active'),
-(3, 2, 'Quản Lý Đà Nẵng', 'manager_dn', '$2a$10$placeholdermanager2', 'manager.dn@ptcmss.com', '0900000003', 'Active'),
-(4, 2, 'Quản Lý HCM', 'manager_hcm', '$2a$10$placeholdermanager3', 'manager.hcm@ptcmss.com', '0900000004', 'Active'),
-(5, 3, 'Điều Hành Viên 1 (HN)', 'consultant_hn1', '$2a$10$placeholderconsult1', 'c1.hn@ptcmss.com', '0900000005', 'Active'),
-(6, 3, 'Điều Hành Viên 2 (HN)', 'consultant_hn2', '$2a$10$placeholderconsult2', 'c2.hn@ptcmss.com', '0900000006', 'Active'),
-(7, 5, 'Kế Toán 1 (HN)', 'accountant_hn1', '$2a$10$placeholderacct1', 'k1.hn@ptcmss.com', '0900000007', 'Active'),
-(8, 4, 'Tài Xế Nguyễn Văn A', 'driver_a', '$2a$10$placeholderdrivera', 'driver.a@ptcmss.com', '0912345671', 'Active'),
-(9, 4, 'Tài Xế Trần Văn B', 'driver_b', '$2a$10$placeholderdriverb', 'driver.b@ptcmss.com', '0912345672', 'Active'),
-(10, 4, 'Tài Xế Lê Hữu C', 'driver_c', '$2a$10$placeholderdriverc', 'driver.c@ptcmss.com', '0912345673', 'Active'),
-(11, 4, 'Tài Xế Phạm Đình D', 'driver_d', '$2a$10$placeholderdriverd', 'driver.d@ptcmss.com', '0912345674', 'Active'),
-(12, 4, 'Tài Xế Huỳnh Tấn E', 'driver_e', '$2a$10$placeholderdrivere', 'driver.e@ptcmss.com', '0912345675', 'Active'),
-(13, 4, 'Tài Xế Vũ Minh F', 'driver_f', '$2a$10$placeholderdriverf', 'driver.f@ptcmss.com', '0912345676', 'Active'),
-(14, 4, 'Tài Xế Đặng Văn G', 'driver_g', '$2a$10$placeholderdriverg', 'driver.g@ptcmss.com', '0912345677', 'Active')
+(1, 1, 'Admin Tổng', 'admin', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'admin@ptcmss.com', '0900000001', 'ACTIVE'),
+(2, 2, 'Quản Lý Hà Nội', 'manager_hn', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'manager.hn@ptcmss.com', '0900000002', 'ACTIVE'),
+(3, 2, 'Quản Lý Đà Nẵng', 'manager_dn', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'manager.dn@ptcmss.com', '0900000003', 'ACTIVE'),
+(4, 2, 'Quản Lý HCM', 'manager_hcm', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'manager.hcm@ptcmss.com', '0900000004', 'ACTIVE'),
+(5, 3, 'Điều Hành Viên 1 (HN)', 'consultant_hn1', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'c1.hn@ptcmss.com', '0900000005', 'ACTIVE'),
+(6, 3, 'Điều Hành Viên 2 (HN)', 'consultant_hn2', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'c2.hn@ptcmss.com', '0900000006', 'ACTIVE'),
+(7, 5, 'Kế Toán 1 (HN)', 'accountant_hn1', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'k1.hn@ptcmss.com', '0900000007', 'ACTIVE'),
+(8, 4, 'Tài Xế Nguyễn Văn A', 'driver_a', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'driver.a@ptcmss.com', '0912345671', 'ACTIVE'),
+(9, 4, 'Tài Xế Trần Văn B', 'driver_b', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'driver.b@ptcmss.com', '0912345672', 'ACTIVE'),
+(10, 4, 'Tài Xế Lê Hữu C', 'driver_c', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'driver.c@ptcmss.com', '0912345673', 'ACTIVE'),
+(11, 4, 'Tài Xế Phạm Đình D', 'driver_d', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'driver.d@ptcmss.com', '0912345674', 'ACTIVE'),
+(12, 4, 'Tài Xế Huỳnh Tấn E', 'driver_e', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'driver.e@ptcmss.com', '0912345675', 'ACTIVE'),
+(13, 4, 'Tài Xế Vũ Minh F', 'driver_f', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'driver.f@ptcmss.com', '0912345676', 'ACTIVE'),
+(14, 4, 'Tài Xế Đặng Văn G', 'driver_g', '$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq', 'driver.g@ptcmss.com', '0912345677', 'ACTIVE')
 ON DUPLICATE KEY UPDATE fullName = VALUES(fullName), email = VALUES(email), phone = VALUES(phone), status = VALUES(status);
 
 INSERT INTO Employees (employeeId, userId, branchId, roleId, status) VALUES
-(1, 1, 1, 1, 'Active'),
-(2, 2, 1, 2, 'Active'),
-(3, 3, 2, 2, 'Active'),
-(4, 4, 3, 2, 'Active'),
-(5, 5, 1, 3, 'Active'),
-(6, 6, 1, 3, 'Active'),
-(7, 7, 1, 5, 'Active'),
-(8, 8, 1, 4, 'Active'),
-(9, 9, 1, 4, 'Active'),
-(10, 10, 2, 4, 'Active'),
-(11, 11, 3, 4, 'Active'),
-(12, 12, 1, 4, 'Active'),
-(13, 13, 2, 4, 'Active'),
-(14, 14, 3, 4, 'Active')
+(1, 1, 1, 1, 'ACTIVE'),
+(2, 2, 1, 2, 'ACTIVE'),
+(3, 3, 2, 2, 'ACTIVE'),
+(4, 4, 3, 2, 'ACTIVE'),
+(5, 5, 1, 3, 'ACTIVE'),
+(6, 6, 1, 3, 'ACTIVE'),
+(7, 7, 1, 5, 'ACTIVE'),
+(8, 8, 1, 4, 'ACTIVE'),
+(9, 9, 1, 4, 'ACTIVE'),
+(10, 10, 2, 4, 'ACTIVE'),
+(11, 11, 3, 4, 'ACTIVE'),
+(12, 12, 1, 4, 'ACTIVE'),
+(13, 13, 2, 4, 'ACTIVE'),
+(14, 14, 3, 4, 'ACTIVE')
 ON DUPLICATE KEY UPDATE branchId = VALUES(branchId), roleId = VALUES(roleId), status = VALUES(status);
 
 UPDATE Branches SET managerId = 2 WHERE branchId = 1;
@@ -445,39 +463,39 @@ UPDATE Branches SET managerId = 4 WHERE branchId = 3;
 UPDATE Branches SET managerId = 2 WHERE branchId = 5;
 
 INSERT INTO Drivers (driverId, employeeId, branchId, licenseNumber, licenseClass, licenseExpiry, healthCheckDate, status) VALUES
-(1, 8, 1, 'HN12345', 'D', '2028-12-31', '2025-06-01', 'Available'),
-(2, 9, 1, 'HN67890', 'E', '2027-10-10', '2025-05-01', 'Available'),
-(3, 10, 2, 'DN55555', 'D', '2029-01-15', '2025-07-01', 'Available'),
-(4, 11, 3, 'HCM88888', 'E', '2026-05-20', '2025-03-01', 'OnTrip'),
-(5, 12, 1, 'HN45678', 'D', '2028-02-14', '2025-08-01', 'Available'),
-(6, 13, 2, 'DN11111', 'E', '2027-11-30', '2025-09-10', 'Inactive'),
-(7, 14, 3, 'HCM22222', 'D', '2029-07-07', '2025-10-01', 'Available')
+(1, 8, 1, 'HN12345', 'D', '2028-12-31', '2025-06-01', 'AVAILABLE'),
+(2, 9, 1, 'HN67890', 'E', '2027-10-10', '2025-05-01', 'AVAILABLE'),
+(3, 10, 2, 'DN55555', 'D', '2029-01-15', '2025-07-01', 'AVAILABLE'),
+(4, 11, 3, 'HCM88888', 'E', '2026-05-20', '2025-03-01', 'ONTRIP'),
+(5, 12, 1, 'HN45678', 'D', '2028-02-14', '2025-08-01', 'AVAILABLE'),
+(6, 13, 2, 'DN11111', 'E', '2027-11-30', '2025-09-10', 'INACTIVE'),
+(7, 14, 3, 'HCM22222', 'D', '2029-07-07', '2025-10-01', 'AVAILABLE')
 ON DUPLICATE KEY UPDATE branchId = VALUES(branchId), status = VALUES(status);
 
 INSERT INTO Customers (customerId, fullName, phone, email, address, createdBy, status) VALUES
-(1, 'Công ty TNHH ABC (KCN Thăng Long)', '0987654321', 'contact@abc.com', 'KCN Thăng Long, Đông Anh, Hà Nội', 5, 'Active'),
-(2, 'Đoàn du lịch Hướng Việt', '0987654322', 'info@huongviet.vn', 'Hoàn Kiếm, Hà Nội', 6, 'Active'),
-(3, 'Công ty CP XYZ (Đà Nẵng)', '0987654323', 'hr@xyz.com', 'Hải Châu, Đà Nẵng', 5, 'Active'),
-(4, 'Gia đình ông Trần Văn Hùng', '0987654324', 'hung.tran@gmail.com', 'Quận 7, TP. HCM', 6, 'Active'),
-(5, 'Trường quốc tế Vinschool', '0987654325', 'school@vinschool.edu.vn', 'Times City, Hà Nội', 5, 'Active')
+(1, 'Công ty TNHH ABC (KCN Thăng Long)', '0987654321', 'contact@abc.com', 'KCN Thăng Long, Đông Anh, Hà Nội', 5, 'ACTIVE'),
+(2, 'Đoàn du lịch Hướng Việt', '0987654322', 'info@huongviet.vn', 'Hoàn Kiếm, Hà Nội', 6, 'ACTIVE'),
+(3, 'Công ty CP XYZ (Đà Nẵng)', '0987654323', 'hr@xyz.com', 'Hải Châu, Đà Nẵng', 5, 'ACTIVE'),
+(4, 'Gia đình ông Trần Văn Hùng', '0987654324', 'hung.tran@gmail.com', 'Quận 7, TP. HCM', 6, 'ACTIVE'),
+(5, 'Trường quốc tế Vinschool', '0987654325', 'school@vinschool.edu.vn', 'Times City, Hà Nội', 5, 'ACTIVE')
 ON DUPLICATE KEY UPDATE phone = VALUES(phone), email = VALUES(email), address = VALUES(address), status = VALUES(status);
 
 INSERT INTO Vehicles (vehicleId, categoryId, branchId, licensePlate, model, capacity, productionYear, registrationDate, inspectionExpiry, status) VALUES
-(1, 2, 1, '29A-111.11', 'Ford Transit', 16, 2022, '2022-01-01', '2026-06-30', 'Available'),
-(2, 1, 1, '29A-222.22', 'DCar Limousine', 9, 2023, '2023-05-01', '2026-04-30', 'Available'),
-(3, 3, 1, '29A-333.33', 'Samco Isuzu', 29, 2021, '2021-03-01', '2025-08-30', 'Available'),
-(4, 4, 2, '43B-444.44', 'Hyundai Universe', 45, 2023, '2023-06-01', '2025-11-30', 'Available'),
-(5, 2, 3, '51C-555.55', 'Ford Transit', 16, 2022, '2022-07-01', '2026-12-31', 'InUse'),
-(6, 3, 1, '29A-666.66', 'Hyundai County', 29, 2022, '2022-09-01', '2026-02-28', 'Available'),
-(7, 5, 2, '43B-777.77', 'Thaco Mobihome', 40, 2023, '2023-08-15', '2025-02-14', 'Maintenance')
+(1, 2, 1, '29A-111.11', 'Ford Transit', 16, 2022, '2022-01-01', '2026-06-30', 'AVAILABLE'),
+(2, 1, 1, '29A-222.22', 'DCar Limousine', 9, 2023, '2023-05-01', '2026-04-30', 'AVAILABLE'),
+(3, 3, 1, '29A-333.33', 'Samco Isuzu', 29, 2021, '2021-03-01', '2025-08-30', 'AVAILABLE'),
+(4, 4, 2, '43B-444.44', 'Hyundai Universe', 45, 2023, '2023-06-01', '2025-11-30', 'AVAILABLE'),
+(5, 2, 3, '51C-555.55', 'Ford Transit', 16, 2022, '2022-07-01', '2026-12-31', 'INUSE'),
+(6, 3, 1, '29A-666.66', 'Hyundai County', 29, 2022, '2022-09-01', '2026-02-28', 'AVAILABLE'),
+(7, 5, 2, '43B-777.77', 'Thaco Mobihome', 40, 2023, '2023-08-15', '2025-02-14', 'MAINTENANCE')
 ON DUPLICATE KEY UPDATE branchId = VALUES(branchId), status = VALUES(status);
 
 INSERT INTO Bookings (bookingId, customerId, branchId, consultantId, hireTypeId, useHighway, estimatedCost, depositAmount, totalCost, status, note) VALUES
-(1, 2, 1, 5, 2, TRUE, 3500000.00, 1000000.00, 3800000.00, 'Completed', 'Đoàn 25 khách, đi Hà Nội - Hạ Long 2 chiều'),
-(2, 4, 3, 6, 5, TRUE, 1200000.00, 500000.00, 1200000.00, 'Confirmed', 'Đón sân bay TSN về Quận 7 (16 chỗ)'),
-(3, 1, 1, 5, 4, FALSE, 25000000.00, 10000000.00, 0.00, 'InProgress', 'Hợp đồng đưa đón nhân viên KCN Thăng Long T11/2025'),
-(4, 3, 2, 6, 3, TRUE, 15000000.00, 500000.00, 0.00, 'Pending', 'Thuê xe 45 chỗ đi 3N2Đ Đà Nẵng - Huế - Hội An'),
-(5, 5, 1, 5, 1, TRUE, 1000000.00, 1000000.00, 1000000.00, 'Confirmed', 'Thuê 1 chiều xe Limo (9 chỗ) đi Nội Bài')
+(1, 2, 1, 5, 2, TRUE, 3500000.00, 1000000.00, 3800000.00, 'COMPLETED', 'Đoàn 25 khách, đi Hà Nội - Hạ Long 2 chiều'),
+(2, 4, 3, 6, 5, TRUE, 1200000.00, 500000.00, 1200000.00, 'CONFIRMED', 'Đón sân bay TSN về Quận 7 (16 chỗ)'),
+(3, 1, 1, 5, 4, FALSE, 25000000.00, 10000000.00, 0.00, 'INPROGRESS', 'Hợp đồng đưa đón nhân viên KCN Thăng Long T11/2025'),
+(4, 3, 2, 6, 3, TRUE, 15000000.00, 500000.00, 0.00, 'PENDING', 'Thuê xe 45 chỗ đi 3N2Đ Đà Nẵng - Huế - Hội An'),
+(5, 5, 1, 5, 1, TRUE, 1000000.00, 1000000.00, 1000000.00, 'CONFIRMED', 'Thuê 1 chiều xe Limo (9 chỗ) đi Nội Bài')
 ON DUPLICATE KEY UPDATE status = VALUES(status), note = VALUES(note);
 
 INSERT INTO BookingVehicleDetails (bookingId, vehicleCategoryId, quantity) VALUES
@@ -489,13 +507,13 @@ INSERT INTO BookingVehicleDetails (bookingId, vehicleCategoryId, quantity) VALUE
 ON DUPLICATE KEY UPDATE quantity = VALUES(quantity);
 
 INSERT INTO Trips (tripId, bookingId, useHighway, startTime, endTime, startLocation, endLocation, status) VALUES
-(1, 1, TRUE, '2025-10-25 07:00:00', '2025-10-25 20:00:00', 'Hoàn Kiếm, Hà Nội', 'Hạ Long, Quảng Ninh', 'Completed'),
-(2, 2, TRUE, '2025-10-28 14:00:00', '2025-10-28 15:30:00', 'Sân bay Tân Sơn Nhất', 'Quận 7, TP. HCM', 'Scheduled'),
-(3, 3, FALSE, '2025-11-01 07:00:00', '2025-11-01 08:30:00', 'Nội thành Hà Nội', 'KCN Thăng Long', 'Scheduled'),
-(4, 3, FALSE, '2025-11-01 17:00:00', '2025-11-01 18:30:00', 'KCN Thăng Long', 'Nội thành Hà Nội', 'Scheduled'),
-(5, 3, FALSE, '2025-11-02 07:00:00', '2025-11-02 08:30:00', 'Nội thành Hà Nội', 'KCN Thăng Long', 'Scheduled'),
-(6, 5, TRUE, '2025-10-29 10:00:00', '2025-10-29 11:00:00', 'Times City, Hà Nội', 'Sân bay Nội Bài', 'Scheduled'),
-(7, 4, TRUE, '2025-11-10 08:00:00', NULL, 'Đà Nẵng', 'Huế', 'Scheduled')
+(1, 1, TRUE, '2025-10-25 07:00:00', '2025-10-25 20:00:00', 'Hoàn Kiếm, Hà Nội', 'Hạ Long, Quảng Ninh', 'COMPLETED'),
+(2, 2, TRUE, '2025-10-28 14:00:00', '2025-10-28 15:30:00', 'Sân bay Tân Sơn Nhất', 'Quận 7, TP. HCM', 'SCHEDULED'),
+(3, 3, FALSE, '2025-11-01 07:00:00', '2025-11-01 08:30:00', 'Nội thành Hà Nội', 'KCN Thăng Long', 'SCHEDULED'),
+(4, 3, FALSE, '2025-11-01 17:00:00', '2025-11-01 18:30:00', 'KCN Thăng Long', 'Nội thành Hà Nội', 'SCHEDULED'),
+(5, 3, FALSE, '2025-11-02 07:00:00', '2025-11-02 08:30:00', 'Nội thành Hà Nội', 'KCN Thăng Long', 'SCHEDULED'),
+(6, 5, TRUE, '2025-10-29 10:00:00', '2025-10-29 11:00:00', 'Times City, Hà Nội', 'Sân bay Nội Bài', 'SCHEDULED'),
+(7, 4, TRUE, '2025-11-10 08:00:00', NULL, 'Đà Nẵng', 'Huế', 'SCHEDULED')
 ON DUPLICATE KEY UPDATE status = VALUES(status), endTime = VALUES(endTime);
 
 INSERT INTO TripVehicles (tripVehicleId, tripId, vehicleId, note) VALUES
@@ -525,30 +543,30 @@ INSERT INTO TripDrivers (tripId, driverId, driverRole, note) VALUES
 ON DUPLICATE KEY UPDATE driverRole = VALUES(driverRole), note = VALUES(note);
 
 INSERT INTO DriverDayOff (dayOffId, driverId, startDate, endDate, reason, approvedBy, status) VALUES
-(1, 1, '2025-10-30', '2025-10-30', 'Việc gia đình', 2, 'Approved'),
-(2, 2, '2025-11-05', '2025-11-06', 'Khám sức khỏe', 2, 'Pending'),
-(3, 3, '2025-10-20', '2025-10-21', 'Về quê', 3, 'Approved'),
-(4, 4, '2025-10-29', '2025-10-29', 'Nghỉ ốm', 4, 'Rejected'),
-(5, 6, '2025-11-01', '2025-11-30', 'Nghỉ không lương', 3, 'Approved')
+(1, 1, '2025-10-30', '2025-10-30', 'Việc gia đình', 2, 'APPROVED'),
+(2, 2, '2025-11-05', '2025-11-06', 'Khám sức khỏe', 2, 'PENDING'),
+(3, 3, '2025-10-20', '2025-10-21', 'Về quê', 3, 'APPROVED'),
+(4, 4, '2025-10-29', '2025-10-29', 'Nghỉ ốm', 4, 'REJECTED'),
+(5, 6, '2025-11-01', '2025-11-30', 'Nghỉ không lương', 3, 'APPROVED')
 ON DUPLICATE KEY UPDATE status = VALUES(status), reason = VALUES(reason);
 
 INSERT INTO Invoices (invoiceId, branchId, bookingId, customerId, type, costType, isDeposit, amount, paymentMethod, paymentStatus, status, note, requestedBy, createdBy, approvedBy, approvedAt) VALUES
-(1, 1, 1, 2, 'Income', NULL, TRUE, 1000000.00, 'Chuyển khoản', 'Paid', 'Active', 'Đặt cọc Booking 1', NULL, 5, 2, NOW()),
-(2, 1, 1, 2, 'Income', NULL, FALSE, 2800000.00, 'Tiền mặt', 'Paid', 'Active', 'Thu nốt Booking 1', NULL, 5, 2, NOW()),
-(3, 3, 2, 4, 'Income', NULL, TRUE, 500000.00, 'Chuyển khoản', 'Paid', 'Active', 'Đặt cọc Booking 2', NULL, 6, 4, NOW()),
-(4, 1, 3, 1, 'Income', NULL, FALSE, 25000000.00, 'Chuyển khoản', 'Paid', 'Active', 'Thanh toán HĐ định kỳ T11', NULL, 5, 2, NOW()),
-(5, 1, 5, 5, 'Income', NULL, FALSE, 1000000.00, 'Chuyển khoản', 'Paid', 'Active', 'Thanh toán Booking 5', NULL, 5, 2, NOW()),
-(6, 1, 1, NULL, 'Expense', 'fuel', FALSE, 1000000.00, 'Tiền mặt', 'Paid', 'Active', 'Đổ dầu xe Trip 1', 1, 8, 2, NOW()),
-(7, 1, 1, NULL, 'Expense', 'toll', FALSE, 300000.00, 'Thẻ ETC', 'Paid', 'Active', 'Phí cao tốc HN-HL Trip 1', 1, 8, 2, NOW()),
-(8, 2, NULL, NULL, 'Expense', 'maintenance', FALSE, 5000000.00, 'Chuyển khoản', 'Paid', 'Active', 'Bảo dưỡng xe 43B-777.77', NULL, 3, 3, NOW())
+(1, 1, 1, 2, 'Income', NULL, TRUE, 1000000.00, 'Chuyển khoản', 'PAID', 'ACTIVE', 'Đặt cọc Booking 1', NULL, 5, 2, NOW()),
+(2, 1, 1, 2, 'Income', NULL, FALSE, 2800000.00, 'Tiền mặt', 'PAID', 'ACTIVE', 'Thu nốt Booking 1', NULL, 5, 2, NOW()),
+(3, 3, 2, 4, 'Income', NULL, TRUE, 500000.00, 'Chuyển khoản', 'PAID', 'ACTIVE', 'Đặt cọc Booking 2', NULL, 6, 4, NOW()),
+(4, 1, 3, 1, 'Income', NULL, FALSE, 25000000.00, 'Chuyển khoản', 'PAID', 'ACTIVE', 'Thanh toán HĐ định kỳ T11', NULL, 5, 2, NOW()),
+(5, 1, 5, 5, 'Income', NULL, FALSE, 1000000.00, 'Chuyển khoản', 'PAID', 'ACTIVE', 'Thanh toán Booking 5', NULL, 5, 2, NOW()),
+(6, 1, 1, NULL, 'Expense', 'fuel', FALSE, 1000000.00, 'Tiền mặt', 'PAID', 'ACTIVE', 'Đổ dầu xe Trip 1', 1, 8, 2, NOW()),
+(7, 1, 1, NULL, 'Expense', 'toll', FALSE, 300000.00, 'Thẻ ETC', 'PAID', 'ACTIVE', 'Phí cao tốc HN-HL Trip 1', 1, 8, 2, NOW()),
+(8, 2, NULL, NULL, 'Expense', 'maintenance', FALSE, 5000000.00, 'Chuyển khoản', 'PAID', 'ACTIVE', 'Bảo dưỡng xe 43B-777.77', NULL, 3, 3, NOW())
 ON DUPLICATE KEY UPDATE amount = VALUES(amount), note = VALUES(note), paymentStatus = VALUES(paymentStatus);
 
 INSERT INTO AccountsReceivable (arId, customerId, bookingId, invoiceId, totalAmount, paidAmount, dueDate, status) VALUES
-(1, 2, 1, 2, 3800000.00, 3800000.00, '2025-10-25', 'Paid'),
-(2, 4, 2, 3, 1200000.00, 500000.00, '2025-10-28', 'PartiallyPaid'),
-(3, 1, 3, 4, 25000000.00, 25000000.00, '2025-11-01', 'Paid'),
-(4, 3, 4, NULL, 15000000.00, 500000.00, '2025-11-10', 'PartiallyPaid'),
-(5, 5, 5, 5, 1000000.00, 1000000.00, '2025-10-29', 'Paid')
+(1, 2, 1, 2, 3800000.00, 3800000.00, '2025-10-25', 'PAID'),
+(2, 4, 2, 3, 1200000.00, 500000.00, '2025-10-28', 'PARTIALLYPAID'),
+(3, 1, 3, 4, 25000000.00, 25000000.00, '2025-11-01', 'PAID'),
+(4, 3, 4, NULL, 15000000.00, 500000.00, '2025-11-10', 'PARTIALLYPAID'),
+(5, 5, 5, 5, 1000000.00, 1000000.00, '2025-10-29', 'PAID')
 ON DUPLICATE KEY UPDATE totalAmount = VALUES(totalAmount), paidAmount = VALUES(paidAmount), dueDate = VALUES(dueDate), status = VALUES(status);
 
 INSERT INTO Notifications (notificationId, userId, title, message, isRead) VALUES
