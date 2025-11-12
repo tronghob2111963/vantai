@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.Driver;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -34,3 +34,4 @@ public class TripIncidentResponse {
         this.createdAt = entity.getCreatedAt();
     }
 }
+

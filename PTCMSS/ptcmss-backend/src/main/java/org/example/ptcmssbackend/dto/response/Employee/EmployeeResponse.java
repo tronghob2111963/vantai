@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto;
+package org.example.ptcmssbackend.dto.response.Employee;
 
 import lombok.*;
 
@@ -7,7 +7,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EmployeeDTO {
+public class EmployeeResponse {
     private Integer id;
     private Integer userId;
     private String userFullName;
@@ -17,3 +17,4 @@ public class EmployeeDTO {
     private String roleName;
     private String status;
 }
+

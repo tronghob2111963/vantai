@@ -1,20 +1,23 @@
 package org.example.ptcmssbackend.service.impl;
 
-import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.Auth.LoginRequest;
-import org.example.ptcmssbackend.dto.response.TokenResponse;
+import org.example.ptcmssbackend.dto.response.Auth.TokenResponse;
 import org.example.ptcmssbackend.entity.Token;
 import org.example.ptcmssbackend.entity.Users;
 import org.example.ptcmssbackend.exception.ForBiddenException;
 import org.example.ptcmssbackend.exception.InvalidDataException;
 import org.example.ptcmssbackend.repository.UsersRepository;
 import org.example.ptcmssbackend.service.AuthenticationService;
+import org.example.ptcmssbackend.service.EmailService;
 import org.example.ptcmssbackend.service.JwtService;
 import org.example.ptcmssbackend.service.TokenService;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import jakarta.mail.MessagingException;
+import java.io.UnsupportedEncodingException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -35,6 +38,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final TokenService tokenService;
+    private final EmailService emailService;
 
     @Override
     public TokenResponse getAccessToken(LoginRequest request) {
@@ -184,5 +188,43 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } catch (Exception e) {
             throw new ForBiddenException("Invalid or expired verification token. " + e.getMessage());
         }
+    }
+
+    @Override
+    public String forgotPassword(String email) {
+        log.info("[FORGOT_PASSWORD] Request password reset for email: {}", email);
+
+        // Tìm user theo email
+        Users user = userRepository.findByEmail(email)
+                .orElse(null);
+
+        // Luôn trả về message thành công để không tiết lộ thông tin user
+        // (Security best practice: không cho attacker biết email có tồn tại hay không)
+        if (user == null) {
+            log.warn("[FORGOT_PASSWORD] Email not found: {}", email);
+            return "Nếu email tồn tại trong hệ thống, bạn sẽ nhận được link đặt lại mật khẩu.";
+        }
+
+        // Tạo password reset token
+        String passwordResetToken = jwtService.generatePasswordResetToken(user.getUsername());
+
+        // Tạo URL reset password
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+
+        // Gửi email
+        try {
+            emailService.sendPasswordResetEmail(
+                    user.getEmail(),
+                    user.getFullName(),
+                    passwordResetToken,
+                    baseUrl
+            );
+            log.info("[FORGOT_PASSWORD] Password reset email sent to: {}", email);
+        } catch (MessagingException | UnsupportedEncodingException e) {
+            log.error("[FORGOT_PASSWORD] Failed to send email: {}", e.getMessage());
+            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.");
+        }
+
+        return "Nếu email tồn tại trong hệ thống, bạn sẽ nhận được link đặt lại mật khẩu.";
     }
 }

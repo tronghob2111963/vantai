@@ -1,10 +1,8 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.Auth;
 
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.example.ptcmssbackend.enums.UserRole;
-
 
 
 @Getter
@@ -17,3 +15,4 @@ public class TokenResponse {
     private Integer userId;
     private String roleName;
 }
+

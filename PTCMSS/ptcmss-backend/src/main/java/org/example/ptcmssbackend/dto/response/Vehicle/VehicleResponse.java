@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.Vehicle;
 
 import lombok.Builder;
 import lombok.Data;
@@ -23,3 +23,4 @@ public class VehicleResponse {
     private Long odometer;
     private String status;
 }
+

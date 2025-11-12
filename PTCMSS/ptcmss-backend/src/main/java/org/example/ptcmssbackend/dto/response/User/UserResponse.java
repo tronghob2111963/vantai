@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.User;
 
 
 import lombok.*;

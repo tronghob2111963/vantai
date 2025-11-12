@@ -1,0 +1,70 @@
+# ============================================
+# .dockerignore EXAMPLE
+# ============================================
+# Copy file này thành .dockerignore trong ptcmss-backend/
+# Loại bỏ các file không cần thiết khi build Docker image
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+HUONG_DAN_*.md
+PHAN_TICH_*.md
+QUICK_START.md
+setup-database.sql
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Test files
+src/test/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Docker files (không cần trong image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+

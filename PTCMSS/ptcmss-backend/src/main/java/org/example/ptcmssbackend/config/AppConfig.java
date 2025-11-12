@@ -36,6 +36,7 @@ public class AppConfig implements WebMvcConfigurer {
             "/v3/api-docs/**",
             "/swagger-ui.html",
             "/api/auth/**",          // login, register, refresh
+            "/api/test/**",          // test endpoints (generate hash, test password)
             "/verify",
             "/set-password"
     };

@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.Driver;
 
 
 
@@ -63,3 +63,4 @@ public class DriverDayOffResponse {
                 : "Chưa phê duyệt";
     }
 }
+

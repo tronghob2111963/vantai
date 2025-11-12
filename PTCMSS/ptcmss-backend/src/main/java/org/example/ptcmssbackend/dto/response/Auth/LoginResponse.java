@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.Auth;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,3 +27,4 @@ public class LoginResponse {
         private String status;
     }
 }
+

@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.Driver;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,3 +18,4 @@ public class DriverDashboardResponse {
     private Instant endTime;
     private TripStatus status;
 }
+

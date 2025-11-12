@@ -1,10 +1,12 @@
-package org.example.ptcmssbackend.dto.request;
+package org.example.ptcmssbackend.dto.request.SystemSetting;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.example.ptcmssbackend.enums.SettingStatus;
 import org.example.ptcmssbackend.enums.ValueType;
+
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -24,6 +26,11 @@ public class SystemSettingRequest {
     private String settingValue;
 
     @NotNull
+    private LocalDate effectiveStartDate;
+
+    private LocalDate effectiveEndDate;
+
+    @NotNull
     private ValueType valueType;
 
     private String category;
@@ -31,3 +38,4 @@ public class SystemSettingRequest {
     private SettingStatus status;
     private Integer updatedById; // ID của Employee cập nhật
 }
+

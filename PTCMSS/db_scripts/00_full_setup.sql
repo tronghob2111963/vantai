@@ -143,10 +143,13 @@ CREATE TABLE IF NOT EXISTS Vehicles (
   branchId INT NOT NULL,
   licensePlate VARCHAR(20) NOT NULL UNIQUE,
   model VARCHAR(100),
+  brand VARCHAR(100),
   capacity INT,
   productionYear INT CHECK (productionYear >= 1980),
   registrationDate DATE,
   inspectionExpiry DATE,
+  insuranceExpiry DATE,
+  odometer BIGINT,
   status ENUM('Available','InUse','Maintenance','Inactive') DEFAULT 'Available',
   CONSTRAINT fk_veh_cat    FOREIGN KEY (categoryId) REFERENCES VehicleCategoryPricing(categoryId),
   CONSTRAINT fk_veh_branch FOREIGN KEY (branchId)   REFERENCES Branches(branchId)

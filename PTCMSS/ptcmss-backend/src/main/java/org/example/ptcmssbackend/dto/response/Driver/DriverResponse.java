@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.dto.response;
+package org.example.ptcmssbackend.dto.response.Driver;
 
 
 import lombok.AllArgsConstructor;
@@ -36,3 +36,4 @@ public class DriverResponse {
         this.status = driver.getStatus().name();
     }
 }
+
