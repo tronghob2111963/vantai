@@ -15,7 +15,7 @@ public class Employees {
     @Id
     @Column(name = "employeeId", nullable = false)
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer employeeId;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

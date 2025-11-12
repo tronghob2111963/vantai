@@ -3,15 +3,19 @@ package org.example.ptcmssbackend.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.Booking.CreateBookingRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CreatePaymentRequest;
 import org.example.ptcmssbackend.dto.request.Booking.TripRequest;
 import org.example.ptcmssbackend.dto.request.Booking.UpdateBookingRequest;
 import org.example.ptcmssbackend.dto.request.Booking.VehicleDetailRequest;
+import org.example.ptcmssbackend.dto.request.Booking.AssignRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CheckAvailabilityRequest;
 import org.example.ptcmssbackend.dto.response.Booking.*;
 import org.example.ptcmssbackend.dto.response.common.PageResponse;
 import org.example.ptcmssbackend.entity.*;
 import org.example.ptcmssbackend.enums.BookingStatus;
 import org.example.ptcmssbackend.enums.TripStatus;
 import org.example.ptcmssbackend.enums.VehicleCategoryStatus;
+import org.example.ptcmssbackend.enums.VehicleStatus;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.BookingService;
 import org.example.ptcmssbackend.service.CustomerService;
@@ -49,6 +53,8 @@ public class BookingServiceImpl implements BookingService {
     private final TripDriverRepository tripDriverRepository;
     private final TripVehicleRepository tripVehicleRepository;
     private final InvoiceRepository invoiceRepository;
+    private final DriverRepository driverRepository;
+    private final VehicleRepository vehicleRepository;
     
     @Override
     @Transactional
@@ -166,7 +172,7 @@ public class BookingServiceImpl implements BookingService {
         if (request.getCustomer() != null) {
             Customers customer = customerService.findOrCreateCustomer(
                     request.getCustomer(),
-                    booking.getConsultant() != null ? booking.getConsultant().getId() : null
+                    booking.getConsultant() != null ? booking.getConsultant().getEmployeeId() : null
             );
             booking.setCustomer(customer);
         }
@@ -233,9 +239,27 @@ public class BookingServiceImpl implements BookingService {
         
         // Update trips (xóa cũ, tạo mới)
         if (request.getTrips() != null) {
-            // Xóa trips cũ
+            // Xóa trips cũ (dọn phụ thuộc trước để tránh lỗi FK)
             List<Trips> oldTrips = tripRepository.findByBooking_Id(bookingId);
-            tripRepository.deleteAll(oldTrips);
+            for (Trips old : oldTrips) {
+                // xóa trực tiếp theo tripId để đảm bảo xóa FK trước
+                try {
+                    tripDriverRepository.deleteByTrip_Id(old.getId());
+                } catch (Exception ignore) {
+                    List<TripDrivers> tds = tripDriverRepository.findByTripId(old.getId());
+                    if (!tds.isEmpty()) tripDriverRepository.deleteAll(tds);
+                }
+                try {
+                    tripVehicleRepository.deleteByTrip_Id(old.getId());
+                } catch (Exception ignore) {
+                    List<TripVehicles> tvs = tripVehicleRepository.findByTripId(old.getId());
+                    if (!tvs.isEmpty()) tripVehicleRepository.deleteAll(tvs);
+                }
+            }
+            // sau khi dọn phụ thuộc mới xóa trips
+            if (!oldTrips.isEmpty()) {
+                tripRepository.deleteAll(oldTrips);
+            }
             
             // Tạo trips mới
             for (TripRequest tripReq : request.getTrips()) {
@@ -500,10 +524,146 @@ public class BookingServiceImpl implements BookingService {
             return BookingStatus.PENDING;
         }
         try {
-            return BookingStatus.valueOf(status.toUpperCase());
+            String s = status.trim().toUpperCase().replace('-', '_').replace(' ', '_');
+            if ("INPROGRESS".equals(s)) s = "IN_PROGRESS";
+            return BookingStatus.valueOf(s);
         } catch (IllegalArgumentException e) {
             return BookingStatus.PENDING;
         }
+    }
+
+    @Override
+    @Transactional
+    public BookingResponse addPayment(Integer bookingId, CreatePaymentRequest request, Integer employeeId) {
+        Bookings booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+
+        Invoices inv = new Invoices();
+        inv.setBooking(booking);
+        inv.setBranch(booking.getBranch());
+        inv.setCustomer(booking.getCustomer());
+        inv.setType(org.example.ptcmssbackend.enums.InvoiceType.INCOME);
+        inv.setIsDeposit(Boolean.TRUE.equals(request.getDeposit()));
+        inv.setAmount(request.getAmount());
+        inv.setPaymentMethod(request.getPaymentMethod());
+        inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
+        inv.setStatus(org.example.ptcmssbackend.enums.InvoiceStatus.ACTIVE);
+        inv.setNote(request.getNote());
+        if (employeeId != null) {
+            inv.setCreatedBy(employeeRepository.findById(employeeId).orElse(null));
+        }
+        invoiceRepository.save(inv);
+
+        // return updated booking response with new totals
+        return getById(bookingId);
+    }
+
+    @Override
+    @Transactional
+    public BookingResponse assign(Integer bookingId, AssignRequest request) {
+        Bookings booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+
+        List<Trips> trips = tripRepository.findByBooking_Id(bookingId);
+        List<Integer> targetTripIds = (request.getTripIds() != null && !request.getTripIds().isEmpty())
+                ? request.getTripIds()
+                : trips.stream().map(Trips::getId).collect(Collectors.toList());
+
+        // Assign driver if provided
+        if (request.getDriverId() != null) {
+            Drivers driver = driverRepository.findById(request.getDriverId())
+                    .orElseThrow(() -> new RuntimeException("Driver not found: " + request.getDriverId()));
+            for (Integer tid : targetTripIds) {
+                List<TripDrivers> olds = tripDriverRepository.findByTripId(tid);
+                if (!olds.isEmpty()) tripDriverRepository.deleteAll(olds);
+
+                TripDrivers td = new TripDrivers();
+                TripDriverId id = new TripDriverId();
+                id.setTripId(tid);
+                id.setDriverId(driver.getId());
+                td.setId(id);
+                Trips trip = trips.stream().filter(t -> t.getId().equals(tid)).findFirst().orElseThrow();
+                td.setTrip(trip);
+                td.setDriver(driver);
+                td.setDriverRole("Main Driver");
+                td.setNote(request.getNote());
+                tripDriverRepository.save(td);
+            }
+        }
+
+        // Assign vehicle if provided
+        if (request.getVehicleId() != null) {
+            Vehicles vehicle = vehicleRepository.findById(request.getVehicleId())
+                    .orElseThrow(() -> new RuntimeException("Vehicle not found: " + request.getVehicleId()));
+            for (Integer tid : targetTripIds) {
+                List<TripVehicles> olds = tripVehicleRepository.findByTripId(tid);
+
+                // Nếu đã gán đúng vehicle này rồi -> cập nhật note/assignedAt (idempotent)
+                TripVehicles same = null;
+                for (TripVehicles tvOld : olds) {
+                    if (tvOld.getVehicle() != null && tvOld.getVehicle().getId().equals(vehicle.getId())) {
+                        same = tvOld;
+                        break;
+                    }
+                }
+
+                if (same != null) {
+                    same.setAssignedAt(java.time.Instant.now());
+                    same.setNote(request.getNote());
+                    tripVehicleRepository.save(same);
+                    // Xoá các mapping khác nếu tồn tại (đảm bảo chỉ còn 1)
+                    for (TripVehicles tvOld : olds) {
+                        if (!tvOld.getId().equals(same.getId())) {
+                            tripVehicleRepository.delete(tvOld);
+                        }
+                    }
+                    tripVehicleRepository.flush();
+                } else {
+                    // Chưa có -> xoá tất cả cũ rồi tạo mới
+                    if (!olds.isEmpty()) {
+                        tripVehicleRepository.deleteAll(olds);
+                        tripVehicleRepository.flush();
+                    }
+                    TripVehicles tv = new TripVehicles();
+                    Trips trip = trips.stream().filter(t -> t.getId().equals(tid)).findFirst().orElseThrow();
+                    tv.setTrip(trip);
+                    tv.setVehicle(vehicle);
+                    tv.setAssignedAt(java.time.Instant.now());
+                    tv.setNote(request.getNote());
+                    tripVehicleRepository.save(tv);
+                }
+            }
+        }
+
+        return getById(bookingId);
+    }
+
+    @Override
+    public org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse checkAvailability(CheckAvailabilityRequest request) {
+        Integer branchId = request.getBranchId();
+        Integer categoryId = request.getCategoryId();
+        java.time.Instant start = request.getStartTime();
+        java.time.Instant end = request.getEndTime();
+        int needed = request.getQuantity() != null ? request.getQuantity() : 1;
+
+        // Total candidates available by branch/category/status
+        java.util.List<Vehicles> candidates = vehicleRepository.filterVehicles(categoryId, branchId, VehicleStatus.AVAILABLE);
+        int total = candidates != null ? candidates.size() : 0;
+
+        // Busy vehicles in window
+        java.util.List<Integer> busyIds = tripVehicleRepository.findBusyVehicleIds(branchId, categoryId, start, end);
+        int busy = busyIds != null ? busyIds.size() : 0;
+
+        int available = Math.max(0, total - busy);
+        boolean ok = available >= needed;
+
+        return org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.builder()
+                .ok(ok)
+                .availableCount(available)
+                .needed(needed)
+                .totalCandidates(total)
+                .busyCount(busy)
+                .build();
     }
     
     private BookingResponse toResponse(Bookings booking) {
@@ -556,16 +716,20 @@ public class BookingServiceImpl implements BookingService {
         
         // Tính paidAmount và remainingAmount từ Invoices
         BigDecimal paidAmount = invoiceRepository.calculatePaidAmountByBookingId(booking.getId());
+        if (paidAmount == null) paidAmount = BigDecimal.ZERO;
         BigDecimal remainingAmount = booking.getTotalCost() != null
                 ? booking.getTotalCost().subtract(paidAmount)
                 : BigDecimal.ZERO;
+        if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
+            remainingAmount = BigDecimal.ZERO;
+        }
         
         return BookingResponse.builder()
                 .id(booking.getId())
                 .customer(customerService.toResponse(booking.getCustomer()))
                 .branchId(booking.getBranch().getId())
                 .branchName(booking.getBranch().getBranchName())
-                .consultantId(booking.getConsultant() != null ? booking.getConsultant().getId() : null)
+                .consultantId(booking.getConsultant() != null ? booking.getConsultant().getEmployeeId() : null)
                 .consultantName(booking.getConsultant() != null && booking.getConsultant().getUser() != null
                         ? booking.getConsultant().getUser().getFullName() : null)
                 .hireTypeId(booking.getHireType() != null ? booking.getHireType().getId() : null)
@@ -620,7 +784,7 @@ public class BookingServiceImpl implements BookingService {
                 .totalCost(booking.getTotalCost())
                 .status(booking.getStatus() != null ? booking.getStatus().name() : null)
                 .createdAt(booking.getCreatedAt())
-                .consultantId(booking.getConsultant() != null ? booking.getConsultant().getId() : null)
+                .consultantId(booking.getConsultant() != null ? booking.getConsultant().getEmployeeId() : null)
                 .consultantName(booking.getConsultant() != null && booking.getConsultant().getUser() != null
                         ? booking.getConsultant().getUser().getFullName() : null)
                 .build();

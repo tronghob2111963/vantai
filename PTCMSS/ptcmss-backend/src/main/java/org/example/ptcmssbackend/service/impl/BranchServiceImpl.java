@@ -47,7 +47,7 @@ public class BranchServiceImpl implements BranchService {
         return BranchResponse.builder()
                 .id(branch.getId())
                 .branchName(branch.getBranchName())
-                .managerId(branch.getManager() != null ? branch.getManager().getId() : null)
+                .managerId(branch.getManager() != null ? branch.getManager().getEmployeeId() : null)
                 .managerName(branch.getManager() != null && branch.getManager().getUser() != null 
                         ? branch.getManager().getUser().getFullName() : null)
                 .location(branch.getLocation())
@@ -109,7 +109,7 @@ public class BranchServiceImpl implements BranchService {
         return BranchResponse.builder()
                 .id(branch.getId())
                 .branchName(branch.getBranchName())
-                .managerId(branch.getManager() != null ? branch.getManager().getId() : null)
+                .managerId(branch.getManager() != null ? branch.getManager().getEmployeeId() : null)
                 .managerName(branch.getManager() != null && branch.getManager().getUser() != null 
                         ? branch.getManager().getUser().getFullName() : null)
                 .location(branch.getLocation())
@@ -131,7 +131,7 @@ public class BranchServiceImpl implements BranchService {
                 .map(branch -> BranchResponse.builder()
                         .id(branch.getId())
                         .branchName(branch.getBranchName())
-                        .managerId(branch.getManager() != null ? branch.getManager().getId() : null)
+                        .managerId(branch.getManager() != null ? branch.getManager().getEmployeeId() : null)
                         .managerName(branch.getManager() != null && branch.getManager().getUser() != null 
                                 ? branch.getManager().getUser().getFullName() : null)
                         .location(branch.getLocation())

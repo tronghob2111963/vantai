@@ -1,5 +1,9 @@
 // EditOrderPage.jsx (LIGHT THEME)
 import React from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { getBooking, updateBooking, calculatePrice, assignBooking } from "../../api/bookings";
+import { listVehicleCategories } from "../../api/vehicleCategories";
+import { listBranches } from "../../api/branches";
 import {
     ArrowLeft,
     User,
@@ -145,66 +149,47 @@ const MOCK_ORDER = {
 /* ========================= MAIN PAGE ========================= */
 export default function EditOrderPage() {
     const { toasts, pushToast } = useToasts();
+    const { orderId } = useParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const seedOrder = location?.state?.order;
 
     /* --- trạng thái đơn hàng --- */
-    const [status, setStatus] = React.useState(
-        MOCK_ORDER.status
-    );
+    const [status, setStatus] = React.useState("PENDING");
 
     /* --- chi nhánh --- */
-    const [branchId, setBranchId] = React.useState(
-        MOCK_ORDER.branch_id
-    );
+    const [branchId, setBranchId] = React.useState("");
 
     /* --- khách hàng --- */
-    const [customerPhone, setCustomerPhone] =
-        React.useState(MOCK_ORDER.customer_phone);
-    const [customerName, setCustomerName] =
-        React.useState(MOCK_ORDER.customer_name);
-    const [customerEmail, setCustomerEmail] =
-        React.useState(MOCK_ORDER.customer_email);
+    const [customerPhone, setCustomerPhone] = React.useState("");
+    const [customerName, setCustomerName] = React.useState("");
+    const [customerEmail, setCustomerEmail] = React.useState("");
 
     /* --- hành trình --- */
-    const [pickup, setPickup] = React.useState(
-        MOCK_ORDER.pickup
-    );
-    const [dropoff, setDropoff] = React.useState(
-        MOCK_ORDER.dropoff
-    );
-    const [startTime, setStartTime] = React.useState(
-        MOCK_ORDER.start_time
-    );
-    const [endTime, setEndTime] = React.useState(
-        MOCK_ORDER.end_time
-    );
+    const [pickup, setPickup] = React.useState("");
+    const [dropoff, setDropoff] = React.useState("");
+    const [startTime, setStartTime] = React.useState("");
+    const [endTime, setEndTime] = React.useState("");
 
     /* --- thông số xe --- */
-    const [pax, setPax] = React.useState(
-        String(MOCK_ORDER.pax || "3")
-    );
-    const [vehiclesNeeded, setVehiclesNeeded] =
-        React.useState(
-            String(MOCK_ORDER.vehicles_needed || "1")
-        );
-    const [categoryId, setCategoryId] =
-        React.useState(MOCK_ORDER.category_id);
+    const [pax, setPax] = React.useState("0");
+    const [vehiclesNeeded, setVehiclesNeeded] = React.useState("1");
+    const [categoryId, setCategoryId] = React.useState("");
+    const [categories, setCategories] = React.useState([]);
+    const [branches, setBranches] = React.useState([]);
 
     const [availabilityMsg, setAvailabilityMsg] =
         React.useState("");
 
     /* --- giá --- */
-    const [systemPrice, setSystemPrice] =
-        React.useState(MOCK_ORDER.system_price);
-    const [discountAmount, setDiscountAmount] =
-        React.useState(
-            String(MOCK_ORDER.discount_amount || "0")
-        );
-    const [discountReason, setDiscountReason] =
-        React.useState(
-            MOCK_ORDER.discount_reason || ""
-        );
-    const [finalPrice, setFinalPrice] =
-        React.useState(MOCK_ORDER.final_price);
+    const [systemPrice, setSystemPrice] = React.useState(0);
+    const [discountAmount, setDiscountAmount] = React.useState("0");
+    const [discountReason, setDiscountReason] = React.useState("");
+    const [finalPrice, setFinalPrice] = React.useState(0);
+
+    // assignment
+    const [driverId, setDriverId] = React.useState("");
+    const [vehicleId, setVehicleId] = React.useState("");
 
     /* --- submit state --- */
     const [submittingDraft, setSubmittingDraft] =
@@ -215,6 +200,71 @@ export default function EditOrderPage() {
     /* --- quyền sửa --- */
     const canEdit =
         status === "DRAFT" || status === "PENDING";
+
+    // helper ISO
+    const toIsoZ = (s) => {
+        if (!s) return null;
+        const d = new Date(s);
+        if (Number.isNaN(d.getTime())) return s;
+        return d.toISOString();
+    };
+
+    // seed from navigation state if exists (instant prefill)
+    React.useEffect(() => {
+        if (!seedOrder) return;
+        setCustomerName(seedOrder.customer_name || "");
+        setCustomerPhone(seedOrder.customer_phone || "");
+        setPickup(seedOrder.pickup || "");
+        setDropoff(seedOrder.dropoff || "");
+        if (seedOrder.pickup_time) {
+            const d = new Date(String(seedOrder.pickup_time).replace(" ", "T"));
+            if (!Number.isNaN(d.getTime())) setStartTime(d.toISOString().slice(0,16));
+        }
+        if (seedOrder.dropoff_eta) {
+            const d2 = new Date(String(seedOrder.dropoff_eta).replace(" ", "T"));
+            if (!Number.isNaN(d2.getTime())) setEndTime(d2.toISOString().slice(0,16));
+        }
+        if (seedOrder.vehicle_count != null) setVehiclesNeeded(String(seedOrder.vehicle_count));
+        if (seedOrder.quoted_price != null) {
+            setFinalPrice(Number(seedOrder.quoted_price));
+        }
+    }, [seedOrder]);
+
+    // load booking + categories
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const cats = await listVehicleCategories();
+                if (Array.isArray(cats) && cats.length > 0) setCategories(cats);
+            } catch {}
+            try {
+                const br = await listBranches({ page: 0 });
+                const items = Array.isArray(br?.items) ? br.items : (Array.isArray(br) ? br : []);
+                if (items.length > 0) setBranches(items);
+            } catch {}
+            try {
+                if (!orderId) return;
+                const b = await getBooking(orderId);
+                const t = (b.trips && b.trips[0]) || {};
+                setStatus(b.status || "PENDING");
+                setBranchId(String(b.branchId || ""));
+                setCustomerPhone(b.customer?.phone || "");
+                setCustomerName(b.customer?.fullName || "");
+                setCustomerEmail(b.customer?.email || "");
+                setPickup(t.startLocation || "");
+                setDropoff(t.endLocation || "");
+                setStartTime((t.startTime || "").toString().replace("Z", ""));
+                setEndTime((t.endTime || "").toString().replace("Z", ""));
+                const qty = Array.isArray(b.vehicles) ? b.vehicles.reduce((s,v)=>s+(v.quantity||0),0) : 1;
+                const catId = Array.isArray(b.vehicles) && b.vehicles.length ? String(b.vehicles[0].vehicleCategoryId) : "";
+                setVehiclesNeeded(String(qty));
+                setCategoryId(catId);
+                setSystemPrice(Number(b.estimatedCost || 0));
+                setDiscountAmount(String(b.discountAmount || 0));
+                setFinalPrice(Number(b.totalCost || 0));
+            } catch {}
+        })();
+    }, [orderId]);
 
     /* --- tự tính finalPrice khi thay đổi discount/systemPrice --- */
     React.useEffect(() => {
@@ -229,50 +279,49 @@ export default function EditOrderPage() {
         setFinalPrice(fp);
     }, [discountAmount, systemPrice]);
 
-    /* --- check availability (mock) --- */
-    const checkAvailability = () => {
-        const demoCount =
-            categoryId === "SEDAN4"
-                ? 5
-                : categoryId === "SUV7"
-                    ? 2
-                    : 0;
-        if (demoCount > 0) {
-            setAvailabilityMsg(
-                "Khả dụng: Còn " + demoCount + " xe"
-            );
-            pushToast(
-                "Xe còn sẵn (" +
-                demoCount +
-                " chiếc)",
-                "success"
-            );
-        } else {
-            setAvailabilityMsg(
-                "Cảnh báo: Hết xe trong khung giờ này"
-            );
-            pushToast(
-                "Hết xe khớp loại bạn chọn",
-                "error"
-            );
+    /* --- check availability (real call) --- */
+    const checkAvailability = async () => {
+        try {
+            if (!categoryId || !branchId) {
+                setAvailabilityMsg("Thiếu loại xe hoặc chi nhánh");
+                return;
+            }
+            const { checkVehicleAvailability } = await import("../../api/bookings");
+            const result = await checkVehicleAvailability({
+                branchId,
+                categoryId,
+                startTime: toIsoZ(startTime),
+                endTime: toIsoZ(endTime),
+                quantity: vehiclesNeeded,
+            });
+            if (result?.ok) {
+                setAvailabilityMsg(`Khả dụng: Còn ${result.availableCount} xe`);
+                pushToast(`Xe còn sẵn (${result.availableCount} chiếc)`, "success");
+            } else {
+                setAvailabilityMsg("Cảnh báo: Hết xe trong khung giờ này");
+                pushToast("Hết xe khớp loại bạn chọn", "error");
+            }
+        } catch (e) {
+            setAvailabilityMsg("Không kiểm tra được khả dụng xe");
+            pushToast("Không kiểm tra được khả dụng xe", "error");
         }
     };
 
     /* --- recalc system price (mock) --- */
-    const recalcPrice = () => {
-        const base =
-            categoryId === "SEDAN4"
-                ? 1500000
-                : categoryId === "SUV7"
-                    ? 1800000
-                    : 2200000;
-        setSystemPrice(base);
-        pushToast(
-            "Đã tính lại giá hệ thống: " +
-            base.toLocaleString("vi-VN") +
-            "đ",
-            "info"
-        );
+    const recalcPrice = async () => {
+        try {
+            const price = await calculatePrice({
+                vehicleCategoryIds: [Number(categoryId || 0)],
+                quantities: [Number(vehiclesNeeded || 1)],
+                distance: 0,
+                useHighway: false,
+            });
+            const base = Number(price || 0);
+            setSystemPrice(base);
+            pushToast("Đã tính lại giá hệ thống: " + base.toLocaleString("vi-VN") + "đ", "info");
+        } catch {
+            pushToast("Không tính được giá tự động", "error");
+        }
     };
 
     /* --- PUT status=DRAFT --- */
@@ -311,14 +360,25 @@ export default function EditOrderPage() {
             status: "DRAFT",
         };
 
-        console.log("PUT draft payload =>", payload);
-        await new Promise((r) => setTimeout(r, 400));
-
-        setStatus("DRAFT");
-        pushToast(
-            "Đã lưu nháp đơn hàng.",
-            "success"
-        );
+        const req = {
+            customer: { fullName: customerName, phone: customerPhone, email: customerEmail },
+            branchId: Number(branchId || 0) || undefined,
+            trips: [{ startLocation: pickup, endLocation: dropoff, startTime: toIsoZ(startTime), endTime: toIsoZ(endTime) }],
+            vehicles: [{ vehicleCategoryId: Number(categoryId || 0), quantity: Number(vehiclesNeeded || 1) }],
+            estimatedCost: Number(systemPrice || 0),
+            discountAmount: cleanDiscount,
+            totalCost: Number(finalPrice || 0),
+            status: 'PENDING',
+        };
+        try {
+            await updateBooking(orderId, req);
+            setStatus('PENDING');
+            pushToast('Đã lưu nháp đơn hàng.', 'success');
+            // quay về danh sách và yêu cầu refresh
+            navigate('/orders', { state: { refresh: true, toast: 'Đã lưu nháp đơn hàng.' } });
+        } catch {
+            pushToast('Lưu nháp thất bại', 'error');
+        }
 
         setSubmittingDraft(false);
     };
@@ -359,16 +419,40 @@ export default function EditOrderPage() {
             status: "PENDING",
         };
 
-        console.log("PUT pending payload =>", payload);
-        await new Promise((r) => setTimeout(r, 400));
-
-        setStatus("PENDING");
-        pushToast(
-            "Đã cập nhật đơn hàng & chuyển trạng thái PENDING.",
-            "success"
-        );
+        const req2 = {
+            customer: { fullName: customerName, phone: customerPhone, email: customerEmail },
+            branchId: Number(branchId || 0) || undefined,
+            trips: [{ startLocation: pickup, endLocation: dropoff, startTime: toIsoZ(startTime), endTime: toIsoZ(endTime) }],
+            vehicles: [{ vehicleCategoryId: Number(categoryId || 0), quantity: Number(vehiclesNeeded || 1) }],
+            estimatedCost: Number(systemPrice || 0),
+            discountAmount: cleanDiscount,
+            totalCost: Number(finalPrice || 0),
+            status: 'PENDING',
+        };
+        try {
+            await updateBooking(orderId, req2);
+            setStatus('PENDING');
+            pushToast('Đã cập nhật đơn hàng & chuyển trạng thái PENDING.', 'success');
+            // quay về danh sách và yêu cầu refresh
+            navigate('/orders', { state: { refresh: true, toast: 'Đã cập nhật đơn hàng.' } });
+        } catch {
+            pushToast('Cập nhật đơn thất bại', 'error');
+        }
 
         setSubmittingUpdate(false);
+    };
+
+    // Assign driver/vehicle to all trips
+    const onAssign = async () => {
+        try {
+            await assignBooking(orderId, {
+                driverId: driverId ? Number(driverId) : undefined,
+                vehicleId: vehicleId ? Number(vehicleId) : undefined,
+            });
+            pushToast("Đã gán tài xế/xe cho đơn hàng", "success");
+        } catch (e) {
+            pushToast("Gán tài xế/xe thất bại", "error");
+        }
     };
 
     /* ---------------- styles / shared ---------------- */
@@ -420,12 +504,7 @@ export default function EditOrderPage() {
                 <div className="flex-1 flex flex-col gap-3">
                     <div className="flex flex-wrap items-start gap-3">
                         <button
-                            onClick={() =>
-                                pushToast(
-                                    "Quay lại danh sách (mock)",
-                                    "info"
-                                )
-                            }
+                            onClick={() => navigate("/orders")}
                             className="rounded-md border border-slate-300 bg-white hover:bg-slate-50 px-2 py-2 text-[12px] text-slate-700 flex items-center gap-2 shadow-sm"
                         >
                             <ArrowLeft className="h-4 w-4 text-slate-500" />
@@ -435,8 +514,7 @@ export default function EditOrderPage() {
                         <div className="text-[20px] font-semibold text-slate-900 flex items-center gap-2">
                             <DollarSign className="h-6 w-6 text-emerald-600" />
                             <span>
-                                Chỉnh sửa đơn{" "}
-                                {MOCK_ORDER.code}
+                                Chỉnh sửa đơn ORD-{orderId}
                             </span>
                         </div>
 
@@ -883,16 +961,11 @@ export default function EditOrderPage() {
                                 }
                                 {...disableInputProps}
                             >
-                                {MOCK_CATEGORIES.map(
-                                    (c) => (
-                                        <option
-                                            key={c.id}
-                                            value={c.id}
-                                        >
-                                            {c.label}
-                                        </option>
-                                    )
-                                )}
+                                {(categories.length ? categories : MOCK_CATEGORIES).map((c) => (
+                                    <option key={c.id} value={String(c.id)}>
+                                        {c.categoryName || c.label}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -914,16 +987,11 @@ export default function EditOrderPage() {
                                 }
                                 {...disableInputProps}
                             >
-                                {MOCK_BRANCHES.map(
-                                    (b) => (
-                                        <option
-                                            key={b.id}
-                                            value={b.id}
-                                        >
-                                            {b.label}
-                                        </option>
-                                    )
-                                )}
+                                {(branches.length ? branches : MOCK_BRANCHES).map((b) => (
+                                    <option key={b.id} value={String(b.id)}>
+                                        {b.branchName || b.label}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -954,12 +1022,37 @@ export default function EditOrderPage() {
                                     hết xe khả dụng.
                                 </div>
                             )}
+                    </div>
+                </div>
+                {/* Gán tài xế / xe */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium flex items-center gap-2 mb-4">
+                        <CarFront className="h-4 w-4 text-sky-600" />
+                        Gán tài xế / phân xe
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4 text-[13px]">
+                        <div>
+                            <label className="text-[12px] text-slate-600 mb-1 block">Driver ID</label>
+                            <input className={selectEnabledCls} placeholder="Nhập driverId" value={driverId} onChange={(e)=>setDriverId(e.target.value)} />
                         </div>
+                        <div>
+                            <label className="text-[12px] text-slate-600 mb-1 block">Vehicle ID</label>
+                            <input className={selectEnabledCls} placeholder="Nhập vehicleId" value={vehicleId} onChange={(e)=>setVehicleId(e.target.value)} />
+                        </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-3">
+                        <button type="button" onClick={onAssign} className="rounded-md bg-sky-600 hover:bg-sky-500 text-white font-medium text-[13px] px-4 py-2 shadow-sm">
+                            Gán tài xế / xe
+                        </button>
+                        <div className="text-[11px] text-slate-500">Áp dụng cho toàn bộ chuyến của đơn.</div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            {/* FOOTNOTE */}
+        {/* FOOTNOTE */}
             <div className="text-[11px] text-slate-500 mt-8 leading-relaxed">
                 <div className="text-slate-700 font-mono text-[11px]">
                     PUT /api/orders/{MOCK_ORDER.id}

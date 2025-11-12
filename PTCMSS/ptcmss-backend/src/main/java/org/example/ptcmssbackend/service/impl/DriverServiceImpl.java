@@ -104,7 +104,7 @@ public class DriverServiceImpl implements DriverService {
         log.info("[DriverProfile] Loading profile by userId {}", userId);
         var employee = employeeRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Employee not found for user"));
-        var driver = driverRepository.findByEmployee_Id(employee.getId())
+        var driver = driverRepository.findByEmployee_EmployeeId(employee.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Driver not found for employee"));
         
         // Sử dụng getProfile để có thống kê

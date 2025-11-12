@@ -1,5 +1,9 @@
 // ConsultantOrdersPage.jsx (LIGHT THEME)
 import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { listVehicleCategories } from "../../api/vehicleCategories";
+import { listBookings, createBooking } from "../../api/bookings";
+import { listBranches } from "../../api/branches";
 import {
     ClipboardList,
     PlusCircle,
@@ -164,6 +168,7 @@ function OrderStatusPill({ status }) {
 /* --------------------------------------------------------- */
 /* MOCK DATA                                                 */
 /* --------------------------------------------------------- */
+// Fallback mock; thực tế sẽ dùng dữ liệu từ BE qua /api/vehicle-categories
 const VEHICLE_CATEGORIES = [
     { id: "SEDAN4", label: "Sedan 4 chỗ", seats: 4 },
     { id: "SUV7", label: "SUV 7 chỗ", seats: 7 },
@@ -792,6 +797,13 @@ function OrderFormModal({
     const [dropoffEta, setDropoffEta] = React.useState("");
 
     const [categoryId, setCategoryId] = React.useState("");
+    // Vehicle categories từ BE
+    const [categories, setCategories] = React.useState([]);
+    const [loadingCats, setLoadingCats] = React.useState(false);
+    // Branches (BE)
+    const [branchId, setBranchId] = React.useState("");
+    const [branches, setBranches] = React.useState([]);
+    const [loadingBranches, setLoadingBranches] = React.useState(false);
     const [vehicleCount, setVehicleCount] = React.useState("1");
     const [paxCount, setPaxCount] = React.useState("1");
 
@@ -818,6 +830,29 @@ function OrderFormModal({
     React.useEffect(() => {
         if (!open) return;
 
+        // tải danh sách loại xe từ BE
+        let mounted = true;
+        setLoadingCats(true);
+        listVehicleCategories()
+            .then((list) => {
+                if (!mounted || !Array.isArray(list)) return;
+                setCategories(list);
+            })
+            .catch(() => {})
+            .finally(() => { if (mounted) setLoadingCats(false); });
+
+        // Load branches
+        setLoadingBranches(true);
+        listBranches({ page: 0, size: 50 })
+            .then((res) => {
+                const list = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+                if (!mounted) return;
+                setBranches(list);
+                if (!branchId && list.length) setBranchId(String(list[0].branchId ?? list[0].id));
+            })
+            .catch(() => {})
+            .finally(() => { if (mounted) setLoadingBranches(false); });
+
         if (isEdit && initialOrder) {
             setPhone(initialOrder.customer_phone || "");
             setName(initialOrder.customer_name || "");
@@ -837,9 +872,7 @@ function OrderFormModal({
                     "T"
                 )
             );
-            setCategoryId(
-                initialOrder.vehicle_category_id || ""
-            );
+            setCategoryId(String(initialOrder.vehicle_category_id || ""));
             setVehicleCount(
                 String(initialOrder.vehicle_count || 1)
             );
@@ -920,7 +953,7 @@ function OrderFormModal({
         }, 400);
     };
 
-    // mock calculate price
+    // mock calculate price (ước lượng đơn giản theo tên loại xe)
     const calculatePrice = () => {
         if (!pickup || !dropoff || !categoryId) {
             setError(
@@ -930,12 +963,11 @@ function OrderFormModal({
         }
         setLoadingPrice(true);
         setTimeout(() => {
-            const base =
-                categoryId === "BUS16"
-                    ? 4500000
-                    : categoryId === "SUV7"
-                        ? 2500000
-                        : 1200000;
+            let base = 1200000;
+            const sel = (categories || []).find(c => String(c.categoryId) === String(categoryId));
+            const name = (sel?.categoryName || "").toLowerCase();
+            if (name.includes("16")) base = 4500000;
+            else if (name.includes("7")) base = 2500000;
             setEstimatedPrice(base);
             setFinalPrice((cur) =>
                 Number(cur) > 0 ? cur : String(base)
@@ -957,10 +989,12 @@ function OrderFormModal({
 
     // build object chuẩn shape table
     const buildOrderPayload = (statusOverride) => {
-        const catObj = VEHICLE_CATEGORIES.find(
-            (c) => c.id === categoryId
-        );
+        const catObj = (categories && categories.length
+            ? categories.map(c => ({ id: String(c.categoryId), label: c.categoryName }))
+            : VEHICLE_CATEGORIES
+        ).find((c) => String(c.id) === String(categoryId));
         return {
+            branch_id: branchId ? String(branchId) : "",
             ...(isEdit
                 ? {
                     id: initialOrder.id,
@@ -984,9 +1018,7 @@ function OrderFormModal({
                 ? dropoffEta.replace("T", " ")
                 : pickupTime.replace("T", " "),
 
-            vehicle_category: catObj
-                ? catObj.label
-                : "—",
+            vehicle_category: catObj ? catObj.label : "—",
             vehicle_category_id: categoryId,
             vehicle_count: Number(vehicleCount) || 1,
             pax_count: Number(paxCount) || 1,
@@ -1239,6 +1271,26 @@ function OrderFormModal({
                         <div className="grid md:grid-cols-4 gap-3">
                             <div>
                                 <div className={labelCls}>
+                                    Chi nhánh
+                                </div>
+                                <select
+                                    className={inputCls}
+                                    value={branchId}
+                                    onChange={(e) => setBranchId(e.target.value)}
+                                >
+                                    <option value="">-- Chọn chi nhánh --</option>
+                                    {branches.map((b) => (
+                                        <option key={b.branchId ?? b.id} value={String(b.branchId ?? b.id)}>
+                                            {b.branchName || `Branch #${b.branchId ?? b.id}`}
+                                        </option>
+                                    ))}
+                                </select>
+                                {loadingBranches && (
+                                    <div className="text-xs text-slate-500 mt-1">Đang tải chi nhánh...</div>
+                                )}
+                            </div>
+                            <div>
+                                <div className={labelCls}>
                                     Hình thức thuê
                                 </div>
                                 <select
@@ -1278,19 +1330,19 @@ function OrderFormModal({
                                     <option value="">
                                         -- Chọn loại xe --
                                     </option>
-                                    {VEHICLE_CATEGORIES.map(
-                                        (c) => (
-                                            <option
-                                                key={c.id}
-                                                value={c.id}
-                                            >
-                                                {c.label} (
-                                                {c.seats}{" "}
-                                                chỗ)
-                                            </option>
-                                        )
-                                    )}
+                                    {(categories.length ? categories : VEHICLE_CATEGORIES).map((c) => (
+                                        <option
+                                            key={c.categoryId ?? c.id}
+                                            value={String(c.categoryId ?? c.id)}
+                                        >
+                                            {c.categoryName ?? c.label}
+                                            {c.seats ? ` (${c.seats} chỗ)` : ""}
+                                        </option>
+                                    ))}
                                 </select>
+                                {loadingCats && (
+                                    <div className="text-xs text-slate-500 mt-1">Đang tải loại xe...</div>
+                                )}
                             </div>
 
                             <div>
@@ -1530,14 +1582,97 @@ function OrderFormModal({
 /* --------------------------------------------------------- */
 export default function ConsultantOrdersPage() {
     const { toasts, push } = useToasts();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     // filters
     const [statusFilter, setStatusFilter] = React.useState("");
     const [dateFilter, setDateFilter] = React.useState("");
     const [searchText, setSearchText] = React.useState("");
 
-    // list data (mock)
+    // list data
     const [orders, setOrders] = React.useState(MOCK_ORDERS);
+
+    // default branch to use when creating from quick modal
+    const [defaultBranchId, setDefaultBranchId] = React.useState(null);
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const res = await listBranches({ page: 0, size: 1 });
+                const list = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+                if (list.length) setDefaultBranchId(list[0].branchId ?? list[0].id ?? null);
+            } catch {}
+        })();
+    }, []);
+
+    // load from backend on mount
+    React.useEffect(() => {
+        let mounted = true;
+        const load = async () => {
+            try {
+                const list = await listBookings({});
+                if (!mounted || !Array.isArray(list)) return;
+                const mapped = list.map(b => ({
+                    id: b.id,
+                    code: `ORD-${b.id}`,
+                    status: b.status || "PENDING",
+                    customer_name: b.customerName,
+                    customer_phone: b.customerPhone,
+                    pickup: (b.routeSummary || "").split(" → ")[0] || "",
+                    dropoff: (b.routeSummary || "").split(" → ")[1] || "",
+                    pickup_time: b.startDate,
+                    dropoff_eta: b.startDate,
+                    vehicle_category: "",
+                    vehicle_category_id: "",
+                    vehicle_count: 1,
+                    pax_count: 0,
+                    quoted_price: b.totalCost,
+                    discount_amount: 0,
+                    notes: "",
+                }));
+                setOrders(mapped);
+            } catch (e) {
+                // keep mock if fails
+                push("Không tải được danh sách đơn hàng", "error");
+            }
+        };
+        load();
+        return () => { mounted = false; };
+    }, []);
+
+    // if navigated back with refresh flag, reload list then clear state
+    React.useEffect(() => {
+        const st = location.state;
+        if (st && st.refresh) {
+            (async () => {
+                try {
+                    const list = await listBookings({});
+                    const mapped = (list || []).map(b => ({
+                        id: b.id,
+                        code: `ORD-${b.id}`,
+                        status: b.status || "PENDING",
+                        customer_name: b.customerName,
+                        customer_phone: b.customerPhone,
+                        pickup: (b.routeSummary || "").split(" → ")[0] || "",
+                        dropoff: (b.routeSummary || "").split(" → ")[1] || "",
+                        pickup_time: b.startDate,
+                        dropoff_eta: b.startDate,
+                        vehicle_category: "",
+                        vehicle_category_id: "",
+                        vehicle_count: 1,
+                        pax_count: 0,
+                        quoted_price: b.totalCost,
+                        discount_amount: 0,
+                        notes: "",
+                    }));
+                    setOrders(mapped);
+                    if (st.toast) push(st.toast, "success");
+                } catch {}
+                // clear navigation state
+                navigate(location.pathname, { replace: true, state: {} });
+            })();
+        }
+    }, [location]);
 
     // paging / sort
     const [sortKey, setSortKey] =
@@ -1641,77 +1776,108 @@ export default function ConsultantOrdersPage() {
 
     /* ------ handlers UI ------ */
 
-    // mở modal create
+    // chuyển sang trang tạo đơn
     const handleCreate = () => {
-        setFormMode("create");
-        setFormOrder(null);
-        setFormOpen(true);
+        navigate('/orders/new');
     };
 
-    // mở modal detail
+    // chuyển sang trang chi tiết đơn
     const handleViewDetail = (order) => {
-        setDetailOrder(order);
-        setDetailOpen(true);
+        if (order && order.id != null) {
+            navigate(`/orders/${order.id}`);
+            return;
+        }
+        // fallback: nếu thiếu id thì không điều hướng
     };
 
-    // mở modal edit
+    // chuyển sang trang sửa / gán tài xế
     const handleEdit = (order) => {
+        if (order && order.id != null) {
+            navigate(`/orders/${order.id}/edit`, { state: { order } });
+            return;
+        }
+        // fallback: open modal cũ nếu thiếu id
         setFormMode("edit");
         setFormOrder(order);
         setFormOpen(true);
     };
 
-    // refresh mock
-    const handleRefresh = () => {
+    // refresh from backend
+    const handleRefresh = async () => {
         setLoadingRefresh(true);
-        setTimeout(() => {
-            setOrders((old) => [...old]);
+        try {
+            const list = await listBookings({});
+            const mapped = (list || []).map(b => ({
+                id: b.id,
+                code: `ORD-${b.id}`,
+                status: b.status || "PENDING",
+                customer_name: b.customerName,
+                customer_phone: b.customerPhone,
+                pickup: (b.routeSummary || "").split(" → ")[0] || "",
+                dropoff: (b.routeSummary || "").split(" → ")[1] || "",
+                pickup_time: b.startDate,
+                dropoff_eta: b.startDate,
+                vehicle_category: "",
+                vehicle_category_id: "",
+                vehicle_count: 1,
+                pax_count: 0,
+                quoted_price: b.totalCost,
+                discount_amount: 0,
+                notes: "",
+            }));
+            setOrders(mapped);
+            push("Đã làm mới danh sách đơn hàng", "success");
+        } catch (e) {
+            push("Không tải được danh sách đơn hàng", "error");
+        } finally {
             setLoadingRefresh(false);
-            push(
-                "Đã làm mới danh sách đơn hàng",
-                "info"
-            );
-        }, 600);
+        }
     };
 
     /**
      * khi form create / edit bấm lưu,
      * resultOrder = object chuẩn (không có id/code khi create)
      */
-    const handleSaveFromForm = (resultOrder, mode) => {
+    const handleSaveFromForm = async (resultOrder, mode) => {
         if (mode === "create") {
-            const nextId =
-                orders.length > 0
-                    ? Math.max(
-                    ...orders.map(
-                        (o) => o.id
-                    )
-                ) + 1
-                    : 1001;
-            const newCode =
-                "ORD-2025-" +
-                String(nextId).padStart(3, "0");
-
-            const newOrder = {
-                ...resultOrder,
-                id: nextId,
-                code: newCode,
+            // Map quick modal payload -> backend CreateBookingRequest
+            const toIsoZ = (s) => {
+                if (!s) return null;
+                const d = new Date(String(s).replace(" ", "T"));
+                return Number.isNaN(d.getTime()) ? null : d.toISOString();
             };
-
-            setOrders((prev) => [
-                newOrder,
-                ...prev,
-            ]);
-            push(
-                "Đã tạo đơn hàng " +
-                newOrder.code +
-                " (" +
-                ORDER_STATUS_LABEL[
-                    newOrder.status
-                    ] +
-                ")",
-                "success"
-            );
+            const branchId = Number(resultOrder.branch_id || defaultBranchId || 1);
+            try {
+                await createBooking({
+                    customer: {
+                        fullName: resultOrder.customer_name,
+                        phone: resultOrder.customer_phone,
+                        email: resultOrder.customer_email,
+                    },
+                    branchId,
+                    useHighway: false,
+                    trips: [{
+                        startTime: toIsoZ(resultOrder.pickup_time),
+                        endTime: toIsoZ(resultOrder.dropoff_eta || resultOrder.pickup_time),
+                        startLocation: resultOrder.pickup,
+                        endLocation: resultOrder.dropoff,
+                    }],
+                    vehicles: [{
+                        vehicleCategoryId: Number(resultOrder.vehicle_category_id),
+                        quantity: Number(resultOrder.vehicle_count || 1),
+                    }],
+                    estimatedCost: Number(resultOrder.quoted_price || 0) + Number(resultOrder.discount_amount || 0),
+                    discountAmount: Number(resultOrder.discount_amount || 0),
+                    totalCost: Number(resultOrder.quoted_price || 0),
+                    status: resultOrder.status || "DRAFT",
+                    note: resultOrder.notes || "",
+                });
+                // refresh list from backend to show the new booking
+                await handleRefresh();
+                push("Đã tạo đơn hàng", "success");
+            } catch (e) {
+                push("Tạo đơn hàng thất bại", "error");
+            }
         } else {
             setOrders((prev) =>
                 prev.map((o) =>

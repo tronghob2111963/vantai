@@ -1,5 +1,6 @@
 // ConsultantDashboardPage.jsx (LIGHT THEME)
 import React from "react";
+import { getConsultantDashboard } from "../../api/bookings";
 import {
     PlusCircle,
     ClipboardList,
@@ -196,15 +197,15 @@ function PendingQueueCard({ items, onSelect }) {
 export default function ConsultantDashboardPage() {
     const { toasts, push } = useToasts();
 
-    // mock stats từ backend
-    const [stats] = React.useState({
-        pending_quotes: 4,
-        confirmed_orders: 12,
-        revenue_this_month: 187_000_000,
+    // stats từ backend
+    const [stats, setStats] = React.useState({
+        pending_quotes: 0,
+        confirmed_orders: 0,
+        revenue_this_month: 0,
     });
 
-    // mock queue từ backend
-    const [pendingOrders] = React.useState([
+    // queue từ backend
+    const [pendingOrders, setPendingOrders] = React.useState([
         {
             id: 921,
             code: "RQ-2025-0921",
@@ -233,6 +234,35 @@ export default function ConsultantDashboardPage() {
             status: "WAITING_QUOTE",
         },
     ]);
+
+    React.useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const d = await getConsultantDashboard();
+                if (!mounted || !d) return;
+                setStats({
+                    pending_quotes: d.totalPendingCount ?? 0,
+                    confirmed_orders: d.totalConfirmedCount ?? 0,
+                    revenue_this_month: d.monthlyRevenue ?? 0,
+                });
+                const mapped = (d.pendingBookings || []).map(o => ({
+                    id: o.id,
+                    code: `RQ-${o.id}`,
+                    customer_name: o.customerName,
+                    pickup: (o.routeSummary || "?").split(" → ")[0] || "",
+                    dropoff: (o.routeSummary || "?").split(" → ")[1] || "",
+                    pickup_time: o.startDate,
+                    status: "WAITING_QUOTE",
+                }));
+                setPendingOrders(mapped);
+            } catch (e) {
+                // keep mock if fails
+                push("Không lấy được dữ liệu dashboard", "error");
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
 
     // CTA
     const handleCreateOrder = () => {

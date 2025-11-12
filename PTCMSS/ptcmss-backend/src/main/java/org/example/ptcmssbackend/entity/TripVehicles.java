@@ -37,4 +37,11 @@ public class TripVehicles {
     @Column(name = "note")
     private String note;
 
+    @PrePersist
+    public void prePersist() {
+        if (assignedAt == null) {
+            assignedAt = Instant.now();
+        }
+    }
+
 }

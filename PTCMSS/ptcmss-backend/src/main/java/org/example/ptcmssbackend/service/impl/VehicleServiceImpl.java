@@ -313,7 +313,7 @@ public class VehicleServiceImpl implements VehicleService {
         v.setOdometer(req.getOdometer());
         v.setStatus(req.getStatus() != null ?
                 parseVehicleStatus(req.getStatus()) :
-                VehicleStatus.Available);
+                VehicleStatus.AVAILABLE);
         v.setBranch(branchRepository.findById(req.getBranchId())
                 .orElseThrow(() -> new RuntimeException("Branch not found")));
         v.setCategory(categoryRepository.findById(req.getCategoryId())
@@ -368,26 +368,26 @@ public class VehicleServiceImpl implements VehicleService {
      */
     private VehicleStatus parseVehicleStatus(String status) {
         if (status == null || status.isBlank()) {
-            return VehicleStatus.Available;
+            return VehicleStatus.AVAILABLE;
         }
         // Normalize: remove underscores, capitalize first letter of each word
         String normalized = status.trim();
         // Handle common formats
         if (normalized.equalsIgnoreCase("AVAILABLE") || normalized.equalsIgnoreCase("available")) {
-            return VehicleStatus.Available;
+            return VehicleStatus.AVAILABLE;
         } else if (normalized.equalsIgnoreCase("IN_USE") || normalized.equalsIgnoreCase("INUSE") || normalized.equalsIgnoreCase("inuse") || normalized.equalsIgnoreCase("InUse")) {
-            return VehicleStatus.InUse;
+            return VehicleStatus.INUSE;
         } else if (normalized.equalsIgnoreCase("MAINTENANCE") || normalized.equalsIgnoreCase("maintenance")) {
-            return VehicleStatus.Maintenance;
+            return VehicleStatus.MAINTENANCE;
         } else if (normalized.equalsIgnoreCase("INACTIVE") || normalized.equalsIgnoreCase("inactive")) {
-            return VehicleStatus.Inactive;
+            return VehicleStatus.INACTIVE;
         }
         // Try direct match (case-sensitive)
         try {
             return VehicleStatus.valueOf(normalized);
         } catch (IllegalArgumentException e) {
             // Default to Available if unknown
-            return VehicleStatus.Available;
+            return VehicleStatus.AVAILABLE;
         }
     }
 }
