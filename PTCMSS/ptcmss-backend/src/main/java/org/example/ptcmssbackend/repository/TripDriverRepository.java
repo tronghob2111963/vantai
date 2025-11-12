@@ -24,4 +24,8 @@ public interface TripDriverRepository extends JpaRepository<TripDrivers, TripDri
             @Param("driverId") Integer driverId,
             @Param("startDate") Instant startDate,
             @Param("endDate") Instant endDate);
+    
+    // Tìm TripDrivers theo tripId
+    @Query("SELECT td FROM TripDrivers td JOIN FETCH td.driver JOIN FETCH td.trip WHERE td.trip.id = :tripId")
+    List<TripDrivers> findByTripId(@Param("tripId") Integer tripId);
 }

@@ -10,4 +10,7 @@ import java.util.List;
 @Repository
 public interface TripRepository extends JpaRepository<Trips, Integer> {
     List<Trips> findByStatusIn(List<TripStatus> statuses);
+    
+    // Tìm trips theo bookingId
+    List<Trips> findByBooking_Id(Integer bookingId);
 }

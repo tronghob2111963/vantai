@@ -20,5 +20,9 @@ public interface TripVehicleRepository extends JpaRepository<TripVehicles, Integ
            "WHERE tv.vehicle.id = :vehicleId " +
            "ORDER BY t.startTime DESC")
     List<TripVehicles> findAllByVehicleId(@Param("vehicleId") Integer vehicleId);
+    
+    // Tìm TripVehicles theo tripId
+    @Query("SELECT tv FROM TripVehicles tv JOIN FETCH tv.vehicle JOIN FETCH tv.trip WHERE tv.trip.id = :tripId")
+    List<TripVehicles> findByTripId(@Param("tripId") Integer tripId);
 }
 
