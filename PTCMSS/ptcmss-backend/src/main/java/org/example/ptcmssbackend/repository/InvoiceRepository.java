@@ -2,6 +2,7 @@ package org.example.ptcmssbackend.repository;
 
 import org.example.ptcmssbackend.entity.Invoices;
 import org.example.ptcmssbackend.enums.InvoiceType;
+import org.example.ptcmssbackend.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -46,5 +47,16 @@ public interface InvoiceRepository extends JpaRepository<Invoices, Integer> {
             @Param("vehicleId") Integer vehicleId, 
             @Param("type") InvoiceType type,
             @Param("costType") String costType);
+
+    /**
+     * Tổng tiền đã thanh toán (INCOME, PAID) theo bookingId
+     */
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoices i " +
+           "WHERE i.booking.id = :bookingId AND i.type = :type AND i.paymentStatus = :paymentStatus")
+    java.math.BigDecimal sumPaidByBookingId(
+            @Param("bookingId") Integer bookingId,
+            @Param("type") InvoiceType type,
+            @Param("paymentStatus") PaymentStatus paymentStatus
+    );
 }
 

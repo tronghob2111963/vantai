@@ -7,6 +7,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.Booking.CreateBookingRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CreatePaymentRequest;
+import org.example.ptcmssbackend.dto.request.Booking.AssignRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CheckAvailabilityRequest;
 import org.example.ptcmssbackend.dto.request.Booking.UpdateBookingRequest;
 import org.example.ptcmssbackend.dto.response.Booking.BookingListResponse;
 import org.example.ptcmssbackend.dto.response.Booking.BookingResponse;
@@ -210,6 +213,84 @@ public class BookingController {
                     .build());
         }
     }
+
+    /**
+     * Ghi nhận thanh toán/đặt cọc cho booking
+     */
+    @Operation(summary = "Ghi nhận thanh toán", description = "Tạo thu (INCOME) đã thanh toán cho đơn hàng. Trả về booking đã cập nhật totals.")
+    @PostMapping("/{id}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<BookingResponse>> addPayment(
+            @Parameter(description = "ID đơn hàng") @PathVariable Integer id,
+            @Valid @RequestBody CreatePaymentRequest request
+    ) {
+        try {
+            Integer consultantEmployeeId = getCurrentConsultantEmployeeId();
+            BookingResponse response = bookingService.addPayment(id, request, consultantEmployeeId);
+            return ResponseEntity.ok(ApiResponse.<BookingResponse>builder()
+                    .success(true)
+                    .message("Ghi nhận thanh toán thành công")
+                    .data(response)
+                    .build());
+        } catch (Exception e) {
+            log.error("Add payment failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.<BookingResponse>builder()
+                    .success(false)
+                    .message("Lỗi khi ghi nhận thanh toán: " + e.getMessage())
+                    .build());
+        }
+    }
+
+    /**
+     * Check availability vehicles by branch/category/time
+     */
+    @Operation(summary = "Kiểm tra khả dụng xe", description = "Kiểm tra số lượng xe khả dụng theo chi nhánh, loại xe và khoảng thời gian")
+    @PostMapping("/check-availability")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
+    public ResponseEntity<ApiResponse<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse>> checkAvailability(
+            @Valid @RequestBody CheckAvailabilityRequest request
+    ) {
+        try {
+            var result = bookingService.checkAvailability(request);
+            return ResponseEntity.ok(ApiResponse.<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse>builder()
+                    .success(true)
+                    .message("OK")
+                    .data(result)
+                    .build());
+        } catch (Exception e) {
+            log.error("Check availability failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse>builder()
+                    .success(false)
+                    .message("Lỗi khi kiểm tra khả dụng: " + e.getMessage())
+                    .build());
+        }
+    }
+
+    /**
+     * Gán tài xế / xe cho các chuyến của booking
+     */
+    @Operation(summary = "Gán tài xế/xe", description = "Gán tài xế và/hoặc xe cho các trip của booking. Nếu không truyền tripIds thì áp dụng cho tất cả trips của booking")
+    @PostMapping("/{id}/assign")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
+    public ResponseEntity<ApiResponse<BookingResponse>> assign(
+            @Parameter(description = "ID đơn hàng") @PathVariable Integer id,
+            @Valid @RequestBody AssignRequest request
+    ) {
+        try {
+            BookingResponse response = bookingService.assign(id, request);
+            return ResponseEntity.ok(ApiResponse.<BookingResponse>builder()
+                    .success(true)
+                    .message("Gán tài xế/xe thành công")
+                    .data(response)
+                    .build());
+        } catch (Exception e) {
+            log.error("Assign driver/vehicle failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.<BookingResponse>builder()
+                    .success(false)
+                    .message("Lỗi khi gán tài xế/xe: " + e.getMessage())
+                    .build());
+        }
+    }
     
     /**
      * Tính giá tự động
@@ -249,7 +330,7 @@ public class BookingController {
         if (authentication != null && authentication.getPrincipal() instanceof Users) {
             Users user = (Users) authentication.getPrincipal();
             Employees employee = employeeRepository.findByUserId(user.getId()).orElse(null);
-            return employee != null ? employee.getId() : null;
+            return employee != null ? employee.getEmployeeId() : null;
         }
         return null;
     }

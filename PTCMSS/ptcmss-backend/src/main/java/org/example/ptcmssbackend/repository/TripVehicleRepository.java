@@ -24,5 +24,28 @@ public interface TripVehicleRepository extends JpaRepository<TripVehicles, Integ
     // Tìm TripVehicles theo tripId
     @Query("SELECT tv FROM TripVehicles tv JOIN FETCH tv.vehicle JOIN FETCH tv.trip WHERE tv.trip.id = :tripId")
     List<TripVehicles> findByTripId(@Param("tripId") Integer tripId);
+
+    // Xóa mapping theo tripId (dọn sạch gán cũ)
+    void deleteByTrip_Id(Integer tripId);
+
+    // Xóa mapping cụ thể theo (tripId, vehicleId) để tránh trùng unique
+    void deleteByTrip_IdAndVehicle_Id(Integer tripId, Integer vehicleId);
+
+    // Kiểm tra tồn tại mapping (tripId, vehicleId)
+    boolean existsByTrip_IdAndVehicle_Id(Integer tripId, Integer vehicleId);
+
+    // Danh sách vehicleId đang bận trong khoảng thời gian (overlap) theo branch/category
+    @Query("SELECT DISTINCT tv.vehicle.id FROM TripVehicles tv JOIN tv.trip t " +
+           "WHERE (:branchId IS NULL OR tv.vehicle.branch.id = :branchId) " +
+           "AND (:categoryId IS NULL OR tv.vehicle.category.id = :categoryId) " +
+           "AND (t.status IN (org.example.ptcmssbackend.enums.TripStatus.SCHEDULED, org.example.ptcmssbackend.enums.TripStatus.ONGOING)) " +
+           "AND (:start IS NULL OR t.endTime > :start) " +
+           "AND (:end IS NULL OR t.startTime < :end)")
+    List<Integer> findBusyVehicleIds(
+            @Param("branchId") Integer branchId,
+            @Param("categoryId") Integer categoryId,
+            @Param("start") java.time.Instant start,
+            @Param("end") java.time.Instant end
+    );
 }
 

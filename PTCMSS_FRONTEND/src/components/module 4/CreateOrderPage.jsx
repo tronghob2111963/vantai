@@ -1,5 +1,7 @@
 // CreateOrderPage.jsx (LIGHT THEME)
 import React from "react";
+import { listVehicleCategories } from "../../api/vehicleCategories";
+import { calculatePrice, createBooking } from "../../api/bookings";
 import {
     Phone,
     User,
@@ -56,6 +58,14 @@ import {
 const cls = (...a) => a.filter(Boolean).join(" ");
 const fmtVND = (n) =>
     new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(n || 0)));
+
+// Convert "YYYY-MM-DDTHH:mm" (datetime-local) to ISO string with Z
+function toIsoZ(s) {
+    if (!s) return null;
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return s;
+    return d.toISOString();
+}
 
 /* mock categories */
 const MOCK_CATEGORIES = [
@@ -138,14 +148,14 @@ export default function CreateOrderPage() {
     const [dropoff, setDropoff] = React.useState("");
     const [startTime, setStartTime] = React.useState("");
     const [endTime, setEndTime] = React.useState("");
-    const [categoryId, setCategoryId] =
-        React.useState("SEDAN4");
+    const [categoryId, setCategoryId] = React.useState("");
+    const [categories, setCategories] = React.useState([]);
     const [paxCount, setPaxCount] = React.useState(1);
     const [vehicleCount, setVehicleCount] =
         React.useState(1);
 
     // branch mặc định theo user đăng nhập
-    const [branchId] = React.useState("HN");
+    const [branchId] = React.useState("1");
 
     // availability check
     const [availabilityInfo, setAvailabilityInfo] =
@@ -191,25 +201,42 @@ export default function CreateOrderPage() {
     const [calculatingPrice, setCalculatingPrice] =
         React.useState(false);
 
-    // mock API calculate-price
+    const [distanceKm, setDistanceKm] = React.useState("");
+
+    // load categories from backend
     React.useEffect(() => {
-        if (!pickup || !dropoff || !categoryId || !hireType)
-            return;
-        setCalculatingPrice(true);
+        (async () => {
+            try {
+                const list = await listVehicleCategories();
+                if (Array.isArray(list) && list.length > 0) {
+                    setCategories(list.map(c => ({ id: String(c.id), name: c.categoryName })));
+                    setCategoryId(String(list[0].id));
+                }
+            } catch {}
+        })();
+    }, []);
 
-        setTimeout(() => {
-            let base = 1200000;
-            if (categoryId === "SUV7") base = 1600000;
-            if (hireType === "DAILY") base = base * 1.4;
-            if (hireType === "ROUND_TRIP") base = base * 1.7;
-
-            setEstPriceSys(base);
-            setQuotedPrice((old) =>
-                old > 0 ? old : base
-            );
-            setCalculatingPrice(false);
-        }, 400);
-    }, [pickup, dropoff, categoryId, hireType]);
+    // calculate via backend when possible
+    React.useEffect(() => {
+        const run = async () => {
+            if (!categoryId || !distanceKm) return;
+            setCalculatingPrice(true);
+            try {
+                const price = await calculatePrice({
+                    vehicleCategoryIds: [Number(categoryId)],
+                    quantities: [Number(vehicleCount || 1)],
+                    distance: Number(distanceKm || 0),
+                    useHighway: false,
+                });
+                const base = Number(price || 0);
+                setEstPriceSys(base);
+                setQuotedPrice((old) => (old > 0 ? old : base));
+            } catch {} finally {
+                setCalculatingPrice(false);
+            }
+        };
+        run();
+    }, [categoryId, vehicleCount, distanceKm]);
 
     /* --- submit states --- */
     const [loadingDraft, setLoadingDraft] =
@@ -274,12 +301,33 @@ export default function CreateOrderPage() {
             return;
         }
         setLoadingDraft(true);
-        await new Promise((r) => setTimeout(r, 500));
-        push(
-            "Đã lưu nháp đơn hàng (status DRAFT)",
-            "success"
-        );
-        setLoadingDraft(false);
+        try {
+            const sStart = toIsoZ(startTime);
+            const sEnd = toIsoZ(endTime);
+            const req = {
+                customer: { fullName: customerName, phone, email },
+                branchId: Number(branchId),
+                useHighway: false,
+                trips: [
+                    { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
+                ],
+                vehicles: [
+                    { vehicleCategoryId: Number(categoryId), quantity: Number(vehicleCount || 1) },
+                ],
+                estimatedCost: Number(estPriceSys || 0),
+                discountAmount: Number(discount || 0),
+                totalCost: Number(quotedPrice || 0),
+                depositAmount: 0,
+                status: "PENDING",
+                distance: Number(distanceKm || 0),
+            };
+            await createBooking(req);
+            push("Đã lưu nháp đơn hàng", "success");
+        } catch {
+            push("Lưu nháp thất bại", "error");
+        } finally {
+            setLoadingDraft(false);
+        }
     };
 
     const submitOrder = async () => {
@@ -299,12 +347,33 @@ export default function CreateOrderPage() {
         }
 
         setLoadingSubmit(true);
-        await new Promise((r) => setTimeout(r, 600));
-        push(
-            "Đã tạo đơn hàng (status PENDING). Điều phối sẽ nhận.",
-            "success"
-        );
-        setLoadingSubmit(false);
+        try {
+            const sStart = toIsoZ(startTime);
+            const sEnd = toIsoZ(endTime);
+            const req = {
+                customer: { fullName: customerName, phone, email },
+                branchId: Number(branchId),
+                useHighway: false,
+                trips: [
+                    { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
+                ],
+                vehicles: [
+                    { vehicleCategoryId: Number(categoryId), quantity: Number(vehicleCount || 1) },
+                ],
+                estimatedCost: Number(estPriceSys || 0),
+                discountAmount: Number(discount || 0),
+                totalCost: Number(quotedPrice || 0),
+                depositAmount: 0,
+                status: "CONFIRMED",
+                distance: Number(distanceKm || 0),
+            };
+            const created = await createBooking(req);
+            push(`Đã tạo đơn hàng #${created?.id || "?"}`, "success");
+        } catch {
+            push("Tạo đơn hàng thất bại", "error");
+        } finally {
+            setLoadingSubmit(false);
+        }
     };
 
     /* --- styles reused --- */
@@ -511,6 +580,22 @@ export default function CreateOrderPage() {
                                 </div>
                             </div>
 
+                            {/* Quãng đường (km) */}
+                            <div className="md:col-span-1">
+                                <div className={labelCls}>
+                                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>Quãng đường (km)</span>
+                                </div>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={distanceKm}
+                                    onChange={(e) => setDistanceKm(e.target.value)}
+                                    className={cls(inputCls, "tabular-nums")}
+                                    placeholder="Ví dụ: 50"
+                                />
+                            </div>
+
                             {/* Giảm giá */}
                             <div className="md:col-span-1">
                                 <div className={labelCls}>
@@ -698,7 +783,7 @@ export default function CreateOrderPage() {
                                     }
                                     className={inputCls}
                                 >
-                                    {MOCK_CATEGORIES.map(
+                                    {(categories.length ? categories : MOCK_CATEGORIES).map(
                                         (c) => (
                                             <option
                                                 key={
@@ -708,9 +793,7 @@ export default function CreateOrderPage() {
                                                     c.id
                                                 }
                                             >
-                                                {
-                                                    c.name
-                                                }{" "}
+                                                {c.name}{" "}
                                                 (
                                                 {
                                                     c.seats

@@ -28,4 +28,7 @@ public interface TripDriverRepository extends JpaRepository<TripDrivers, TripDri
     // Tìm TripDrivers theo tripId
     @Query("SELECT td FROM TripDrivers td JOIN FETCH td.driver JOIN FETCH td.trip WHERE td.trip.id = :tripId")
     List<TripDrivers> findByTripId(@Param("tripId") Integer tripId);
+
+    // Xóa mapping theo tripId (dọn sạch gán tài xế trước khi xóa Trips)
+    void deleteByTrip_Id(Integer tripId);
 }

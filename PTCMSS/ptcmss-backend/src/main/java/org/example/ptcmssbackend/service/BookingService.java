@@ -1,9 +1,13 @@
 package org.example.ptcmssbackend.service;
 
 import org.example.ptcmssbackend.dto.request.Booking.CreateBookingRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CreatePaymentRequest;
 import org.example.ptcmssbackend.dto.request.Booking.UpdateBookingRequest;
+import org.example.ptcmssbackend.dto.request.Booking.AssignRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CheckAvailabilityRequest;
 import org.example.ptcmssbackend.dto.response.Booking.BookingListResponse;
 import org.example.ptcmssbackend.dto.response.Booking.BookingResponse;
+import org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse;
 import org.example.ptcmssbackend.dto.response.Booking.ConsultantDashboardResponse;
 import org.example.ptcmssbackend.dto.response.common.PageResponse;
 
@@ -74,5 +78,16 @@ public interface BookingService {
             Integer branchId,
             Integer consultantId
     );
+
+    /**
+     * Ghi nhận thanh toán/đặt cọc cho booking
+     */
+    BookingResponse addPayment(Integer bookingId, CreatePaymentRequest request, Integer employeeId);
+
+    /** Assign driver/vehicle for booking trips */
+    BookingResponse assign(Integer bookingId, AssignRequest request);
+
+    /** Kiểm tra khả dụng xe theo branch/category/thời gian */
+    CheckAvailabilityResponse checkAvailability(CheckAvailabilityRequest request);
 }
 

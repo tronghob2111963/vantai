@@ -1,5 +1,7 @@
 // OrderDetailPage.jsx (LIGHT THEME, hooked with light DepositModal)
 import React from "react";
+import { useParams } from "react-router-dom";
+import { getBooking, addBookingPayment } from "../../api/bookings";
 import {
     ClipboardList,
     User,
@@ -560,49 +562,72 @@ function DispatchInfoCard({ dispatch }) {
 /* ---------- MAIN PAGE ---------- */
 export default function OrderDetailPage() {
     const { toasts, push } = useToasts();
+    const { orderId } = useParams();
 
-    // giả lập data từ GET /api/orders/{orderId}
-    const [order, setOrder] = React.useState({
-        id: 1002,
-        code: "ORD-2025-002",
-        status: "ASSIGNED", // DRAFT | PENDING | ASSIGNED | COMPLETED | CANCELLED
+    const [order, setOrder] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
 
-        customer: {
-            name: "Công ty TNHH ABC",
-            phone: "0934 888 222",
-            email: "sales@abc.com",
-        },
+    const mapBookingToOrder = (b) => {
+        if (!b) return null;
+        const firstTrip = Array.isArray(b.trips) && b.trips.length ? b.trips[0] : {};
+        const vehicleCount = Array.isArray(b.vehicles) ? b.vehicles.reduce((sum, v) => sum + (v.quantity || 0), 0) : 0;
+        const vehicleCategory = Array.isArray(b.vehicles) && b.vehicles.length ? b.vehicles[0].categoryName : "";
+        const discount = Number(b.discountAmount || 0);
+        const basePrice = Number(b.estimatedCost || 0);
+        const finalPrice = Number(b.totalCost || 0);
+        return {
+            id: b.id,
+            code: `ORD-${b.id}`,
+            status: b.status === 'CONFIRMED' ? 'ASSIGNED' : (b.status || 'PENDING'),
+            customer: {
+                name: b.customer?.fullName || '',
+                phone: b.customer?.phone || '',
+                email: b.customer?.email || '',
+            },
+            trip: {
+                pickup: firstTrip.startLocation || '',
+                dropoff: firstTrip.endLocation || '',
+                pickup_time: firstTrip.startTime || '',
+                dropoff_eta: firstTrip.endTime || '',
+                pax_count: 0,
+                vehicle_category: vehicleCategory,
+                vehicle_count: vehicleCount,
+            },
+            quote: {
+                base_price: basePrice,
+                discount_amount: discount,
+                final_price: finalPrice,
+            },
+            payment: {
+                paid: Number(b.paidAmount || 0),
+                remaining: Number(b.remainingAmount || 0),
+            },
+            dispatch: {
+                driver_name: firstTrip.driverName || '',
+                driver_phone: '',
+                vehicle_plate: firstTrip.vehicleLicensePlate || '',
+            },
+            notes_internal: b.note || '',
+        };
+    };
 
-        trip: {
-            pickup: "Văn phòng ABC - Q1",
-            dropoff: "Sân bay Tân Sơn Nhất",
-            pickup_time: "2025-10-27 06:00",
-            dropoff_eta: "2025-10-27 06:45",
-            pax_count: 5,
-            vehicle_category: "SUV 7 chỗ",
-            vehicle_count: 2,
-        },
+    const fetchOrder = React.useCallback(async () => {
+        if (!orderId) return;
+        setLoading(true);
+        try {
+            const data = await getBooking(orderId);
+            const mapped = mapBookingToOrder(data);
+            setOrder(mapped);
+        } catch (e) {
+            push('Không tải được chi tiết đơn hàng', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [orderId]);
 
-        quote: {
-            base_price: 3400000,
-            discount_amount: 200000,
-            final_price: 3200000,
-        },
-
-        payment: {
-            paid: 1000000,
-            remaining: 2200000,
-        },
-
-        dispatch: {
-            driver_name: "Nguyễn Văn Tài",
-            driver_phone: "0901 111 333",
-            vehicle_plate: "51H-999.01",
-        },
-
-        notes_internal:
-            "VIP đón lúc 6h đúng. Thanh toán công ty, xuất hoá đơn sau.",
-    });
+    React.useEffect(() => {
+        fetchOrder();
+    }, [fetchOrder]);
 
     // modal thanh toán/cọc
     const [depositOpen, setDepositOpen] = React.useState(false);
@@ -612,38 +637,34 @@ export default function OrderDetailPage() {
     };
 
     // callback khi ghi nhận thanh toán thành công (modal gọi onSubmitted)
-    const handleDepositSubmitted = (payload, ctx) => {
-        // cập nhật payment local
-        setOrder((old) => {
-            const paidNow =
-                Number(old.payment?.paid || 0) +
-                Number(payload.amount || 0);
-            const remainNow = Math.max(
-                0,
-                Number(old.quote?.final_price || 0) -
-                paidNow
-            );
-            return {
-                ...old,
-                payment: {
-                    paid: paidNow,
-                    remaining: remainNow,
-                },
-            };
-        });
-
-        push(
-            `Đã ghi nhận thanh toán +${payload.amount.toLocaleString(
-                "vi-VN"
-            )}đ cho đơn ${ctx?.id}`,
-            "success"
-        );
+    const handleDepositSubmitted = async (payload, ctx) => {
+        try {
+            await addBookingPayment(order.id, {
+                amount: payload.amount,
+                paymentMethod: payload.payment_method,
+                note: payload.note,
+                deposit: payload.kind === 'DEPOSIT' || true,
+            });
+            await fetchOrder();
+            push(`Đã ghi nhận thanh toán +${Number(payload.amount||0).toLocaleString('vi-VN')}đ cho đơn ${order.id}`, 'success');
+        } catch (e) {
+            push('Ghi nhận thanh toán thất bại', 'error');
+        }
     };
 
     // header summary numbers
     const finalPrice = order?.quote?.final_price || 0;
     const paid = order?.payment?.paid || 0;
     const remain = Math.max(0, finalPrice - paid);
+
+    if (loading || !order) {
+        return (
+            <div className="min-h-screen bg-slate-50 text-slate-900 p-5">
+                <Toasts toasts={toasts} />
+                <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">Đang tải chi tiết đơn hàng...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 p-5">

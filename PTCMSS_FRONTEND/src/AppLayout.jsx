@@ -231,7 +231,7 @@ function SidebarNav() {
             { label: "Bảng CSKH / Báo giá", to: "/orders/dashboard" },
             { label: "Danh sách đơn hàng", to: "/orders" },
             { label: "Tạo đơn hàng", to: "/orders/new" },
-            { label: "Gán tài xế / Sửa đơn", to: "/orders/ABC123/edit" },
+            { label: "Gán tài xế / Sửa đơn", to: "/orders" },
             { label: "Chi tiết đơn hàng", to: "/orders/1" },
           ]}
         />
