@@ -42,7 +42,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public TokenResponse getAccessToken(LoginRequest request) {
-        log.info("Authenticating user: {}", request.getUsername());
+        log.info("[LOGIN] Authenticating user: {}", request.getUsername());
+
+        // Kiểm tra user có tồn tại không trước
+        Users user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> {
+                    log.error("[LOGIN] User not found: {}", request.getUsername());
+                    throw new InvalidDataException("Invalid username or password");
+                });
+
+        // Kiểm tra user có enabled không
+        if (!user.isEnabled()) {
+            log.error("[LOGIN] User is disabled: {} (status: {})", request.getUsername(), user.getStatus());
+            throw new AccessDeniedException("Account is disabled. Please contact administrator.");
+        }
 
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -52,13 +65,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     )
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.info("[LOGIN] Authentication successful for user: {}", request.getUsername());
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            log.error("[LOGIN] Bad credentials for user: {} - {}", request.getUsername(), e.getMessage());
+            throw new AccessDeniedException("Invalid username or password");
         } catch (Exception e) {
-            log.error("Error authenticating user: {}", e.getMessage());
+            log.error("[LOGIN] Error authenticating user: {} - {}", request.getUsername(), e.getMessage(), e);
             throw new AccessDeniedException("Invalid username or password");
         }
 
-        Users user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new InvalidDataException("User not found"));
+        // User đã được load ở trên, không cần load lại
 
         // Tạo JWT token
         String accessToken = jwtService.generateAccessToken(
