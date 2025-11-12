@@ -46,5 +46,24 @@ public interface InvoiceRepository extends JpaRepository<Invoices, Integer> {
             @Param("vehicleId") Integer vehicleId, 
             @Param("type") InvoiceType type,
             @Param("costType") String costType);
+    
+    /**
+     * Lấy danh sách payments (INCOME) của một booking
+     */
+    @Query("SELECT i FROM Invoices i WHERE i.booking.id = :bookingId " +
+           "AND i.type = 'INCOME' " +
+           "AND i.status = 'ACTIVE' " +
+           "ORDER BY i.invoiceDate DESC")
+    List<Invoices> findPaymentsByBookingId(@Param("bookingId") Integer bookingId);
+    
+    /**
+     * Tính tổng số tiền đã thanh toán của một booking (chỉ tính INCOME với paymentStatus = PAID)
+     */
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoices i " +
+           "WHERE i.booking.id = :bookingId " +
+           "AND i.type = 'INCOME' " +
+           "AND i.paymentStatus = 'PAID' " +
+           "AND i.status = 'ACTIVE'")
+    java.math.BigDecimal calculatePaidAmountByBookingId(@Param("bookingId") Integer bookingId);
 }
 
