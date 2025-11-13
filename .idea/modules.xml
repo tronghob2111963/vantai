@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/PTCMSS/ptcmss-backend/ptcmss-backend.iml" filepath="$PROJECT_DIR$/PTCMSS/ptcmss-backend/ptcmss-backend.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/vantai.iml" filepath="$PROJECT_DIR$/.idea/vantai.iml" />
     </modules>
   </component>

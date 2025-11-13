@@ -26,7 +26,7 @@ public interface VehicleService {
     List<VehicleTripResponse> getVehicleTrips(Integer vehicleId);
     List<VehicleExpenseResponse> getVehicleExpenses(Integer vehicleId);
     List<VehicleMaintenanceResponse> getVehicleMaintenance(Integer vehicleId);
-    
+
     // Create maintenance and expense
     VehicleMaintenanceResponse createMaintenance(Integer vehicleId, CreateMaintenanceRequest request);
     VehicleExpenseResponse createExpense(Integer vehicleId, CreateExpenseRequest request);

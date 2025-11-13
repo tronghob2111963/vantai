@@ -114,7 +114,7 @@ function SidebarSection({
       {open && (
         <ul className="mt-1 mb-3 ml-2 flex flex-col border-l border-slate-200">
           {items.map((item) => (
-            <li key={item.to}>
+            <li key={`${sectionId}-${item.to}-${item.label}`}>
               <NavLink
                 to={item.to}
                 className={({ isActive }) => {

@@ -12,10 +12,7 @@ import org.example.ptcmssbackend.dto.request.Booking.CheckAvailabilityRequest;
 import org.example.ptcmssbackend.dto.response.Booking.*;
 import org.example.ptcmssbackend.dto.response.common.PageResponse;
 import org.example.ptcmssbackend.entity.*;
-import org.example.ptcmssbackend.enums.BookingStatus;
-import org.example.ptcmssbackend.enums.TripStatus;
-import org.example.ptcmssbackend.enums.VehicleCategoryStatus;
-import org.example.ptcmssbackend.enums.VehicleStatus;
+import org.example.ptcmssbackend.enums.*;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.BookingService;
 import org.example.ptcmssbackend.service.CustomerService;
@@ -116,10 +113,10 @@ public class BookingServiceImpl implements BookingService {
         booking.setDepositAmount(request.getDepositAmount() != null ? request.getDepositAmount() : BigDecimal.ZERO);
         booking.setStatus(parseBookingStatus(request.getStatus()));
         booking.setNote(request.getNote());
-        
+
         booking = bookingRepository.save(booking);
         log.info("[BookingService] Created booking: {}", booking.getId());
-        
+
         // 6. Tạo trips
         if (request.getTrips() != null && !request.getTrips().isEmpty()) {
             for (TripRequest tripReq : request.getTrips()) {
@@ -134,7 +131,7 @@ public class BookingServiceImpl implements BookingService {
                 tripRepository.save(trip);
             }
         }
-        
+
         // 7. Tạo booking vehicle details
         if (request.getVehicles() != null && !request.getVehicles().isEmpty()) {
             for (VehicleDetailRequest vehicleReq : request.getVehicles()) {
@@ -715,7 +712,10 @@ public class BookingServiceImpl implements BookingService {
         }).collect(Collectors.toList());
         
         // Tính paidAmount và remainingAmount từ Invoices
-        BigDecimal paidAmount = invoiceRepository.calculatePaidAmountByBookingId(booking.getId());
+        BigDecimal paidAmount = invoiceRepository.calculatePaidAmountByBookingId(
+                booking.getId(),
+                InvoiceType.INCOME,
+                PaymentStatus.PAID);
         if (paidAmount == null) paidAmount = BigDecimal.ZERO;
         BigDecimal remainingAmount = booking.getTotalCost() != null
                 ? booking.getTotalCost().subtract(paidAmount)

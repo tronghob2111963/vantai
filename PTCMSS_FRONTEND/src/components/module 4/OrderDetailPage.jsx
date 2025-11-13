@@ -1,7 +1,12 @@
 // OrderDetailPage.jsx (LIGHT THEME, hooked with light DepositModal)
 import React from "react";
 import { useParams } from "react-router-dom";
-import { getBooking, addBookingPayment } from "../../api/bookings";
+import {
+    getBooking,
+    addBookingPayment,
+    listBookingPayments,
+    generateBookingQrPayment,
+} from "../../api/bookings";
 import {
     ClipboardList,
     User,
@@ -18,9 +23,11 @@ import {
     BadgeDollarSign,
     ChevronRight,
     X,
+    QrCode,
+    Copy,
 } from "lucide-react";
 
-// 👇 dùng modal light theme thay vì bản dark
+//  dùng modal light theme thay vì bản dark
 import DepositModal from "../module 6/DepositModal.jsx";
 
 /**
@@ -106,15 +113,13 @@ function OrderStatusPill({ status }) {
 /* ---------- Toast system (light) ---------- */
 function useToasts() {
     const [toasts, setToasts] = React.useState([]);
-    const push = (msg, kind = "info", ttl = 2400) => {
+    const push = React.useCallback((msg, kind = "info", ttl = 2400) => {
         const id = Math.random().toString(36).slice(2);
         setToasts((arr) => [...arr, { id, msg, kind }]);
         setTimeout(() => {
-            setToasts((arr) =>
-                arr.filter((t) => t.id !== id)
-            );
+            setToasts((arr) => arr.filter((t) => t.id !== id));
         }, ttl);
-    };
+    }, []);
     return { toasts, push };
 }
 
@@ -369,15 +374,9 @@ function QuoteInfoCard({ quote }) {
 }
 
 /* 4. Thanh toán / Cọc */
-function PaymentInfoCard({ payment, onOpenDeposit }) {
-    const remain = Math.max(
-        0,
-        Number(payment.remaining || 0)
-    );
-    const paid = Math.max(
-        0,
-        Number(payment.paid || 0)
-    );
+function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr }) {
+    const remain = Math.max(0, Number(payment.remaining || 0));
+    const paid = Math.max(0, Number(payment.paid || 0));
 
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-4 shadow-sm">
@@ -387,69 +386,356 @@ function PaymentInfoCard({ payment, onOpenDeposit }) {
             </div>
 
             <div className="grid sm:grid-cols-[1fr_auto] gap-4 text-sm">
-                {/* amounts */}
                 <div className="grid sm:grid-cols-2 gap-4">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-1">
-                        <div className="text-[11px] uppercase tracking-wide font-medium text-slate-500">
-                            Đã đặt cọc / đã thu
-                        </div>
+                        <div className="text-[11px] uppercase tracking-wide font-medium text-slate-500">Đã thu</div>
                         <div className="text-base font-semibold tabular-nums text-emerald-600 flex items-center gap-1">
                             <DollarSign className="h-4 w-4 text-emerald-600" />
-                            <span>
-                                {fmtVND(paid)}
-                            </span>
+                            <span>{fmtVND(paid)}</span>
                         </div>
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-1">
-                        <div className="text-[11px] uppercase tracking-wide font-medium text-slate-500">
-                            Còn lại
-                        </div>
+                        <div className="text-[11px] uppercase tracking-wide font-medium text-slate-500">Còn lại</div>
                         <div className="text-base font-semibold tabular-nums text-amber-600 flex items-center gap-1">
                             <DollarSign className="h-4 w-4 text-amber-600" />
-                            <span>
-                                {fmtVND(remain)}
-                            </span>
+                            <span>{fmtVND(remain)}</span>
                         </div>
 
                         {remain <= 0 ? (
                             <div className="text-[11px] text-emerald-600 flex items-center gap-1">
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>
-                                    Đã thanh toán
-                                    đủ
-                                </span>
+                                <span>Đã thanh toán đủ</span>
                             </div>
                         ) : (
                             <div className="text-[11px] text-slate-500 leading-relaxed">
-                                Khách sẽ thanh
-                                toán phần còn
-                                lại sau chuyến /
-                                lúc xuất HĐ.
+                                Khách sẽ thanh toán phần còn lại sau chuyến hoặc khi xuất hóa đơn.
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* action */}
                 <div className="shrink-0 flex flex-col gap-2">
                     <button
                         className="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2"
                         onClick={onOpenDeposit}
                     >
                         <BadgeDollarSign className="h-4 w-4" />
-                        <span>
-                            Ghi nhận thanh toán
-                        </span>
+                        <span>Ghi nhận thanh toán</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2"
+                        onClick={onGenerateQr}
+                    >
+                        <QrCode className="h-4 w-4 text-sky-600" />
+                        <span>Tạo QR thanh toán</span>
                     </button>
 
                     <div className="text-[11px] text-slate-500 text-center leading-relaxed">
-                        Ghi nhận tiền mặt
-                        hoặc chuyển
-                        khoản. Dùng modal
-                        M6.S3.
+                        Ghi nhận tiền mặt/chuyển khoản hoặc gửi mã QR để khách tự thanh toán.
                     </div>
                 </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 mb-2">Lịch sử thanh toán</div>
+                {history.length ? (
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {history.map((item) => (
+                            <div
+                                key={item.invoiceId}
+                                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] flex flex-col gap-1"
+                            >
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-slate-900">{fmtVND(item.amount || 0)}</span>
+                                    <span className="text-[11px] text-slate-500">{item.createdAt ? fmtDateTime(item.createdAt) : "--"}</span>
+                                </div>
+                                <div className="flex justify-between text-[11px] text-slate-500">
+                                    <span>{item.paymentMethod || "N/A"}</span>
+                                    <span
+                                        className={cls(
+                                            "font-medium",
+                                            item.paymentStatus === "PAID" ? "text-emerald-600" : "text-amber-600"
+                                        )}
+                                    >
+                                        {item.paymentStatus || "UNPAID"}
+                                    </span>
+                                </div>
+                                {item.note ? (
+                                    <div className="text-[11px] text-slate-600 break-words">{item.note}</div>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-[12px] text-slate-500">Chưa có khoản thanh toán nào.</div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function QrPaymentModal({
+    open,
+    bookingCode,
+    customerName,
+    defaultAmount = 0,
+    onClose,
+    onGenerate,
+}) {
+    const [amountStr, setAmountStr] = React.useState("");
+    const [note, setNote] = React.useState("");
+    const [deposit, setDeposit] = React.useState(true);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState("");
+    const [result, setResult] = React.useState(null);
+    const [copied, setCopied] = React.useState(false);
+    const [useFallbackImage, setUseFallbackImage] = React.useState(false);
+
+    React.useEffect(() => {
+        if (open) {
+            const initAmount = Math.max(0, Number(defaultAmount || 0));
+            setAmountStr(initAmount > 0 ? String(initAmount) : "");
+            setNote("");
+            setDeposit(true);
+            setResult(null);
+            setError("");
+            setCopied(false);
+            setUseFallbackImage(false);
+        }
+    }, [open, defaultAmount]);
+
+    if (!open) return null;
+
+    const amount = Math.max(0, Number(amountStr || 0));
+
+    const handleGenerate = async () => {
+        if (!amount || amount <= 0) {
+            setError("Vui lòng nhập số tiền hợp lệ");
+            return;
+        }
+        setLoading(true);
+        setError("");
+        try {
+            const response = await (onGenerate?.({ amount, note, deposit }));
+            setResult(response || null);
+        } catch (err) {
+            const apiMessage = err?.data?.message || err?.message;
+            setError(apiMessage || "Không thể tạo QR thanh toán");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const copyQrText = async () => {
+        if (!result?.qrText) return;
+        try {
+            await navigator?.clipboard?.writeText(result.qrText);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (e) {
+            setCopied(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+            <div
+                className="absolute inset-0 bg-slate-900/40"
+                onClick={onClose}
+            />
+            <div
+                className="relative z-[1001] w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <div className="text-[11px] uppercase tracking-wide font-medium text-slate-500 flex items-center gap-2">
+                            <QrCode className="h-4 w-4 text-sky-600" />
+                            Tạo mã QR thanh toán
+                        </div>
+                        <div className="text-base font-semibold text-slate-900">
+                            {bookingCode ? `Đơn ${bookingCode}` : "Đơn hàng"}
+                        </div>
+                        {customerName ? (
+                            <div className="text-[12px] text-slate-500">
+                                {customerName}
+                            </div>
+                        ) : null}
+                    </div>
+                    <button
+                        type="button"
+                        className="text-slate-400 hover:text-slate-600"
+                        onClick={onClose}
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[12px] font-medium text-slate-600">
+                            Số tiền (VND)
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            inputMode="numeric"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
+                            placeholder="Nhập số tiền cần thu"
+                            value={amountStr}
+                            onChange={(e) => setAmountStr(e.target.value)}
+                        />
+                        <div className="text-[11px] text-slate-500">
+                            Gợi ý: {fmtVND(defaultAmount || 0)}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[12px] font-medium text-slate-600">
+                            Nội dung hiển thị
+                        </label>
+                        <input
+                            type="text"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
+                            placeholder="Ví dụ: Cọc đơn ORDx"
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                        />
+                    </div>
+
+                    <label className="inline-flex items-center gap-2 text-[12px] text-slate-600">
+                        <input
+                            type="checkbox"
+                            checked={deposit}
+                            onChange={(e) => setDeposit(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        Đánh dấu là khoản đặt cọc
+                    </label>
+
+                    {error ? (
+                        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
+                            {error}
+                        </div>
+                    ) : null}
+
+                    <div className="flex items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            className="text-[13px] font-medium text-slate-500 hover:text-slate-700"
+                            onClick={onClose}
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded-md bg-sky-600 px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-sky-500 disabled:opacity-60"
+                            onClick={handleGenerate}
+                            disabled={loading}
+                        >
+                            {loading ? "Đang tạo..." : "Tạo QR"}
+                        </button>
+                    </div>
+                </div>
+
+                {result ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                            Mã QR đã tạo
+                        </div>
+
+                        {(() => {
+                            const fallbackImageUrl = result?.qrText
+                                ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(
+                                      result.qrText
+                                  )}`
+                                : null;
+                            const qrImgSrc =
+                                useFallbackImage || !result?.qrImageUrl
+                                    ? fallbackImageUrl
+                                    : result?.qrImageUrl;
+                            if (qrImgSrc) {
+                                return (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <img
+                                            src={qrImgSrc}
+                                            alt="QR thanh toán"
+                                            className="w-full max-h-[280px] object-contain rounded-lg border border-white shadow-sm bg-white"
+                                            onError={() => {
+                                                if (!useFallbackImage) {
+                                                    setUseFallbackImage(true);
+                                                }
+                                            }}
+                                        />
+                                        {useFallbackImage && (
+                                            <span className="text-[11px] text-slate-500">
+                                                Đang sử dụng ảnh QR dự phòng.
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-5 text-center text-[12px] text-slate-500">
+                                    Không có hình ảnh QR, dùng chuỗi bên dưới để thanh toán.
+                                </div>
+                            );
+                        })()}
+
+                        <div className="grid sm:grid-cols-2 gap-3 text-[12px] text-slate-600">
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                                    Số tiền
+                                </div>
+                                <div className="text-base font-semibold text-slate-900">
+                                    {fmtVND(result.amount || 0)}
+                                </div>
+                            </div>
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                                    Hiệu lực đến
+                                </div>
+                                <div className="text-sm font-medium text-slate-900">
+                                    {result.expiresAt ? fmtDateTime(result.expiresAt) : "Không giới hạn"}
+                                </div>
+                            </div>
+                        </div>
+
+                        {result.note ? (
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] text-slate-600">
+                                <div className="text-[11px] uppercase tracking-wide text-slate-400 mb-1">
+                                    Ghi chú
+                                </div>
+                                <div className="break-words">
+                                    {result.note}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {result.qrText ? (
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] text-slate-600 flex flex-col gap-2">
+                                <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                                    Chuỗi QR
+                                </div>
+                                <div className="break-all text-slate-800">
+                                    {result.qrText}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="self-start inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1 text-[12px] font-medium text-slate-600 hover:bg-slate-100"
+                                    onClick={copyQrText}
+                                >
+                                    <Copy className="h-3.5 w-3.5" />
+                                    {copied ? "Đã sao chép" : "Sao chép"}
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
             </div>
         </div>
     );
@@ -566,6 +852,8 @@ export default function OrderDetailPage() {
 
     const [order, setOrder] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
+    const [paymentHistory, setPaymentHistory] = React.useState([]);
+    const [qrModalOpen, setQrModalOpen] = React.useState(false);
 
     const mapBookingToOrder = (b) => {
         if (!b) return null;
@@ -623,17 +911,35 @@ export default function OrderDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [orderId]);
+    }, [orderId, push]);
 
     React.useEffect(() => {
         fetchOrder();
     }, [fetchOrder]);
+
+    const fetchPayments = React.useCallback(async () => {
+        if (!order?.id) return;
+        try {
+            const list = await listBookingPayments(order.id);
+            setPaymentHistory(Array.isArray(list) ? list : []);
+        } catch (e) {
+            push('Không tải được lịch sử thanh toán', 'error');
+        }
+    }, [order?.id, push]);
+
+    React.useEffect(() => {
+        fetchPayments();
+    }, [fetchPayments]);
 
     // modal thanh toán/cọc
     const [depositOpen, setDepositOpen] = React.useState(false);
 
     const openDeposit = () => {
         setDepositOpen(true);
+    };
+
+    const openQrModal = () => {
+        setQrModalOpen(true);
     };
 
     // callback khi ghi nhận thanh toán thành công (modal gọi onSubmitted)
@@ -646,11 +952,35 @@ export default function OrderDetailPage() {
                 deposit: payload.kind === 'DEPOSIT' || true,
             });
             await fetchOrder();
+            await fetchPayments();
             push(`Đã ghi nhận thanh toán +${Number(payload.amount||0).toLocaleString('vi-VN')}đ cho đơn ${order.id}`, 'success');
         } catch (e) {
             push('Ghi nhận thanh toán thất bại', 'error');
         }
     };
+
+    const handleQrGenerate = React.useCallback(
+        async ({ amount, note, deposit }) => {
+            const bookingId = order?.id ?? orderId;
+            if (!bookingId) {
+                throw new Error('ORDER_NOT_READY');
+            }
+            try {
+                const response = await generateBookingQrPayment(bookingId, {
+                    amount,
+                    note,
+                    deposit,
+                });
+                await fetchPayments();
+                push('Đã tạo yêu cầu thanh toán QR', 'success');
+                return response;
+            } catch (e) {
+                push('Tạo QR thanh toán thất bại', 'error');
+                throw e;
+            }
+        },
+        [order?.id, orderId, fetchPayments, push]
+    );
 
     // header summary numbers
     const finalPrice = order?.quote?.final_price || 0;
@@ -800,7 +1130,9 @@ export default function OrderDetailPage() {
                 <QuoteInfoCard quote={order.quote} />
                 <PaymentInfoCard
                     payment={order.payment}
+                    history={paymentHistory}
                     onOpenDeposit={openDeposit}
+                    onGenerateQr={openQrModal}
                 />
             </div>
 
@@ -830,6 +1162,15 @@ export default function OrderDetailPage() {
                     </div>
                 </div>
             </div>
+
+            <QrPaymentModal
+                open={qrModalOpen}
+                bookingCode={order.code}
+                customerName={order.customer.name}
+                defaultAmount={remain}
+                onClose={() => setQrModalOpen(false)}
+                onGenerate={handleQrGenerate}
+            />
 
             {/* Deposit / Payment modal */}
             <DepositModal
