@@ -95,3 +95,19 @@ export function checkVehicleAvailability({ branchId, categoryId, startTime, endT
   };
   return apiFetch(`/api/bookings/check-availability`, { method: 'POST', body });
 }
+
+// Payment history for a booking
+export function listBookingPayments(id) {
+  return apiFetch(`/api/bookings/${id}/payments`);
+}
+
+// Generate QR payment invoice
+export function generateBookingQrPayment(id, { amount, note, deposit = true }) {
+  const body = {
+    amount: Number(amount || 0),
+    paymentMethod: 'QR',
+    note: note || '',
+    deposit: !!deposit,
+  };
+  return apiFetch(`/api/bookings/${id}/payments/qr`, { method: 'POST', body });
+}

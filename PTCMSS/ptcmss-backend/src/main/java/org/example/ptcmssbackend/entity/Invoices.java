@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.example.ptcmssbackend.converter.InvoiceTypeConverter;
 import org.example.ptcmssbackend.enums.InvoiceStatus;
 import org.example.ptcmssbackend.enums.InvoiceType;
 import org.example.ptcmssbackend.enums.PaymentStatus;
@@ -37,7 +38,7 @@ public class Invoices {
     private Customers customer;
 
     @NotNull
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = InvoiceTypeConverter.class)
     @Column(name = "type", nullable = false)
     private InvoiceType type;
 

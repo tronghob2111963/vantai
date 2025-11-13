@@ -7,19 +7,20 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class PaymentResponse {
     private Integer invoiceId;
+    private Integer bookingId;
     private BigDecimal amount;
+    private boolean deposit;
     private String paymentMethod;
     private String paymentStatus;
-    private Boolean isDeposit;
     private String note;
-    private String referenceCode;
-    private Instant invoiceDate;
     private Instant createdAt;
-    private String createdByName;
-    private String approvedByName;
-    private Instant approvedAt;
+
+    // QR-specific
+    private String qrText;
+    private String qrImageUrl;
+    private Instant expiresAt;
 }
 
