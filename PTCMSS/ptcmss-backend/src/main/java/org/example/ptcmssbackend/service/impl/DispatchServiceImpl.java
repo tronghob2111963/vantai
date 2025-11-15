@@ -243,42 +243,7 @@ public class DispatchServiceImpl implements DispatchService {
 
     @Override
     public void driverAcceptTrip(Integer tripId) {
-        log.info("[Dispatch] Driver accept trip {}", tripId);
 
-        // 1. Load trip
-        Trips trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new RuntimeException("Trip not found: " + tripId));
-
-        // 2. Trip must be SCHEDULED
-        if (trip.getStatus() != TripStatus.SCHEDULED) {
-            throw new RuntimeException("Trip cannot be accepted. Current status: " + trip.getStatus());
-        }
-
-        // 3. Must have driver assigned
-        List<TripDrivers> assignedDrivers = tripDriverRepository.findByTripId(tripId);
-        if (assignedDrivers.isEmpty()) {
-            throw new RuntimeException("This trip has no assigned driver");
-        }
-
-        TripDrivers mainDriver = assignedDrivers.get(0); // lấy driver được gán
-
-        Drivers driver = mainDriver.getDriver();
-        if (driver == null) {
-            throw new RuntimeException("Invalid driver assignment");
-        }
-
-        log.info("Driver {} is now accepting trip {}", driver.getId(), tripId);
-
-        // 4. Update trip → ONGOING
-        trip.setStatus(TripStatus.ONGOING);
-        trip.setStartTime(Instant.now());
-        tripRepository.save(trip);
-
-        // 5. Update mapping startTime trong TripDrivers
-        mainDriver.setStartTime(Instant.now());
-        tripDriverRepository.save(mainDriver);
-
-        log.info("[Dispatch] Trip {} is now ONGOING", tripId);
     }
 
     // =========================================================
@@ -398,6 +363,7 @@ public class DispatchServiceImpl implements DispatchService {
         log.info("[Dispatch] Auto-picked vehicle {} for trip {}", best.getId(), trip.getId());
         return best.getId();
     }
+
 
     // Helper generic
     private record CandidateScore<T>(T candidate, int score) {}

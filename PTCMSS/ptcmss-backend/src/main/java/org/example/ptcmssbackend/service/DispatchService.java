@@ -1,6 +1,9 @@
 package org.example.ptcmssbackend.service;
 
+import org.example.ptcmssbackend.dto.request.Trip.TripSearchRequest;
 import org.example.ptcmssbackend.dto.request.dispatch.AssignRequest;
+import org.example.ptcmssbackend.dto.response.Trip.TripDetailResponse;
+import org.example.ptcmssbackend.dto.response.Trip.TripListItemResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.AssignRespone;
 import org.example.ptcmssbackend.dto.response.dispatch.PendingTripResponse;
 
@@ -24,4 +27,9 @@ public interface DispatchService {
     AssignRespone reassign(AssignRequest request);
 
     void driverAcceptTrip(Integer tripId);
+
+    TripDetailResponse getTripDetail(Integer tripId);
+
+    List<TripListItemResponse> searchTrips(TripSearchRequest request);
+
 }
