@@ -323,19 +323,7 @@ CREATE TABLE IF NOT EXISTS AccountsReceivable (
 CREATE INDEX IX_AR_Status_DueDate ON AccountsReceivable(status, dueDate);
 
 -- ==========================================================
--- 9) Token (JWT Token Storage)
--- ==========================================================
-CREATE TABLE IF NOT EXISTS token (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(50) NOT NULL UNIQUE,
-  access_token TEXT,
-  refresh_token TEXT
-) ENGINE=InnoDB;
-
-CREATE INDEX IX_Token_Username ON token(username);
-
--- ==========================================================
--- 10) System Settings, Triggers, Views
+-- 9) System Settings, Triggers, Views
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS SystemSettings (
   settingId INT AUTO_INCREMENT PRIMARY KEY,
