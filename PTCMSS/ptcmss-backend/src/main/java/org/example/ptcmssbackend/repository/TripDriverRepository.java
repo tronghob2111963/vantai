@@ -31,4 +31,14 @@ public interface TripDriverRepository extends JpaRepository<TripDrivers, TripDri
 
     // Xóa mapping theo tripId (dọn sạch gán tài xế trước khi xóa Trips)
     void deleteByTrip_Id(Integer tripId);
+
+    @Query("""
+        SELECT td FROM TripDrivers td
+        WHERE td.driver.id = :driverId
+    """)
+    List<TripDrivers> findByDriver(Integer driverId);
+
+
+    // Kiểm tra driver có được gán vào trip cụ thể không
+    boolean existsByTrip_IdAndDriver_Id(Integer tripId, Integer driverId);
 }

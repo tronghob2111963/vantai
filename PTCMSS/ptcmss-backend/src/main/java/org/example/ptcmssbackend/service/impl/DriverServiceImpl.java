@@ -158,10 +158,22 @@ public class DriverServiceImpl implements DriverService {
         log.info("[Trip] Driver {} started trip {}", driverId, tripId);
         var trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
-        trip.setStatus(TripStatus.ONGOING);
-        trip.setStartTime(Instant.now());
-        tripRepository.save(trip);
 
+        // check driver có được gán không
+        if (!tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)) {
+            throw new RuntimeException("Driver is not assigned to this trip");
+        }
+
+        // chỉ cho start từ trạng thái SCHEDULED
+        if (trip.getStatus() != TripStatus.SCHEDULED) {
+            throw new RuntimeException("Trip is not in SCHEDULED status");
+        }
+
+        trip.setStatus(TripStatus.ONGOING);
+        if (trip.getStartTime() == null) {
+            trip.setStartTime(Instant.now());
+        }
+        tripRepository.save(trip);
         return tripId;
     }
 
@@ -170,6 +182,15 @@ public class DriverServiceImpl implements DriverService {
         log.info("[Trip] Driver {} completed trip {}", driverId, tripId);
         var trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
+
+        if (!tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)) {
+            throw new RuntimeException("Driver is not assigned to this trip");
+        }
+
+        if (trip.getStatus() != TripStatus.ONGOING) {
+            throw new RuntimeException("Trip is not in ONGOING status");
+        }
+
         trip.setStatus(TripStatus.COMPLETED);
         trip.setEndTime(Instant.now());
         tripRepository.save(trip);
