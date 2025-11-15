@@ -16,4 +16,8 @@ public interface UserService {
 
     //  Thêm hàm upload ảnh đại diện
     String updateAvatar(Integer userId, MultipartFile file);
+
+    List<UserResponse> searchUsers(String keyword, Integer roleId, Integer branchId, UserStatus status);
+    List<UserResponse> getUsersByBranch(Integer branchId);
+
 }

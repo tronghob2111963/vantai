@@ -27,3 +27,8 @@ export function deleteBranch(id) {
   return apiFetch(`/api/branches/${id}`, { method: "DELETE" });
 }
 
+export function getBranchByUserId(userId) {
+  if (userId == null) throw new Error("USER_ID_REQUIRED");
+  return apiFetch(`/api/branches/by-user/${userId}`);
+}
+

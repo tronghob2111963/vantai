@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.example.ptcmssbackend.dto.request.User.CreateUserRequest;
@@ -103,6 +104,92 @@ public class UserController {
         return ResponseEntity.ok(
                 new ResponseData<>(HttpStatus.OK.value(), "Avatar updated successfully", imageUrl)
         );
+    }
+
+
+    @Operation(
+            summary = "Tìm kiếm và lọc người dùng",
+            description = """
+                    API cho phép tìm kiếm và lọc user theo nhiều điều kiện:
+                    - keyword: tìm theo họ tên, email, số điện thoại
+                    - roleId: lọc theo vai trò
+                    - branchId: lọc theo chi nhánh  
+                    - status: ACTIVE / INACTIVE  
+                    Ví dụ:
+                    /api/users/search?keyword=an&branchId=1&roleId=4&status=ACTIVE
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = UserResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Lỗi hệ thống")
+    })
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<List<UserResponse>> searchUsers(
+
+            @Parameter(description = "Từ khóa tìm kiếm (tên, email, số điện thoại)", example = "trong")
+            @RequestParam(required = false) String keyword,
+
+            @Parameter(description = "Lọc theo quyền (roleId)", example = "2")
+            @RequestParam(required = false) Integer roleId,
+
+            @Parameter(description = "Lọc theo chi nhánh", example = "3")
+            @RequestParam(required = false) Integer branchId,
+
+            @Parameter(description = "Lọc theo trạng thái", example = "ACTIVE")
+            @RequestParam(required = false) UserStatus status
+    ) {
+        return ResponseEntity.ok(userService.searchUsers(keyword, roleId, branchId, status));
+    }
+
+
+
+    @Operation(
+            summary = "Lấy danh sách user theo chi nhánh",
+            description = """
+                API trả về danh sách người dùng thuộc một chi nhánh cụ thể.
+                
+                Luồng dữ liệu:
+                Branch → Employees → Users
+                
+                Chỉ cần truyền vào branchId là hệ thống tự JOIN Employees → Users để trả về danh sách đúng.
+                
+                Ví dụ:
+                GET /api/users/branch/2
+                
+                Trả về tất cả Users thuộc chi nhánh có ID = 2.
+                """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lấy danh sách user thành công",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UserResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Không tìm thấy chi nhánh"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Lỗi hệ thống"
+            )
+    })
+    @GetMapping("/branch/{branchId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<List<UserResponse>> getUsersByBranch(
+            @Parameter(
+                    description = "ID chi nhánh cần lọc user",
+                    example = "3"
+            )
+            @PathVariable Integer branchId
+    ) {
+        return ResponseEntity.ok(userService.getUsersByBranch(branchId));
     }
 }
 

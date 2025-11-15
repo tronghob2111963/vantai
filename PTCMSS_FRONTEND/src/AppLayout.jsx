@@ -15,6 +15,125 @@ import {
   Search,
 } from "lucide-react";
 import { logout as apiLogout } from "./api/auth";
+import {
+  ROLES,
+  ALL_ROLES,
+  getCurrentRole,
+  getHomePathForRole,
+  getStoredUsername,
+  getStoredRoleLabel,
+} from "./utils/session";
+
+const SIDEBAR_SECTIONS = [
+  {
+    sectionId: "admin",
+    icon: Settings,
+    label: "Quản trị hệ thống",
+    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    items: [
+      { label: "Cấu hình hệ thống", to: "/admin/settings", roles: [ROLES.ADMIN] },
+      { label: "Danh sách chi nhánh", to: "/admin/branches", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
+      { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
+      { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Tạo tài khoản", to: "/admin/users/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
+    ],
+  },
+  {
+    sectionId: "driver",
+    icon: Users,
+    label: "Tài xế",
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER],
+    items: [
+      { label: "Bảng điều khiển tài xế", to: "/driver/dashboard" },
+      { label: "Thông báo", to: "/driver/notifications" },
+      { label: "Lịch làm việc", to: "/driver/schedule" },
+      { label: "Xin nghỉ phép", to: "/driver/leave-request" },
+      { label: "Hồ sơ tài xế", to: "/driver/profile" },
+      { label: "Chi tiết chuyến (demo)", to: "/driver/trips/123" },
+    ],
+  },
+  {
+    sectionId: "vehicle",
+    icon: CarFront,
+    label: "Phương tiện",
+    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    items: [
+      { label: "Danh sách xe", to: "/vehicles" },
+      { label: "Tạo xe mới", to: "/vehicles/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Danh mục xe", to: "/vehicles/categories" },
+      { label: "Tạo danh mục", to: "/vehicles/categories/new", roles: [ROLES.ADMIN] },
+      { label: "Chi tiết xe", to: "/vehicles/1" },
+    ],
+  },
+  {
+    sectionId: "orders",
+    icon: ClipboardList,
+    label: "Báo giá & Đơn hàng",
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT],
+    items: [
+      { label: "Bảng CSKH / Báo giá", to: "/orders/dashboard", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
+      { label: "Danh sách đơn hàng", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT] },
+      { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
+      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
+      { label: "Chi tiết đơn hàng", to: "/orders/1", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT] },
+    ],
+  },
+  {
+    sectionId: "dispatch",
+    icon: CalendarClock,
+    label: "Điều phối / Lịch chạy",
+    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    items: [
+      { label: "Bảng điều phối", to: "/dispatch" },
+      { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
+      { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
+      { label: "Thông báo điều phối", to: "/dispatch/notifications" },
+    ],
+  },
+  {
+    sectionId: "accounting",
+    icon: DollarSign,
+    label: "Kế toán & Thanh toán",
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT],
+    items: [
+      { label: "Tổng quan kế toán", to: "/accounting", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
+      { label: "Hóa đơn / Thanh toán", to: "/accounting/invoices", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
+      { label: "Báo cáo chi phí", to: "/accounting/expenses", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
+      { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
+    ],
+  },
+  {
+    sectionId: "analytics",
+    icon: BarChart3,
+    label: "Báo cáo & Phân tích",
+    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    items: [
+      { label: "Dashboard Công ty", to: "/analytics/admin", roles: [ROLES.ADMIN] },
+      { label: "Dashboard Chi nhánh", to: "/analytics/manager", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+    ],
+  },
+];
+
+function useRole() {
+  return React.useMemo(() => getCurrentRole(), []);
+}
+
+function filterSectionsByRole(role) {
+  return SIDEBAR_SECTIONS.map((section) => {
+    if (section.roles && !section.roles.includes(role)) {
+      return null;
+    }
+    const allowedItems = (section.items || []).filter(
+      (item) => !item.roles || item.roles.includes(role)
+    );
+    if (!allowedItems.length) {
+      return null;
+    }
+    return { ...section, items: allowedItems };
+  }).filter(Boolean);
+}
 
 /* ========= IMPORT CÁC PAGE ========= */
 /* Module 1 – Quản trị hệ thống */
@@ -152,7 +271,19 @@ function SidebarSection({
    - QUAN TRỌNG: quản lý state mở/đóng cho toàn bộ sidebar
 --------------------------------------------------- */
 function SidebarNav() {
-  const [activeSection, setActiveSection] = React.useState("admin");
+  const role = useRole();
+  const sections = React.useMemo(() => filterSectionsByRole(role), [role]);
+  const [activeSection, setActiveSection] = React.useState(() => sections[0]?.sectionId || "");
+
+  React.useEffect(() => {
+    if (!sections.length) {
+      setActiveSection("");
+      return;
+    }
+    if (!sections.some((section) => section.sectionId === activeSection)) {
+      setActiveSection(sections[0].sectionId);
+    }
+  }, [sections, activeSection]);
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
@@ -169,122 +300,23 @@ function SidebarNav() {
 
       {/* groups */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-sm">
-        {/* Quản trị hệ thống */}
-        <SidebarSection
-          sectionId="admin"
-          icon={Settings}
-          label="Quản trị hệ thống"
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          items={[
-            { label: "Cấu hình hệ thống", to: "/admin/settings" },
-            { label: "Danh sách chi nhánh", to: "/admin/branches" },
-            { label: "Tạo chi nhánh", to: "/admin/branches/new" },
-            { label: "Quản lý chi nhánh", to: "/admin/managers" },
-            { label: "Tạo tài khoản", to: "/admin/users/new" },
-            // { label: "Chi tiết tài khoản (demo)", to: "/admin/users/123" },
-            { label: "Hồ sơ cá nhân", to: "/me/profile" },
-          ]}
-        />
-
-        {/* Tài xế */}
-        <SidebarSection
-          sectionId="driver"
-          icon={Users}
-          label="Tài xế"
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          items={[
-            { label: "Bảng điều khiển tài xế", to: "/driver/dashboard" },
-            { label: "Thông báo", to: "/driver/notifications" },
-            { label: "Lịch làm việc", to: "/driver/schedule" },
-            { label: "Xin nghỉ phép", to: "/driver/leave-request" },
-            { label: "Hồ sơ tài xế", to: "/driver/profile" },
-            { label: "Chi tiết chuyến (demo)", to: "/driver/trips/123" },
-          ]}
-        />
-
-        {/* Phương tiện */}
-        <SidebarSection
-          sectionId="vehicle"
-          icon={CarFront}
-          label="Phương tiện"
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          items={[
-            { label: "Danh sách xe", to: "/vehicles" },
-            { label: "Tạo xe mới", to: "/vehicles/new" },
-            { label: "Danh mục xe", to: "/vehicles/categories" },
-            { label: "Tạo danh mục", to: "/vehicles/categories/new" },
-            { label: "Chi tiết xe", to: "/vehicles/1" },
-          ]}
-        />
-
-        {/* Báo giá & Đơn hàng */}
-        <SidebarSection
-          sectionId="orders"
-          icon={ClipboardList}
-          label="Báo giá & Đơn hàng"
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          items={[
-            { label: "Bảng CSKH / Báo giá", to: "/orders/dashboard" },
-            { label: "Danh sách đơn hàng", to: "/orders" },
-            { label: "Tạo đơn hàng", to: "/orders/new" },
-            { label: "Gán tài xế / Sửa đơn", to: "/orders" },
-            { label: "Chi tiết đơn hàng", to: "/orders/1" },
-          ]}
-        />
-
-        {/* Điều phối / Lịch chạy */}
-        <SidebarSection
-          sectionId="dispatch"
-          icon={CalendarClock}
-          label="Điều phối / Lịch chạy"
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          items={[
-            { label: "Bảng điều phối", to: "/dispatch" },
-            { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
-            { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
-            { label: "Thông báo điều phối", to: "/dispatch/notifications" },
-          ]}
-        />
-
-        {/* Kế toán & Thanh toán */}
-        <SidebarSection
-          sectionId="accounting"
-          icon={DollarSign}
-          label="Kế toán & Thanh toán"
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          items={[
-            { label: "Tổng quan kế toán", to: "/accounting" },
-            { label: "Hóa đơn / Thanh toán", to: "/accounting/invoices" },
-            { label: "Báo cáo chi phí", to: "/accounting/expenses" },
-            { label: "Báo cáo doanh thu", to: "/accounting/revenue-report" },
-          ]}
-        />
-
-        {/* Báo cáo & Phân tích */}
-        <SidebarSection
-          sectionId="analytics"
-          icon={BarChart3}
-          label="Báo cáo & Phân tích"
-          activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          items={[
-            { label: "Dashboard Công ty", to: "/analytics/admin" },
-            { label: "Dashboard Chi nhánh", to: "/analytics/manager" },
-          ]}
-        />
+        {sections.map((section) => (
+          <SidebarSection
+            key={section.sectionId}
+            sectionId={section.sectionId}
+            icon={section.icon}
+            label={section.label}
+            items={section.items}
+            activeSection={activeSection}
+            setActiveSection={setActiveSection}
+          />
+        ))}
       </nav>
 
       <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500">v0.1 thử nghiệm</div>
     </aside>
   );
 }
-
 /* ---------------------------------------------------
    Topbar
    - nền trắng
@@ -292,19 +324,8 @@ function SidebarNav() {
    - search pill nền slate-50
 --------------------------------------------------- */
 function Topbar() {
-  const getCookie = (name) => {
-    try {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2)
-        return decodeURIComponent(parts.pop().split(";").shift());
-    } catch {
-      // do nothing
-    }
-    return "";
-  };
-  const username = getCookie("username") || localStorage.getItem("username") || "John Doe";
-  const roleName = getCookie("roleName") || localStorage.getItem("roleName") || "Quản trị viên";
+  const username = getStoredUsername() || "John Doe";
+  const roleName = getStoredRoleLabel() || "Qu???n tr??< viA?n";
   const initials =
     String(username)
       .trim()
@@ -360,7 +381,6 @@ function Topbar() {
     </header>
   );
 }
-
 /* ---------------------------------------------------
    ShellLayout
    - nền tổng thể bg-slate-50
@@ -390,6 +410,20 @@ function ShellLayout() {
   );
 }
 
+function ProtectedRoute({ roles = ALL_ROLES, children }) {
+  const role = useRole();
+  const allowed = roles && roles.length ? roles : ALL_ROLES;
+  if (allowed.includes(role)) {
+    return children;
+  }
+  return <Navigate to={getHomePathForRole(role)} replace />;
+}
+
+function RoleRedirect() {
+  const role = useRole();
+  return <Navigate to={getHomePathForRole(role)} replace />;
+}
+
 /* ---------------------------------------------------
    ROUTES TREE
 --------------------------------------------------- */
@@ -398,66 +432,317 @@ export default function AppLayout() {
     <Routes>
       {/* Trang đăng nhập không dùng shell */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<RoleRedirect />} />
 
-      {/* Các route còn lại dùng ShellLayout */}
+      {/* Các route cần shell layout */}
       <Route element={<ShellLayout />}>
-        {/* default redirect */}
-        <Route index element={<Navigate to="/analytics/admin" replace />} />
+        <Route index element={<RoleRedirect />} />
 
         {/* Báo cáo & Phân tích */}
-        <Route path="/analytics/admin" element={<AdminDashboardPro />} />
-        <Route path="/analytics/manager" element={<ManagerDashboardPro />} />
+        <Route
+          path="/analytics/admin"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN]}>
+              <AdminDashboardPro />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics/manager"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <ManagerDashboardPro />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Quản trị hệ thống */}
-        <Route path="/admin/settings" element={<SystemSettingsPage />} />
-        <Route path="/admin/branches" element={<AdminBranchesPage />} />
-        <Route path="/admin/branches/new" element={<CreateBranchPage />} />
-        <Route path="/admin/branches/:branchId" element={<AdminBranchDetailPage />} />
-        <Route path="/admin/managers" element={<AdminManagersPage />} />
-        <Route path="/admin/users" element={<AdminUsersPage />} />
-        <Route path="/admin/users/new" element={<AdminCreateUserPage />} />
-        <Route path="/admin/users/:userId" element={<UserDetailPage />} />
-        <Route path="/me/profile" element={<UpdateProfilePage />} />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN]}>
+              <SystemSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/branches"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <AdminBranchesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/branches/new"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN]}>
+              <CreateBranchPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/branches/:branchId"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <AdminBranchDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/managers"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN]}>
+              <AdminManagersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <AdminUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users/new"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <AdminCreateUserPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users/:userId"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <UserDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/me/profile"
+          element={
+            <ProtectedRoute>
+              <UpdateProfilePage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Tài xế */}
-        <Route path="/driver/dashboard" element={<DriverDashboard />} />
-        <Route path="/driver/notifications" element={<DriverNotificationsPage />} />
-        <Route path="/driver/profile" element={<DriverProfilePage />} />
-        <Route path="/driver/schedule" element={<DriverSchedulePage />} />
-        <Route path="/driver/leave-request" element={<DriverLeaveRequestPage />} />
-        <Route path="/driver/report-incident" element={<DriverReportIncidentPage />} />
-        <Route path="/driver/trips/:tripId" element={<DriverTripDetailPage />} />
+        <Route
+          path="/driver/dashboard"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver/notifications"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverNotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver/profile"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver/schedule"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverSchedulePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver/leave-request"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverLeaveRequestPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver/report-incident"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverReportIncidentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver/trips/:tripId"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverTripDetailPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Phương tiện */}
-        <Route path="/vehicles" element={<VehicleListPage />} />
-        <Route path="/vehicles/new" element={<VehicleCreatePage />} />
-        <Route path="/vehicles/:vehicleId" element={<VehicleDetailPage />} />
-        <Route path="/vehicles/categories" element={<VehicleCategoryManagePage />} />
-        <Route path="/vehicles/categories/new" element={<VehicleCategoryPage />} />
+        <Route
+          path="/vehicles"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <VehicleListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles/new"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <VehicleCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles/:vehicleId"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <VehicleDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles/categories"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <VehicleCategoryManagePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles/categories/new"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN]}>
+              <VehicleCategoryPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Báo giá & Đơn hàng */}
-        <Route path="/orders/dashboard" element={<ConsultantDashboardPage />} />
-        <Route path="/orders" element={<ConsultantOrderListPage />} />
-        <Route path="/orders/new" element={<CreateOrderPage />} />
-        <Route path="/orders/:orderId" element={<OrderDetailPage />} />
-        <Route path="/orders/:orderId/edit" element={<EditOrderPage />} />
+        <Route
+          path="/orders/dashboard"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+              <ConsultantDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT]}>
+              <ConsultantOrderListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/new"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+              <CreateOrderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:orderId"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT]}>
+              <OrderDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:orderId/edit"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+              <EditOrderPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Điều phối / Lịch chạy */}
-        <Route path="/dispatch" element={<CoordinatorTimelinePro />} />
-        <Route path="/dispatch/expense-request" element={<ExpenseRequestForm />} />
-        <Route path="/dispatch/AssignDriverDialog" element={<DemoAssign />} />
-        <Route path="/dispatch/notifications" element={<NotificationsWidget />} />
+        <Route
+          path="/dispatch"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <CoordinatorTimelinePro />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/expense-request"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <ExpenseRequestForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/AssignDriverDialog"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <DemoAssign />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/notifications"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <NotificationsWidget />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Kế toán & Thanh toán */}
-        <Route path="/accounting" element={<AccountantDashboard />} />
-        <Route path="/accounting/invoices" element={<InvoiceManagement />} />
-        <Route path="/accounting/expenses" element={<ExpenseReportPage />} />
-        <Route path="/accounting/revenue-report" element={<ReportRevenuePage />} />
+        <Route
+          path="/accounting"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+              <AccountantDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accounting/invoices"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT]}>
+              <InvoiceManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accounting/expenses"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+              <ExpenseReportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accounting/revenue-report"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+              <ReportRevenuePage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
-      {/* fallback: path lạ -> về dashboard công ty */}
-      <Route path="*" element={<Navigate to="/analytics/admin" replace />} />
+      {/* fallback */}
+      <Route path="*" element={<RoleRedirect />} />
     </Routes>
   );
 }

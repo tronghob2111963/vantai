@@ -219,11 +219,12 @@ public class BookingServiceImpl implements BookingService {
                 ? booking.getEstimatedCost().subtract(discountAmount)
                 : BigDecimal.ZERO;
         booking.setTotalCost(totalCost);
-        
+
+
         if (request.getDepositAmount() != null) {
             booking.setDepositAmount(request.getDepositAmount());
         }
-        
+
         if (request.getStatus() != null) {
             booking.setStatus(parseBookingStatus(request.getStatus()));
         }

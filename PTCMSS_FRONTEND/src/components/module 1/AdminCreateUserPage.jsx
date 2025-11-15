@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { createUser, listRoles } from "../../api/users";
 import { Save, ArrowLeft } from "lucide-react";
+import { getCurrentRole, ROLES } from "../../utils/session";
 
 export default function AdminCreateUserPage() {
   const navigate = useNavigate();
@@ -13,15 +14,36 @@ export default function AdminCreateUserPage() {
   const [roleId, setRoleId] = React.useState("");
   const [roles, setRoles] = React.useState([]);
   const [saving, setSaving] = React.useState(false);
+  const currentRole = React.useMemo(() => getCurrentRole(), []);
+
+  const filterAssignableRoles = React.useCallback(
+    (list) => {
+      if (currentRole !== ROLES.MANAGER) return list;
+      const deny = new Set(["ADMIN", "MANAGER"]);
+      return (list || []).filter((r) => {
+        const label = String(r?.roleName || r?.name || "")
+          .trim()
+          .toUpperCase();
+        return !deny.has(label);
+      });
+    },
+    [currentRole]
+  );
 
   React.useEffect(() => {
     (async () => {
       try {
         const rs = await listRoles();
-        setRoles(Array.isArray(rs) ? rs : []);
+        setRoles(filterAssignableRoles(Array.isArray(rs) ? rs : []));
       } catch {}
     })();
-  }, []);
+  }, [filterAssignableRoles]);
+
+  React.useEffect(() => {
+    if (!roleId) return;
+    const exists = roles.some((r) => String(r.id) === String(roleId));
+    if (!exists) setRoleId("");
+  }, [roles, roleId]);
 
   const valid = fullName.trim() && username.trim() && phone.trim() && address.trim() && roleId;
 

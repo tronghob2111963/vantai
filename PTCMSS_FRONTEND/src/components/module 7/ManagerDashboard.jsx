@@ -12,6 +12,8 @@ import {
     XCircle,
     Gauge,
 } from "lucide-react";
+import { getStoredUserId } from "../../utils/session";
+import { getBranchByUserId } from "../../api/branches";
 
 /**
  * ManagerDashboardPro – LIGHT THEME
@@ -351,7 +353,35 @@ export default function ManagerDashboardPro() {
     // Bộ lọc cho Manager
     const [period, setPeriod] = React.useState("2025-10");
     const [branch, setBranch] = React.useState(BRANCH_METRICS.branchName);
+    const [branchInfo, setBranchInfo] = React.useState(null);
+    const [branchLoading, setBranchLoading] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+
+    React.useEffect(() => {
+        const userId = getStoredUserId();
+        if (!userId) return;
+        let cancelled = false;
+        (async () => {
+            setBranchLoading(true);
+            try {
+                const data = await getBranchByUserId(userId);
+                if (cancelled) return;
+                if (data?.branchName) {
+                    setBranch(data.branchName);
+                }
+                setBranchInfo(data || null);
+            } catch {
+                if (!cancelled) {
+                    setBranchInfo(null);
+                }
+            } finally {
+                if (!cancelled) setBranchLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     // Refresh mock
     const onRefresh = () => {
@@ -399,19 +429,21 @@ export default function ManagerDashboardPro() {
                         />
                     </div>
 
-                    {/* Branch selector */}
-                    <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
+                    {/* Branch info */}
+                    <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm min-w-[200px]">
                         <Building2 className="h-4 w-4 text-slate-500" />
-                        <select
-                            value={branch}
-                            onChange={(e) => setBranch(e.target.value)}
-                            className="bg-transparent outline-none text-sm text-slate-700"
-                        >
-                            <option>Hà Nội</option>
-                            <option>TP.HCM</option>
-                            <option>Đà Nẵng</option>
-                            <option>Hải Phòng</option>
-                        </select>
+                        <div className="flex flex-col leading-tight">
+                            <span className="text-sm font-medium text-slate-800">
+                                {branchLoading
+                                    ? "Đang xác định chi nhánh..."
+                                    : branch || "Chưa gán chi nhánh"}
+                            </span>
+                            {branchInfo?.location && (
+                                <span className="text-[11px] text-slate-500">
+                                    {branchInfo.location}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     {/* Refresh */}

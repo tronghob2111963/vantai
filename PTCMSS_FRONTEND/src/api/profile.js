@@ -1,24 +1,14 @@
 import { apiFetch } from "./http";
-
-function getUserId() {
-  try {
-    const fromLS = localStorage.getItem("userId");
-    if (fromLS) return fromLS;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; userId=`);
-    if (parts.length === 2) return decodeURIComponent(parts.pop().split(";").shift());
-  } catch {}
-  return "";
-}
+import { getStoredUserId } from "../utils/session";
 
 export function getMyProfile() {
-  const id = getUserId();
+  const id = getStoredUserId();
   if (!id) throw new Error("NO_USER_ID");
   return apiFetch(`/api/users/${id}`);
 }
 
 export function updateMyProfile(body) {
-  const id = getUserId();
+  const id = getStoredUserId();
   if (!id) throw new Error("NO_USER_ID");
   return apiFetch(`/api/users/${id}`, { method: "PUT", body });
 }

@@ -126,6 +126,26 @@ public class BranchServiceImpl implements BranchService {
         return branch.getId();
     }
 
+    @Override
+    public BranchResponse getBranchByUserId(Integer userId) {
+
+        Employees employee = employeeRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("User không thuộc chi nhánh nào"));
+
+        Branches branch = employee.getBranch();
+
+        return BranchResponse.builder()
+                .id(branch.getId())
+                .branchName(branch.getBranchName())
+                .location(branch.getLocation())
+                .status(branch.getStatus().name())
+                .managerId(
+                        branch.getManager() != null ?
+                                branch.getManager().getEmployeeId() : null
+                )
+                .build();
+    }
+
     private static PageResponse<List<BranchResponse>> getBranchPageResponse(int pageNo, int pageSize, Page<Branches> branches) {
         List<BranchResponse> branchResponse = branches.stream()
                 .map(branch -> BranchResponse.builder()
