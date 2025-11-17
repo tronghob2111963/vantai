@@ -160,7 +160,9 @@ export default function AdminUsersPage() {
       try {
         const rs = await listRoles();
         setRoles(Array.isArray(rs) ? rs : []);
-      } catch {}
+      } catch {
+         /* empty */ 
+    }
     })();
   }, []);
 
@@ -168,7 +170,7 @@ export default function AdminUsersPage() {
     try {
       await toggleUserStatus(id);
       await onRefresh();
-    } catch {}
+    } catch { /* empty */ }
   };
 
   return (

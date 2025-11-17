@@ -8,4 +8,5 @@ import java.util.List;
 public interface TripAssignmentHistoryRepository extends JpaRepository<TripAssignmentHistory, Integer> {
 
     List<TripAssignmentHistory> findByTrip_IdOrderByCreatedAtAsc(Integer tripId);
+    List<TripAssignmentHistory> findByTrip_IdOrderByCreatedAtDesc(Integer tripId);
 }

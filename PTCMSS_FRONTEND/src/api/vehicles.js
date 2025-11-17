@@ -49,3 +49,8 @@ export function listVehicleCategories() {
   return apiFetch("/api/vehicle-categories");
 }
 
+export function listVehiclesByBranch(branchId) {
+  if (branchId == null || branchId === "") throw new Error("BRANCH_ID_REQUIRED");
+  return apiFetch(`/api/vehicles/branch/${branchId}`);
+}
+

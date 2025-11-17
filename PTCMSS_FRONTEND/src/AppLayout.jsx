@@ -84,7 +84,7 @@ const SIDEBAR_SECTIONS = [
     sectionId: "dispatch",
     icon: CalendarClock,
     label: "Điều phối / Lịch chạy",
-    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT],
     items: [
       { label: "Bảng điều phối", to: "/dispatch" },
       { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
@@ -676,7 +676,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
               <CoordinatorTimelinePro />
             </ProtectedRoute>
           }
@@ -684,7 +684,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch/expense-request"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
               <ExpenseRequestForm />
             </ProtectedRoute>
           }
@@ -692,7 +692,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch/AssignDriverDialog"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
               <DemoAssign />
             </ProtectedRoute>
           }
@@ -700,7 +700,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch/notifications"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
               <NotificationsWidget />
             </ProtectedRoute>
           }

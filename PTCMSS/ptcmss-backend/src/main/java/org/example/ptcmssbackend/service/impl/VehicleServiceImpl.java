@@ -299,6 +299,17 @@ public class VehicleServiceImpl implements VehicleService {
                 .build();
     }
 
+    @Override
+    public List<VehicleResponse> getVehiclesByBranch(Integer branchId) {
+        var branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh ID = " + branchId));
+
+        return vehicleRepository.findAllByBranchId(branchId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     // -------------------- Private helpers --------------------
     private Vehicles mapToEntity(VehicleRequest req) {
         Vehicles v = new Vehicles();

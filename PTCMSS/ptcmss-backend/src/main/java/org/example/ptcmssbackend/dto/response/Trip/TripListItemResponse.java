@@ -26,7 +26,9 @@ public class TripListItemResponse {
 
     private String hireTypeName;
 
+    private Integer driverId;
     private String driverName;
+    private Integer vehicleId;
     private String vehicleLicensePlate;
 
     private String status;
@@ -44,8 +46,10 @@ public class TripListItemResponse {
                 .startTime(trip.getStartTime())
                 .endTime(trip.getEndTime())
                 .hireTypeName(b != null && b.getHireType() != null ? b.getHireType().getName() : null)
+                .driverId(null)
                 .status(trip.getStatus().name())
                 .driverName(null)
+                .vehicleId(null)
                 .vehicleLicensePlate(null)
                 .build();
     }

@@ -3,6 +3,7 @@ package org.example.ptcmssbackend.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.example.ptcmssbackend.enums.AssignmentAction;
 import org.hibernate.annotations.CreationTimestamp;
 
 
@@ -23,37 +24,20 @@ public class TripAssignmentHistory {
     private Trips trip;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "oldDriverId")
-    private Drivers oldDriver;
+    @JoinColumn(name = "driverId")
+    private Drivers driver;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "newDriverId")
-    private Drivers newDriver;
+    @JoinColumn(name = "vehicleId")
+    private Vehicles vehicle;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "oldVehicleId")
-    private Vehicles oldVehicle;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "action", nullable = false)
+    private AssignmentAction action; // ASSIGN, REASSIGN, UNASSIGN, ACCEPT
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "newVehicleId")
-    private Vehicles newVehicle;
+    @Column(name = "note")
+    private String note;
 
-    @Column(name = "actionType", nullable = false, length = 50)
-    private String actionType;
-    // ASSIGN, REASSIGN, UNASSIGN, ACCEPT, CANCEL
-
-    @Column(name = "assignMethod", length = 20)
-    private String assignMethod;
-    // AUTO hoặc MANUAL
-
-    @Column(name = "reason")
-    private String reason;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performedBy")
-    private Users performedBy;
-
-    @CreationTimestamp
-    @Column(name = "createdAt", updatable = false)
-    private Instant createdAt;
+    @Column(name = "createdAt", nullable = false)
+    private Instant createdAt = Instant.now();
 }

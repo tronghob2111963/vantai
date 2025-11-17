@@ -25,4 +25,6 @@ public interface DriverService {
     Integer completeTrip(Integer tripId, Integer driverId);
     TripIncidentResponse reportIncident(ReportIncidentRequest request);
     DriverResponse createDriver(CreateDriverRequest request);
+    List<DriverResponse> getDriversByBranchId(Integer branchId);
+
 }
