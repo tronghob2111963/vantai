@@ -35,5 +35,7 @@ public class DriverResponse {
         this.note = driver.getNote();
         this.status = driver.getStatus().name();
     }
+
+
 }
 

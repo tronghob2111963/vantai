@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -248,5 +249,14 @@ public class DriverServiceImpl implements DriverService {
 
         var saved = driverRepository.save(driver);
         return new DriverResponse(saved);
+    }
+
+    @Override
+    public List<DriverResponse> getDriversByBranchId(Integer branchId) {
+        log.info("[Driver] Get drivers by branch {}", branchId);
+
+        var branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found"));
+        return driverRepository.findAllByBranchId(branchId);
     }
 }

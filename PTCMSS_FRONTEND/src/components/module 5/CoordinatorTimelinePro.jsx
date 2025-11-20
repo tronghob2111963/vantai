@@ -10,7 +10,14 @@ import {
     MoveRight,
     Download,
     ListChecks,
+    Building2,
+    Loader2,
 } from "lucide-react";
+import { getDispatchDashboard, assignTrips } from "../../api/dispatch";
+import { listBranches, getBranchByUserId } from "../../api/branches";
+import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
+import { listDriversByBranch } from "../../api/drivers";
+import { listVehiclesByBranch } from "../../api/vehicles";
 
 /**
  * CoordinatorTimelinePro – Queue + Gantt (LIGHT THEME, styled giống AdminBranchListPage)
@@ -225,6 +232,130 @@ function demoData(date) {
     };
 }
 
+const formatRouteLabel = (from, to) => {
+    const start = (from || "").trim();
+    const end = (to || "").trim();
+    if (start && end) return `${start} -> ${end}`;
+    return start || end || "";
+};
+
+const mapBranchRecord = (raw) => {
+    if (!raw) return null;
+    const id = raw.branchId ?? raw.id ?? null;
+    if (!id) return null;
+    return {
+        id: String(id),
+        name: raw.branchName || raw.name || `Chi nhanh #${id}`,
+    };
+};
+
+const extractBranchItems = (payload) => {
+    if (!payload) return [];
+    if (Array.isArray(payload.items)) return payload.items;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.content)) return payload.content;
+    if (Array.isArray(payload)) return payload;
+    return [];
+};
+
+const normalizeScheduleWindow = (win) => {
+    if (!win || !win.start || !win.end) return null;
+    return { start: win.start, end: win.end };
+};
+
+const normalizeScheduleItems = (items = []) =>
+    items
+        .filter((it) => it && it.start && it.end)
+        .map((it) => ({
+            start: it.start,
+            end: it.end,
+            type: (it.type || "BUSY").toUpperCase(),
+            ref: it.ref || it.reference || "",
+            note: it.note || it.message || "",
+        }))
+        .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+const normalizeDriverSchedules = (rows = []) =>
+    rows
+        .filter(Boolean)
+        .map((d, idx) => ({
+            id: d.driverId ?? d.id ?? `driver-${idx}`,
+            name: d.driverName || d.name || `Tai xe #${d.driverId ?? idx + 1}`,
+            phone: d.driverPhone || d.phone || "",
+            shift: normalizeScheduleWindow(d.shift),
+            items: normalizeScheduleItems(d.items || []),
+            raw: d,
+        }));
+
+const normalizeVehicleSchedules = (rows = []) =>
+    rows
+        .filter(Boolean)
+        .map((v, idx) => ({
+            id: v.vehicleId ?? v.id ?? `vehicle-${idx}`,
+            plate: v.licensePlate || v.plate || v.license_plate || `VEH-${idx + 1}`,
+            model: v.model || "",
+            shift: normalizeScheduleWindow(v.shift),
+            items: normalizeScheduleItems(v.items || []),
+            raw: v,
+        }));
+
+const normalizePendingTrips = (rows = []) =>
+    rows
+        .filter(Boolean)
+        .map((t, idx) => {
+            const tripId = t.tripId ?? t.id ?? null;
+            const bookingId = t.bookingId ?? t.orderId ?? null;
+            const pickupTime =
+                t.pickupTime ||
+                t.startTime ||
+                t.pickup_time ||
+                t.start_time ||
+                null;
+            if (!pickupTime) return null;
+            const code =
+                t.code ||
+                t.tripCode ||
+                t.bookingCode ||
+                (tripId ? `TRIP-${tripId}` : bookingId ? `BOOKING-${bookingId}` : `PENDING-${idx + 1}`);
+            return {
+                id: String(tripId || bookingId || idx),
+                tripId,
+                bookingId,
+                code,
+                pickupTime,
+                route: t.route || t.routeSummary || formatRouteLabel(t.startLocation, t.endLocation),
+                customerName: t.customerName || "",
+                customerPhone: t.customerPhone || "",
+                raw: t,
+            };
+        })
+        .filter(Boolean);
+
+const unwrapList = (payload) => {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload.items)) return payload.items;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.content)) return payload.content;
+    return [];
+};
+
+const mapDriverOptions = (payload) =>
+    unwrapList(payload).map((d, idx) => ({
+        id: d.id ?? d.driverId ?? `driver-${idx}`,
+        name: d.fullName || d.name || d.username || `Tài xế #${d.id ?? idx + 1}`,
+        licenseClass: d.licenseClass || "",
+        status: d.status || "",
+    }));
+
+const mapVehicleOptions = (payload) =>
+    unwrapList(payload).map((v, idx) => ({
+        id: v.id ?? v.vehicleId ?? `vehicle-${idx}`,
+        plate: v.licensePlate || v.plate || v.license_plate || `VEH-${idx + 1}`,
+        model: v.model || v.brand || "",
+        status: v.status || "",
+    }));
+
 // ===== Phát hiện xung đột & vi phạm nghỉ =====
 function computeOverlapFlags(items) {
     const arr = [...items].sort(
@@ -275,7 +406,7 @@ function utilizationPercent(shift, items, countTypes = ["BUSY"]) {
 }
 
 // ===== Queue Panel (Khung 1) =====
-function QueuePanel({ orders, onAssign, query, onQuery }) {
+function QueuePanel({ orders, onAssign, query, onQuery, loading }) {
     const sorted = [...orders].sort(
         (a, b) => new Date(a.pickupTime) - new Date(b.pickupTime)
     );
@@ -307,10 +438,10 @@ function QueuePanel({ orders, onAssign, query, onQuery }) {
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur px-4 py-3 border-b border-slate-200 flex items-center gap-2">
                 <ListChecks className="h-5 w-5 text-emerald-600" />
                 <div className="font-semibold text-slate-900 text-sm">
-                    Khung 1 — Queue (PENDING)
+                    Khung 1 – Queue (PENDING)
                 </div>
                 <div className="text-[12px] text-slate-500">
-                    {filtered.length} đơn
+                    {loading ? "Đang tải..." : `${filtered.length} đơn`}
                 </div>
             </div>
 
@@ -329,42 +460,50 @@ function QueuePanel({ orders, onAssign, query, onQuery }) {
 
             {/* list */}
             <div className="max-h-[66vh] overflow-y-auto p-2 space-y-2">
-                {filtered.map((o) => (
-                    <div
-                        key={o.id}
-                        className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition p-3 flex items-center gap-3"
-                    >
-                        <div className="flex flex-col min-w-0 grow">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[13px] font-semibold text-slate-900 truncate">
-                                    {o.code}
-                                </span>
-                                <span
-                                    className={`text-[11px] border rounded px-1.5 py-0.5 font-medium tabular-nums ${urgencyCls(
-                                        o.pickupTime
-                                    )}`}
-                                >
-                                    {fmtRel(o.pickupTime)}
-                                </span>
-                            </div>
-                            <div className="text-[12px] text-slate-500">
-                                {fmtHM(o.pickupTime)} · {o.route || "—"}
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => onAssign?.(o)}
-                            className="shrink-0 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-[13px] font-medium shadow-sm"
-                        >
-                            Gán chuyến
-                        </button>
-                    </div>
-                ))}
-
-                {filtered.length === 0 && (
+                {loading ? (
                     <div className="text-[13px] text-slate-500 px-3 py-6">
-                        Không có đơn PENDING.
+                        Đang tải queue...
                     </div>
+                ) : (
+                    <>
+                        {filtered.map((o) => (
+                            <div
+                                key={o.id}
+                                className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition p-3 flex items-center gap-3"
+                            >
+                                <div className="flex flex-col min-w-0 grow">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-[13px] font-semibold text-slate-900 truncate">
+                                            {o.code}
+                                        </span>
+                                        <span
+                                            className={`text-[11px] border rounded px-1.5 py-0.5 font-medium tabular-nums ${urgencyCls(
+                                                o.pickupTime
+                                            )}`}
+                                        >
+                                            {fmtRel(o.pickupTime)}
+                                        </span>
+                                    </div>
+                                    <div className="text-[12px] text-slate-500">
+                                        {fmtHM(o.pickupTime)} · {o.route || "—"}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => onAssign?.(o)}
+                                    className="shrink-0 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-[13px] font-medium shadow-sm"
+                                >
+                                    Gán chuyến
+                                </button>
+                            </div>
+                        ))}
+
+                        {filtered.length === 0 && (
+                            <div className="text-[13px] text-slate-500 px-3 py-6">
+                                Không có đơn PENDING.
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
@@ -700,6 +839,10 @@ function AssignDialog({
                           suggestions,
                           onClose,
                           onConfirm,
+                          submitting = false,
+                          error = "",
+                          optionsLoading = false,
+                          optionsError = "",
                       }) {
     const [driverId, setDriverId] = React.useState("");
     const [vehicleId, setVehicleId] = React.useState("");
@@ -711,7 +854,9 @@ function AssignDialog({
 
     if (!open || !order) return null;
 
-    const canConfirm = driverId && vehicleId;
+    const ready = driverId && vehicleId;
+    const canConfirm = ready && !submitting;
+    const disableSelects = optionsLoading || submitting;
 
     return (
         <div
@@ -730,6 +875,22 @@ function AssignDialog({
                     {order.route || "—"}
                 </div>
 
+                {(optionsLoading || optionsError) && (
+                    <div className="mb-3">
+                        {optionsLoading && (
+                            <div className="flex items-center gap-2 text-[13px] text-slate-500">
+                                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                                <span>Đang tải danh sách theo chi nhánh...</span>
+                            </div>
+                        )}
+                        {optionsError && (
+                            <div className="text-[13px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-3 py-2 mt-2">
+                                {optionsError}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 text-[13px]">
                     <div>
                         <div className="mb-1 text-slate-700 font-medium">
@@ -737,13 +898,12 @@ function AssignDialog({
                         </div>
                         <select
                             value={driverId}
-                            onChange={(e) =>
-                                setDriverId(e.target.value)
-                            }
-                            className="w-full bg-white border border-slate-300 rounded-md px-2 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            onChange={(e) => setDriverId(e.target.value)}
+                            disabled={disableSelects}
+                            className="w-full bg-white border border-slate-300 rounded-md px-2 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-400"
                         >
                             <option value="">
-                                -- Chọn tài xế --
+                                {optionsLoading ? "Đang tải..." : "-- Chọn tài xế --"}
                             </option>
                             {suggestions.drivers.map((d) => (
                                 <option key={d.id} value={d.id}>
@@ -759,13 +919,12 @@ function AssignDialog({
                         </div>
                         <select
                             value={vehicleId}
-                            onChange={(e) =>
-                                setVehicleId(e.target.value)
-                            }
-                            className="w-full bg-white border border-slate-300 rounded-md px-2 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            onChange={(e) => setVehicleId(e.target.value)}
+                            disabled={disableSelects}
+                            className="w-full bg-white border border-slate-300 rounded-md px-2 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-400"
                         >
                             <option value="">
-                                -- Chọn xe --
+                                {optionsLoading ? "Đang tải..." : "-- Chọn xe --"}
                             </option>
                             {suggestions.vehicles.map((v) => (
                                 <option key={v.id} value={v.id}>
@@ -776,6 +935,12 @@ function AssignDialog({
                     </div>
                 </div>
 
+                {error && (
+                    <div className="mt-4 text-[13px] text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-3 py-2">
+                        {error}
+                    </div>
+                )}
+
                 <div className="mt-5 flex justify-end gap-2">
                     <button
                         onClick={onClose}
@@ -785,21 +950,22 @@ function AssignDialog({
                     </button>
                     <button
                         disabled={!canConfirm}
-                        onClick={() =>
-                            canConfirm &&
+                        onClick={() => {
+                            if (!ready || submitting) return;
                             onConfirm?.({
-                                orderId: order.id,
+                                bookingId: order.bookingId ?? order.raw?.bookingId ?? order.id,
+                                tripId: order.tripId ?? order.raw?.tripId ?? order.id,
                                 driverId,
                                 vehicleId,
-                            })
-                        }
+                            });
+                        }}
                         className={`rounded-md px-3 py-2 text-[13px] font-medium shadow-sm ${
-                            canConfirm
+                            canConfirm 
                                 ? "bg-emerald-600 hover:bg-emerald-500 text-white"
                                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
                         }`}
                     >
-                        Gán
+                        {submitting ? "Đang gán..." : "Gán"}
                     </button>
                 </div>
             </div>
@@ -815,10 +981,18 @@ export default function CoordinatorTimelinePro() {
     const [zoom, setZoom] = React.useState(1);
     const [query, setQuery] = React.useState("");
     const [queueQuery, setQueueQuery] = React.useState("");
+    const role = React.useMemo(() => getCurrentRole(), []);
+    const userId = React.useMemo(() => getStoredUserId(), []);
+    const isBranchScoped =
+        role === ROLES.MANAGER || role === ROLES.COORDINATOR;
 
     const [drivers, setDrivers] = React.useState([]);
     const [vehicles, setVehicles] = React.useState([]);
     const [pending, setPending] = React.useState([]);
+    const [branches, setBranches] = React.useState([]);
+    const [branchId, setBranchId] = React.useState("");
+    const [branchLoading, setBranchLoading] = React.useState(true);
+    const [branchError, setBranchError] = React.useState("");
 
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState("");
@@ -829,11 +1003,64 @@ export default function CoordinatorTimelinePro() {
         drivers: [],
         vehicles: [],
     });
+    const [assignOptionsLoading, setAssignOptionsLoading] = React.useState(false);
+    const [assignOptionsError, setAssignOptionsError] = React.useState("");
+    const [assigning, setAssigning] = React.useState(false);
+    const [assignErrorMsg, setAssignErrorMsg] = React.useState("");
 
     const [showLabels, setShowLabels] = React.useState(true);
     const [showBusy, setShowBusy] = React.useState(true);
     const [showMaint, setShowMaint] = React.useState(true);
     const [minRest, setMinRest] = React.useState(30); // phút
+
+    React.useEffect(() => {
+        let cancelled = false;
+        async function loadBranches() {
+            setBranchLoading(true);
+            setBranchError("");
+            try {
+                if (isBranchScoped) {
+                    if (!userId) {
+                        throw new Error("Khong xac dinh user.");
+                    }
+                    const resp = await getBranchByUserId(Number(userId));
+                    if (cancelled) return;
+                    const option = mapBranchRecord(resp);
+                    setBranches(option ? [option] : []);
+                    setBranchId((prev) => prev || (option?.id || ""));
+                    if (!option) {
+                        setBranchError("Khong tim thay chi nhanh phu trach.");
+                    }
+                } else {
+                    const res = await listBranches({ page: 0, size: 100 });
+                    if (cancelled) return;
+                    const options = extractBranchItems(res)
+                        .map(mapBranchRecord)
+                        .filter(Boolean);
+                    setBranches(options);
+                    setBranchId((prev) => prev || (options[0]?.id || ""));
+                    if (!options.length) {
+                        setBranchError("Chua co chi nhanh.");
+                    }
+                }
+            } catch (err) {
+                if (cancelled) return;
+                setBranches([]);
+                setBranchId("");
+                const msg =
+                    err?.data?.message ||
+                    err?.message ||
+                    "Khong tai duoc danh sach chi nhanh.";
+                setBranchError(msg);
+            } finally {
+                if (!cancelled) setBranchLoading(false);
+            }
+        }
+        loadBranches();
+        return () => {
+            cancelled = true;
+        };
+    }, [isBranchScoped, userId]);
 
     // Scroll sync
     const headerRef = React.useRef(null);
@@ -845,34 +1072,94 @@ export default function CoordinatorTimelinePro() {
     };
 
     // Load data
-    const fetchData = React.useCallback(async (d) => {
-        setLoading(true);
-        setError("");
-        try {
-            const r = await fetch(
-                `/api/v1/coordinator/dashboard?date=${d}`
-            );
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            const json = await r.json();
-            setPending(json.pending_orders || []);
-            setDrivers(json.driver_schedules || []);
-            setVehicles(json.vehicle_schedules || []);
-        } catch {
-            const demo = demoData(d);
-            setPending(demo.pending_orders);
-            setDrivers(demo.driver_schedules);
-            setVehicles(demo.vehicle_schedules);
-            setError(
-                "Đang hiển thị dữ liệu demo (API chưa sẵn)."
-            );
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const fetchData = React.useCallback(
+        async (branch, d) => {
+            if (!branch) return;
+            const branchNumeric = Number(branch);
+            if (!Number.isFinite(branchNumeric)) return;
+            setLoading(true);
+            setError("");
+            try {
+                const payload = await getDispatchDashboard({
+                    branchId: branchNumeric,
+                    date: d,
+                });
+                const pendingRows =
+                    payload?.pendingTrips ??
+                    payload?.pending_trips ??
+                    payload?.pending_orders ??
+                    [];
+                const driverRows =
+                    payload?.driverSchedules ??
+                    payload?.driver_schedules ??
+                    [];
+                const vehicleRows =
+                    payload?.vehicleSchedules ??
+                    payload?.vehicle_schedules ??
+                    [];
+                setPending(normalizePendingTrips(pendingRows));
+                setDrivers(normalizeDriverSchedules(driverRows));
+                setVehicles(normalizeVehicleSchedules(vehicleRows));
+            } catch (err) {
+                const demo = demoData(d);
+                setPending(demo.pending_orders);
+                setDrivers(demo.driver_schedules);
+                setVehicles(demo.vehicle_schedules);
+                const msg =
+                    err?.data?.message ||
+                    err?.message ||
+                    "Khong tai duoc dashboard. Dang hien thi du lieu demo.";
+                setError(msg);
+            } finally {
+                setLoading(false);
+            }
+        },
+        []
+    );
 
     React.useEffect(() => {
-        fetchData(date);
-    }, [date, fetchData]);
+        if (!branchId || branchLoading) return;
+        fetchData(branchId, date);
+    }, [branchId, branchLoading, date, fetchData]);
+
+    React.useEffect(() => {
+        if (!assignOrder) return;
+        const branchNumeric = Number(branchId);
+        if (!branchId || !Number.isFinite(branchNumeric)) {
+            setAssignOptionsError("Chi nhanh khong hop le.");
+            setAssignOptionsLoading(false);
+            return;
+        }
+        let cancelled = false;
+        async function loadOptions() {
+            setAssignOptionsLoading(true);
+            setAssignOptionsError("");
+            try {
+                const [driverList, vehicleList] = await Promise.all([
+                    listDriversByBranch(branchNumeric),
+                    listVehiclesByBranch(branchNumeric),
+                ]);
+                if (cancelled) return;
+                setAssignSuggest({
+                    drivers: mapDriverOptions(driverList),
+                    vehicles: mapVehicleOptions(vehicleList),
+                });
+            } catch (err) {
+                if (cancelled) return;
+                setAssignOptionsError(
+                    err?.data?.message ||
+                        err?.message ||
+                        "Khong tai duoc danh sach tai xe/xe theo chi nhanh."
+                );
+            } finally {
+                if (!cancelled) setAssignOptionsLoading(false);
+            }
+        }
+        loadOptions();
+        return () => {
+            cancelled = true;
+        };
+    }, [assignOrder, branchId]);
 
     const width = (DAY_END - DAY_START) * HOUR_WIDTH * zoom;
 
@@ -904,6 +1191,9 @@ export default function CoordinatorTimelinePro() {
         if (bodyRef.current)
             bodyRef.current.scrollLeft = Math.max(0, pos - 120);
     };
+    const dataLoading = loading || branchLoading;
+    const queueOrders = branchId ? pending : [];
+
 
     // gợi ý assign
     const isWithin = (when, start, end) =>
@@ -964,20 +1254,62 @@ export default function CoordinatorTimelinePro() {
             drivers: driversS,
             vehicles: vehiclesS,
         });
+        setAssignOptionsError("");
+        setAssignOptionsLoading(false);
+        setAssignErrorMsg("");
+        setAssigning(false);
     };
 
-    const handleConfirmAssign = ({
-                                     orderId,
-                                     driverId,
-                                     vehicleId,
-                                 }) => {
-        console.log("Assign ->", {
-            orderId,
-            driverId,
-            vehicleId,
-        });
-        // TODO: POST assign API
-        setAssignOrder(null);
+    const handleConfirmAssign = async ({
+                                           bookingId,
+                                           tripId,
+                                           driverId,
+                                           vehicleId,
+                                       }) => {
+        if (!assignOrder && !bookingId) return;
+        const targetBooking = bookingId ?? assignOrder?.bookingId ?? assignOrder?.id;
+        if (targetBooking == null) {
+            setAssignErrorMsg("Khong xac dinh duoc booking.");
+            return;
+        }
+        const bookingNumeric = Number(targetBooking);
+        if (!Number.isFinite(bookingNumeric)) {
+            setAssignErrorMsg("Khong xac dinh duoc ma booking.");
+            return;
+        }
+        const targetTrip = tripId ?? assignOrder?.tripId ?? assignOrder?.id;
+        const tripNumeric =
+            targetTrip != null && targetTrip !== ""
+                ? Number(targetTrip)
+                : undefined;
+        const driver = driverId ? Number(driverId) : undefined;
+        const vehicle = vehicleId ? Number(vehicleId) : undefined;
+        setAssigning(true);
+        setAssignErrorMsg("");
+        try {
+            await assignTrips({
+                bookingId: bookingNumeric,
+                tripIds:
+                    tripNumeric && Number.isFinite(tripNumeric)
+                        ? [tripNumeric]
+                        : undefined,
+                driverId: driver,
+                vehicleId: vehicle,
+            });
+            setAssignOrder(null);
+            setAssignSuggest({ drivers: [], vehicles: [] });
+            if (branchId) {
+                await fetchData(branchId, date);
+            }
+        } catch (err) {
+            const msg =
+                err?.data?.message ||
+                err?.message ||
+                "Khong the gan chuyen.";
+            setAssignErrorMsg(msg);
+        } finally {
+            setAssigning(false);
+        }
     };
 
     return (
@@ -1009,6 +1341,32 @@ export default function CoordinatorTimelinePro() {
 
                     {/* right block: controls */}
                     <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 ml-auto">
+                        {/* branch */}
+                        <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 min-w-[220px]">
+                            <Building2 className="h-4 w-4 text-slate-500" />
+                            {branchLoading ? (
+                                <div className="flex items-center gap-1 text-slate-500">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>Đang tải...</span>
+                                </div>
+                            ) : branches.length ? (
+                                <select
+                                    className="bg-transparent outline-none text-[13px] text-slate-900 min-w-[140px]"
+                                    value={branchId}
+                                    onChange={(e) => setBranchId(e.target.value)}
+                                    disabled={isBranchScoped}
+                                >
+                                    {branches.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <span className="text-rose-600 text-[12px]">Chưa có chi nhánh</span>
+                            )}
+                        </div>
+
                         {/* date */}
                         <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700">
                             <CalendarDays className="h-4 w-4 text-slate-500" />
@@ -1191,10 +1549,11 @@ export default function CoordinatorTimelinePro() {
                 <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5">
                     {/* Khung 1: Queue */}
                     <QueuePanel
-                        orders={pending}
+                        orders={queueOrders}
                         onAssign={openAssign}
                         query={queueQuery}
                         onQuery={setQueueQuery}
+                        loading={dataLoading}
                     />
 
                     {/* Khung 2: Gantt */}
@@ -1230,7 +1589,7 @@ export default function CoordinatorTimelinePro() {
                                 style={{ width }}
                                 className="bg-white"
                             >
-                                {loading ? (
+                                {dataLoading ? (
                                     <div className="p-6 text-slate-500 text-[13px]">
                                         Đang tải dữ liệu...
                                     </div>
@@ -1294,9 +1653,18 @@ export default function CoordinatorTimelinePro() {
                     </div>
                 </div>
 
-                {error && (
-                    <div className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        {error}
+                {(branchError || error) && (
+                    <div className="space-y-2">
+                        {[branchError, error]
+                            .filter(Boolean)
+                            .map((msg, idx) => (
+                                <div
+                                    key={idx}
+                                    className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+                                >
+                                    {msg}
+                                </div>
+                            ))}
                     </div>
                 )}
             </div>
@@ -1313,9 +1681,18 @@ export default function CoordinatorTimelinePro() {
                 open={!!assignOrder}
                 order={assignOrder}
                 suggestions={assignSuggest}
-                onClose={() => setAssignOrder(null)}
+                onClose={() => {
+                    setAssignOrder(null);
+                    setAssignErrorMsg("");
+                    setAssigning(false);
+                }}
                 onConfirm={handleConfirmAssign}
+                submitting={assigning}
+                error={assignErrorMsg}
+                optionsLoading={assignOptionsLoading}
+                optionsError={assignOptionsError}
             />
         </div>
     );
 }
+

@@ -2,8 +2,12 @@ package org.example.ptcmssbackend.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.ptcmssbackend.dto.request.Trip.TripSearchRequest;
 import org.example.ptcmssbackend.dto.request.dispatch.AssignRequest;
+import org.example.ptcmssbackend.dto.response.Trip.TripDetailResponse;
+import org.example.ptcmssbackend.dto.response.Trip.TripListItemResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.AssignRespone;
+import org.example.ptcmssbackend.dto.response.dispatch.DispatchDashboardResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.PendingTripResponse;
 import org.example.ptcmssbackend.entity.*;
 import org.example.ptcmssbackend.enums.BookingStatus;
@@ -21,7 +25,10 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,6 +36,18 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class DispatchServiceImpl implements DispatchService {
+
+    private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
+    private static final int DEFAULT_SHIFT_START = 6;
+    private static final int DEFAULT_SHIFT_END = 22;
+    private static final EnumSet<BookingStatus> DISPATCHABLE_BOOKING_STATUSES =
+            EnumSet.of(
+                    BookingStatus.PENDING,
+                    BookingStatus.QUOTATION_SENT,
+                    BookingStatus.CONFIRMED,
+                    BookingStatus.INPROGRESS,
+                    BookingStatus.COMPLETED
+            );
 
     private final TripRepository tripRepository;
     private final BookingRepository bookingRepository;
@@ -38,6 +57,7 @@ public class DispatchServiceImpl implements DispatchService {
     private final VehicleRepository vehicleRepository;
     private final DriverDayOffRepository driverDayOffRepository;
     private final BookingService bookingService; // để tái dùng hàm assign của BookingService
+    private final TripAssignmentHistoryRepository tripAssignmentHistoryRepository;
 
     // =========================================================
     // 1) PENDING TRIPS (QUEUE)
@@ -55,8 +75,7 @@ public class DispatchServiceImpl implements DispatchService {
     public List<PendingTripResponse> getPendingTrips(Integer branchId, Instant from, Instant to) {
         log.info("[Dispatch] Loading pending trips for branch {} from {} to {}", branchId, from, to);
 
-        List<Trips> trips = tripRepository
-                .findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.SCHEDULED, from, to);
+        List<Trips> trips = tripRepository.findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.SCHEDULED, from, to);
 
         List<PendingTripResponse> result = new ArrayList<>();
 
@@ -69,8 +88,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             Bookings b = t.getBooking();
-            // Booking phải ở trạng thái đã xác nhận (theo rule của bạn)
-            if (b.getStatus() != BookingStatus.CONFIRMED && b.getStatus() != BookingStatus.COMPLETED) {
+            // Skip bookings that are not eligible for dispatch (e.g. cancelled)
+            if (!DISPATCHABLE_BOOKING_STATUSES.contains(b.getStatus())) {
                 continue;
             }
 
@@ -93,6 +112,41 @@ public class DispatchServiceImpl implements DispatchService {
         // Có thể sort theo startTime tăng dần
         result.sort(Comparator.comparing(PendingTripResponse::getStartTime));
         return result;
+    }
+
+    @Override
+    public DispatchDashboardResponse getDashboard(Integer branchId, LocalDate date) {
+        if (branchId == null) {
+            throw new IllegalArgumentException("branchId is required");
+        }
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+        Instant from = targetDate.atStartOfDay(DEFAULT_ZONE).toInstant();
+        Instant to = targetDate.plusDays(1).atStartOfDay(DEFAULT_ZONE).toInstant();
+
+        List<PendingTripResponse> pending = getPendingTrips(branchId, from, to);
+        List<Drivers> drivers = driverRepository.findByBranchId(branchId);
+        List<Vehicles> vehicles = vehicleRepository.filterVehicles(null, branchId, null);
+        if (vehicles == null) {
+            vehicles = new ArrayList<>();
+        }
+        List<Trips> tripsInDay = tripRepository.findByBooking_Branch_IdAndStartTimeBetween(branchId, from, to);
+
+        Map<Integer, List<TripDrivers>> tripDriverMap = new HashMap<>();
+        Map<Integer, List<TripVehicles>> tripVehicleMap = new HashMap<>();
+
+        List<DispatchDashboardResponse.DriverScheduleItem> driverSchedules = drivers.stream()
+                .map(driver -> buildDriverSchedule(driver, tripsInDay, tripDriverMap, targetDate))
+                .collect(Collectors.toList());
+
+        List<DispatchDashboardResponse.VehicleScheduleItem> vehicleSchedules = vehicles.stream()
+                .map(vehicle -> buildVehicleSchedule(vehicle, tripsInDay, tripVehicleMap, targetDate))
+                .collect(Collectors.toList());
+
+        return DispatchDashboardResponse.builder()
+                .pendingTrips(pending)
+                .driverSchedules(driverSchedules)
+                .vehicleSchedules(vehicleSchedules)
+                .build();
     }
 
     // =========================================================
@@ -243,48 +297,238 @@ public class DispatchServiceImpl implements DispatchService {
 
     @Override
     public void driverAcceptTrip(Integer tripId) {
-        log.info("[Dispatch] Driver accept trip {}", tripId);
 
-        // 1. Load trip
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TripDetailResponse getTripDetail(Integer tripId) {
         Trips trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found: " + tripId));
 
-        // 2. Trip must be SCHEDULED
-        if (trip.getStatus() != TripStatus.SCHEDULED) {
-            throw new RuntimeException("Trip cannot be accepted. Current status: " + trip.getStatus());
+        Bookings booking = trip.getBooking();
+        Customers customer = booking.getCustomer();
+
+        // Driver & Vehicle hiện tại
+        List<TripDrivers> tds = tripDriverRepository.findByTripId(trip.getId());
+        List<TripVehicles> tvs = tripVehicleRepository.findByTripId(trip.getId());
+
+        String driverName = null;
+        String driverPhone = null;
+        String vehiclePlate = null;
+        String vehicleModel = null;
+
+        if (!tds.isEmpty()) {
+            Drivers d = tds.get(0).getDriver();
+            if (d.getEmployee() != null && d.getEmployee().getUser() != null) {
+                driverName = d.getEmployee().getUser().getFullName();
+                driverPhone = d.getEmployee().getUser().getPhone();
+            }
         }
 
-        // 3. Must have driver assigned
-        List<TripDrivers> assignedDrivers = tripDriverRepository.findByTripId(tripId);
-        if (assignedDrivers.isEmpty()) {
-            throw new RuntimeException("This trip has no assigned driver");
+        if (!tvs.isEmpty()) {
+            Vehicles v = tvs.get(0).getVehicle();
+            vehiclePlate = v.getLicensePlate();
+            vehicleModel = v.getModel();
         }
 
-        TripDrivers mainDriver = assignedDrivers.get(0); // lấy driver được gán
+        // Lịch sử điều phối
+        List<TripAssignmentHistory> histories =
+                tripAssignmentHistoryRepository.findByTrip_IdOrderByCreatedAtDesc(tripId);
 
-        Drivers driver = mainDriver.getDriver();
-        if (driver == null) {
-            throw new RuntimeException("Invalid driver assignment");
-        }
+        List<TripDetailResponse.AssignmentHistoryItem> historyItems =
+                histories.stream().map(h -> {
+                    String hDriverName = null;
+                    String hVehiclePlate = null;
+                    if (h.getDriver() != null && h.getDriver().getEmployee() != null
+                            && h.getDriver().getEmployee().getUser() != null) {
+                        hDriverName = h.getDriver().getEmployee().getUser().getFullName();
+                    }
+                    if (h.getVehicle() != null) {
+                        hVehiclePlate = h.getVehicle().getLicensePlate();
+                    }
+                    return TripDetailResponse.AssignmentHistoryItem.builder()
+                            .time(h.getCreatedAt())
+                            .action(h.getAction())
+                            .driverName(hDriverName)
+                            .vehiclePlate(hVehiclePlate)
+                            .note(h.getNote())
+                            .build();
+                }).collect(Collectors.toList());
 
-        log.info("Driver {} is now accepting trip {}", driver.getId(), tripId);
+        return TripDetailResponse.builder()
+                .tripId(trip.getId())
+                .bookingId(booking.getId())
+                .customerName(customer.getFullName())
+                .customerPhone(customer.getPhone())
+                .startLocation(trip.getStartLocation())
+                .endLocation(trip.getEndLocation())
+                .startTime(trip.getStartTime())
+                .endTime(trip.getEndTime())
+                .useHighway(trip.getUseHighway())
+                .driverName(driverName)
+                .driverPhone(driverPhone)
+                .vehiclePlate(vehiclePlate)
+                .vehicleModel(vehicleModel)
+                .status(trip.getStatus())
+                .history(historyItems)
+                .build();
+    }
 
-        // 4. Update trip → ONGOING
-        trip.setStatus(TripStatus.ONGOING);
-        trip.setStartTime(Instant.now());
-        tripRepository.save(trip);
-
-        // 5. Update mapping startTime trong TripDrivers
-        mainDriver.setStartTime(Instant.now());
-        tripDriverRepository.save(mainDriver);
-
-        log.info("[Dispatch] Trip {} is now ONGOING", tripId);
+    @Override
+    public List<TripListItemResponse> searchTrips(TripSearchRequest request) {
+        List<Trips> trips = tripRepository.findAll();
+        return trips.stream()
+                .filter(trip -> request == null || request.match(trip))
+                .map(this::buildTripListItem)
+                .collect(Collectors.toList());
     }
 
     // =========================================================
     // 4) HELPER: CHỌN DRIVER / VEHICLE
     // =========================================================
-    private Integer pickBestDriverForTrip(Bookings booking, Trips trip) {
+
+    private TripListItemResponse buildTripListItem(Trips trip) {
+        Bookings booking = trip.getBooking();
+        TripListItemResponse.TripListItemResponseBuilder builder = TripListItemResponse.builder()
+                .tripId(trip.getId())
+                .bookingId(booking != null ? booking.getId() : null)
+                .customerName(booking != null ? booking.getCustomer().getFullName() : null)
+                .customerPhone(booking != null ? booking.getCustomer().getPhone() : null)
+                .branchName(booking != null ? booking.getBranch().getBranchName() : null)
+                .routeSummary(routeLabel(trip))
+                .startTime(trip.getStartTime())
+                .endTime(trip.getEndTime())
+                .hireTypeName(booking != null && booking.getHireType() != null
+                        ? booking.getHireType().getName()
+                        : null)
+                .status(trip.getStatus() != null ? trip.getStatus().name() : null);
+
+        List<TripDrivers> tripDrivers = tripDriverRepository.findByTripId(trip.getId());
+        if (!tripDrivers.isEmpty()) {
+            Drivers driver = tripDrivers.get(0).getDriver();
+            builder.driverId(driver.getId());
+            builder.driverName(extractDriverName(driver));
+        }
+
+        List<TripVehicles> tripVehicles = tripVehicleRepository.findByTripId(trip.getId());
+        if (!tripVehicles.isEmpty()) {
+            Vehicles vehicle = tripVehicles.get(0).getVehicle();
+            builder.vehicleId(vehicle.getId());
+            builder.vehicleLicensePlate(vehicle.getLicensePlate());
+        }
+
+        return builder.build();
+    }
+
+    private DispatchDashboardResponse.DriverScheduleItem buildDriverSchedule(
+            Drivers driver,
+            List<Trips> tripsInDay,
+            Map<Integer, List<TripDrivers>> tripDriverMap,
+            LocalDate date
+    ) {
+        DispatchDashboardResponse.ScheduleWindow shift = buildShiftWindow(date);
+        List<DispatchDashboardResponse.ScheduleBlock> blocks = new ArrayList<>();
+        for (Trips trip : tripsInDay) {
+            if (trip.getStartTime() == null || trip.getEndTime() == null) {
+                continue;
+            }
+            List<TripDrivers> assigned = tripDriverMap.computeIfAbsent(
+                    trip.getId(),
+                    tripDriverRepository::findByTripId
+            );
+            boolean belongs = assigned.stream()
+                    .anyMatch(td -> td.getDriver().getId().equals(driver.getId()));
+            if (belongs) {
+                blocks.add(DispatchDashboardResponse.ScheduleBlock.builder()
+                        .start(trip.getStartTime())
+                        .end(trip.getEndTime())
+                        .type("BUSY")
+                        .ref("TRIP-" + trip.getId())
+                        .note(routeLabel(trip))
+                        .build());
+            }
+        }
+
+        return DispatchDashboardResponse.DriverScheduleItem.builder()
+                .driverId(driver.getId())
+                .driverName(extractDriverName(driver))
+                .driverPhone(driver.getEmployee() != null && driver.getEmployee().getUser() != null
+                        ? driver.getEmployee().getUser().getPhone()
+                        : null)
+                .shift(shift)
+                .items(blocks)
+                .build();
+    }
+
+    private DispatchDashboardResponse.VehicleScheduleItem buildVehicleSchedule(
+            Vehicles vehicle,
+            List<Trips> tripsInDay,
+            Map<Integer, List<TripVehicles>> tripVehicleMap,
+            LocalDate date
+    ) {
+        DispatchDashboardResponse.ScheduleWindow shift = buildShiftWindow(date);
+        List<DispatchDashboardResponse.ScheduleBlock> blocks = new ArrayList<>();
+        for (Trips trip : tripsInDay) {
+            if (trip.getStartTime() == null || trip.getEndTime() == null) {
+                continue;
+            }
+            List<TripVehicles> assigned = tripVehicleMap.computeIfAbsent(
+                    trip.getId(),
+                    tripVehicleRepository::findByTripId
+            );
+            boolean belongs = assigned.stream()
+                    .anyMatch(tv -> tv.getVehicle().getId().equals(vehicle.getId()));
+            if (belongs) {
+                blocks.add(DispatchDashboardResponse.ScheduleBlock.builder()
+                        .start(trip.getStartTime())
+                        .end(trip.getEndTime())
+                        .type("BUSY")
+                        .ref("TRIP-" + trip.getId())
+                        .note(routeLabel(trip))
+                        .build());
+            }
+        }
+
+        return DispatchDashboardResponse.VehicleScheduleItem.builder()
+                .vehicleId(vehicle.getId())
+                .licensePlate(vehicle.getLicensePlate())
+                .model(vehicle.getModel())
+                .shift(shift)
+                .items(blocks)
+                .build();
+    }
+
+    private DispatchDashboardResponse.ScheduleWindow buildShiftWindow(LocalDate date) {
+        Instant start = date.atTime(DEFAULT_SHIFT_START, 0).atZone(DEFAULT_ZONE).toInstant();
+        Instant end = date.atTime(DEFAULT_SHIFT_END, 0).atZone(DEFAULT_ZONE).toInstant();
+        return DispatchDashboardResponse.ScheduleWindow.builder()
+                .start(start)
+                .end(end)
+                .build();
+    }
+
+    private String routeLabel(Trips trip) {
+        String start = trip.getStartLocation();
+        String end = trip.getEndLocation();
+        if (start == null && end == null) {
+            return "";
+        }
+        if (start == null) {
+            return end;
+        }
+        if (end == null) {
+            return start;
+        }
+        return start + " -> " + end;
+    }
+
+    private String extractDriverName(Drivers driver) {
+        if (driver.getEmployee() != null && driver.getEmployee().getUser() != null) {
+            return driver.getEmployee().getUser().getFullName();
+        }
+        return driver.getId() != null ? "Driver #" + driver.getId() : null;
+    }    private Integer pickBestDriverForTrip(Bookings booking, Trips trip) {
         Integer branchId = booking.getBranch().getId();
         log.info("[Dispatch] Picking best driver for branch {}, trip {}", branchId, trip.getId());
 
@@ -399,6 +643,8 @@ public class DispatchServiceImpl implements DispatchService {
         return best.getId();
     }
 
+
     // Helper generic
     private record CandidateScore<T>(T candidate, int score) {}
 }
+
