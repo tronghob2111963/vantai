@@ -24,6 +24,11 @@ export function assignTrips({ bookingId, tripIds, driverId, vehicleId, autoAssig
   return apiFetch("/api/dispatch/assign", { method: "POST", body: payload });
 }
 
+export function getAssignmentSuggestions(tripId) {
+  if (!tripId) throw new Error("TRIP_ID_REQUIRED");
+  return apiFetch(`/api/dispatch/trips/${tripId}/suggestions`);
+}
+
 export function getTripDetail(tripId) {
   return apiFetch(`/api/dispatch/detail/${tripId}`);
 }

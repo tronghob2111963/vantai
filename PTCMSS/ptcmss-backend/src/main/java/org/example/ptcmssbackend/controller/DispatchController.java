@@ -4,9 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.Trip.TripSearchRequest;
 import org.example.ptcmssbackend.dto.request.dispatch.AssignRequest;
+import org.example.ptcmssbackend.dto.request.dispatch.UnassignRequest;
 import org.example.ptcmssbackend.dto.response.common.ResponseData;
 import org.example.ptcmssbackend.dto.response.common.ResponseError;
 import org.example.ptcmssbackend.dto.response.dispatch.AssignRespone;
+import org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.DispatchDashboardResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.PendingTripResponse;
 import org.example.ptcmssbackend.service.DispatchService;
@@ -38,6 +40,7 @@ public class DispatchController {
             description = """
                           Trả về danh sách các chuyến đã xác nhận & đủ điều kiện điều phối.
                           Chỉ ADMIN hoặc MANAGER có quyền xem.
+                          Nếu branchId = 0 hoặc null và user là ADMIN, trả về tất cả chi nhánh.
                           """
     )
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
@@ -49,6 +52,40 @@ public class DispatchController {
             return new ResponseData<>(HttpStatus.OK.value(), "Success", data);
         } catch (Exception e) {
             log.error("[Dispatch] Failed to load pending trips", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+    
+    @Operation(
+            summary = "Lấy danh sách chuyến *Pending* của tất cả chi nhánh",
+            description = "Chỉ ADMIN có quyền xem tất cả chi nhánh"
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/pending")
+    public ResponseData<List<PendingTripResponse>> getAllPendingTrips() {
+        try {
+            log.info("[Dispatch] Get all pending trips (all branches)");
+            List<PendingTripResponse> data = dispatchService.getAllPendingTrips();
+            return new ResponseData<>(HttpStatus.OK.value(), "Success", data);
+        } catch (Exception e) {
+            log.error("[Dispatch] Failed to load all pending trips", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Lấy gợi ý tài xế + xe cho chuyến",
+            description = "Trả về tóm tắt chuyến cùng danh sách ứng viên hợp lệ để gán"
+    )
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
+    @GetMapping("/trips/{tripId}/suggestions")
+    public ResponseData<AssignmentSuggestionResponse> suggestions(@PathVariable Integer tripId) {
+        try {
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Loaded suggestions",
+                    dispatchService.getAssignmentSuggestions(tripId));
+        } catch (Exception e) {
+            log.error("[Dispatch] Failed to load suggestions for trip {}", tripId, e);
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }
@@ -75,6 +112,38 @@ public class DispatchController {
             return new ResponseData<>(HttpStatus.OK.value(), "Success", data);
         } catch (Exception e) {
             log.error("[Dispatch] Failed to load dashboard", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Gán lại tài xế/xe cho chuyến", description = "Unassign trước rồi gán lại theo yêu cầu")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
+    @PostMapping("/reassign")
+    public ResponseData<AssignRespone> reassign(@RequestBody AssignRequest request) {
+        try {
+            log.info("[Dispatch] Reassign trip: {}", request);
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Reassign successfully",
+                    dispatchService.reassign(request));
+        } catch (Exception e) {
+            log.error("[Dispatch] Reassign failed", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Bỏ gán tài xế/xe khỏi chuyến", description = "Chỉ được phép khi chuyến chưa chạy")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
+    @PostMapping("/trips/{tripId}/unassign")
+    public ResponseData<?> unassign(@PathVariable Integer tripId, @RequestBody UnassignRequest request) {
+        try {
+            String note = request != null ? request.getNote() : null;
+            if (note == null || note.isBlank()) {
+                throw new IllegalArgumentException("Note is required for unassign action");
+            }
+            dispatchService.unassign(tripId, note);
+            return new ResponseData<>(HttpStatus.OK.value(), "Unassigned successfully", null);
+        } catch (Exception e) {
+            log.error("[Dispatch] Unassign failed for trip {}", tripId, e);
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }

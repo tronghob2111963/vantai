@@ -51,7 +51,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Lịch làm việc", to: "/driver/schedule" },
       { label: "Xin nghỉ phép", to: "/driver/leave-request" },
       { label: "Hồ sơ tài xế", to: "/driver/profile" },
-      { label: "Chi tiết chuyến (demo)", to: "/driver/trips/123" },
+      { label: "Chi tiết chuyến", to: "/driver/trips" },
     ],
   },
   {
@@ -95,9 +95,12 @@ const SIDEBAR_SECTIONS = [
     roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR],
     items: [
       { label: "Bảng điều phối", to: "/dispatch" },
+      { label: "Đơn chưa gán chuyến", to: "/dispatch/pending" },
+      { label: "Cảnh báo & Chờ duyệt", to: "/dispatch/notifications-dashboard" },
       { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
       { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
       { label: "Thông báo điều phối", to: "/dispatch/notifications" },
+      { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.MANAGER] },
     ],
   },
   {
@@ -183,6 +186,10 @@ import EditOrderPage from "./components/module 4/EditOrderPage.jsx";
 import CoordinatorTimelinePro from "./components/module 5/CoordinatorTimelinePro.jsx";
 import ExpenseRequestForm from "./components/module 5/ExpenseRequestForm.jsx";
 import NotificationsWidget from "./components/module 5/NotificationsWidget.jsx";
+import PendingTripsPage from "./components/module 5/PendingTripsPage.jsx";
+import NotificationsDashboard from "./components/module 5/NotificationsDashboard.jsx";
+import RatingManagementPage from "./components/module 5/RatingManagementPage.jsx";
+import DriverRatingsPage from "./components/module 5/DriverRatingsPage.jsx";
 
 /* DemoAssign – mở AssignDriverDialog */
 import DemoAssign from "./DemoAssign.jsx";
@@ -588,6 +595,14 @@ export default function AppLayout() {
           }
         />
         <Route
+          path="/driver/trips"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverTripDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/driver/trips/:tripId"
           element={
             <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
@@ -694,6 +709,22 @@ export default function AppLayout() {
           }
         />
         <Route
+          path="/dispatch/pending"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <PendingTripsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/notifications-dashboard"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <NotificationsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dispatch/expense-request"
           element={
             <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
@@ -714,6 +745,22 @@ export default function AppLayout() {
           element={
             <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <NotificationsWidget />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/ratings"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <RatingManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/drivers/:driverId/ratings"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <DriverRatingsPage />
             </ProtectedRoute>
           }
         />
