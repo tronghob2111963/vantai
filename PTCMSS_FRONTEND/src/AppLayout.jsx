@@ -71,20 +71,28 @@ const SIDEBAR_SECTIONS = [
     sectionId: "orders",
     icon: ClipboardList,
     label: "Báo giá & Đơn hàng",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
     items: [
       { label: "Bảng CSKH / Báo giá", to: "/orders/dashboard", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
-      { label: "Danh sách đơn hàng", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT] },
+      {
+        label: "Danh sách đơn hàng",
+        to: "/orders",
+        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
+      },
       { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
-      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
-      { label: "Chi tiết đơn hàng", to: "/orders/1", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT] },
+      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR] },
+      {
+        label: "Chi tiết đơn hàng",
+        to: "/orders/1",
+        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
+      },
     ],
   },
   {
     sectionId: "dispatch",
     icon: CalendarClock,
     label: "Điều phối / Lịch chạy",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR],
     items: [
       { label: "Bảng điều phối", to: "/dispatch" },
       { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
@@ -642,7 +650,9 @@ export default function AppLayout() {
         <Route
           path="/orders"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT]}>
+            <ProtectedRoute
+              roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
+            >
               <ConsultantOrderListPage />
             </ProtectedRoute>
           }
@@ -658,7 +668,9 @@ export default function AppLayout() {
         <Route
           path="/orders/:orderId"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT]}>
+            <ProtectedRoute
+              roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
+            >
               <OrderDetailPage />
             </ProtectedRoute>
           }
@@ -666,7 +678,7 @@ export default function AppLayout() {
         <Route
           path="/orders/:orderId/edit"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR]}>
               <EditOrderPage />
             </ProtectedRoute>
           }
@@ -676,7 +688,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <CoordinatorTimelinePro />
             </ProtectedRoute>
           }
@@ -684,7 +696,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch/expense-request"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <ExpenseRequestForm />
             </ProtectedRoute>
           }
@@ -692,7 +704,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch/AssignDriverDialog"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <DemoAssign />
             </ProtectedRoute>
           }
@@ -700,7 +712,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch/notifications"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <NotificationsWidget />
             </ProtectedRoute>
           }

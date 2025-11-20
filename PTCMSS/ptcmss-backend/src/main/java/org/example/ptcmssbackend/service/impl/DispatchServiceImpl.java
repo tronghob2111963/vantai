@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,14 @@ public class DispatchServiceImpl implements DispatchService {
     private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
     private static final int DEFAULT_SHIFT_START = 6;
     private static final int DEFAULT_SHIFT_END = 22;
+    private static final EnumSet<BookingStatus> DISPATCHABLE_BOOKING_STATUSES =
+            EnumSet.of(
+                    BookingStatus.PENDING,
+                    BookingStatus.QUOTATION_SENT,
+                    BookingStatus.CONFIRMED,
+                    BookingStatus.INPROGRESS,
+                    BookingStatus.COMPLETED
+            );
 
     private final TripRepository tripRepository;
     private final BookingRepository bookingRepository;
@@ -66,8 +75,7 @@ public class DispatchServiceImpl implements DispatchService {
     public List<PendingTripResponse> getPendingTrips(Integer branchId, Instant from, Instant to) {
         log.info("[Dispatch] Loading pending trips for branch {} from {} to {}", branchId, from, to);
 
-        List<Trips> trips = tripRepository
-                .findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.SCHEDULED, from, to);
+        List<Trips> trips = tripRepository.findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.SCHEDULED, from, to);
 
         List<PendingTripResponse> result = new ArrayList<>();
 
@@ -80,8 +88,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             Bookings b = t.getBooking();
-            // Booking phải ở trạng thái đã xác nhận (theo rule của bạn)
-            if (b.getStatus() != BookingStatus.CONFIRMED && b.getStatus() != BookingStatus.COMPLETED) {
+            // Skip bookings that are not eligible for dispatch (e.g. cancelled)
+            if (!DISPATCHABLE_BOOKING_STATUSES.contains(b.getStatus())) {
                 continue;
             }
 

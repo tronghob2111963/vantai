@@ -983,7 +983,8 @@ export default function CoordinatorTimelinePro() {
     const [queueQuery, setQueueQuery] = React.useState("");
     const role = React.useMemo(() => getCurrentRole(), []);
     const userId = React.useMemo(() => getStoredUserId(), []);
-    const isBranchScoped = role === ROLES.MANAGER || role === ROLES.CONSULTANT;
+    const isBranchScoped =
+        role === ROLES.MANAGER || role === ROLES.COORDINATOR;
 
     const [drivers, setDrivers] = React.useState([]);
     const [vehicles, setVehicles] = React.useState([]);
@@ -1694,4 +1695,4 @@ export default function CoordinatorTimelinePro() {
         </div>
     );
 }
- 
+
