@@ -2,19 +2,23 @@ package org.example.ptcmssbackend.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.ptcmssbackend.dto.request.Trip.TripSearchRequest;
 import org.example.ptcmssbackend.dto.request.dispatch.AssignRequest;
 import org.example.ptcmssbackend.dto.response.common.ResponseData;
 import org.example.ptcmssbackend.dto.response.common.ResponseError;
 import org.example.ptcmssbackend.dto.response.dispatch.AssignRespone;
+import org.example.ptcmssbackend.dto.response.dispatch.DispatchDashboardResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.PendingTripResponse;
 import org.example.ptcmssbackend.service.DispatchService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -36,7 +40,7 @@ public class DispatchController {
                           Chỉ ADMIN hoặc MANAGER có quyền xem.
                           """
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
     @GetMapping("/pending/{branchId}")
     public ResponseData<List<PendingTripResponse>> getPendingTrips(@PathVariable Integer branchId) {
         try {
@@ -45,6 +49,32 @@ public class DispatchController {
             return new ResponseData<>(HttpStatus.OK.value(), "Success", data);
         } catch (Exception e) {
             log.error("[Dispatch] Failed to load pending trips", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Tổng quan điều phối trong ngày",
+            description = """
+                    Trả về Queue pending + timeline tài xế / phương tiện trong ngày theo chi nhánh.
+                    Admin/Manager được phép truy cập.
+                    """
+    )
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
+    @GetMapping("/dashboard")
+    public ResponseData<DispatchDashboardResponse> getDashboard(
+            @RequestParam Integer branchId,
+            @RequestParam(required = false) String date
+    ) {
+        try {
+            LocalDate targetDate = (date != null && !date.isBlank())
+                    ? LocalDate.parse(date)
+                    : LocalDate.now();
+            log.info("[Dispatch] Load dashboard for branch {} on {}", branchId, targetDate);
+            DispatchDashboardResponse data = dispatchService.getDashboard(branchId, targetDate);
+            return new ResponseData<>(HttpStatus.OK.value(), "Success", data);
+        } catch (Exception e) {
+            log.error("[Dispatch] Failed to load dashboard", e);
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }
@@ -59,7 +89,7 @@ public class DispatchController {
                           Gán 1 hoặc nhiều trip, idempotent (gán lại không lỗi).
                           """
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
     @PostMapping("/assign")
     public ResponseData<AssignRespone> assignTrip(@RequestBody AssignRequest request) {
         try {
@@ -73,27 +103,35 @@ public class DispatchController {
         }
     }
 
-    // =====================================================================
-    // 3) DRIVER ACCEPT TRIP
-    // =====================================================================
-    @Operation(
-            summary = "Driver xác nhận nhận chuyến",
-            description = """
-                          Chỉ tài xế được phép thao tác này.
-                          Khi nhận chuyến: chuyển trạng thái từ SCHEDULED → ONGOING.
-                          """
-    )
-    @PreAuthorize("hasRole('DRIVER')")
-    @PostMapping("/driver/accept/{tripId}")
-    public ResponseData<?> acceptTrip(@PathVariable Integer tripId) {
+    @Operation(summary = "Chi tiết chuyến")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','DRIVER')")
+    @GetMapping("/detail/{tripId}")
+    public ResponseData<?> detail(@PathVariable Integer tripId) {
         try {
-            log.info("[Dispatch] Driver accepts trip {}", tripId);
-            dispatchService.driverAcceptTrip(tripId);
+            log.info("[Dispatch] Get trip detail for trip {}", tripId);
             return new ResponseData<>(HttpStatus.OK.value(),
-                    "Driver accepted trip successfully", null);
+                    "Get trip detail successfully",
+                    dispatchService.getTripDetail(tripId));
         } catch (Exception e) {
-            log.error("[Dispatch] Driver failed to accept trip {}", tripId, e);
+            log.error("[Dispatch] Failed to get trip detail for trip {}", tripId, e);
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }
+
+    @Operation(summary = "Tìm kiếm chuyến", description = "ADMIN hoặc MANAGER mới có quyền tìm kiếm chuyến")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT')")
+    @PostMapping("/search")
+    public ResponseData<?> search(@RequestBody TripSearchRequest req) {
+        try {
+            log.info("[Dispatch] Search trips: {}", req);
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Search successfully",
+                    dispatchService.searchTrips(req));
+        } catch (Exception e) {
+            log.error("[Dispatch] Search failed", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+
+
 }
