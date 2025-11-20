@@ -127,6 +127,9 @@ public class BookingServiceImpl implements BookingService {
                 trip.setEndTime(tripReq.getEndTime());
                 trip.setStartLocation(tripReq.getStartLocation());
                 trip.setEndLocation(tripReq.getEndLocation());
+                if (tripReq.getDistance() != null && tripReq.getDistance() > 0) {
+                    trip.setDistance(BigDecimal.valueOf(tripReq.getDistance()));
+                }
                 trip.setStatus(TripStatus.SCHEDULED);
                 tripRepository.save(trip);
             }
@@ -268,6 +271,9 @@ public class BookingServiceImpl implements BookingService {
                 trip.setEndTime(tripReq.getEndTime());
                 trip.setStartLocation(tripReq.getStartLocation());
                 trip.setEndLocation(tripReq.getEndLocation());
+                if (tripReq.getDistance() != null && tripReq.getDistance() > 0) {
+                    trip.setDistance(BigDecimal.valueOf(tripReq.getDistance()));
+                }
                 trip.setStatus(TripStatus.SCHEDULED);
                 tripRepository.save(trip);
             }
@@ -703,6 +709,7 @@ public class BookingServiceImpl implements BookingService {
                     .endTime(trip.getEndTime())
                     .startLocation(trip.getStartLocation())
                     .endLocation(trip.getEndLocation())
+                    .distance(trip.getDistance() != null ? trip.getDistance().doubleValue() : null)
                     .useHighway(trip.getUseHighway())
                     .status(trip.getStatus() != null ? trip.getStatus().name() : null)
                     .driverId(driverId)

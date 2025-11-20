@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS Drivers (
   licenseExpiry DATE,
   healthCheckDate DATE,
   rating DECIMAL(3,2) DEFAULT 5.00 CHECK (rating >= 0 AND rating <= 5),
+  averageRating DECIMAL(3,2) DEFAULT 5.00,
+  totalRatings INT DEFAULT 0,
   priorityLevel INT DEFAULT 1 CHECK (priorityLevel BETWEEN 1 AND 10),
   note VARCHAR(255),
   status ENUM('AVAILABLE','ONTRIP','INACTIVE') DEFAULT 'AVAILABLE',
@@ -182,6 +184,10 @@ CREATE TABLE IF NOT EXISTS Bookings (
   estimatedCost DECIMAL(12,2),
   depositAmount DECIMAL(12,2) DEFAULT 0,
   totalCost DECIMAL(12,2) DEFAULT 0,
+  depositWaived BOOLEAN DEFAULT FALSE,
+  depositWaivedBy INT NULL,
+  depositWaivedReason VARCHAR(255) NULL,
+  depositWaivedAt DATETIME NULL,
   status ENUM('PENDING','QUOTATION_SENT','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED') DEFAULT 'PENDING',
   note VARCHAR(255),
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -189,7 +195,8 @@ CREATE TABLE IF NOT EXISTS Bookings (
   CONSTRAINT fk_book_cust    FOREIGN KEY (customerId)  REFERENCES Customers(customerId),
   CONSTRAINT fk_book_branch  FOREIGN KEY (branchId)    REFERENCES Branches(branchId),
   CONSTRAINT fk_book_cons    FOREIGN KEY (consultantId)REFERENCES Employees(employeeId),
-  CONSTRAINT fk_book_hire    FOREIGN KEY (hireTypeId)  REFERENCES HireTypes(hireTypeId)
+  CONSTRAINT fk_book_hire    FOREIGN KEY (hireTypeId)  REFERENCES HireTypes(hireTypeId),
+  CONSTRAINT fk_book_depositWaiver FOREIGN KEY (depositWaivedBy) REFERENCES Employees(employeeId)
 ) ENGINE=InnoDB;
 
 CREATE INDEX IX_Bookings_BranchId ON Bookings(branchId);
@@ -217,13 +224,14 @@ CREATE TABLE IF NOT EXISTS Trips (
   startLocation VARCHAR(255),
   endLocation VARCHAR(255),
   incidentalCosts DECIMAL(10,2) DEFAULT 0,
-  status ENUM('SCHEDULED','ONGOING','COMPLETED','CANCELLED') DEFAULT 'SCHEDULED',
+  status ENUM('PENDING','ASSIGNED','IN_PROGRESS','COMPLETED','CANCELLED') DEFAULT 'PENDING',
   CONSTRAINT fk_trip_booking FOREIGN KEY (bookingId) REFERENCES Bookings(bookingId),
   CHECK ((startTime IS NULL OR endTime IS NULL) OR (startTime < endTime))
 ) ENGINE=InnoDB;
 
 CREATE INDEX IX_Trips_BookingId ON Trips(bookingId);
 CREATE INDEX IX_Trips_Status_Start ON Trips(status, startTime);
+CREATE INDEX IX_Trips_Branch_Status_Time ON Trips(status, startTime);
 
 CREATE TABLE IF NOT EXISTS TripVehicles (
   tripVehicleId INT AUTO_INCREMENT PRIMARY KEY,
@@ -255,7 +263,174 @@ CREATE TABLE IF NOT EXISTS TripDrivers (
 CREATE INDEX IX_TripDrivers_Driver ON TripDrivers(driverId, tripId);
 
 -- ==========================================================
--- 8) Financial Tables
+-- 8) MODULE 5 ADDITIONS - Dispatch Management
+-- ==========================================================
+
+-- 8.1) TripAssignmentHistory (Audit Log cho phân công)
+CREATE TABLE IF NOT EXISTS TripAssignmentHistory (
+  historyId INT AUTO_INCREMENT PRIMARY KEY,
+  tripId INT NOT NULL,
+  action ENUM('ASSIGN','REASSIGN','UNASSIGN','CANCEL') NOT NULL,
+  driverId INT NULL,
+  vehicleId INT NULL,
+  previousDriverId INT NULL,
+  previousVehicleId INT NULL,
+  reason VARCHAR(500),
+  performedBy INT NOT NULL,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_tah_trip FOREIGN KEY (tripId) REFERENCES Trips(tripId),
+  CONSTRAINT fk_tah_driver FOREIGN KEY (driverId) REFERENCES Drivers(driverId),
+  CONSTRAINT fk_tah_vehicle FOREIGN KEY (vehicleId) REFERENCES Vehicles(vehicleId),
+  CONSTRAINT fk_tah_prevDriver FOREIGN KEY (previousDriverId) REFERENCES Drivers(driverId),
+  CONSTRAINT fk_tah_prevVehicle FOREIGN KEY (previousVehicleId) REFERENCES Vehicles(vehicleId),
+  CONSTRAINT fk_tah_performer FOREIGN KEY (performedBy) REFERENCES Employees(employeeId)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_TripAssignmentHistory_TripId ON TripAssignmentHistory(tripId);
+CREATE INDEX IX_TripAssignmentHistory_CreatedAt ON TripAssignmentHistory(createdAt);
+CREATE INDEX IX_TripAssignmentHistory_DriverId ON TripAssignmentHistory(driverId);
+
+-- 8.2) TripRatings (Đánh giá tài xế sau chuyến đi)
+CREATE TABLE IF NOT EXISTS TripRatings (
+  ratingId INT AUTO_INCREMENT PRIMARY KEY,
+  tripId INT NOT NULL,
+  driverId INT NOT NULL,
+  rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment VARCHAR(500),
+  ratedBy INT NULL,
+  ratedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_tr_trip FOREIGN KEY (tripId) REFERENCES Trips(tripId),
+  CONSTRAINT fk_tr_driver FOREIGN KEY (driverId) REFERENCES Drivers(driverId),
+  CONSTRAINT fk_tr_rater FOREIGN KEY (ratedBy) REFERENCES Employees(employeeId),
+  UNIQUE KEY UK_TripRatings_Trip (tripId, driverId)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_TripRatings_DriverId ON TripRatings(driverId);
+CREATE INDEX IX_TripRatings_RatedAt ON TripRatings(ratedAt);
+
+-- 8.3) DriverWorkload (Tính toán workload và fairness score)
+CREATE TABLE IF NOT EXISTS DriverWorkload (
+  workloadId INT AUTO_INCREMENT PRIMARY KEY,
+  driverId INT NOT NULL,
+  date DATE NOT NULL,
+  totalMinutes INT DEFAULT 0,
+  tripCount INT DEFAULT 0,
+  fairnessScore DECIMAL(5,2) DEFAULT 0,
+  lastUpdated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_dw_driver FOREIGN KEY (driverId) REFERENCES Drivers(driverId),
+  UNIQUE KEY UK_DriverWorkload_Date (driverId, date)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_DriverWorkload_Date ON DriverWorkload(date);
+CREATE INDEX IX_DriverWorkload_Score ON DriverWorkload(fairnessScore);
+
+-- 8.4) DriverShifts (Ca làm việc tài xế)
+CREATE TABLE IF NOT EXISTS DriverShifts (
+  shiftId INT AUTO_INCREMENT PRIMARY KEY,
+  driverId INT NOT NULL,
+  date DATE NOT NULL,
+  shiftStart TIME NOT NULL,
+  shiftEnd TIME NOT NULL,
+  breakStart TIME NULL,
+  breakEnd TIME NULL,
+  status ENUM('SCHEDULED','ACTIVE','COMPLETED','CANCELLED') DEFAULT 'SCHEDULED',
+  note VARCHAR(255),
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_dshift_driver FOREIGN KEY (driverId) REFERENCES Drivers(driverId),
+  UNIQUE KEY UK_DriverShifts_Date (driverId, date),
+  CHECK (shiftStart < shiftEnd),
+  CHECK (breakStart IS NULL OR breakEnd IS NULL OR breakStart < breakEnd)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_DriverShifts_Date ON DriverShifts(date);
+CREATE INDEX IX_DriverShifts_Status ON DriverShifts(status);
+
+-- 8.5) VehicleShifts (Ca hoạt động xe)
+CREATE TABLE IF NOT EXISTS VehicleShifts (
+  shiftId INT AUTO_INCREMENT PRIMARY KEY,
+  vehicleId INT NOT NULL,
+  date DATE NOT NULL,
+  shiftStart TIME NOT NULL,
+  shiftEnd TIME NOT NULL,
+  status ENUM('AVAILABLE','MAINTENANCE','INACTIVE') DEFAULT 'AVAILABLE',
+  note VARCHAR(255),
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_vshift_vehicle FOREIGN KEY (vehicleId) REFERENCES Vehicles(vehicleId),
+  UNIQUE KEY UK_VehicleShifts_Date (vehicleId, date),
+  CHECK (shiftStart < shiftEnd)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_VehicleShifts_Date ON VehicleShifts(date);
+CREATE INDEX IX_VehicleShifts_Status ON VehicleShifts(status);
+
+-- 8.6) VehicleMaintenance (Lịch bảo trì xe)
+CREATE TABLE IF NOT EXISTS VehicleMaintenance (
+  maintenanceId INT AUTO_INCREMENT PRIMARY KEY,
+  vehicleId INT NOT NULL,
+  maintenanceType VARCHAR(50) NOT NULL,
+  description VARCHAR(500),
+  scheduledStart DATETIME NOT NULL,
+  scheduledEnd DATETIME NOT NULL,
+  actualStart DATETIME NULL,
+  actualEnd DATETIME NULL,
+  status ENUM('SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED') DEFAULT 'SCHEDULED',
+  cost DECIMAL(10,2) DEFAULT 0,
+  performedBy VARCHAR(100),
+  note VARCHAR(500),
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_vmaint_vehicle FOREIGN KEY (vehicleId) REFERENCES Vehicles(vehicleId),
+  CHECK (scheduledStart < scheduledEnd),
+  CHECK (actualStart IS NULL OR actualEnd IS NULL OR actualStart < actualEnd)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_VehicleMaintenance_VehicleId ON VehicleMaintenance(vehicleId);
+CREATE INDEX IX_VehicleMaintenance_Status ON VehicleMaintenance(status);
+CREATE INDEX IX_VehicleMaintenance_ScheduledStart ON VehicleMaintenance(scheduledStart);
+
+-- 8.7) ScheduleConflicts (Phát hiện xung đột lịch)
+CREATE TABLE IF NOT EXISTS ScheduleConflicts (
+  conflictId INT AUTO_INCREMENT PRIMARY KEY,
+  conflictType ENUM('DRIVER_OVERLAP','VEHICLE_OVERLAP','EXCEED_HOURS') NOT NULL,
+  driverId INT NULL,
+  vehicleId INT NULL,
+  tripId1 INT NULL,
+  tripId2 INT NULL,
+  conflictTime DATETIME NOT NULL,
+  description VARCHAR(500),
+  detectedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  resolvedAt DATETIME NULL,
+  resolvedBy INT NULL,
+  status ENUM('DETECTED','ACKNOWLEDGED','RESOLVED','IGNORED') DEFAULT 'DETECTED',
+  CONSTRAINT fk_sconf_driver FOREIGN KEY (driverId) REFERENCES Drivers(driverId),
+  CONSTRAINT fk_sconf_vehicle FOREIGN KEY (vehicleId) REFERENCES Vehicles(vehicleId),
+  CONSTRAINT fk_sconf_trip1 FOREIGN KEY (tripId1) REFERENCES Trips(tripId),
+  CONSTRAINT fk_sconf_trip2 FOREIGN KEY (tripId2) REFERENCES Trips(tripId),
+  CONSTRAINT fk_sconf_resolver FOREIGN KEY (resolvedBy) REFERENCES Employees(employeeId)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_ScheduleConflicts_Status ON ScheduleConflicts(status);
+CREATE INDEX IX_ScheduleConflicts_DriverId ON ScheduleConflicts(driverId);
+CREATE INDEX IX_ScheduleConflicts_VehicleId ON ScheduleConflicts(vehicleId);
+CREATE INDEX IX_ScheduleConflicts_DetectedAt ON ScheduleConflicts(detectedAt);
+
+-- 8.9) ExpenseAttachments (Đính kèm chứng từ chi phí)
+CREATE TABLE IF NOT EXISTS ExpenseAttachments (
+  attachmentId INT AUTO_INCREMENT PRIMARY KEY,
+  invoiceId INT NOT NULL,
+  fileName VARCHAR(255) NOT NULL,
+  filePath VARCHAR(500) NOT NULL,
+  fileType VARCHAR(50),
+  fileSize BIGINT,
+  uploadedBy INT NULL,
+  uploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_eatt_invoice FOREIGN KEY (invoiceId) REFERENCES Invoices(invoiceId),
+  CONSTRAINT fk_eatt_uploader FOREIGN KEY (uploadedBy) REFERENCES Employees(employeeId)
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_ExpenseAttachments_InvoiceId ON ExpenseAttachments(invoiceId);
+
+-- ==========================================================
+-- 9) Financial Tables
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS Invoices (
   invoiceId INT AUTO_INCREMENT PRIMARY KEY,
@@ -387,6 +562,155 @@ FROM TripDrivers td
 JOIN Drivers d ON d.driverId = td.driverId
 JOIN Trips   t ON t.tripId   = td.tripId
 GROUP BY d.driverId, YEAR(t.startTime), MONTH(t.startTime);
+
+-- View for Driver Ratings Summary (Module 5)
+CREATE OR REPLACE VIEW v_DriverRatingsSummary AS
+SELECT
+  d.driverId,
+  d.averageRating,
+  d.totalRatings,
+  COUNT(tr.ratingId) AS calculatedTotalRatings,
+  AVG(tr.rating) AS calculatedAverageRating,
+  AVG(CASE WHEN tr.ratedAt >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+           THEN tr.rating ELSE NULL END) AS rating30Days,
+  COUNT(CASE WHEN tr.ratedAt >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+             THEN 1 ELSE NULL END) AS ratings30Days
+FROM Drivers d
+LEFT JOIN TripRatings tr ON d.driverId = tr.driverId
+GROUP BY d.driverId, d.averageRating, d.totalRatings;
+
+-- View for Driver Workload Summary (Module 5)
+CREATE OR REPLACE VIEW v_DriverWorkloadSummary AS
+SELECT
+  d.driverId,
+  e.employeeId,
+  u.fullName AS driverName,
+  d.branchId,
+  b.branchName,
+  d.status AS driverStatus,
+  COALESCE(SUM(dw.totalMinutes), 0) AS totalMinutesLast7Days,
+  COALESCE(SUM(dw.tripCount), 0) AS totalTripsLast7Days,
+  COALESCE(AVG(dw.fairnessScore), 0) AS avgFairnessScore
+FROM Drivers d
+JOIN Employees e ON d.employeeId = e.employeeId
+JOIN Users u ON e.userId = u.userId
+JOIN Branches b ON d.branchId = b.branchId
+LEFT JOIN DriverWorkload dw ON d.driverId = dw.driverId 
+  AND dw.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+GROUP BY d.driverId, e.employeeId, u.fullName, d.branchId, b.branchName, d.status;
+
+-- View: Driver Availability (Tính %Util)
+CREATE OR REPLACE VIEW v_DriverAvailability AS
+SELECT
+  d.driverId,
+  u.fullName AS driverName,
+  d.branchId,
+  b.branchName,
+  ds.date,
+  ds.shiftStart,
+  ds.shiftEnd,
+  TIMESTAMPDIFF(MINUTE, ds.shiftStart, ds.shiftEnd) AS shiftMinutes,
+  COALESCE(dw.totalMinutes, 0) AS busyMinutes,
+  ROUND(COALESCE(dw.totalMinutes, 0) * 100.0 / TIMESTAMPDIFF(MINUTE, ds.shiftStart, ds.shiftEnd), 2) AS utilizationPercent,
+  d.status AS driverStatus,
+  ds.status AS shiftStatus
+FROM Drivers d
+JOIN Employees e ON d.employeeId = e.employeeId
+JOIN Users u ON e.userId = u.userId
+JOIN Branches b ON d.branchId = b.branchId
+LEFT JOIN DriverShifts ds ON d.driverId = ds.driverId
+LEFT JOIN DriverWorkload dw ON d.driverId = dw.driverId AND ds.date = dw.date
+WHERE ds.date IS NOT NULL;
+
+-- View: Vehicle Availability
+CREATE OR REPLACE VIEW v_VehicleAvailability AS
+SELECT
+  v.vehicleId,
+  v.licensePlate,
+  v.model,
+  v.branchId,
+  b.branchName,
+  vs.date,
+  vs.shiftStart,
+  vs.shiftEnd,
+  v.status AS vehicleStatus,
+  vs.status AS shiftStatus,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM VehicleMaintenance vm 
+      WHERE vm.vehicleId = v.vehicleId 
+      AND vm.status IN ('SCHEDULED','IN_PROGRESS')
+      AND vs.date BETWEEN DATE(vm.scheduledStart) AND DATE(vm.scheduledEnd)
+    ) THEN TRUE
+    ELSE FALSE
+  END AS hasMaintenance
+FROM Vehicles v
+JOIN Branches b ON v.branchId = b.branchId
+LEFT JOIN VehicleShifts vs ON v.vehicleId = vs.vehicleId
+WHERE vs.date IS NOT NULL;
+
+-- View: Pending Trips (Chuyến chờ gán)
+CREATE OR REPLACE VIEW v_PendingTrips AS
+SELECT
+  t.tripId,
+  t.bookingId,
+  b.customerId,
+  c.fullName AS customerName,
+  c.phone AS customerPhone,
+  t.startLocation,
+  t.endLocation,
+  t.startTime,
+  t.status AS tripStatus,
+  b.status AS bookingStatus,
+  b.branchId,
+  br.branchName,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM Invoices i 
+      WHERE i.bookingId = b.bookingId 
+      AND i.isDeposit = TRUE 
+      AND i.paymentStatus = 'PAID'
+      AND i.approvedBy IS NOT NULL
+    ) THEN 'APPROVED'
+    WHEN b.depositWaived = TRUE THEN 'WAIVED'
+    ELSE 'PENDING'
+  END AS depositStatus,
+  CASE 
+    WHEN t.startTime < NOW() THEN CONCAT('Trễ ', TIMESTAMPDIFF(MINUTE, t.startTime, NOW()), 'p')
+    ELSE CONCAT('Còn ', TIMESTAMPDIFF(MINUTE, NOW(), t.startTime), 'p')
+  END AS timeStatus,
+  CASE 
+    WHEN NOT EXISTS (SELECT 1 FROM TripDrivers td WHERE td.tripId = t.tripId) THEN TRUE
+    ELSE FALSE
+  END AS needsAssignment
+FROM Trips t
+JOIN Bookings b ON t.bookingId = b.bookingId
+JOIN Customers c ON b.customerId = c.customerId
+JOIN Branches br ON b.branchId = br.branchId
+WHERE t.status = 'PENDING'
+  AND b.status IN ('CONFIRMED', 'IN_PROGRESS');
+
+-- View: Active Conflicts (Xung đột chưa xử lý)
+CREATE OR REPLACE VIEW v_ActiveConflicts AS
+SELECT
+  sc.conflictId,
+  sc.conflictType,
+  sc.driverId,
+  CASE WHEN sc.driverId IS NOT NULL THEN u.fullName ELSE NULL END AS driverName,
+  sc.vehicleId,
+  CASE WHEN sc.vehicleId IS NOT NULL THEN v.licensePlate ELSE NULL END AS vehiclePlate,
+  sc.tripId1,
+  sc.tripId2,
+  sc.conflictTime,
+  sc.description,
+  sc.detectedAt,
+  sc.status
+FROM ScheduleConflicts sc
+LEFT JOIN Drivers d ON sc.driverId = d.driverId
+LEFT JOIN Employees e ON d.employeeId = e.employeeId
+LEFT JOIN Users u ON e.userId = u.userId
+LEFT JOIN Vehicles v ON sc.vehicleId = v.vehicleId
+WHERE sc.status IN ('DETECTED', 'ACKNOWLEDGED');
 
 -- ===========================================================
 -- 11) Seed Data
@@ -582,8 +906,63 @@ INSERT INTO SystemSettings (settingId, settingKey, settingValue, effectiveStartD
 (2, 'DEFAULT_HIGHWAY', 'true', '2025-01-01', 'boolean', 'Booking', 'Mặc định chọn cao tốc khi tạo booking', 1),
 (3, 'MAX_DRIVING_HOURS_PER_DAY', '10', '2025-01-01', 'int', 'Driver', 'Số giờ lái xe tối đa của tài xế/ngày', 1),
 (4, 'SUPPORT_HOTLINE', '1900 1234', '2025-01-01', 'string', 'General', 'Số hotline hỗ trợ khách hàng', 1),
-(5, 'LATE_PAYMENT_FEE_RATE', '0.05', '2025-01-01', 'decimal', 'Billing', 'Lãi suất phạt thanh toán chậm (5%/ngày)', 1)
+(5, 'LATE_PAYMENT_FEE_RATE', '0.05', '2025-01-01', 'decimal', 'Billing', 'Lãi suất phạt thanh toán chậm (5%/ngày)', 1),
+(6, 'FAIRNESS_WEIGHT_DAILY_HOURS', '0.4', '2025-01-01', 'decimal', 'Dispatch', 'Trọng số giờ làm việc hàng ngày trong tính fairness', 1),
+(7, 'FAIRNESS_WEIGHT_WEEKLY_TRIPS', '0.3', '2025-01-01', 'decimal', 'Dispatch', 'Trọng số số chuyến trong tuần trong tính fairness', 1),
+(8, 'FAIRNESS_WEIGHT_REST_TIME', '0.3', '2025-01-01', 'decimal', 'Dispatch', 'Trọng số thời gian nghỉ trong tính fairness', 1)
 ON DUPLICATE KEY UPDATE settingValue = VALUES(settingValue), description = VALUES(description), updatedBy = VALUES(updatedBy);
+
+-- Sample data for Module 5 tables
+INSERT INTO TripAssignmentHistory (historyId, tripId, action, driverId, vehicleId, previousDriverId, previousVehicleId, reason, performedBy, createdAt) VALUES
+(1, 1, 'ASSIGN', 1, 3, NULL, NULL, 'Gán lần đầu cho chuyến Hà Nội - Hạ Long', 2, '2025-10-24 15:00:00'),
+(2, 2, 'ASSIGN', 4, 5, NULL, NULL, 'Gán tài xế D cho chuyến đón sân bay', 4, '2025-10-27 10:00:00'),
+(3, 6, 'ASSIGN', 5, 2, NULL, NULL, 'Gán tài xế E cho chuyến đi Nội Bài', 2, '2025-10-28 09:00:00')
+ON DUPLICATE KEY UPDATE reason = VALUES(reason);
+
+INSERT INTO TripRatings (ratingId, tripId, driverId, rating, comment, ratedBy, ratedAt) VALUES
+(1, 1, 1, 5, 'Tài xế lái xe an toàn, đúng giờ, thái độ tốt', 2, '2025-10-25 21:00:00'),
+(2, 1, 1, 4, 'Tốt nhưng có thể cải thiện giao tiếp', 5, '2025-10-25 22:00:00')
+ON DUPLICATE KEY UPDATE comment = VALUES(comment);
+
+INSERT INTO DriverWorkload (workloadId, driverId, date, totalMinutes, tripCount, fairnessScore) VALUES
+(1, 1, '2025-10-25', 780, 1, 45.5),
+(2, 2, '2025-10-25', 0, 0, 10.0),
+(3, 3, '2025-10-25', 0, 0, 10.0),
+(4, 4, '2025-10-28', 90, 1, 25.2),
+(5, 5, '2025-10-29', 60, 1, 20.8),
+(6, 1, '2025-11-01', 90, 1, 30.0),
+(7, 2, '2025-11-01', 90, 1, 30.0)
+ON DUPLICATE KEY UPDATE totalMinutes = VALUES(totalMinutes), tripCount = VALUES(tripCount), fairnessScore = VALUES(fairnessScore);
+
+-- Sample: DriverShifts (Ca làm việc mẫu)
+INSERT INTO DriverShifts (shiftId, driverId, date, shiftStart, shiftEnd, breakStart, breakEnd, status) VALUES
+(1, 1, CURDATE(), '08:00:00', '17:00:00', '12:00:00', '13:00:00', 'SCHEDULED'),
+(2, 2, CURDATE(), '08:00:00', '17:00:00', '12:00:00', '13:00:00', 'SCHEDULED'),
+(3, 3, CURDATE(), '08:00:00', '17:00:00', '12:00:00', '13:00:00', 'SCHEDULED'),
+(4, 4, CURDATE(), '13:00:00', '22:00:00', '17:00:00', '18:00:00', 'SCHEDULED'),
+(5, 5, CURDATE(), '08:00:00', '17:00:00', '12:00:00', '13:00:00', 'SCHEDULED')
+ON DUPLICATE KEY UPDATE status = VALUES(status);
+
+-- Sample: VehicleShifts
+INSERT INTO VehicleShifts (shiftId, vehicleId, date, shiftStart, shiftEnd, status) VALUES
+(1, 1, CURDATE(), '07:00:00', '22:00:00', 'AVAILABLE'),
+(2, 2, CURDATE(), '07:00:00', '22:00:00', 'AVAILABLE'),
+(3, 3, CURDATE(), '07:00:00', '22:00:00', 'AVAILABLE'),
+(4, 4, CURDATE(), '07:00:00', '22:00:00', 'AVAILABLE'),
+(5, 5, CURDATE(), '07:00:00', '22:00:00', 'AVAILABLE'),
+(6, 7, CURDATE(), '07:00:00', '22:00:00', 'MAINTENANCE')
+ON DUPLICATE KEY UPDATE status = VALUES(status);
+
+-- Sample: VehicleMaintenance
+INSERT INTO VehicleMaintenance (maintenanceId, vehicleId, maintenanceType, description, scheduledStart, scheduledEnd, status, cost) VALUES
+(1, 7, 'PERIODIC_MAINTENANCE', 'Bảo dưỡng định kỳ 10,000km', CONCAT(CURDATE(), ' 08:00:00'), CONCAT(CURDATE(), ' 17:00:00'), 'IN_PROGRESS', 5000000.00),
+(2, 3, 'INSPECTION', 'Đăng kiểm định kỳ', CONCAT(DATE_ADD(CURDATE(), INTERVAL 6 DAY), ' 08:00:00'), CONCAT(DATE_ADD(CURDATE(), INTERVAL 6 DAY), ' 12:00:00'), 'SCHEDULED', 500000.00)
+ON DUPLICATE KEY UPDATE status = VALUES(status);
+
+-- Sample: ScheduleConflicts (Optional - có thể bỏ comment nếu cần test)
+-- INSERT INTO ScheduleConflicts (conflictId, conflictType, driverId, tripId1, tripId2, conflictTime, description, status) VALUES
+-- (1, 'DRIVER_OVERLAP', 1, 1, 3, '2025-11-01 08:30:00', 'Tài xế A có 2 chuyến trùng giờ', 'DETECTED')
+-- ON DUPLICATE KEY UPDATE status = VALUES(status);
 
 -- ==========================================================
 -- End of Script
