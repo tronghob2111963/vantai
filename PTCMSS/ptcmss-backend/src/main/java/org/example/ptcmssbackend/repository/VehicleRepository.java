@@ -42,4 +42,13 @@ public interface VehicleRepository extends JpaRepository<Vehicles, Integer> {
     List<Vehicles> findAvailableVehicles(Integer branchId);
 
     List<Vehicles> findByBranch_IdAndStatus(Integer branchId, VehicleStatus status);
+
+
+    @Query("SELECT v FROM Vehicles v WHERE v.branch.id = :branchId")
+    List<Vehicles> findAllByBranchId(Integer branchId);
+
+    boolean existsByBranch_IdAndLicensePlateIgnoreCase(Integer branchId, String licensePlate);
+
+
+
 }

@@ -51,7 +51,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Lịch làm việc", to: "/driver/schedule" },
       { label: "Xin nghỉ phép", to: "/driver/leave-request" },
       { label: "Hồ sơ tài xế", to: "/driver/profile" },
-      { label: "Chi tiết chuyến (demo)", to: "/driver/trips/123" },
+      { label: "Chi tiết chuyến", to: "/driver/trips" },
     ],
   },
   {
@@ -71,25 +71,36 @@ const SIDEBAR_SECTIONS = [
     sectionId: "orders",
     icon: ClipboardList,
     label: "Báo giá & Đơn hàng",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
     items: [
       { label: "Bảng CSKH / Báo giá", to: "/orders/dashboard", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
-      { label: "Danh sách đơn hàng", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT] },
+      {
+        label: "Danh sách đơn hàng",
+        to: "/orders",
+        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
+      },
       { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
-      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
-      { label: "Chi tiết đơn hàng", to: "/orders/1", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT] },
+      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR] },
+      {
+        label: "Chi tiết đơn hàng",
+        to: "/orders/1",
+        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
+      },
     ],
   },
   {
     sectionId: "dispatch",
     icon: CalendarClock,
     label: "Điều phối / Lịch chạy",
-    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR],
     items: [
       { label: "Bảng điều phối", to: "/dispatch" },
+      { label: "Đơn chưa gán chuyến", to: "/dispatch/pending" },
+      { label: "Cảnh báo & Chờ duyệt", to: "/dispatch/notifications-dashboard" },
       { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
       { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
       { label: "Thông báo điều phối", to: "/dispatch/notifications" },
+      { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.MANAGER] },
     ],
   },
   {
@@ -175,6 +186,10 @@ import EditOrderPage from "./components/module 4/EditOrderPage.jsx";
 import CoordinatorTimelinePro from "./components/module 5/CoordinatorTimelinePro.jsx";
 import ExpenseRequestForm from "./components/module 5/ExpenseRequestForm.jsx";
 import NotificationsWidget from "./components/module 5/NotificationsWidget.jsx";
+import PendingTripsPage from "./components/module 5/PendingTripsPage.jsx";
+import NotificationsDashboard from "./components/module 5/NotificationsDashboard.jsx";
+import RatingManagementPage from "./components/module 5/RatingManagementPage.jsx";
+import DriverRatingsPage from "./components/module 5/DriverRatingsPage.jsx";
 
 /* DemoAssign – mở AssignDriverDialog */
 import DemoAssign from "./DemoAssign.jsx";
@@ -580,6 +595,14 @@ export default function AppLayout() {
           }
         />
         <Route
+          path="/driver/trips"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <DriverTripDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/driver/trips/:tripId"
           element={
             <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
@@ -642,7 +665,9 @@ export default function AppLayout() {
         <Route
           path="/orders"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT]}>
+            <ProtectedRoute
+              roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
+            >
               <ConsultantOrderListPage />
             </ProtectedRoute>
           }
@@ -658,7 +683,9 @@ export default function AppLayout() {
         <Route
           path="/orders/:orderId"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.ACCOUNTANT]}>
+            <ProtectedRoute
+              roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
+            >
               <OrderDetailPage />
             </ProtectedRoute>
           }
@@ -666,7 +693,7 @@ export default function AppLayout() {
         <Route
           path="/orders/:orderId/edit"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR]}>
               <EditOrderPage />
             </ProtectedRoute>
           }
@@ -676,15 +703,31 @@ export default function AppLayout() {
         <Route
           path="/dispatch"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <CoordinatorTimelinePro />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/pending"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <PendingTripsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/notifications-dashboard"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <NotificationsDashboard />
             </ProtectedRoute>
           }
         />
         <Route
           path="/dispatch/expense-request"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <ExpenseRequestForm />
             </ProtectedRoute>
           }
@@ -692,7 +735,7 @@ export default function AppLayout() {
         <Route
           path="/dispatch/AssignDriverDialog"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <DemoAssign />
             </ProtectedRoute>
           }
@@ -700,8 +743,24 @@ export default function AppLayout() {
         <Route
           path="/dispatch/notifications"
           element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
               <NotificationsWidget />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dispatch/ratings"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <RatingManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/drivers/:driverId/ratings"
+          element={
+            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <DriverRatingsPage />
             </ProtectedRoute>
           }
         />

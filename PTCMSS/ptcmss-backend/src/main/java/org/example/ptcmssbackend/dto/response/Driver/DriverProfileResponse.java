@@ -19,6 +19,7 @@ public class DriverProfileResponse {
     private String licenseClass;
     private LocalDate licenseExpiry;
     private DriverStatus status;
+
     
     // Thống kê
     private Long totalTrips; // Tổng số chuyến đã hoàn thành

@@ -1,27 +1,40 @@
 package org.example.ptcmssbackend.service;
 
+import org.example.ptcmssbackend.dto.request.Trip.TripSearchRequest;
 import org.example.ptcmssbackend.dto.request.dispatch.AssignRequest;
+import org.example.ptcmssbackend.dto.response.Trip.TripDetailResponse;
+import org.example.ptcmssbackend.dto.response.Trip.TripListItemResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.AssignRespone;
+import org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse;
+import org.example.ptcmssbackend.dto.response.dispatch.DispatchDashboardResponse;
 import org.example.ptcmssbackend.dto.response.dispatch.PendingTripResponse;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface DispatchService {
 
-    // Lấy danh sách chuyến pending của 1 chi nhánh, trong khoảng thời gian (nếu null -> mặc định hôm nay)
     List<PendingTripResponse> getPendingTrips(Integer branchId);
 
     List<PendingTripResponse> getPendingTrips(Integer branchId, Instant from, Instant to);
+    
+    List<PendingTripResponse> getAllPendingTrips();
 
-    // Gán (manual hoặc auto)
+    AssignmentSuggestionResponse getAssignmentSuggestions(Integer tripId);
+
+    DispatchDashboardResponse getDashboard(Integer branchId, LocalDate date);
+
     AssignRespone assign(AssignRequest request);
 
-    // Huỷ gán (unassign driver + vehicle) -> trip quay về queue pending
-    void unassign(Integer tripId);
+    void unassign(Integer tripId, String note);
 
-    // (tuỳ chọn) reassign: thực chất là unassign + assign
     AssignRespone reassign(AssignRequest request);
 
     void driverAcceptTrip(Integer tripId);
+
+    TripDetailResponse getTripDetail(Integer tripId);
+
+    List<TripListItemResponse> searchTrips(TripSearchRequest request);
+
 }

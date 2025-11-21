@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/PTCMSS.iml" filepath="$PROJECT_DIR$/.idea/PTCMSS.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ptcmss-backend/ptcmss-backend.iml" filepath="$PROJECT_DIR$/ptcmss-backend/ptcmss-backend.iml" />
     </modules>
   </component>
 </project>

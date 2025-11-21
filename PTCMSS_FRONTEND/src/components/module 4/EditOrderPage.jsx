@@ -2,6 +2,7 @@
 import React from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getBooking, updateBooking, calculatePrice, assignBooking } from "../../api/bookings";
+import { calculateDistance } from "../../api/graphhopper";
 import { listVehicleCategories } from "../../api/vehicleCategories";
 import { listBranches } from "../../api/branches";
 import {
@@ -16,6 +17,8 @@ import {
     AlertTriangle,
     Save,
     Send,
+    Loader2,
+    Navigation,
 } from "lucide-react";
 
 /**
@@ -170,6 +173,9 @@ export default function EditOrderPage() {
     const [dropoff, setDropoff] = React.useState("");
     const [startTime, setStartTime] = React.useState("");
     const [endTime, setEndTime] = React.useState("");
+    const [distanceKm, setDistanceKm] = React.useState("");
+    const [calculatingDistance, setCalculatingDistance] = React.useState(false);
+    const [distanceError, setDistanceError] = React.useState("");
 
     /* --- thông số xe --- */
     const [pax, setPax] = React.useState("0");
@@ -255,6 +261,7 @@ export default function EditOrderPage() {
                 setDropoff(t.endLocation || "");
                 setStartTime((t.startTime || "").toString().replace("Z", ""));
                 setEndTime((t.endTime || "").toString().replace("Z", ""));
+                setDistanceKm(String(t.distance || ""));
                 const qty = Array.isArray(b.vehicles) ? b.vehicles.reduce((s,v)=>s+(v.quantity||0),0) : 1;
                 const catId = Array.isArray(b.vehicles) && b.vehicles.length ? String(b.vehicles[0].vehicleCategoryId) : "";
                 setVehiclesNeeded(String(qty));
@@ -265,6 +272,38 @@ export default function EditOrderPage() {
             } catch {}
         })();
     }, [orderId]);
+
+    // Auto-calculate distance when both pickup and dropoff are entered
+    React.useEffect(() => {
+        const timeoutId = setTimeout(async () => {
+            if (!pickup || !dropoff) {
+                setDistanceError("");
+                return;
+            }
+
+            // Only calculate if both fields have reasonable length and in edit mode
+            if (pickup.trim().length < 5 || dropoff.trim().length < 5 || !canEdit) {
+                return;
+            }
+
+            setCalculatingDistance(true);
+            setDistanceError("");
+
+            try {
+                const result = await calculateDistance(pickup, dropoff);
+                setDistanceKm(String(result.distance));
+                pushToast(`Distance: ${result.formattedDistance} (~${result.formattedDuration})`, "success");
+            } catch (error) {
+                console.error("Distance calculation error:", error);
+                setDistanceError("Unable to calculate distance automatically.");
+                pushToast("Unable to calculate distance automatically", "error");
+            } finally {
+                setCalculatingDistance(false);
+            }
+        }, 1500); // Debounce 1.5 seconds
+
+        return () => clearTimeout(timeoutId);
+    }, [pickup, dropoff, canEdit]);
 
     /* --- tự tính finalPrice khi thay đổi discount/systemPrice --- */
     React.useEffect(() => {
@@ -313,7 +352,7 @@ export default function EditOrderPage() {
             const price = await calculatePrice({
                 vehicleCategoryIds: [Number(categoryId || 0)],
                 quantities: [Number(vehiclesNeeded || 1)],
-                distance: 0,
+                distance: Number(distanceKm || 0),
                 useHighway: false,
             });
             const base = Number(price || 0);

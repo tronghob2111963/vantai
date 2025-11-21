@@ -24,4 +24,7 @@ public interface DriverDayOffRepository extends JpaRepository<DriverDayOff, Inte
              AND d.endDate >= :date
            """)
     List<DriverDayOff> findApprovedDayOffOnDate(Integer driverId, DriverDayOffStatus status, LocalDate date);
+    
+    // Tìm tất cả đơn nghỉ theo status
+    List<DriverDayOff> findByStatus(DriverDayOffStatus status);
 }

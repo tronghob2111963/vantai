@@ -1,9 +1,9 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { listBranches, createBranch } from "../../api/branches";
 import { listEmployeesByRole } from "../../api/employees";
 import { listUsers, listRoles } from "../../api/users";
 import { Building2, PlusCircle, RefreshCw, ShieldCheck, X, Edit, ChevronLeft, ChevronRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
 
@@ -59,19 +59,35 @@ function CreateBranchModal({ open, onClose, onSave, availableManagers }) {
   const [address, setAddress] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [managerId, setManagerId] = React.useState("");
+  const [fieldErrors, setFieldErrors] = React.useState({});
 
-  const valid = name.trim() !== "" && phone.trim() !== "" && managerId !== "";
+  const reset = () => {
+    setName("");
+    setAddress("");
+    setPhone("");
+    setManagerId("");
+    setFieldErrors({});
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!name.trim()) errs.name = "Vui lòng nhập tên chi nhánh";
+    if (!address.trim()) errs.address = "Vui lòng nhập địa chỉ";
+    if (!phone.trim()) errs.phone = "Vui lòng nhập số điện thoại";
+    else if (!/^[0-9]{10,11}$/.test(phone.trim())) errs.phone = "Số điện thoại phải 10-11 chữ số";
+    if (!managerId) errs.managerId = "Vui lòng chọn quản lý chi nhánh";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const valid = name.trim() && address.trim() && /^[0-9]{10,11}$/.test(phone.trim()) && managerId;
 
   React.useEffect(() => {
-    if (!open) {
-      setName("");
-      setAddress("");
-      setPhone("");
-      setManagerId("");
-    }
+    if (!open) reset();
   }, [open]);
 
   if (!open) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div className="w-full max-w-lg rounded-xl bg-white border border-slate-200 text-slate-900 shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -88,32 +104,66 @@ function CreateBranchModal({ open, onClose, onSave, availableManagers }) {
         <div className="p-4 space-y-4 text-sm">
           <div>
             <div className="text-xs text-slate-600 mb-1">Tên chi nhánh <span className="text-rose-500">*</span></div>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500" placeholder="VD: Chi nhánh Hà Nội" />
+            <input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })); }}
+              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${fieldErrors.name ? "border-rose-300" : "border-slate-300"}`}
+              placeholder="VD: Chi nhánh Hà Nội"
+            />
+            {fieldErrors.name && <div className="text-[11px] text-rose-600 mt-1">{fieldErrors.name}</div>}
           </div>
           <div>
-            <div className="text-xs text-slate-600 mb-1">Địa chỉ</div>
-            <input value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500" placeholder="Số 1 Tràng Tiền, Hoàn Kiếm..." />
+            <div className="text-xs text-slate-600 mb-1">Địa chỉ <span className="text-rose-500">*</span></div>
+            <input
+              value={address}
+              onChange={(e) => { setAddress(e.target.value); setFieldErrors((p) => ({ ...p, address: undefined })); }}
+              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${fieldErrors.address ? "border-rose-300" : "border-slate-300"}`}
+              placeholder="Số 1 Tràng Tiền, Hoàn Kiếm..."
+            />
+            {fieldErrors.address && <div className="text-[11px] text-rose-600 mt-1">{fieldErrors.address}</div>}
           </div>
           <div>
             <div className="text-xs text-slate-600 mb-1">Số điện thoại <span className="text-rose-500">*</span></div>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500" placeholder="024-123-4567" />
+            <input
+              value={phone}
+              onChange={(e) => { setPhone(e.target.value.replace(/[^0-9]/g, "")); setFieldErrors((p) => ({ ...p, phone: undefined })); }}
+              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${fieldErrors.phone ? "border-rose-300" : "border-slate-300"}`}
+              placeholder="0123456789"
+            />
+            {fieldErrors.phone && <div className="text-[11px] text-rose-600 mt-1">{fieldErrors.phone}</div>}
           </div>
           <div>
             <div className="text-xs text-slate-600 mb-1">Quản lý chi nhánh <span className="text-rose-500">*</span></div>
-            <select value={managerId} onChange={(e) => setManagerId(e.target.value)} className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500">
+            <select
+              value={managerId}
+              onChange={(e) => { setManagerId(e.target.value); setFieldErrors((p) => ({ ...p, managerId: undefined })); }}
+              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${fieldErrors.managerId ? "border-rose-300" : "border-slate-300"}`}
+            >
               <option value="">-- Chọn quản lý --</option>
               {availableManagers.map((m) => (
                 <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
               ))}
             </select>
+            {fieldErrors.managerId && <div className="text-[11px] text-rose-600 mt-1">{fieldErrors.managerId}</div>}
             <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">Hiển thị tất cả người dùng có vai trò MANAGER.</div>
           </div>
-          <div className="text-[11px] text-slate-500 leading-relaxed">Sau khi tạo, chi nhánh sẽ ở trạng thái <b className="text-slate-700">ACTIVE</b> và Manager sẽ được gán vào chi nhánh đó.</div>
+          <div className="text-[11px] text-slate-500 leading-relaxed">
+            Sau khi tạo, chi nhánh sẽ ở trạng thái <b className="text-slate-700">ACTIVE</b> và Manager sẽ được gán vào chi nhánh đó.
+          </div>
         </div>
 
         <div className="px-5 py-3 border-t border-slate-200 bg-slate-50/50 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 shadow-sm transition-colors">Hủy</button>
-          <button onClick={() => valid && onSave({ name, address, phone, managerId: Number(managerId) })} disabled={!valid} className="rounded-md bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors">Lưu chi nhánh</button>
+          <button
+            onClick={() => {
+              if (!validate()) return;
+              onSave({ name: name.trim(), address: address.trim(), phone: phone.trim(), managerId: Number(managerId) });
+            }}
+            disabled={!valid}
+            className="rounded-md bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors"
+          >
+            Lưu chi nhánh
+          </button>
         </div>
       </div>
     </div>
@@ -131,7 +181,6 @@ export default function AdminBranchesPage() {
   const [loading, setLoading] = React.useState(false);
   const [openCreate, setOpenCreate] = React.useState(false);
 
-  // Hiển thị tất cả Manager (không lọc theo branchId để tránh rỗng khi Manager đã được gán sẵn)
   const managerOptions = React.useMemo(() => managers, [managers]);
   const totalPages = Math.max(1, Math.ceil(branches.length / pageSize));
   const current = React.useMemo(() => {
@@ -179,11 +228,10 @@ export default function AdminBranchesPage() {
 
   React.useEffect(() => {
     (async () => {
-      // Try Employee API first; fallback to Roles + Users
       try {
         const emps = await listEmployeesByRole("Manager");
-        if (Array.isArray(emps) && emps.length >= 0) {
-          const mgrs = emps.map((e) => ({ id: e.userId, name: e.userFullName || "", email: "", branchId: e.branchId || null }));
+        if (Array.isArray(emps)) {
+          const mgrs = emps.map((e) => ({ id: e.userId, name: e.userFullName || "", email: e.email || "", branchId: e.branchId || null }));
           setManagers(mgrs);
           return;
         }

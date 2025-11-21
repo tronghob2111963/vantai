@@ -5,12 +5,20 @@ spring:
     password: 1001
   jpa:
     hibernate:
-      ddl-auto: none  # Disable DDL auto (DB already exists with correct schema)
+      ddl-auto: update  # Disable DDL auto (DB already exists with correct schema)
     show-sql: true
     properties:
       hibernate:
         # Use physical naming strategy to match database column names exactly
         physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+
+# SerpAPI Configuration
+serpapi:
+  key: ${SERPAPI_KEY:d403ede6a15a2684e960ee9be9eb913a534330bf909263934657741c7f326742}
+
+# GraphHopper Configuration
+graphhopper:
+  api-key: ${GRAPHHOPPER_KEY:7314a1ce-438f-453a-beb2-4e8d037f1301}
 springdoc:
   api-docs:
     enabled: true
