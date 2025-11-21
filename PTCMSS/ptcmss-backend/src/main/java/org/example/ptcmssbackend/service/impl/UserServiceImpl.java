@@ -1,6 +1,7 @@
 package org.example.ptcmssbackend.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.User.CreateUserRequest;
 import org.example.ptcmssbackend.dto.request.User.UpdateUserRequest;
 import org.example.ptcmssbackend.dto.response.User.UserResponse;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 import jakarta.mail.MessagingException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -34,6 +36,17 @@ public class UserServiceImpl implements UserService {
     public Integer createUser(CreateUserRequest request) {
         Roles role = rolesRepository.findById(request.getRoleId())
                 .orElseThrow(() -> new RuntimeException("Role not found"));
+
+
+        if(usersRepository.existsByEmail(request.getEmail())){
+            throw new RuntimeException("Email already exists");
+        }
+        if(usersRepository.existsByPhone(request.getPhone())){
+            throw new RuntimeException("Phone already exists");
+        }
+        if(usersRepository.existsByUsername(request.getUsername())){
+            throw new RuntimeException("Username already exists");
+        }
 
         // Tạo user mới (chưa kích hoạt)
         Users user = new Users();
@@ -60,9 +73,12 @@ public class UserServiceImpl implements UserService {
                     user.getVerificationToken(),
                     baseUrl
             );
+            log.info("gửi email thành công");
         } catch (MessagingException | UnsupportedEncodingException e) {
             throw new RuntimeException("Gửi email xác thực thất bại!", e);
         }
+
+        log.info("create user thành công");
 
         return user.getId();
     }
