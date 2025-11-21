@@ -27,9 +27,27 @@ const isISODate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
 // Chuẩn hoá tiền tệ về số
 function normalizeMoney(v) {
     if (v == null) return 0;
-    if (typeof v === "number") return v;
-    // ví dụ "12.000.000 đ" -> "12000000"
-    const digits = String(v).replace(/[^0-9]/g, "");
+    if (typeof v === "number") return Math.floor(v); // Chỉ lấy phần nguyên
+
+    const str = String(v);
+
+    // Xử lý format Việt Nam: "12.000.000,50 đ" hoặc "12.000.000 đ"
+    // hoặc format số thập phân: "12000000.50" hoặc "12000000"
+
+    // Loại bỏ chữ "đ" và khoảng trắng
+    let cleaned = str.replace(/[đ\s]/gi, "");
+
+    // Kiểm tra xem có dấu phẩy không (format Việt)
+    if (cleaned.includes(",")) {
+        // Format Việt: "811.646,68" -> loại bỏ dấu chấm (phân cách nghìn) và dấu phẩy (thập phân)
+        cleaned = cleaned.replace(/\./g, "").replace(/,.*$/, "");
+    } else {
+        // Format số thập phân Mỹ: "811646.68" -> loại bỏ phần thập phân
+        cleaned = cleaned.replace(/\..*$/, "");
+    }
+
+    // Chỉ giữ lại số
+    const digits = cleaned.replace(/[^0-9]/g, "");
     const n = Number(digits || "0");
     return isNaN(n) ? 0 : n;
 }
@@ -156,6 +174,14 @@ export default function DepositModal({
         setAmountStr(v);
         setPreset("CUSTOM");
     };
+
+    // Format hiển thị trong input với dấu phân cách (chỉ số nguyên, không có đ)
+    const displayAmount = amountStr
+        ? new Intl.NumberFormat("vi-VN", {
+            maximumFractionDigits: 0,
+            minimumFractionDigits: 0
+          }).format(Math.floor(Number(amountStr)))
+        : "";
 
     // chọn preset % (30 / 50)
     const applyPresetPercent = (ratio) => {
@@ -290,7 +316,7 @@ export default function DepositModal({
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 grid grid-cols-2 gap-3 text-[13px] leading-relaxed">
                             <div>
                                 <span className="text-slate-500">
-                                    Tổng hoá đơn:
+                                    Giá trị đơn hàng:
                                 </span>{" "}
                                 <span className="tabular-nums font-semibold text-slate-900">
                                     {fmtVND(total)} đ
@@ -298,9 +324,9 @@ export default function DepositModal({
                             </div>
                             <div>
                                 <span className="text-slate-500">
-                                    Đã thanh toán:
+                                    Đã thu:
                                 </span>{" "}
-                                <span className="tabular-nums text-slate-700">
+                                <span className="tabular-nums text-emerald-700 font-medium">
                                     {fmtVND(paid)} đ
                                 </span>
                             </div>
@@ -308,7 +334,7 @@ export default function DepositModal({
                                 <span className="text-slate-500">
                                     Còn lại:
                                 </span>{" "}
-                                <span className="tabular-nums text-slate-700">
+                                <span className="tabular-nums text-amber-700 font-medium">
                                     {fmtVND(remaining)} đ
                                 </span>
                             </div>
@@ -369,11 +395,11 @@ export default function DepositModal({
                         </div>
 
                         <input
-                            value={amountStr}
+                            value={displayAmount}
                             onChange={handleManualAmountChange}
                             inputMode="numeric"
                             className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 tabular-nums text-slate-900 shadow-sm outline-none placeholder-slate-400"
-                            placeholder="0"
+                            placeholder="Nhập số tiền"
                         />
 
                         {/* Preset row */}

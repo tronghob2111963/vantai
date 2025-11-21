@@ -19,6 +19,17 @@ serpapi:
 # GraphHopper Configuration
 graphhopper:
   api-key: ${GRAPHHOPPER_KEY:7314a1ce-438f-453a-beb2-4e8d037f1301}
+
+# VietQR Payment Configuration
+payment:
+  qr:
+    provider-url: https://img.vietqr.io/image
+    bank-code: ${PAYMENT_BANK_CODE:970403}
+    account-number: ${PAYMENT_BANK_ACCOUNT_NUMBER:070122047995}
+    account-name: ${PAYMENT_BANK_ACCOUNT_NAME:NGUYEN VAN THUAN}
+    template: compact
+    description-prefix: PTCMSS
+    expires-in-minutes: 120
 springdoc:
   api-docs:
     enabled: true

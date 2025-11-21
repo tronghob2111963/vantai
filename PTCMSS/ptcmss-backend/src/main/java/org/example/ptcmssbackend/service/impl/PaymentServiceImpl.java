@@ -96,11 +96,14 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private String buildQrText(BigDecimal amount, String description) {
-        return String.format("BANK:%s|ACC:%s|AMT:%s|INFO:%s",
-                valueOrEmpty(qrPaymentProperties.getBankCode()),
-                valueOrEmpty(qrPaymentProperties.getAccountNumber()),
-                amount.stripTrailingZeros().toPlainString(),
-                description);
+        // VietQR format: bank_code|account_number|amount|description
+        // This will be used by VietQR API to generate proper EMVCo QR code
+        String bank = valueOrEmpty(qrPaymentProperties.getBankCode());
+        String account = valueOrEmpty(qrPaymentProperties.getAccountNumber());
+        String amountStr = amount.stripTrailingZeros().toPlainString();
+
+        // Return simple format that VietQR image URL will handle
+        return String.format("%s|%s|%s|%s", bank, account, amountStr, description);
     }
 
     private String buildQrImageUrl(BigDecimal amount, String description) {
@@ -113,16 +116,22 @@ public class PaymentServiceImpl implements PaymentService {
 
         String bank = valueOrEmpty(qrPaymentProperties.getBankCode());
         String account = valueOrEmpty(qrPaymentProperties.getAccountNumber());
+        String accountName = valueOrEmpty(qrPaymentProperties.getAccountName());
 
+        // URL encode parameters
         String encodedInfo = URLEncoder.encode(description, StandardCharsets.UTF_8);
-        String encodedName = URLEncoder.encode(valueOrEmpty(qrPaymentProperties.getAccountName()), StandardCharsets.UTF_8);
+        String encodedName = URLEncoder.encode(accountName, StandardCharsets.UTF_8);
 
-        return String.format("%s/%s-%s-%s.png?amount=%s&addInfo=%s&accountName=%s",
+        // VietQR requires amount as integer (no decimal)
+        long amountInt = amount.longValue();
+
+        // VietQR URL format: https://img.vietqr.io/image/{bank_id}-{account_no}-{template}.jpg?amount={amount}&addInfo={info}&accountName={name}
+        return String.format("%s/%s-%s-%s.jpg?amount=%d&addInfo=%s&accountName=%s",
                 provider,
                 bank,
                 account,
                 template,
-                amount.stripTrailingZeros().toPlainString(),
+                amountInt,
                 encodedInfo,
                 encodedName);
     }
