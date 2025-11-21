@@ -113,37 +113,38 @@ public class GraphHopperServiceImpl implements GraphHopperService {
         PlaceSuggestion fromPlace = fromResults.get(0);
         PlaceSuggestion toPlace = toResults.get(0);
 
-        // Step 2: Calculate distance using Matrix API
+        // Step 2: Calculate distance using Routing API for accurate road distance
         Map<String, Object> requestBody = Map.of(
                 "points", List.of(
                         List.of(fromPlace.getLongitude(), fromPlace.getLatitude()), // [lon, lat]
                         List.of(toPlace.getLongitude(), toPlace.getLatitude())
                 ),
                 "profile", "car",
-                "out_arrays", List.of("distances", "times")
+                "instructions", false,
+                "calc_points", false
         );
 
-        String url = MATRIX_URL + "?key=" + apiKey;
+        String url = ROUTE_URL + "?key=" + apiKey;
 
         try {
             Map<String, Object> response = restTemplate.postForObject(url, requestBody, Map.class);
-            if (response == null) {
-                throw new RuntimeException("GraphHopper Matrix API returned null");
+            if (response == null || !response.containsKey("paths")) {
+                throw new RuntimeException("GraphHopper Routing API returned null or no paths");
             }
 
-            List<List<Number>> distances = (List<List<Number>>) response.get("distances");
-            List<List<Number>> times = (List<List<Number>>) response.get("times");
-
-            if (distances == null || distances.isEmpty() || times == null || times.isEmpty()) {
-                throw new RuntimeException("No distance data returned");
+            List<Map<String, Object>> paths = (List<Map<String, Object>>) response.get("paths");
+            if (paths == null || paths.isEmpty()) {
+                throw new RuntimeException("No route found between the two addresses");
             }
 
-            double distanceMeters = distances.get(0).get(1).doubleValue();
-            double timeSeconds = times.get(0).get(1).doubleValue();
+            // Get the first (best) route
+            Map<String, Object> firstPath = paths.get(0);
+            double distanceMeters = ((Number) firstPath.get("distance")).doubleValue();
+            long timeMillis = ((Number) firstPath.get("time")).longValue();
 
             return DistanceResult.builder()
                     .distanceKm(distanceMeters / 1000.0)
-                    .durationMinutes(timeSeconds / 60.0)
+                    .durationMinutes(timeMillis / 60000.0)
                     .from(fromPlace.getFullAddress())
                     .to(toPlace.getFullAddress())
                     .build();

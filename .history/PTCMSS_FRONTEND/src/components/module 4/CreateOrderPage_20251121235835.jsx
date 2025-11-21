@@ -642,10 +642,10 @@ export default function CreateOrderPage() {
                                     </div>
                                 )}
                                 {!calculatingDistance && !distanceError && distanceKm && (
-                                    <div className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
-                                        <Navigation className="h-3 w-3" />
-                                        Tự động tính từ GraphHopper
-                                    </div>
+                                    // <div className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
+                                    //     <Navigation className="h-3 w-3" />
+                                    //     {/* Tự động tính từ SerpAPI */}
+                                    // </div>
                                 )}
                             </div>
 
