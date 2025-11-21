@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, Star } from 'lucide-react';
 import { createRating } from '../../api/ratings';
 
 const RateDriverDialog = ({ trip, onClose, onSuccess }) => {
     const [ratings, setRatings] = useState({
-        punctualityRating: 0,
-        attitudeRating: 0,
-        safetyRating: 0,
-        complianceRating: 0,
+        punctualityRating: 5,
+        attitudeRating: 5,
+        safetyRating: 5,
+        complianceRating: 5,
     });
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
@@ -38,15 +38,29 @@ const RateDriverDialog = ({ trip, onClose, onSuccess }) => {
         setError('');
 
         try {
+            // Calculate overall rating
+            const overallRating = (
+                ratings.punctualityRating +
+                ratings.attitudeRating +
+                ratings.safetyRating +
+                ratings.complianceRating
+            ) / 4;
+
             await createRating({
                 tripId: trip.tripId,
-                ...ratings,
+                driverId: trip.driverId,
+                punctualityRating: ratings.punctualityRating,
+                attitudeRating: ratings.attitudeRating,
+                safetyRating: ratings.safetyRating,
+                complianceRating: ratings.complianceRating,
+                overallRating: overallRating,
                 comment: comment.trim() || null,
             });
 
             onSuccess?.();
             onClose();
         } catch (err) {
+            console.error('Error submitting rating:', err);
             setError(err.message || 'Không thể gửi đánh giá');
         } finally {
             setLoading(false);
@@ -83,6 +97,9 @@ const RateDriverDialog = ({ trip, onClose, onSuccess }) => {
                         <p className="text-sm text-gray-600 mt-1">
                             Chuyến #{trip.tripId} - {trip.driverName || 'Tài xế'}
                         </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {trip.customerName && `Khách hàng: ${trip.customerName}`}
+                        </p>
                     </div>
                     <button
                         onClick={onClose}
@@ -116,10 +133,35 @@ const RateDriverDialog = ({ trip, onClose, onSuccess }) => {
                         ))}
                     </div>
 
+                    {/* Overall Rating Preview */}
+                    <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Đánh giá tổng thể:</span>
+                            <div className="flex items-center gap-2">
+                                <div className="flex">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <Star
+                                            key={star}
+                                            size={20}
+                                            className={
+                                                star <= ((ratings.punctualityRating + ratings.attitudeRating + ratings.safetyRating + ratings.complianceRating) / 4)
+                                                    ? 'fill-yellow-400 text-yellow-400'
+                                                    : 'text-gray-300'
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                                <span className="font-bold text-gray-800">
+                                    {((ratings.punctualityRating + ratings.attitudeRating + ratings.safetyRating + ratings.complianceRating) / 4).toFixed(1)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Comment */}
                     <div className="mb-6">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Nhận xét (tùy chọn)
+                            💬 Nhận xét (tùy chọn)
                         </label>
                         <textarea
                             value={comment}

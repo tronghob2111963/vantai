@@ -13,12 +13,16 @@ import org.example.ptcmssbackend.repository.UsersRepository;
 import org.example.ptcmssbackend.service.EmailService;
 import org.example.ptcmssbackend.service.LocalImageService;
 import org.example.ptcmssbackend.service.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.UnsupportedEncodingException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import jakarta.mail.MessagingException;
 
@@ -38,14 +42,17 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("Role not found"));
 
 
-        if(usersRepository.existsByEmail(request.getEmail())){
-            throw new RuntimeException("Email already exists");
+        String email = Optional.ofNullable(request.getEmail()).map(String::trim).orElse(null);
+        if (StringUtils.hasText(email) && usersRepository.existsByEmailIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already exists");
         }
-        if(usersRepository.existsByPhone(request.getPhone())){
-            throw new RuntimeException("Phone already exists");
+        String phone = Optional.ofNullable(request.getPhone()).map(String::trim).orElse(null);
+        if (StringUtils.hasText(phone) && usersRepository.existsByPhone(phone)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone already exists");
         }
-        if(usersRepository.existsByUsername(request.getUsername())){
-            throw new RuntimeException("Username already exists");
+        String username = Optional.ofNullable(request.getUsername()).map(String::trim).orElse(null);
+        if (StringUtils.hasText(username) && usersRepository.existsByUsername(username)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already exists");
         }
 
         // Tạo user mới (chưa kích hoạt)

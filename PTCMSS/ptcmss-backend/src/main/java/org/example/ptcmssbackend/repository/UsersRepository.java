@@ -14,7 +14,7 @@ public interface UsersRepository extends JpaRepository<Users, Integer> {
     Optional<Users> findByUsername(String username);
     Optional<Users> findByEmail(String email);
     boolean existsByUsername(String username);
-    boolean existsByEmail(String email);
+//    boolean existsByEmail(String email);
     boolean existsByPhone(String phone);
 
     List<Users> findByRole_Id(Integer roleId);
@@ -53,5 +53,8 @@ public interface UsersRepository extends JpaRepository<Users, Integer> {
             Integer branchId,
             UserStatus status
     );
+
+    boolean existsByEmailIgnoreCase(String email);
+
 
 }

@@ -61,8 +61,20 @@ export async function apiFetch(path, { method = "GET", headers = {}, body, auth 
   // - Variant A: { code, message, data }
   // - Variant B: { status, message, data }
   // - Variant C: { success, message, data }
-  if (data && typeof data === "object" && "data" in data && ("code" in data || "status" in data || "success" in data)) {
-    return data.data;
+  if (data && typeof data === "object" && ("data" in data || "success" in data || "code" in data || "status" in data)) {
+    const code = data.code ?? data.status;
+    const successFlag = typeof data.success === "boolean" ? data.success : undefined;
+    const isOk =
+      successFlag !== undefined
+        ? successFlag
+        : code === undefined || (Number(code) >= 200 && Number(code) < 300);
+
+    if (isOk) return "data" in data ? data.data : data;
+
+    const err = new Error(data.message || "API_ERROR");
+    err.status = code;
+    err.data = data;
+    throw err;
   }
   return data;
 }

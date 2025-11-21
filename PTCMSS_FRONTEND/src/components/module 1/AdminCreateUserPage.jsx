@@ -94,11 +94,16 @@ export default function AdminCreateUserPage() {
 
       console.log("Create user response:", res);
 
-      // Reaching here means the API responded with 2xx
+      // Reaching here means the API responded with 2xx and success wrapper
       setShowSuccess(true);
       setTimeout(() => navigate("/admin/users"), 1300);
     } catch (e) {
-      const msg = e?.response?.data?.message?.toLowerCase() || "";
+      const rawMsg =
+        e?.data?.message ||
+        e?.response?.data?.message ||
+        e?.message ||
+        "";
+      const msg = rawMsg.toLowerCase();
 
       if (msg.includes("email") && msg.includes("exist")) {
         setErrors((p) => ({ ...p, email: "Email đã tồn tại" }));
@@ -107,7 +112,7 @@ export default function AdminCreateUserPage() {
       } else if (msg.includes("username") && msg.includes("exist")) {
         setErrors((p) => ({ ...p, username: "Username đã tồn tại" }));
       } else {
-        setGeneralError(e?.response?.data?.message || "Tạo user thất bại");
+        setGeneralError(rawMsg || "Tạo user thất bại");
       }
     } finally {
       setSaving(false);

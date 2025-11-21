@@ -42,7 +42,7 @@ public class RatingServiceImpl implements RatingService {
         Trips trip = tripsRepository.findById(request.getTripId())
             .orElseThrow(() -> new RuntimeException("Trip not found"));
         
-        if (!"COMPLETED".equals(trip.getStatus())) {
+        if (trip.getStatus() != TripStatus.COMPLETED) {
             throw new RuntimeException("Can only rate completed trips");
         }
         
