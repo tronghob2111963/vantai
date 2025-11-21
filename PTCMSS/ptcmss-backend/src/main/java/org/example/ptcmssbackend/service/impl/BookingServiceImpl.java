@@ -124,7 +124,8 @@ public class BookingServiceImpl implements BookingService {
                 trip.setBooking(booking);
                 trip.setUseHighway(tripReq.getUseHighway() != null ? tripReq.getUseHighway() : booking.getUseHighway());
                 trip.setStartTime(tripReq.getStartTime());
-                trip.setEndTime(tripReq.getEndTime());
+                // Don't set endTime when creating new trip - it will be set when trip is completed
+                // This avoids violating trips_chk_1 constraint (startTime < endTime)
                 trip.setStartLocation(tripReq.getStartLocation());
                 trip.setEndLocation(tripReq.getEndLocation());
                 if (tripReq.getDistance() != null && tripReq.getDistance() > 0) {
