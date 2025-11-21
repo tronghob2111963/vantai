@@ -1,5 +1,5 @@
 import React from "react";
-import { Upload, Save } from "lucide-react";
+import { Upload, Save, XCircle } from "lucide-react";
 import { getMyProfile, updateMyProfile, uploadAvatar } from "../../api/profile";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -39,9 +39,10 @@ export default function UpdateProfilePage() {
   const [avatarFile, setAvatarFile] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [errors, setErrors] = React.useState({});
+  const [generalError, setGeneralError] = React.useState("");
   const userId = getCookie("userId") || localStorage.getItem("userId");
 
-  // Resolve absolute URL for avatar if backend returns relative path
   const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
   const resolveImg = (s) => {
     if (!s) return "";
@@ -75,7 +76,6 @@ export default function UpdateProfilePage() {
     reader.readAsDataURL(file);
   };
 
-  // If backend protects /uploads/** by auth, fetch with Authorization and use blob URL
   React.useEffect(() => {
     let objUrl = null;
     (async () => {
@@ -103,16 +103,27 @@ export default function UpdateProfilePage() {
     return () => { if (objUrl) URL.revokeObjectURL(objUrl); };
   }, [avatarPreview]);
 
+  const validate = () => {
+    const next = {};
+    if (!fullName.trim()) next.fullName = "Vui lòng nhập họ tên";
+    if (phone && !/^[0-9]{10}$/.test(phone)) next.phone = "Số điện thoại phải gồm 10 chữ số";
+    setErrors(next);
+    setGeneralError("");
+    return Object.keys(next).length === 0;
+  };
+
   const onSave = async () => {
+    if (!validate()) return;
     setSaving(true);
     try {
       if (avatarFile && userId) {
         await uploadAvatar(userId, avatarFile);
       }
       await updateMyProfile({ fullName, phone, address });
+      setGeneralError("");
       alert("Cập nhật hồ sơ thành công");
     } catch {
-      alert("Cập nhật hồ sơ thất bại");
+      setGeneralError("Cập nhật hồ sơ thất bại");
     } finally {
       setSaving(false);
     }
@@ -128,13 +139,20 @@ export default function UpdateProfilePage() {
         </button>
       </div>
 
+      {generalError && (
+        <div className="max-w-2xl mb-4 bg-red-50 border border-red-200 p-3 rounded-lg text-sm text-rose-700 flex items-start gap-2">
+          <XCircle className="h-4 w-4 text-rose-600 mt-0.5" />
+          <span>{generalError}</span>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
         <div className="grid gap-4">
           <div className="flex items-start gap-4">
             <AvatarPreview src={authImgSrc || avatarPreview} name={fullName} />
             <div>
               <label className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 cursor-pointer">
-                <Upload className="h-4 w-4 text-slate-500" /> Chọn ảnh…
+                <Upload className="h-4 w-4 text-slate-500" /> Chọn ảnh
                 <input type="file" accept="image/*" className="hidden" onChange={(e)=>onPickAvatar(e.target.files?.[0])} />
               </label>
               <div className="text-[11px] text-slate-500 mt-1">Khuyến nghị ảnh vuông (1:1), JPG/PNG.</div>
@@ -144,11 +162,22 @@ export default function UpdateProfilePage() {
           <div className="grid md:grid-cols-2 gap-3">
             <div>
               <div className="text-xs text-slate-600 mb-1">Họ và tên</div>
-              <input value={fullName} onChange={(e)=>setFullName(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm" />
+              <input
+                value={fullName}
+                onChange={(e)=>{ setFullName(e.target.value); setErrors((p)=>({ ...p, fullName: undefined })); }}
+                className={`w-full border rounded-md px-3 py-2 text-sm ${errors.fullName ? "border-rose-300" : "border-slate-300"}`}
+              />
+              {errors.fullName && <div className="text-[12px] text-rose-600 mt-1">{errors.fullName}</div>}
             </div>
             <div>
               <div className="text-xs text-slate-600 mb-1">Số điện thoại</div>
-              <input value={phone} onChange={(e)=>setPhone(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm" placeholder="0901234567" />
+              <input
+                value={phone}
+                onChange={(e)=>{ setPhone(e.target.value.replace(/[^0-9]/g,"")); setErrors((p)=>({ ...p, phone: undefined })); }}
+                className={`w-full border rounded-md px-3 py-2 text-sm ${errors.phone ? "border-rose-300" : "border-slate-300"}`}
+                placeholder="0901234567"
+              />
+              {errors.phone && <div className="text-[12px] text-rose-600 mt-1">{errors.phone}</div>}
             </div>
           </div>
 

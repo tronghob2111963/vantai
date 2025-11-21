@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="dataSourceStorageLocal" created-in="IU-243.23654.189">
+    <data-source name="ptcmss_db@localhost" uuid="93329701-942b-463a-86b4-e45e94a3967c">
+      <database-info product="" version="" jdbc-version="" driver-name="" driver-version="" dbms="MYSQL" />
+      <schema-mapping />
+    </data-source>
+  </component>
+</project>

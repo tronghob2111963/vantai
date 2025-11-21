@@ -15,6 +15,7 @@ import java.util.Optional;
 public interface DriverRatingsRepository extends JpaRepository<DriverRatings, Integer> {
     
     // Tìm rating theo trip
+    @Query("SELECT dr FROM DriverRatings dr WHERE dr.trip.id = :tripId")
     Optional<DriverRatings> findByTrip_Id(Integer tripId);
     
     // Lấy tất cả ratings của driver
