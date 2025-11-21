@@ -12,10 +12,12 @@ public class TripRequest {
     
     @Size(max = 255, message = "Điểm đi không được quá 255 ký tự")
     private String startLocation;
-    
+
     @Size(max = 255, message = "Điểm đến không được quá 255 ký tự")
     private String endLocation;
-    
+
+    private Double distance; // Distance in kilometers (from SerpAPI)
+
     private Boolean useHighway; // NULL = theo booking.useHighway
 }
 
