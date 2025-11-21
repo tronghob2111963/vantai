@@ -37,7 +37,7 @@ public class AppConfig implements WebMvcConfigurer {
             "/swagger-ui.html",
             "/api/auth/**",          // login, register, refresh
             "/api/test/**",          // test endpoints (generate hash, test password)
-            "/api/serpapi/**",       // SerpAPI proxy for distance calculation
+            "/api/graphhopper/**",   // GraphHopper API for geocoding and routing
             "/verify",
             "/set-password"
     };

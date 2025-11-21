@@ -2,7 +2,7 @@
 import React from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getBooking, updateBooking, calculatePrice, assignBooking } from "../../api/bookings";
-import { calculateDistance } from "../../api/serpapi";
+import { calculateDistance } from "../../api/graphhopper";
 import { listVehicleCategories } from "../../api/vehicleCategories";
 import { listBranches } from "../../api/branches";
 import {

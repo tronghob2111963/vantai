@@ -1,9 +1,9 @@
 import React from "react";
-import { autocompletePlaces } from "../../api/serpapi";
+import { autocompletePlaces } from "../../api/graphhopper";
 
 /**
  * Place Autocomplete Component with dropdown suggestions
- * Supports Vietnamese addresses via SerpAPI Google Maps Autocomplete
+ * Supports addresses via GraphHopper Geocoding API (OpenStreetMap data)
  */
 export default function PlaceAutocomplete({ value, onChange, placeholder, className, disabled }) {
     const [inputValue, setInputValue] = React.useState(value || "");

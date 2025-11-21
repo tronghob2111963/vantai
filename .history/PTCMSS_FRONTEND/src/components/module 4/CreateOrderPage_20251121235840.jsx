@@ -644,7 +644,7 @@ export default function CreateOrderPage() {
                                 {!calculatingDistance && !distanceError && distanceKm && (
                                     <div className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
                                         <Navigation className="h-3 w-3" />
-                                        Đã tự động lựa chọn tuyến đường tốt nhất !
+                                        Tự động tính từ SerpAPI
                                     </div>
                                 )}
                             </div>
