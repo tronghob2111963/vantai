@@ -35,6 +35,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final InvoiceRepository invoiceRepository;
     private final EmployeeRepository employeeRepository;
     private final QrPaymentProperties qrPaymentProperties;
+    private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
 
     @Override
     public PaymentResponse generateQRCode(Integer bookingId, BigDecimal amount, String note, Boolean deposit, Integer employeeId) {
@@ -61,6 +62,21 @@ public class PaymentServiceImpl implements PaymentService {
         String qrImageUrl = buildQrImageUrl(amount, description);
         Instant expiresAt = Instant.now().plus(qrPaymentProperties.getExpiresInMinutes(), ChronoUnit.MINUTES);
 
+        // Send WebSocket notification for QR code generation
+        try {
+            String customerName = booking.getCustomer() != null ? booking.getCustomer().getFullName() : "Khách hàng";
+            webSocketNotificationService.sendGlobalNotification(
+                    "QR thanh toán mới",
+                    String.format("Đã tạo mã QR thanh toán %s cho đơn #%d - %s",
+                            deposit ? "cọc" : "",
+                            bookingId,
+                            customerName),
+                    "INFO"
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send WebSocket notification for QR generation", e);
+        }
+
         return mapInvoice(saved).toBuilder()
                 .qrText(qrText)
                 .qrImageUrl(qrImageUrl)
@@ -85,7 +101,48 @@ public class PaymentServiceImpl implements PaymentService {
             invoice.setCreatedBy(employee);
         }
         Invoices saved = invoiceRepository.save(invoice);
+
+        // Send WebSocket notifications for payment
+        try {
+            String customerName = booking.getCustomer() != null ? booking.getCustomer().getFullName() : "Khách hàng";
+            String bookingCode = "ORD-" + bookingId;
+            String paymentType = Boolean.TRUE.equals(request.getDeposit()) ? "Cọc" : "Thanh toán";
+
+            // Global notification
+            webSocketNotificationService.sendGlobalNotification(
+                    paymentType + " thành công",
+                    String.format("%s %s cho đơn %s - %s",
+                            paymentType,
+                            formatAmount(request.getAmount()),
+                            bookingCode,
+                            customerName),
+                    "SUCCESS"
+            );
+
+            // Payment update notification
+            webSocketNotificationService.sendPaymentUpdate(
+                    saved.getId(),
+                    bookingId,
+                    "PAID",
+                    String.format("%s đã được ghi nhận", paymentType)
+            );
+
+            // Booking update notification
+            webSocketNotificationService.sendBookingUpdate(
+                    bookingId,
+                    "PAYMENT_RECEIVED",
+                    String.format("Đã nhận %s %s", paymentType.toLowerCase(), formatAmount(request.getAmount()))
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send WebSocket notification for payment", e);
+        }
+
         return mapInvoice(saved);
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        if (amount == null) return "0đ";
+        return String.format("%,dđ", amount.longValue());
     }
 
     @Override

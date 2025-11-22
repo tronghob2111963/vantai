@@ -137,15 +137,7 @@ public class UserController {
 
     @Operation(
             summary = "Tìm kiếm và lọc người dùng",
-            description = """
-                    API cho phép tìm kiếm và lọc user theo nhiều điều kiện:
-                    - keyword: tìm theo họ tên, email, số điện thoại
-                    - roleId: lọc theo vai trò
-                    - branchId: lọc theo chi nhánh
-                    - status: ACTIVE / INACTIVE  
-                    Ví dụ:
-                    /api/users/search?keyword=an&branchId=1&roleId=4&status=ACTIVE
-                    """
+            description = "API cho phép tìm kiếm và lọc user theo nhiều điều kiện: keyword (tìm theo họ tên, email, số điện thoại), roleId, branchId, status (ACTIVE/INACTIVE)"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công",
@@ -181,19 +173,7 @@ public class UserController {
 
     @Operation(
             summary = "Lấy danh sách user theo chi nhánh",
-            description = """
-                API trả về danh sách người dùng thuộc một chi nhánh cụ thể.
-                
-                Luồng dữ liệu:
-                Branch → Employees → Users
-                
-                Chỉ cần truyền vào branchId là hệ thống tự JOIN Employees → Users để trả về danh sách đúng.
-                
-                Ví dụ:
-                GET /api/users/branch/2
-                
-                Trả về tất cả Users thuộc chi nhánh có ID = 2.
-                """
+            description = "API trả về danh sách người dùng thuộc một chi nhánh cụ thể. Luồng dữ liệu: Branch -> Employees -> Users. Hệ thống tự JOIN Employees -> Users để trả về danh sách đúng."
     )
     @ApiResponses(value = {
             @ApiResponse(

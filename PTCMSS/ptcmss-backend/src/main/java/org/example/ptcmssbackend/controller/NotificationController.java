@@ -23,8 +23,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Notifications & Approvals", description = "API quản lý cảnh báo và phê duyệt")
 public class NotificationController {
-    
+
     private final NotificationService notificationService;
+    private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     
     @Operation(
             summary = "Lấy dashboard notifications & approvals",
@@ -164,7 +165,33 @@ public class NotificationController {
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }
-    
+
+    @Operation(
+            summary = "Test WebSocket notification",
+            description = "Gửi test notification qua WebSocket"
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/test-websocket")
+    public ResponseData<String> testWebSocket(@RequestBody Map<String, Object> body) {
+        try {
+            String title = (String) body.getOrDefault("title", "Test Notification");
+            String message = (String) body.getOrDefault("message", "This is a test message");
+            String type = (String) body.getOrDefault("type", "INFO");
+            Integer userId = (Integer) body.get("userId");
+
+            if (userId != null) {
+                webSocketNotificationService.sendUserNotification(userId, title, message, type);
+            } else {
+                webSocketNotificationService.sendGlobalNotification(title, message, type);
+            }
+
+            return new ResponseData<>(HttpStatus.OK.value(), "WebSocket notification sent", null);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to send WebSocket test", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+
     private final org.example.ptcmssbackend.service.impl.ApprovalSyncServiceImpl approvalSyncService;
     
     @Operation(
