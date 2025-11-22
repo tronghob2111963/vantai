@@ -39,6 +39,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
       { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Tạo tài khoản", to: "/admin/users/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Quản lý nhân viên", to: "/admin/employees", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
     ],
   },
@@ -160,6 +161,9 @@ import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
 import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
 import UpdateProfilePage from "./components/module 1/UpdateProfilePage.jsx";
 import LoginPage from "./components/module 1/LoginPage.jsx";
+import EmployeeManagementPage from "./components/module 1/EmployeeManagementPage.jsx";
+import CreateEmployeePage from "./components/module 1/CreateEmployeePage.jsx";
+import EditEmployeePage from "./components/module 1/EditEmployeePage.jsx";
 
 /* Module 2 – Tài xế */
 import DriverDashboard from "./components/module 2/DriverDashboard.jsx";
@@ -448,356 +452,380 @@ export default function AppLayout() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<RoleRedirect />} />
 
-      {/* Các route cần shell layout */}
-      <Route element={<ShellLayout />}>
-        <Route index element={<RoleRedirect />} />
+        {/* Các route cần shell layout */}
+        <Route element={<ShellLayout />}>
+          <Route index element={<RoleRedirect />} />
 
-        {/* Báo cáo & Phân tích */}
-        <Route
-          path="/analytics/admin"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN]}>
-              <AdminDashboardPro />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/analytics/manager"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <ManagerDashboardPro />
-            </ProtectedRoute>
-          }
-        />
+          {/* Báo cáo & Phân tích */}
+          <Route
+            path="/analytics/admin"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN]}>
+                <AdminDashboardPro />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics/manager"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <ManagerDashboardPro />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Quản trị hệ thống */}
-        <Route
-          path="/admin/settings"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN]}>
-              <SystemSettingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/branches"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <AdminBranchesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/branches/new"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN]}>
-              <CreateBranchPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/branches/:branchId"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <AdminBranchDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/managers"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN]}>
-              <AdminManagersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <AdminUsersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users/new"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <AdminCreateUserPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users/:userId"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <UserDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/me/profile"
-          element={
-            <ProtectedRoute>
-              <UpdateProfilePage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Quản trị hệ thống */}
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN]}>
+                <SystemSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/branches"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <AdminBranchesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/branches/new"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN]}>
+                <CreateBranchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/branches/:branchId"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <AdminBranchDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/managers"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN]}>
+                <AdminManagersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <AdminUsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users/new"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <AdminCreateUserPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users/:userId"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <UserDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/me/profile"
+            element={
+              <ProtectedRoute>
+                <UpdateProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/employees"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <EmployeeManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/employees/create"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <CreateEmployeePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/employees/edit/:id"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <EditEmployeePage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Tài xế */}
-        <Route
-          path="/driver/dashboard"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/driver/notifications"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverNotificationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/driver/profile"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverProfilePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/driver/schedule"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverSchedulePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/driver/leave-request"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverLeaveRequestPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/driver/report-incident"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverReportIncidentPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/driver/trips"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverTripDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/driver/trips/:tripId"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
-              <DriverTripDetailPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Tài xế */}
+          <Route
+            path="/driver/dashboard"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/notifications"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverNotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/profile"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/schedule"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverSchedulePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/leave-request"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverLeaveRequestPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/report-incident"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverReportIncidentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/trips"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverTripDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/trips/:tripId"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+                <DriverTripDetailPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Phương tiện */}
-        <Route
-          path="/vehicles"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <VehicleListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vehicles/new"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <VehicleCreatePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vehicles/:vehicleId"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <VehicleDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vehicles/categories"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <VehicleCategoryManagePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vehicles/categories/new"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN]}>
-              <VehicleCategoryPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Phương tiện */}
+          <Route
+            path="/vehicles"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <VehicleListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vehicles/new"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <VehicleCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vehicles/:vehicleId"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <VehicleDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vehicles/categories"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <VehicleCategoryManagePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vehicles/categories/new"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN]}>
+                <VehicleCategoryPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Báo giá & Đơn hàng */}
-        <Route
-          path="/orders/dashboard"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
-              <ConsultantDashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/orders"
-          element={
-            <ProtectedRoute
-              roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
-            >
-              <ConsultantOrderListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/orders/new"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
-              <CreateOrderPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/orders/:orderId"
-          element={
-            <ProtectedRoute
-              roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
-            >
-              <OrderDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/orders/:orderId/edit"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR]}>
-              <EditOrderPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Báo giá & Đơn hàng */}
+          <Route
+            path="/orders/dashboard"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+                <ConsultantDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute
+                roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
+              >
+                <ConsultantOrderListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/new"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+                <CreateOrderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:orderId"
+            element={
+              <ProtectedRoute
+                roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}
+              >
+                <OrderDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:orderId/edit"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR]}>
+                <EditOrderPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Điều phối / Lịch chạy */}
-        <Route
-          path="/dispatch"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-              <CoordinatorTimelinePro />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dispatch/pending"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-              <PendingTripsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dispatch/notifications-dashboard"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-              <NotificationsDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dispatch/expense-request"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-              <ExpenseRequestForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dispatch/AssignDriverDialog"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-              <DemoAssign />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dispatch/notifications"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-              <NotificationsWidget />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dispatch/ratings"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <RatingManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/drivers/:driverId/ratings"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-              <DriverRatingsPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Điều phối / Lịch chạy */}
+          <Route
+            path="/dispatch"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+                <CoordinatorTimelinePro />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch/pending"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+                <PendingTripsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch/notifications-dashboard"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+                <NotificationsDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch/expense-request"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+                <ExpenseRequestForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch/AssignDriverDialog"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+                <DemoAssign />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch/notifications"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+                <NotificationsWidget />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch/ratings"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <RatingManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/drivers/:driverId/ratings"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <DriverRatingsPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Kế toán & Thanh toán */}
-        <Route
-          path="/accounting"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
-              <AccountantDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/accounting/invoices"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT]}>
-              <InvoiceManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/accounting/expenses"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
-              <ExpenseReportPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/accounting/revenue-report"
-          element={
-            <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
-              <ReportRevenuePage />
-            </ProtectedRoute>
-          }
-        />
-      </Route>
+          {/* Kế toán & Thanh toán */}
+          <Route
+            path="/accounting"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+                <AccountantDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounting/invoices"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT]}>
+                <InvoiceManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounting/expenses"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+                <ExpenseReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounting/revenue-report"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+                <ReportRevenuePage />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
 
         {/* fallback */}
         <Route path="*" element={<RoleRedirect />} />
