@@ -39,4 +39,6 @@ public interface TripRepository extends JpaRepository<Trips, Integer> {
         Instant startTime,
         Instant endTime
     );
+
+
 }
