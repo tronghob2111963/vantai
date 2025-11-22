@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ public class ExportController {
 
     @Operation(summary = "Export báo cáo doanh thu Excel", description = "Xuất báo cáo doanh thu ra file Excel (CSV format)")
     @GetMapping("/revenue/excel")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<Resource> exportRevenueReportToExcel(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "ID khách hàng") @RequestParam(required = false) Integer customerId,
@@ -61,6 +63,7 @@ public class ExportController {
 
     @Operation(summary = "Export báo cáo chi phí Excel", description = "Xuất báo cáo chi phí ra file Excel (CSV format)")
     @GetMapping("/expense/excel")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<Resource> exportExpenseReportToExcel(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "ID xe") @RequestParam(required = false) Integer vehicleId,
@@ -93,6 +96,7 @@ public class ExportController {
 
     @Operation(summary = "Export danh sách invoices Excel", description = "Xuất danh sách invoices ra file Excel (CSV format)")
     @GetMapping("/invoices/excel")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<Resource> exportInvoiceListToExcel(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Loại: INCOME, EXPENSE") @RequestParam(required = false) String type,
@@ -116,6 +120,7 @@ public class ExportController {
 
     @Operation(summary = "Export invoice PDF", description = "Xuất một hóa đơn ra file PDF")
     @GetMapping("/invoice/{invoiceId}/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
     public ResponseEntity<Resource> exportInvoiceToPDF(
             @Parameter(description = "ID của invoice", required = true) @PathVariable Integer invoiceId) {
         log.info("[ExportController] Exporting invoice to PDF: {}", invoiceId);
@@ -136,6 +141,7 @@ public class ExportController {
 
     @Operation(summary = "Export báo cáo doanh thu CSV", description = "Xuất báo cáo doanh thu ra file CSV")
     @GetMapping("/revenue/csv")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<Resource> exportRevenueReportToCSV(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "ID khách hàng") @RequestParam(required = false) Integer customerId,
@@ -168,6 +174,7 @@ public class ExportController {
 
     @Operation(summary = "Export báo cáo chi phí CSV", description = "Xuất báo cáo chi phí ra file CSV")
     @GetMapping("/expense/csv")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<Resource> exportExpenseReportToCSV(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "ID xe") @RequestParam(required = false) Integer vehicleId,

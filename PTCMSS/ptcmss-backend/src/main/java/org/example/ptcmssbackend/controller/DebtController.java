@@ -20,6 +20,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -36,6 +37,7 @@ public class DebtController {
 
     @Operation(summary = "Danh sách công nợ", description = "Lấy danh sách công nợ với filters. Sắp xếp: OVERDUE trước, sau đó due date tăng dần")
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Page<DebtSummaryResponse>>> getDebts(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Chỉ lấy nợ quá hạn") @RequestParam(required = false) Boolean overdueOnly,
@@ -69,6 +71,7 @@ public class DebtController {
 
     @Operation(summary = "Phân tích aging buckets", description = "Phân loại nợ theo thời gian: 0-30, 31-60, 61-90, >90 ngày")
     @GetMapping("/aging")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<AgingBucketResponse>> getAgingBuckets(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Ngày tính toán (mặc định: hôm nay)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
@@ -93,6 +96,7 @@ public class DebtController {
 
     @Operation(summary = "Gửi nhắc nợ", description = "Gửi nhắc nợ qua Email/SMS/Phone cho khách hàng")
     @PostMapping("/{invoiceId}/reminder")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> sendReminder(
             @Parameter(description = "ID của invoice", required = true) @PathVariable Integer invoiceId,
             @Valid @RequestBody SendDebtReminderRequest request) {
@@ -117,6 +121,7 @@ public class DebtController {
 
     @Operation(summary = "Lịch sử nhắc nợ", description = "Lấy danh sách tất cả các lần nhắc nợ đã gửi cho một invoice")
     @GetMapping("/{invoiceId}/reminders")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<List<DebtReminderHistoryResponse>>> getReminderHistory(
             @Parameter(description = "ID của invoice", required = true) @PathVariable Integer invoiceId) {
         
@@ -140,6 +145,7 @@ public class DebtController {
 
     @Operation(summary = "Cập nhật thông tin nợ", description = "Cập nhật promise-to-pay date, debt label, hoặc contact note")
     @PutMapping("/{invoiceId}/info")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> updateDebtInfo(
             @Parameter(description = "ID của invoice", required = true) @PathVariable Integer invoiceId,
             @Valid @RequestBody UpdateDebtInfoRequest request) {
@@ -164,6 +170,7 @@ public class DebtController {
 
     @Operation(summary = "Đặt hẹn thanh toán", description = "Ghi nhận hẹn thanh toán từ khách hàng")
     @PutMapping("/{invoiceId}/promise-to-pay")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> setPromiseToPay(
             @Parameter(description = "ID của invoice", required = true) @PathVariable Integer invoiceId,
             @Parameter(description = "Ngày hẹn thanh toán", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate promiseDate) {
@@ -188,6 +195,7 @@ public class DebtController {
 
     @Operation(summary = "Đặt nhãn nợ", description = "Đặt nhãn cho nợ: VIP, TRANH_CHAP, NORMAL")
     @PutMapping("/{invoiceId}/label")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> setDebtLabel(
             @Parameter(description = "ID của invoice", required = true) @PathVariable Integer invoiceId,
             @Parameter(description = "Nhãn nợ: VIP, TRANH_CHAP, NORMAL", required = true) @RequestParam String label) {

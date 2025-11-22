@@ -15,6 +15,7 @@ import org.example.ptcmssbackend.service.AccountingService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -31,6 +32,7 @@ public class AccountingController {
 
     @Operation(summary = "Accounting Dashboard", description = "Dashboard kế toán với biểu đồ, thống kê, và danh sách chờ duyệt. Period: TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, YTD")
     @GetMapping("/dashboard")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<AccountingDashboardResponse>> getDashboard(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Kỳ báo cáo: TODAY, THIS_WEEK, THIS_MONTH, THIS_QUARTER, YTD") @RequestParam(required = false, defaultValue = "THIS_MONTH") String period) {
@@ -55,6 +57,7 @@ public class AccountingController {
 
     @Operation(summary = "Báo cáo doanh thu", description = "Báo cáo doanh thu chi tiết với biểu đồ, top customers, và danh sách invoices. Period: TODAY, 7D, 30D, MONTH, QUARTER, YTD")
     @GetMapping("/revenue")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<RevenueReportResponse>> getRevenueReport(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "ID khách hàng") @RequestParam(required = false) Integer customerId,
@@ -89,6 +92,7 @@ public class AccountingController {
 
     @Operation(summary = "Báo cáo chi phí", description = "Báo cáo chi phí chi tiết với breakdown theo category, vehicle, driver. Expense types: fuel, toll, maintenance, salary, etc.")
     @GetMapping("/expense")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<ExpenseReportResponse>> getExpenseReport(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "ID xe") @RequestParam(required = false) Integer vehicleId,
@@ -125,6 +129,7 @@ public class AccountingController {
 
     @Operation(summary = "Tổng doanh thu", description = "Tính tổng doanh thu trong khoảng thời gian")
     @GetMapping("/stats/revenue")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<BigDecimal>> getTotalRevenue(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Ngày bắt đầu", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -148,6 +153,7 @@ public class AccountingController {
 
     @Operation(summary = "Tổng chi phí", description = "Tính tổng chi phí trong khoảng thời gian")
     @GetMapping("/stats/expense")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<BigDecimal>> getTotalExpense(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Ngày bắt đầu", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -171,6 +177,7 @@ public class AccountingController {
 
     @Operation(summary = "Công nợ phải thu", description = "Tính tổng công nợ phải thu (Accounts Receivable)")
     @GetMapping("/stats/ar-balance")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<BigDecimal>> getARBalance(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId) {
         
@@ -192,6 +199,7 @@ public class AccountingController {
 
     @Operation(summary = "Hóa đơn đến hạn 7 ngày", description = "Đếm số hóa đơn sẽ đến hạn trong 7 ngày tới")
     @GetMapping("/stats/invoices-due")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Integer>> getInvoicesDueIn7Days(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId) {
         
@@ -213,6 +221,7 @@ public class AccountingController {
 
     @Operation(summary = "Hóa đơn quá hạn", description = "Đếm số hóa đơn đã quá hạn thanh toán")
     @GetMapping("/stats/overdue")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Integer>> getOverdueInvoices(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId) {
         

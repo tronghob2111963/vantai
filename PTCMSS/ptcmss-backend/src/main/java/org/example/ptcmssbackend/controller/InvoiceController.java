@@ -22,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -39,6 +40,7 @@ public class InvoiceController {
 
     @Operation(summary = "Tạo hóa đơn mới", description = "Tạo hóa đơn (Income hoặc Expense) với đầy đủ thông tin")
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> createInvoice(
             @Valid @RequestBody CreateInvoiceRequest request) {
         log.info("[InvoiceController] Creating invoice for branch: {}", request.getBranchId());
@@ -61,6 +63,7 @@ public class InvoiceController {
 
     @Operation(summary = "Lấy chi tiết hóa đơn", description = "Lấy thông tin chi tiết của một hóa đơn theo ID")
     @GetMapping("/{invoiceId}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> getInvoice(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId) {
         log.info("[InvoiceController] Getting invoice: {}", invoiceId);
@@ -82,6 +85,7 @@ public class InvoiceController {
 
     @Operation(summary = "Danh sách hóa đơn", description = "Lấy danh sách hóa đơn với các bộ lọc: branch, type, status, paymentStatus, date range, customer")
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
     public ResponseEntity<ApiResponse<Page<InvoiceListResponse>>> getInvoices(
             @Parameter(description = "ID chi nhánh") @RequestParam(required = false) Integer branchId,
             @Parameter(description = "Loại hóa đơn: INCOME, EXPENSE") @RequestParam(required = false) String type,
@@ -124,6 +128,7 @@ public class InvoiceController {
 
     @Operation(summary = "Cập nhật hóa đơn", description = "Cập nhật thông tin hóa đơn (không thể cập nhật hóa đơn đã thanh toán)")
     @PutMapping("/{invoiceId}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> updateInvoice(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId,
             @Valid @RequestBody CreateInvoiceRequest request) {
@@ -147,6 +152,7 @@ public class InvoiceController {
 
     @Operation(summary = "Hủy hóa đơn", description = "Hủy hóa đơn với lý do (cần cung cấp cancellationReason)")
     @PostMapping("/{invoiceId}/void")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> voidInvoice(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId,
             @Valid @RequestBody VoidInvoiceRequest request) {
@@ -169,6 +175,7 @@ public class InvoiceController {
 
     @Operation(summary = "Gửi hóa đơn qua email", description = "Gửi hóa đơn đến email khách hàng")
     @PostMapping("/{invoiceId}/send")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> sendInvoice(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId,
             @Valid @RequestBody SendInvoiceRequest request) {
@@ -191,6 +198,7 @@ public class InvoiceController {
 
     @Operation(summary = "Ghi nhận thanh toán", description = "Ghi nhận một khoản thanh toán cho hóa đơn (có thể thanh toán nhiều lần)")
     @PostMapping("/{invoiceId}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<PaymentHistoryResponse>> recordPayment(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId,
             @Valid @RequestBody RecordPaymentRequest request) {
@@ -215,6 +223,7 @@ public class InvoiceController {
 
     @Operation(summary = "Lịch sử thanh toán", description = "Lấy danh sách tất cả các khoản thanh toán của một hóa đơn")
     @GetMapping("/{invoiceId}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
     public ResponseEntity<ApiResponse<List<PaymentHistoryResponse>>> getPaymentHistory(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId) {
         log.info("[InvoiceController] Getting payment history for invoice: {}", invoiceId);
@@ -236,6 +245,7 @@ public class InvoiceController {
 
     @Operation(summary = "Tính số dư còn lại", description = "Tính số tiền còn lại cần thanh toán của hóa đơn")
     @GetMapping("/{invoiceId}/balance")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
     public ResponseEntity<ApiResponse<BigDecimal>> getBalance(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId) {
         log.info("[InvoiceController] Getting balance for invoice: {}", invoiceId);
@@ -257,6 +267,7 @@ public class InvoiceController {
 
     @Operation(summary = "Đánh dấu đã thanh toán", description = "Đánh dấu hóa đơn là đã thanh toán đầy đủ")
     @PostMapping("/{invoiceId}/mark-paid")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> markAsPaid(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId) {
         log.info("[InvoiceController] Marking invoice as paid: {}", invoiceId);
@@ -278,6 +289,7 @@ public class InvoiceController {
 
     @Operation(summary = "Tạo số hóa đơn", description = "Tạo số hóa đơn tự động theo format: INV-{BRANCH}-{YYYY}-{SEQ}")
     @GetMapping("/generate-number")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     public ResponseEntity<ApiResponse<String>> generateInvoiceNumber(
             @Parameter(description = "ID chi nhánh", required = true) @RequestParam Integer branchId,
             @Parameter(description = "Ngày hóa đơn (mặc định: hôm nay)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate invoiceDate) {
