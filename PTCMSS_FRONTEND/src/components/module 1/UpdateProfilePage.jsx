@@ -23,7 +23,7 @@ const getCookie = (name) => {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return decodeURIComponent(parts.pop().split(";").shift());
-  } catch {}
+  } catch { }
   return "";
 };
 
@@ -33,6 +33,7 @@ export default function UpdateProfilePage() {
   const [email, setEmail] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [roleName, setRoleName] = React.useState("");
+  const [roleId, setRoleId] = React.useState(null);
   const [status, setStatus] = React.useState("");
   const [avatarPreview, setAvatarPreview] = React.useState("");
   const [authImgSrc, setAuthImgSrc] = React.useState(null);
@@ -60,6 +61,7 @@ export default function UpdateProfilePage() {
         setEmail(p?.email || "");
         setAddress(p?.address || "");
         setRoleName(p?.roleName || "");
+        setRoleId(p?.roleId || null);
         setStatus(p?.status || "");
         setAvatarPreview(resolveImg(p?.imgUrl || p?.avatarUrl));
       } finally {
@@ -116,14 +118,40 @@ export default function UpdateProfilePage() {
     if (!validate()) return;
     setSaving(true);
     try {
+      // Upload avatar if changed
       if (avatarFile && userId) {
         await uploadAvatar(userId, avatarFile);
       }
-      await updateMyProfile({ fullName, phone, address });
+
+      // Only update profile if roleId and status are available
+      if (roleId && status) {
+        await updateMyProfile({
+          fullName,
+          phone,
+          email: email || null,
+          address,
+          roleId,
+          status
+        });
+      }
+
       setGeneralError("");
       alert("Cập nhật hồ sơ thành công");
-    } catch {
-      setGeneralError("Cập nhật hồ sơ thất bại");
+
+      // Reload profile to get updated data
+      const p = await getMyProfile();
+      setFullName(p?.fullName || "");
+      setPhone(p?.phone || "");
+      setEmail(p?.email || "");
+      setAddress(p?.address || "");
+      setRoleName(p?.roleName || "");
+      setRoleId(p?.roleId || null);
+      setStatus(p?.status || "");
+      setAvatarPreview(resolveImg(p?.imgUrl || p?.avatarUrl));
+      setAvatarFile(null);
+    } catch (err) {
+      console.error("Update profile error:", err);
+      setGeneralError("Cập nhật hồ sơ thất bại: " + (err.message || ""));
     } finally {
       setSaving(false);
     }
@@ -153,7 +181,7 @@ export default function UpdateProfilePage() {
             <div>
               <label className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 cursor-pointer">
                 <Upload className="h-4 w-4 text-slate-500" /> Chọn ảnh
-                <input type="file" accept="image/*" className="hidden" onChange={(e)=>onPickAvatar(e.target.files?.[0])} />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => onPickAvatar(e.target.files?.[0])} />
               </label>
               <div className="text-[11px] text-slate-500 mt-1">Khuyến nghị ảnh vuông (1:1), JPG/PNG.</div>
             </div>
@@ -164,7 +192,7 @@ export default function UpdateProfilePage() {
               <div className="text-xs text-slate-600 mb-1">Họ và tên</div>
               <input
                 value={fullName}
-                onChange={(e)=>{ setFullName(e.target.value); setErrors((p)=>({ ...p, fullName: undefined })); }}
+                onChange={(e) => { setFullName(e.target.value); setErrors((p) => ({ ...p, fullName: undefined })); }}
                 className={`w-full border rounded-md px-3 py-2 text-sm ${errors.fullName ? "border-rose-300" : "border-slate-300"}`}
               />
               {errors.fullName && <div className="text-[12px] text-rose-600 mt-1">{errors.fullName}</div>}
@@ -173,7 +201,7 @@ export default function UpdateProfilePage() {
               <div className="text-xs text-slate-600 mb-1">Số điện thoại</div>
               <input
                 value={phone}
-                onChange={(e)=>{ setPhone(e.target.value.replace(/[^0-9]/g,"")); setErrors((p)=>({ ...p, phone: undefined })); }}
+                onChange={(e) => { setPhone(e.target.value.replace(/[^0-9]/g, "")); setErrors((p) => ({ ...p, phone: undefined })); }}
                 className={`w-full border rounded-md px-3 py-2 text-sm ${errors.phone ? "border-rose-300" : "border-slate-300"}`}
                 placeholder="0901234567"
               />
@@ -188,7 +216,7 @@ export default function UpdateProfilePage() {
             </div>
             <div>
               <div className="text-xs text-slate-600 mb-1">Địa chỉ</div>
-              <input value={address} onChange={(e)=>setAddress(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm" />
+              <input value={address} onChange={(e) => setAddress(e.target.value)} className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm" />
             </div>
           </div>
 

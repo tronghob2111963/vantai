@@ -25,6 +25,8 @@ import AssignDriverDialog from "./AssignDriverDialog";
  * - COORDINATOR: Chỉ xem chi nhánh mình thuộc về
  */
 export default function PendingTripsPage() {
+    console.log("=== PendingTripsPage MOUNTED ===");
+
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState("");
     const [pendingTrips, setPendingTrips] = React.useState([]);
@@ -38,9 +40,14 @@ export default function PendingTripsPage() {
 
     const role = getCurrentRole();
     const userId = getStoredUserId();
+
+    console.log("User info:", { role, userId });
+
     const isAdmin = role === ROLES.ADMIN;
     const isManager = role === ROLES.MANAGER;
     const isCoordinator = role === ROLES.COORDINATOR;
+
+    console.log("Permissions:", { isAdmin, isManager, isCoordinator });
 
     // Load user's branch
     React.useEffect(() => {
@@ -48,13 +55,21 @@ export default function PendingTripsPage() {
 
         async function loadUserBranch() {
             try {
+                console.log("Loading branch for user:", userId);
                 const branch = await getBranchByUserId(userId);
+                console.log("User branch response:", branch);
+
                 const branchId = branch?.id || branch?.branchId;
+                if (!branchId) {
+                    setError("Không tìm thấy chi nhánh của bạn. Vui lòng liên hệ admin.");
+                    return;
+                }
+
                 setUserBranchId(branchId);
                 setSelectedBranchId(branchId);
             } catch (err) {
                 console.error("Failed to load user branch:", err);
-                setError("Không thể xác định chi nhánh của bạn");
+                setError(`Không thể xác định chi nhánh: ${err.message || 'Lỗi không xác định'}`);
             }
         }
 
@@ -69,16 +84,21 @@ export default function PendingTripsPage() {
 
         async function loadBranches() {
             try {
+                console.log("Loading branches for admin");
                 const data = await listBranches({ size: 100 });
+                console.log("Branches response:", data);
+
                 const branchList = data?.content || data || [];
                 setBranches(branchList);
 
                 // Auto-select first branch
                 if (branchList.length > 0 && !selectedBranchId) {
-                    setSelectedBranchId(branchList[0].id);
+                    const firstBranchId = branchList[0].id || branchList[0].branchId;
+                    setSelectedBranchId(firstBranchId);
                 }
             } catch (err) {
                 console.error("Failed to load branches:", err);
+                setError(`Không thể tải danh sách chi nhánh: ${err.message || 'Lỗi không xác định'}`);
             }
         }
 
@@ -93,11 +113,16 @@ export default function PendingTripsPage() {
             setLoading(true);
             setError("");
             try {
+                console.log("Loading pending trips for branch:", selectedBranchId);
                 const data = await apiFetch(`/api/dispatch/pending/${selectedBranchId}`);
-                setPendingTrips(Array.isArray(data) ? data : []);
+                console.log("Pending trips response:", data);
+
+                // Handle different response structures
+                const trips = data?.pendingTrips || data?.data || data || [];
+                setPendingTrips(Array.isArray(trips) ? trips : []);
             } catch (err) {
                 console.error("Failed to load pending trips:", err);
-                setError("Không thể tải danh sách đơn chưa gán");
+                setError(`Không thể tải danh sách đơn chưa gán: ${err.message || 'Lỗi không xác định'}`);
                 setPendingTrips([]);
             } finally {
                 setLoading(false);

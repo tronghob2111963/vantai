@@ -123,4 +123,41 @@ public class BranchController {
     ) {
         return ResponseEntity.ok(branchService.getBranchByUserId(userId));
     }
+
+    @Operation(
+            summary = "Lấy dashboard statistics cho Manager theo chi nhánh",
+            description = """
+                    API trả về các chỉ số dashboard cho Manager:
+                    - Thông tin chi nhánh
+                    - Các chỉ số tài chính (doanh thu, chi phí, lợi nhuận)
+                    - Thống kê chuyến đi (hoàn thành, hủy, tổng km)
+                    - Top tài xế hiệu suất cao
+                    - Hiệu suất xe (chi phí/km)
+
+                    Ví dụ:
+                    GET /api/branches/1/dashboard-stats?period=2025-10
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lấy dashboard stats thành công",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = org.example.ptcmssbackend.dto.response.Branch.ManagerDashboardStatsResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Chi nhánh không tồn tại"),
+    })
+    @GetMapping("/{branchId}/dashboard-stats")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public ResponseData<?> getManagerDashboardStats(
+            @Parameter(description = "ID chi nhánh", example = "1")
+            @PathVariable Integer branchId,
+            @Parameter(description = "Kỳ báo cáo (format: YYYY-MM)", example = "2025-10")
+            @RequestParam(defaultValue = "2025-10") String period
+    ) {
+        try {
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Get dashboard stats successfully",
+                    branchService.getManagerDashboardStats(branchId, period));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

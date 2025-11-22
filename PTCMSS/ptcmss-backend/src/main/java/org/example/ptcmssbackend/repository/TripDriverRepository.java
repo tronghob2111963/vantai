@@ -38,4 +38,9 @@ public interface TripDriverRepository extends JpaRepository<TripDrivers, TripDri
 
     // Kiểm tra driver có được gán vào trip cụ thể không
     boolean existsByTrip_IdAndDriver_Id(Integer tripId, Integer driverId);
+    
+    /**
+     * Lấy danh sách TripDrivers theo tripId
+     */
+    List<TripDrivers> findByTrip_Id(Integer tripId);
 }

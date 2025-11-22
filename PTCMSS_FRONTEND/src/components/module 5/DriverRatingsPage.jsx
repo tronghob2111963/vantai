@@ -40,7 +40,8 @@ const DriverRatingsPage = () => {
         try {
             const response = await fetch('/api/branches');
             const data = await response.json();
-            setBranches(data.data || []);
+            console.log('Branches response:', data);
+            setBranches(data.data || data || []);
         } catch (error) {
             console.error('Error loading branches:', error);
         }
@@ -52,11 +53,13 @@ const DriverRatingsPage = () => {
             // Load driver info
             const driverResponse = await fetch(`/api/drivers/${driverId}`);
             const driverData = await driverResponse.json();
-            setDriver(driverData.data);
+            console.log('Driver response:', driverData);
+            setDriver(driverData.data || driverData);
 
             // Load ratings
             const ratingsResponse = await getDriverRatings(driverId);
-            setRatings(ratingsResponse.data || []);
+            console.log('Ratings response:', ratingsResponse);
+            setRatings(ratingsResponse || []);
         } catch (error) {
             console.error('Error loading driver data:', error);
         } finally {
@@ -72,7 +75,8 @@ const DriverRatingsPage = () => {
                 status: 'COMPLETED'
             });
 
-            const tripsData = response.data || [];
+            console.log('Trips response:', response);
+            const tripsData = response || [];
 
             // Check rating status for each trip
             const tripsWithRating = await Promise.all(
@@ -81,7 +85,7 @@ const DriverRatingsPage = () => {
                         const ratingResponse = await getRatingByTrip(trip.tripId);
                         return {
                             ...trip,
-                            hasRating: !!ratingResponse.data
+                            hasRating: !!ratingResponse
                         };
                     } catch {
                         return {
@@ -92,6 +96,7 @@ const DriverRatingsPage = () => {
                 })
             );
 
+            console.log('Trips with rating:', tripsWithRating);
             setTrips(tripsWithRating);
         } catch (error) {
             console.error('Error loading trips:', error);

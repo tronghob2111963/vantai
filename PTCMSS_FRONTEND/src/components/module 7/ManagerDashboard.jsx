@@ -13,7 +13,7 @@ import {
     Gauge,
 } from "lucide-react";
 import { getStoredUserId } from "../../utils/session";
-import { getBranchByUserId } from "../../api/branches";
+import { getBranchByUserId, getManagerDashboardStats } from "../../api/branches";
 
 /**
  * ManagerDashboardPro – LIGHT THEME
@@ -72,51 +72,31 @@ function Toasts({ toasts }) {
     );
 }
 
-/* -------------------- MOCK DATA -------------------- */
-
-// KPI của chi nhánh (ví dụ: Hà Nội)
-const BRANCH_METRICS = {
-    branchName: "Hà Nội",
-    revenue: 45_000_000_000, // Doanh thu chi nhánh
-    expense: 31_000_000_000, // Chi phí chi nhánh
-    profit: 14_000_000_000, // Lợi nhuận = revenue - expense
-    changeRevenuePct: 4.2,
-    changeExpensePct: 1.1,
-    changeProfitPct: 6.0,
+/* -------------------- MOCK DATA (fallback) -------------------- */
+const FALLBACK_METRICS = {
+    revenue: 0,
+    expense: 0,
+    profit: 0,
+    changeRevenuePct: 0,
+    changeExpensePct: 0,
+    changeProfitPct: 0,
 };
 
-// Tình hình chuyến trong kỳ
-const BRANCH_TRIPS = {
-    completed: 420,
-    cancelled: 18,
-    kmTotal: 82_500, // tổng km đã chạy
+const FALLBACK_TRIPS = {
+    completed: 0,
+    cancelled: 0,
+    totalKm: 0,
 };
-
-// Top tài xế
-const TOP_DRIVERS = [
-    { id: 101, name: "Nguyễn Văn A", trips: 62, km: 11_200 },
-    { id: 102, name: "Trần Văn B", trips: 58, km: 10_340 },
-    { id: 103, name: "Lê Văn C", trips: 55, km: 9_880 },
-    { id: 104, name: "Phạm Thị D", trips: 51, km: 9_100 },
-];
-
-// Hiệu suất xe (chi phí/km càng thấp càng tốt)
-const VEHICLE_EFF = [
-    { plate: "29A-123.45", costPerKm: 2800, km: 5200 },
-    { plate: "30G-888.66", costPerKm: 3000, km: 4800 },
-    { plate: "15B-777.22", costPerKm: 3400, km: 6100 },
-    { plate: "43C-456.99", costPerKm: 3900, km: 3700 },
-];
 
 /* -------------------- KPI CARD (light style) -------------------- */
 function KpiBlock({
-                      label,
-                      value,
-                      sub,
-                      deltaPct,
-                      up,
-                      icon,
-                  }) {
+    label,
+    value,
+    sub,
+    deltaPct,
+    up,
+    icon,
+}) {
     return (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 flex flex-col gap-3">
             {/* header row: label + delta chip */}
@@ -243,36 +223,44 @@ function DriverPerfTable({ rows }) {
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                     <thead className="text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b border-slate-200">
-                    <tr>
-                        <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left">
-                            Tài xế
-                        </th>
-                        <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
-                            Số chuyến
-                        </th>
-                        <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
-                            KM chạy
-                        </th>
-                    </tr>
+                        <tr>
+                            <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left">
+                                Tài xế
+                            </th>
+                            <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
+                                Số chuyến
+                            </th>
+                            <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
+                                KM chạy
+                            </th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    {rows.map((d) => (
-                        <tr
-                            key={d.id}
-                            className="border-b border-slate-200 hover:bg-slate-50/70"
-                        >
-                            <td className="px-3 py-2 text-slate-900 text-sm font-medium">
-                                {d.name}
-                            </td>
-                            <td className="px-3 py-2 text-slate-700 text-sm font-medium tabular-nums">
-                                {fmtInt(d.trips)}
-                            </td>
-                            <td className="px-3 py-2 text-slate-700 text-sm tabular-nums">
-                                {fmtInt(d.km)} km
-                            </td>
-                        </tr>
-                    ))}
+                        {(!rows || rows.length === 0) ? (
+                            <tr>
+                                <td colSpan="3" className="px-3 py-8 text-center text-slate-500 text-sm">
+                                    Chưa có dữ liệu tài xế trong kỳ này
+                                </td>
+                            </tr>
+                        ) : (
+                            rows.map((d) => (
+                                <tr
+                                    key={d.driverId}
+                                    className="border-b border-slate-200 hover:bg-slate-50/70"
+                                >
+                                    <td className="px-3 py-2 text-slate-900 text-sm font-medium">
+                                        {d.driverName}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-700 text-sm font-medium tabular-nums">
+                                        {fmtInt(d.trips)}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-700 text-sm tabular-nums">
+                                        {fmtInt(d.km)} km
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -305,36 +293,44 @@ function VehiclePerfTable({ rows }) {
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                     <thead className="text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b border-slate-200">
-                    <tr>
-                        <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left">
-                            Biển số
-                        </th>
-                        <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
-                            Chi phí/km
-                        </th>
-                        <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
-                            KM chạy
-                        </th>
-                    </tr>
+                        <tr>
+                            <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left">
+                                Biển số
+                            </th>
+                            <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
+                                Chi phí/km
+                            </th>
+                            <th className="px-3 py-2 font-medium text-slate-600 text-xs text-left whitespace-nowrap">
+                                KM chạy
+                            </th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    {rows.map((v) => (
-                        <tr
-                            key={v.plate}
-                            className="border-b border-slate-200 hover:bg-slate-50/70"
-                        >
-                            <td className="px-3 py-2 text-slate-900 text-sm font-medium">
-                                {v.plate}
-                            </td>
-                            <td className="px-3 py-2 text-slate-700 text-sm font-medium tabular-nums">
-                                {fmtVND(v.costPerKm)} đ/km
-                            </td>
-                            <td className="px-3 py-2 text-slate-700 text-sm tabular-nums">
-                                {fmtInt(v.km)} km
-                            </td>
-                        </tr>
-                    ))}
+                        {(!rows || rows.length === 0) ? (
+                            <tr>
+                                <td colSpan="3" className="px-3 py-8 text-center text-slate-500 text-sm">
+                                    Chưa có dữ liệu xe trong kỳ này
+                                </td>
+                            </tr>
+                        ) : (
+                            rows.map((v, idx) => (
+                                <tr
+                                    key={v.licensePlate || idx}
+                                    className="border-b border-slate-200 hover:bg-slate-50/70"
+                                >
+                                    <td className="px-3 py-2 text-slate-900 text-sm font-medium">
+                                        {v.licensePlate}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-700 text-sm font-medium tabular-nums">
+                                        {fmtVND(v.costPerKm)} đ/km
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-700 text-sm tabular-nums">
+                                        {fmtInt(v.totalKm)} km
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -350,13 +346,21 @@ function VehiclePerfTable({ rows }) {
 export default function ManagerDashboardPro() {
     const { toasts, push } = useToasts();
 
-    // Bộ lọc cho Manager
-    const [period, setPeriod] = React.useState("2025-10");
-    const [branch, setBranch] = React.useState(BRANCH_METRICS.branchName);
+    // State
+    const [period, setPeriod] = React.useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [branch, setBranch] = React.useState("");
     const [branchInfo, setBranchInfo] = React.useState(null);
     const [branchLoading, setBranchLoading] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
 
+    // Dashboard data
+    const [dashboardData, setDashboardData] = React.useState(null);
+    const [dataLoading, setDataLoading] = React.useState(false);
+
+    // Load branch info on mount
     React.useEffect(() => {
         const userId = getStoredUserId();
         if (!userId) return;
@@ -383,21 +387,63 @@ export default function ManagerDashboardPro() {
         };
     }, []);
 
-    // Refresh mock
+    // Load dashboard data when branchInfo or period changes
+    React.useEffect(() => {
+        if (!branchInfo?.id) return;
+        let cancelled = false;
+        (async () => {
+            setDataLoading(true);
+            try {
+                const data = await getManagerDashboardStats(branchInfo.id, period);
+                if (cancelled) return;
+                console.log("Dashboard data received:", data);
+                console.log("Branch info from data:", data?.branchInfo);
+                setDashboardData(data);
+                // Update branch name from dashboard data or keep existing
+                const newBranchName = data?.branchInfo?.branchName || branchInfo?.branchName || branch;
+                console.log("Setting branch name:", newBranchName);
+                setBranch(newBranchName);
+            } catch (err) {
+                if (!cancelled) {
+                    push("Không thể tải dữ liệu dashboard: " + (err.message || "Lỗi không xác định"), "error");
+                    setDashboardData(null);
+                }
+            } finally {
+                if (!cancelled) setDataLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [branchInfo?.id, period]);
+
+    // Refresh data
     const onRefresh = () => {
+        if (!branchInfo?.id) return;
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            // TODO: gọi /api/v1/manager/dashboard-stats?period=...&branch=...
-            push("Đã tải lại số liệu chi nhánh (demo)", "success");
-        }, 600);
+        (async () => {
+            try {
+                const data = await getManagerDashboardStats(branchInfo.id, period);
+                setDashboardData(data);
+                push("Đã tải lại số liệu chi nhánh", "success");
+            } catch (err) {
+                push("Không thể tải lại dữ liệu: " + (err.message || "Lỗi không xác định"), "error");
+            } finally {
+                setLoading(false);
+            }
+        })();
     };
 
-    // Tỷ lệ lợi nhuận (profit margin) nội bộ chi nhánh
-    const profitMargin =
-        (BRANCH_METRICS.profit /
-            Math.max(1, BRANCH_METRICS.revenue)) *
-        100;
+    // Extract data with fallbacks
+    const financialMetrics = dashboardData?.financialMetrics || FALLBACK_METRICS;
+    const tripMetrics = dashboardData?.tripMetrics || FALLBACK_TRIPS;
+    const topDrivers = dashboardData?.topDrivers || [];
+    const vehicleEfficiency = dashboardData?.vehicleEfficiency || [];
+
+    // Tỷ lệ lợi nhuận (profit margin)
+    const profitMargin = financialMetrics.revenue > 0
+        ? (Number(financialMetrics.profit) / Number(financialMetrics.revenue)) * 100
+        : 0;
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 p-5 relative">
@@ -438,9 +484,9 @@ export default function ManagerDashboardPro() {
                                     ? "Đang xác định chi nhánh..."
                                     : branch || "Chưa gán chi nhánh"}
                             </span>
-                            {branchInfo?.location && (
+                            {(dashboardData?.branchInfo?.location || branchInfo?.location) && (
                                 <span className="text-[11px] text-slate-500">
-                                    {branchInfo.location}
+                                    {dashboardData?.branchInfo?.location || branchInfo.location}
                                 </span>
                             )}
                         </div>
@@ -463,82 +509,90 @@ export default function ManagerDashboardPro() {
             </div>
 
             {/* KPI ROW */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
-                <KpiBlock
-                    label="Doanh thu chi nhánh"
-                    value={fmtVND(BRANCH_METRICS.revenue) + " đ"}
-                    sub="So với kỳ trước"
-                    deltaPct={BRANCH_METRICS.changeRevenuePct}
-                    up={BRANCH_METRICS.changeRevenuePct >= 0}
-                    icon={
-                        <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-                    }
-                />
+            {dataLoading ? (
+                <div className="text-center py-8 text-slate-500">
+                    Đang tải dữ liệu...
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
+                    <KpiBlock
+                        label="Doanh thu chi nhánh"
+                        value={fmtVND(financialMetrics.revenue) + " đ"}
+                        sub="So với kỳ trước"
+                        deltaPct={financialMetrics.changeRevenuePct}
+                        up={financialMetrics.changeRevenuePct >= 0}
+                        icon={
+                            <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                        }
+                    />
 
-                <KpiBlock
-                    label="Chi phí chi nhánh"
-                    value={fmtVND(BRANCH_METRICS.expense) + " đ"}
-                    sub="Bao gồm nhiên liệu, lương, bảo trì"
-                    deltaPct={BRANCH_METRICS.changeExpensePct}
-                    up={BRANCH_METRICS.changeExpensePct >= 0}
-                    icon={
-                        <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
-                    }
-                />
+                    <KpiBlock
+                        label="Chi phí chi nhánh"
+                        value={fmtVND(financialMetrics.expense) + " đ"}
+                        sub="Bao gồm nhiên liệu, lương, bảo trì"
+                        deltaPct={financialMetrics.changeExpensePct}
+                        up={financialMetrics.changeExpensePct >= 0}
+                        icon={
+                            <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
+                        }
+                    />
 
-                <KpiBlock
-                    label="Lợi nhuận"
-                    value={fmtVND(BRANCH_METRICS.profit) + " đ"}
-                    sub="Doanh thu - Chi phí"
-                    deltaPct={BRANCH_METRICS.changeProfitPct}
-                    up={BRANCH_METRICS.changeProfitPct >= 0}
-                    icon={
-                        <TrendingUp className="h-3.5 w-3.5 text-sky-600" />
-                    }
-                />
+                    <KpiBlock
+                        label="Lợi nhuận"
+                        value={fmtVND(financialMetrics.profit) + " đ"}
+                        sub="Doanh thu - Chi phí"
+                        deltaPct={financialMetrics.changeProfitPct}
+                        up={financialMetrics.changeProfitPct >= 0}
+                        icon={
+                            <TrendingUp className="h-3.5 w-3.5 text-sky-600" />
+                        }
+                    />
 
-                <KpiBlock
-                    label="Biên lợi nhuận"
-                    value={profitMargin.toFixed(1) + " %"}
-                    sub="(Lợi nhuận / Doanh thu)"
-                    deltaPct={BRANCH_METRICS.changeProfitPct}
-                    up={BRANCH_METRICS.changeProfitPct >= 0}
-                    icon={<Gauge className="h-3.5 w-3.5 text-indigo-600" />}
-                />
+                    <KpiBlock
+                        label="Biên lợi nhuận"
+                        value={profitMargin.toFixed(1) + " %"}
+                        sub="(Lợi nhuận / Doanh thu)"
+                        deltaPct={financialMetrics.changeProfitPct}
+                        up={financialMetrics.changeProfitPct >= 0}
+                        icon={<Gauge className="h-3.5 w-3.5 text-indigo-600" />}
+                    />
 
-                <KpiBlock
-                    label="Tổng km đã chạy"
-                    value={fmtInt(BRANCH_TRIPS.kmTotal) + " km"}
-                    sub="Trong kỳ đã lọc"
-                    deltaPct={4.4}
-                    up={true}
-                    icon={<Car className="h-3.5 w-3.5 text-amber-500" />}
-                />
-            </div>
+                    <KpiBlock
+                        label="Tổng km đã chạy"
+                        value={fmtInt(tripMetrics.totalKm) + " km"}
+                        sub="Trong kỳ đã lọc"
+                        deltaPct={null}
+                        up={true}
+                        icon={<Car className="h-3.5 w-3.5 text-amber-500" />}
+                    />
+                </div>
+            )}
 
             {/* SECOND ROW: Trips summary + 2 tables */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                {/* cột trái: hiệu suất chuyến */}
-                <TripsSummaryCard
-                    completed={BRANCH_TRIPS.completed}
-                    cancelled={BRANCH_TRIPS.cancelled}
-                    kmTotal={BRANCH_TRIPS.kmTotal}
-                />
+            {!dataLoading && (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* cột trái: hiệu suất chuyến */}
+                    <TripsSummaryCard
+                        completed={tripMetrics.completed}
+                        cancelled={tripMetrics.cancelled}
+                        kmTotal={tripMetrics.totalKm}
+                    />
 
-                {/* cột giữa: tài xế */}
-                <DriverPerfTable rows={TOP_DRIVERS} />
+                    {/* cột giữa: tài xế */}
+                    <DriverPerfTable rows={topDrivers} />
 
-                {/* cột phải: xe */}
-                <VehiclePerfTable rows={VEHICLE_EFF} />
-            </div>
+                    {/* cột phải: xe */}
+                    <VehiclePerfTable rows={vehicleEfficiency} />
+                </div>
+            )}
 
             {/* FOOTER HINT */}
             <div className="text-[11px] text-slate-500 mt-6 text-center leading-relaxed">
-                Dữ liệu giả lập. Khi nối thật sẽ gọi{" "}
+                Dữ liệu thực từ API{" "}
                 <code className="text-[11px] text-slate-800 bg-slate-100 border border-slate-300 rounded px-1 py-0.5">
-                    /api/v1/manager/dashboard-stats
+                    /api/branches/{"{branchId}"}/dashboard-stats
                 </code>{" "}
-                và tự động lọc theo chi nhánh (branch_id) của Manager.
+                được lọc theo chi nhánh của Manager.
             </div>
         </div>
     );
