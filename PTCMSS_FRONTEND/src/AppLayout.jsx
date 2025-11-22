@@ -372,13 +372,8 @@ function Topbar() {
         />
       </div>
 
-      {/* bell */}
-      <button className="relative rounded-md border border-slate-200 bg-white p-2 hover:border-sky-500/40 hover:bg-sky-50 transition-colors">
-        <Bell className="h-4 w-4 text-sky-600" />
-        <span className="absolute -top-1 -right-1 bg-sky-600 text-[10px] font-semibold text-white rounded-full px-1 leading-none shadow-sm">
-          3
-        </span>
-      </button>
+      {/* bell - WebSocket Notifications */}
+      <NotificationsWidget />
 
       {/* user chip + logout */}
       <div className="flex items-center gap-2">

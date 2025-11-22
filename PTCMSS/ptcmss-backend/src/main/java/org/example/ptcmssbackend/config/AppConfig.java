@@ -39,7 +39,10 @@ public class AppConfig implements WebMvcConfigurer {
             "/api/test/**",          // test endpoints (generate hash, test password)
             "/api/graphhopper/**",   // GraphHopper API for geocoding and routing
             "/verify",
-            "/set-password"
+            "/set-password",
+            "/ws/**",                // WebSocket endpoint
+            "/topic/**",             // WebSocket topic subscriptions
+            "/app/**"                // WebSocket app destination prefix
     };
 
     @Bean

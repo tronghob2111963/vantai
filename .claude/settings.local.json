@@ -11,7 +11,10 @@
       "Bash(set JAVA_HOME:*)",
       "Bash(set PATH=%JAVA_HOME%bin)",
       "Bash(%PATH%)",
-      "Bash(mvnw.cmd clean compile:*)"
+      "Bash(mvnw.cmd clean compile:*)",
+      "Bash(nul)",
+      "Bash(npm run dev:*)",
+      "Bash(.mvnw.cmd clean compile:*)"
     ],
     "deny": [],
     "ask": []
