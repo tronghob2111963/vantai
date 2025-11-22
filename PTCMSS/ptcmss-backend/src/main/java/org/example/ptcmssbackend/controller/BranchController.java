@@ -29,9 +29,9 @@ public class BranchController {
     private final BranchService branchService;
 
     // ======================= CREATE =======================
-    @Operation(summary = "Tạo chi nhánh mới", description = "Chỉ Admin được phép thêm chi nhánh mới.")
+    @Operation(summary = "Tạo chi nhánh mới", description = "Admin và Manager được phép thêm chi nhánh mới.")
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseData<?> createBranch(@RequestBody CreateBranchRequest request) {
         try {
             return new ResponseData<>(HttpStatus.OK.value(),
