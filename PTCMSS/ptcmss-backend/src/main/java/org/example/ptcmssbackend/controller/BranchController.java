@@ -108,13 +108,7 @@ public class BranchController {
 
     @Operation(
             summary = "Lấy chi nhánh theo userId",
-            description = """
-                    API trả về thông tin chi nhánh mà user đang thuộc về.
-                    Mapping dữ liệu: Users → Employees → Branches.
-
-                    Ví dụ:
-                    GET /api/branches/by-user/10
-                    """
+            description = "API trả về thông tin chi nhánh mà user đang thuộc về. Mapping dữ liệu: Users -> Employees -> Branches."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lấy chi nhánh thành công",

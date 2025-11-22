@@ -23,6 +23,8 @@ import {
   getStoredUsername,
   getStoredRoleLabel,
 } from "./utils/session";
+import { WebSocketProvider } from "./contexts/WebSocketContext";
+import NotificationToast from "./components/common/NotificationToast";
 
 const SIDEBAR_SECTIONS = [
   {
@@ -444,10 +446,12 @@ function RoleRedirect() {
 --------------------------------------------------- */
 export default function AppLayout() {
   return (
-    <Routes>
-      {/* Trang đăng nhập không dùng shell */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<RoleRedirect />} />
+    <WebSocketProvider>
+      <NotificationToast />
+      <Routes>
+        {/* Trang đăng nhập không dùng shell */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<RoleRedirect />} />
 
       {/* Các route cần shell layout */}
       <Route element={<ShellLayout />}>
@@ -800,8 +804,9 @@ export default function AppLayout() {
         />
       </Route>
 
-      {/* fallback */}
-      <Route path="*" element={<RoleRedirect />} />
-    </Routes>
+        {/* fallback */}
+        <Route path="*" element={<RoleRedirect />} />
+      </Routes>
+    </WebSocketProvider>
   );
 }

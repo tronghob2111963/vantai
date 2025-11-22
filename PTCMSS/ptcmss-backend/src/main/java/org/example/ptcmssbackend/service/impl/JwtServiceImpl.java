@@ -135,11 +135,13 @@ public class JwtServiceImpl implements JwtService {
 
 
     private Key getSecretKey(TokenType type) {
-        return switch (type) {
-            case ACCESS_TOKEN -> Keys.hmacShaKeyFor(accesskey.getBytes());
-            case REFRESH_TOKEN -> Keys.hmacShaKeyFor(refreshkey.getBytes());
-            default -> throw new IllegalArgumentException("Invalid token type: " + type);
-        };
+        if (type == TokenType.ACCESS_TOKEN) {
+            return Keys.hmacShaKeyFor(accesskey.getBytes());
+        } else if (type == TokenType.REFRESH_TOKEN) {
+            return Keys.hmacShaKeyFor(refreshkey.getBytes());
+        } else {
+            throw new IllegalArgumentException("Invalid token type: " + type);
+        }
     }
 }
 

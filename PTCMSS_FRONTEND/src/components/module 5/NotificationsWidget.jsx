@@ -16,19 +16,24 @@ import {
     FileText,
     CheckCheck,
     Building2,
+    Wifi,
+    WifiOff,
 } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import { getBranchByUserId } from "../../api/branches";
 import { apiFetch } from "../../api/http";
+import { useNotifications } from "../../hooks/useNotifications";
 
 /**
  * NotificationsWidget – Hiển thị cảnh báo & yêu cầu chờ duyệt
- * 
+ *
  * Sử dụng API thật từ NotificationController:
  * - GET /api/notifications/dashboard
  * - POST /api/notifications/alerts/{id}/acknowledge
  * - POST /api/notifications/approvals/{id}/approve
  * - POST /api/notifications/approvals/{id}/reject
+ *
+ * + WebSocket real-time notifications
  */
 export default function NotificationsWidget() {
     const [dashboard, setDashboard] = React.useState(null);
@@ -42,6 +47,9 @@ export default function NotificationsWidget() {
     const role = getCurrentRole();
     const userId = getStoredUserId();
     const isAdmin = role === ROLES.ADMIN;
+
+    // WebSocket real-time notifications
+    const { connected, notifications: wsNotifications, unreadCount } = useNotifications();
 
     // Load branches for admin
     React.useEffect(() => {
@@ -105,6 +113,24 @@ export default function NotificationsWidget() {
             fetchAll();
         }
     }, [fetchAll, branchId, isAdmin]);
+
+    // Auto-refresh when receiving WebSocket notifications
+    React.useEffect(() => {
+        if (wsNotifications.length > 0) {
+            const latest = wsNotifications[0];
+            // Refresh dashboard when receiving relevant notification types
+            if (
+                latest.type === 'BOOKING_UPDATE' ||
+                latest.type === 'PAYMENT_UPDATE' ||
+                latest.type === 'DISPATCH_UPDATE' ||
+                latest.type === 'ALERT' ||
+                latest.type === 'APPROVAL_REQUEST'
+            ) {
+                console.log('[NotificationsWidget] Auto-refreshing due to WebSocket notification:', latest.type);
+                fetchAll();
+            }
+        }
+    }, [wsNotifications, fetchAll]);
 
     const setIdBusy = (id, on) => {
         setBusyIds((s) => {
@@ -341,6 +367,34 @@ export default function NotificationsWidget() {
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
+                    {/* WebSocket connection status */}
+                    <div
+                        className={cls(
+                            "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium",
+                            connected
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-slate-100 text-slate-500 border border-slate-200"
+                        )}
+                        title={connected ? "WebSocket đã kết nối" : "WebSocket chưa kết nối"}
+                    >
+                        {connected ? (
+                            <>
+                                <Wifi className="h-3 w-3" />
+                                <span>Live</span>
+                            </>
+                        ) : (
+                            <>
+                                <WifiOff className="h-3 w-3" />
+                                <span>Offline</span>
+                            </>
+                        )}
+                        {unreadCount > 0 && (
+                            <span className="ml-0.5 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-[9px] font-bold">
+                                {unreadCount}
+                            </span>
+                        )}
+                    </div>
+
                     {isAdmin && branches.length > 0 && (
                         <div className="relative">
                             <button
