@@ -287,6 +287,17 @@ function VehicleCategoryEditModal({ open, data, onClose, onSaved, onDeleted }) {
     const [loadingSave, setLoadingSave] = React.useState(false);
     const [loadingDelete, setLoadingDelete] = React.useState(false);
 
+    // useEffect MUST be called before any return statement
+    React.useEffect(() => {
+        if (open && data) {
+            setName(data.name || "");
+            setSeats(String(data.seats ?? ""));
+            setStatus(data.status ?? "ACTIVE");
+            setError("");
+        }
+    }, [open, data]);
+
+    // Early return AFTER all hooks
     if (!open || !data) return null;
 
     const cleanDigits = (s) => s.replace(/[^0-9]/g, "");
@@ -295,15 +306,6 @@ function VehicleCategoryEditModal({ open, data, onClose, onSaved, onDeleted }) {
     const nameError = name.trim().length === 0;
     const seatsError = isNaN(seatsNum) || seatsNum <= 0;
     const valid = !nameError && !seatsError;
-
-    React.useEffect(() => {
-        if (open) {
-            setName(data.name);
-            setSeats(String(data.seats ?? ""));
-            setStatus(data.status ?? "ACTIVE");
-            setError("");
-        }
-    }, [open, data]);
 
     async function handleSave() {
         if (!valid) return;

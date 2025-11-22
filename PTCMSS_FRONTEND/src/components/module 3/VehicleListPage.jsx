@@ -312,7 +312,7 @@ function CreateVehicleModal({
                         {/* N─âm SX */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                N─âm SX{" "}
+                                Năm SX{" "}
                                 <span className="text-red-500">*</span>
                             </div>
                             <input
@@ -594,7 +594,7 @@ function EditVehicleModal({
                         {/* biß╗ân sß╗æ readonly */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Biß╗ân sß╗æ xe
+                                Biển số xe
                             </div>
                             <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-[13px] text-slate-700 font-medium shadow-inner">
                                 {vehicle.license_plate}
@@ -689,7 +689,7 @@ function EditVehicleModal({
                         {/* branch */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Chi nh├ính{" "}
+                                Chi nhánh{" "}
                                 <span className="text-red-500">*</span>
                             </div>
                             <select
@@ -901,7 +901,7 @@ function FilterBar({
                     ) : (
                         <Wrench className="h-4 w-4 text-slate-400" />
                     )}
-                    <span>L├ám mß╗¢i</span>
+                    <span>Làm mới</span>
                 </button>
             </div>
         </div>
@@ -973,7 +973,7 @@ function VehicleTable({
                         {headerCell("status", "Trạng thái")}
                         {headerCell("reg_due_date", "Hạn đăng kiểm")}
                         <th className="px-3 py-2 font-medium text-slate-500">
-                            H├ánh ─æß╗Öng
+                            Hành động
                         </th>
                     </tr>
                 </thead>
@@ -993,11 +993,11 @@ function VehicleTable({
                             <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
                                 {v.category_name}
                                 <div className="text-[11px] text-slate-500">
-                                    {v.model} ┬╖ {v.year}
+                                    {v.model} - {v.year}
                                 </div>
                             </td>
 
-                            {/* Chi nh├ính */}
+                            {/* Chi nhánh */}
                             <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
                                 {v.branch_name}
                             </td>
@@ -1398,7 +1398,7 @@ export default function VehicleListPage() {
                         </div>
 
                         <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 text-[11px] px-2 py-[2px] text-slate-600 font-medium leading-none">
-                            Danh s├ích xe
+                            Danh sách xe
                         </span>
                     </div>
                 </div>
@@ -1429,7 +1429,7 @@ export default function VehicleListPage() {
                 <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-[13px] text-slate-600 flex items-center gap-2">
                     <CarFront className="h-4 w-4 text-sky-600" />
                     <div className="font-medium text-slate-800">
-                        Danh s├ích xe
+                        Danh sách xe
                     </div>
                     <div className="text-[11px] text-slate-500">
                         ({filteredSorted.length} xe)

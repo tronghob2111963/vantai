@@ -160,6 +160,8 @@ public class UserServiceImpl implements UserService {
         user.setAvatar(imageUrl);
         usersRepository.save(user);
 
+        log.info("update avatar thành công");
+
         return imageUrl;
     }
 

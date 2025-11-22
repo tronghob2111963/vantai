@@ -65,5 +65,10 @@ public interface TripVehicleRepository extends JpaRepository<TripVehicles, Integ
              AND tv.trip.endTime > :startTime
            """)
     List<TripVehicles> findOverlapsForVehicle(Integer vehicleId, Instant startTime, Instant endTime);
+    
+    /**
+     * Lấy danh sách TripVehicles theo tripId
+     */
+    List<TripVehicles> findByTrip_Id(Integer tripId);
 }
 

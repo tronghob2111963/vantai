@@ -69,5 +69,30 @@ public interface InvoiceRepository extends JpaRepository<Invoices, Integer> {
             @Param("type") InvoiceType type,
             @Param("paymentStatus") PaymentStatus paymentStatus
     );
+    
+    /**
+     * Tính tổng amount theo branchId, type và khoảng thời gian
+     */
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoices i " +
+            "WHERE i.branch.id = :branchId " +
+            "AND i.type = :type " +
+            "AND i.invoiceDate >= :startDate " +
+            "AND i.invoiceDate <= :endDate")
+    BigDecimal sumAmountByBranchAndTypeAndDateRange(
+            @Param("branchId") Integer branchId,
+            @Param("type") InvoiceType type,
+            @Param("startDate") java.time.Instant startDate,
+            @Param("endDate") java.time.Instant endDate
+    );
+    
+    /**
+     * Tính tổng chi phí của một trip
+     * (Lấy tất cả expense invoices liên quan đến booking của trip đó)
+     */
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoices i " +
+            "JOIN Trips t ON t.booking.id = i.booking.id " +
+            "WHERE i.type = 'EXPENSE' " +
+            "AND t.id = :tripId")
+    BigDecimal sumExpensesByTrip(@Param("tripId") Integer tripId);
 }
 
