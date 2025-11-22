@@ -17,7 +17,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "SystemSettings")  // Match với tên bảng trong DB (camelCase)
+@Table(name = "system_settings")
 public class SystemSetting {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

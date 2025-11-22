@@ -14,6 +14,7 @@ import java.time.Instant;
 @Getter
 @Setter
 @Entity
+@Table(name = "branches")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Branches {
     @Id

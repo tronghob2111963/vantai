@@ -10,6 +10,7 @@ import org.example.ptcmssbackend.enums.EmployeeStatus;
 @Getter
 @Setter
 @Entity
+@Table(name = "employees")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Employees {
     @Id

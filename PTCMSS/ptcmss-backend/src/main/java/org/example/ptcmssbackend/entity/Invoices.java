@@ -18,6 +18,7 @@ import java.time.Instant;
 @Getter
 @Setter
 @Entity
+@Table(name = "invoices")
 public class Invoices {
     @Id
     @Column(name = "invoiceId", nullable = false)

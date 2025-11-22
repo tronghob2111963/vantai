@@ -22,7 +22,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "DriverRatings")
+@Table(name = "driver_ratings")
 public class DriverRatings {
     
     @Id
