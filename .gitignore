@@ -1,0 +1,15 @@
+# Windows reserved device names (cannot be used as filenames)
+nul
+**/nul
+
+# Temporary files
+tmp_*.txt
+tmp_*.java
+tmp_*.mark
+
+# Uploads directory
+uploads/
+
+# Claude settings (local)
+.claude/settings.local.json
+
