@@ -196,18 +196,36 @@ export default function AdminBranchesPage() {
     setLoading(true);
     try {
       const data = await listBranches({ page: 0, size: 100 });
+      console.log("API Response:", data);
       const arr = Array.isArray(data) ? data : (data?.items || data?.content || []);
-      const mapped = arr.map((b) => ({
-        id: b.id,
-        name: b.branchName || b.name,
-        address: b.location || "",
-        phone: b.phone || "",
-        managerName: b.manager || null,
-        employeeCount: b.employeeCount || 0,
-        status: b.status || "ACTIVE",
-      }));
+      console.log("Branches array:", arr);
+      const mapped = arr.map((b) => {
+        // Xử lý manager name từ nhiều định dạng có thể
+        let managerName = null;
+        if (typeof b.manager === 'string') {
+          managerName = b.manager;
+        } else if (typeof b.manager === 'object' && b.manager !== null) {
+          managerName = b.manager.fullName || b.manager.name || b.manager.username || null;
+        }
+        // Fallback sang các trường khác
+        if (!managerName) {
+          managerName = b.managerName || b.managerFullName || null;
+        }
+
+        return {
+          id: b.id,
+          name: b.branchName || b.name,
+          address: b.location || "",
+          phone: b.phone || "",
+          managerName: managerName,
+          employeeCount: b.employeeCount || 0,
+          status: b.status || "ACTIVE",
+        };
+      });
+      console.log("Mapped branches:", mapped);
       setBranches(mapped);
     } catch (e) {
+      console.error("Error loading branches:", e);
       push("Tải danh sách chi nhánh thất bại", "error");
     } finally {
       setLoading(false);
@@ -235,7 +253,7 @@ export default function AdminBranchesPage() {
           setManagers(mgrs);
           return;
         }
-      } catch {}
+      } catch { }
       try {
         const roles = await listRoles();
         const managerRole = (roles || []).find((r) => (r.roleName || r.name || "").toUpperCase() === "MANAGER");
@@ -244,7 +262,7 @@ export default function AdminBranchesPage() {
           const mgrs = (users || []).map((u) => ({ id: u.id, name: u.fullName || u.username || "", email: u.email || "", branchId: null }));
           setManagers(mgrs);
         }
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -303,7 +321,7 @@ export default function AdminBranchesPage() {
                   <tr key={b.id} className="hover:bg-slate-50">
                     <td className="px-4 py-2 text-slate-800 font-medium">{b.name}</td>
                     <td className="px-4 py-2 text-slate-700">{b.address}</td>
-                    <td className="px-4 py-2 text-slate-700">{b.managerName || "—"}</td>
+                    <td className="px-4 py-2 text-slate-700">{b.managerName || "-"}</td>
                     <td className="px-4 py-2 text-slate-700">{b.employeeCount || 0}</td>
                     <td className="px-4 py-2"><StatusBadge status={b.status} /></td>
                     <td className="px-4 py-2 text-right">
