@@ -411,16 +411,22 @@ export default function NotificationsWidget() {
                 )}
             </button>
 
-            {/* Dropdown Panel */}
+            {/* Dropdown Panel - Fixed position from right edge */}
             {showDropdown && (
-                <div
-                    data-notifications-dropdown
-                    className="absolute right-0 mt-2 w-[90vw] sm:w-[600px] lg:w-[700px] max-h-[85vh] bg-white border-2 border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in"
-                    style={{ 
-                        right: 0,
-                        transformOrigin: 'top right'
-                    }}
-                >
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/20 z-[9998]"
+                        onClick={() => setShowDropdown(false)}
+                    />
+                    <div
+                        data-notifications-dropdown
+                        className="fixed right-4 top-16 w-[90vw] sm:w-[600px] lg:w-[700px] max-h-[85vh] bg-white border-2 border-slate-200 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+                        style={{ 
+                            transformOrigin: 'top right',
+                            animation: 'slideInFromRight 0.2s ease-out'
+                        }}
+                    >
                     {/* Header */}
                     <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-slate-50">
                         <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-sky-500 to-sky-600 text-white flex items-center justify-center shadow-lg shadow-sky-500/30">
@@ -622,6 +628,7 @@ export default function NotificationsWidget() {
                         </div>
                     </div>
                 </div>
+                </>
             )}
         </div>
     );
