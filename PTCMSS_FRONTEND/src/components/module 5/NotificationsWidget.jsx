@@ -6,7 +6,6 @@ import {
     AlertCircle,
     Info,
     CalendarDays,
-    Car,
     UserRound,
     BadgePercent,
     Check,
@@ -18,6 +17,10 @@ import {
     Building2,
     Wifi,
     WifiOff,
+    Loader2,
+    Inbox,
+    Clock,
+    XCircle,
 } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import { getBranchByUserId } from "../../api/branches";
@@ -26,23 +29,19 @@ import { useNotifications } from "../../hooks/useNotifications";
 
 /**
  * NotificationsWidget – Hiển thị cảnh báo & yêu cầu chờ duyệt
- *
- * Sử dụng API thật từ NotificationController:
- * - GET /api/notifications/dashboard
- * - POST /api/notifications/alerts/{id}/acknowledge
- * - POST /api/notifications/approvals/{id}/approve
- * - POST /api/notifications/approvals/{id}/reject
- *
- * + WebSocket real-time notifications
+ * 
+ * UI: Icon chuông với badge, click vào mới hiển thị dropdown chi tiết
  */
 export default function NotificationsWidget() {
     const [dashboard, setDashboard] = React.useState(null);
-    const [loading, setLoading] = React.useState(true);
+    const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState("");
     const [busyIds, setBusyIds] = React.useState(new Set());
     const [branchId, setBranchId] = React.useState(null);
     const [branches, setBranches] = React.useState([]);
     const [showBranchSelector, setShowBranchSelector] = React.useState(false);
+    const [showDropdown, setShowDropdown] = React.useState(false);
+    const [branchLoaded, setBranchLoaded] = React.useState(false);
 
     const role = getCurrentRole();
     const userId = getStoredUserId();
@@ -69,35 +68,39 @@ export default function NotificationsWidget() {
         loadBranches();
     }, [isAdmin]);
 
-    // Load user's branch
+    // Load user's branch (silently, don't block UI)
     React.useEffect(() => {
-        if (isAdmin) return;
+        if (isAdmin || branchLoaded) return;
 
         async function loadUserBranch() {
             try {
                 const branch = await getBranchByUserId(userId);
                 const id = branch?.id || branch?.branchId;
-                setBranchId(id);
+                if (id) {
+                    setBranchId(id);
+                }
             } catch (err) {
                 console.error("Failed to load user branch:", err);
+                // Don't show error, just continue without branchId
+            } finally {
+                setBranchLoaded(true);
             }
         }
 
         if (userId) {
             loadUserBranch();
+        } else {
+            setBranchLoaded(true);
         }
-    }, [userId, isAdmin]);
+    }, [userId, isAdmin, branchLoaded]);
 
     const fetchAll = React.useCallback(async () => {
         setLoading(true);
         setError("");
         try {
+            // Allow fetch without branchId (for admin or if branch not loaded yet)
             const params = branchId ? `?branchId=${branchId}` : "";
-            console.log("[NotificationsWidget] Fetching dashboard with params:", params);
             const data = await apiFetch(`/api/notifications/dashboard${params}`);
-            console.log("[NotificationsWidget] Dashboard data:", data);
-            console.log("[NotificationsWidget] Alerts:", data?.alerts?.length || 0);
-            console.log("[NotificationsWidget] Pending approvals:", data?.pendingApprovals?.length || 0);
             setDashboard(data);
         } catch (err) {
             console.error("Failed to load dashboard:", err);
@@ -108,17 +111,17 @@ export default function NotificationsWidget() {
         }
     }, [branchId]);
 
+    // Fetch when dropdown opens
     React.useEffect(() => {
-        if (branchId !== null || isAdmin) {
+        if (showDropdown && (isAdmin || branchLoaded)) {
             fetchAll();
         }
-    }, [fetchAll, branchId, isAdmin]);
+    }, [showDropdown, isAdmin, branchLoaded, fetchAll]);
 
     // Auto-refresh when receiving WebSocket notifications
     React.useEffect(() => {
-        if (wsNotifications.length > 0) {
+        if (wsNotifications.length > 0 && showDropdown) {
             const latest = wsNotifications[0];
-            // Refresh dashboard when receiving relevant notification types
             if (
                 latest.type === 'BOOKING_UPDATE' ||
                 latest.type === 'PAYMENT_UPDATE' ||
@@ -126,11 +129,28 @@ export default function NotificationsWidget() {
                 latest.type === 'ALERT' ||
                 latest.type === 'APPROVAL_REQUEST'
             ) {
-                console.log('[NotificationsWidget] Auto-refreshing due to WebSocket notification:', latest.type);
                 fetchAll();
             }
         }
-    }, [wsNotifications, fetchAll]);
+    }, [wsNotifications, showDropdown, fetchAll]);
+
+    // Close dropdown when clicking outside
+    React.useEffect(() => {
+        if (!showDropdown) return;
+
+        const handleClickOutside = (event) => {
+            const dropdown = document.querySelector('[data-notifications-dropdown]');
+            const button = document.querySelector('[data-notifications-button]');
+            
+            if (dropdown && button && !dropdown.contains(event.target) && !button.contains(event.target)) {
+                setShowDropdown(false);
+                setShowBranchSelector(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showDropdown]);
 
     const setIdBusy = (id, on) => {
         setBusyIds((s) => {
@@ -203,15 +223,14 @@ export default function NotificationsWidget() {
 
     // ======= Render helpers =======
     const SectionHeader = ({ icon, title, count, right }) => (
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 bg-slate-50 sticky top-0 z-10 text-slate-700 text-sm">
-            <span className="text-slate-600 flex items-center">{icon}</span>
-            <div className="font-medium text-slate-900">{title}</div>
-            <span className="ml-1 text-[11px] text-slate-500">{count}</span>
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white sticky top-0 z-10 text-slate-700 text-sm backdrop-blur-sm">
+            <span className="text-slate-600 flex items-center transition-transform hover:scale-110">{icon}</span>
+            <div className="font-semibold text-slate-900">{title}</div>
+            <span className="ml-1.5 px-2 py-0.5 bg-slate-200 text-slate-700 text-[11px] font-medium rounded-full">{count}</span>
             <div className="ml-auto flex items-center gap-2">{right}</div>
         </div>
     );
 
-    // 1 dòng cảnh báo
     const AlertItem = ({ alert }) => {
         const severityConfig = {
             CRITICAL: { icon: AlertCircle, color: "text-red-600", bg: "bg-red-50" },
@@ -226,20 +245,21 @@ export default function NotificationsWidget() {
         const working = busyIds.has(idKey);
 
         return (
-            <div className="flex items-start gap-3 px-3 py-3 border-b border-slate-200 text-sm hover:bg-slate-50">
-                <div className={cls("mt-0.5 p-1.5 rounded", config.bg)}>
+            <div className="flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 text-sm hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-all duration-200 group">
+                <div className={cls("mt-0.5 p-2 rounded-lg shadow-sm transition-transform group-hover:scale-110", config.bg)}>
                     <Icon className={cls("h-4 w-4", config.color)} />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                    <div className="text-slate-900 font-medium text-sm" title={alert.title}>
+                    <div className="text-slate-900 font-semibold text-sm mb-1" title={alert.title}>
                         {alert.title}
                     </div>
-                    <div className="text-[12px] leading-4 text-slate-600 mt-0.5">
+                    <div className="text-[12px] leading-5 text-slate-600">
                         {alert.message}
                     </div>
                     {alert.branchName && (
-                        <div className="text-[11px] text-slate-500 mt-1">
+                        <div className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1">
+                            <Building2 className="h-3 w-3" />
                             {alert.branchName}
                         </div>
                     )}
@@ -250,12 +270,16 @@ export default function NotificationsWidget() {
                         disabled={working}
                         onClick={() => handleAcknowledgeAlert(alert.id)}
                         className={cls(
-                            "shrink-0 inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 px-2 py-1 text-[11px] font-medium transition-colors",
-                            working ? "opacity-60 cursor-not-allowed" : ""
+                            "shrink-0 inline-flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-400 hover:shadow-md px-3 py-1.5 text-[11px] font-semibold transition-all duration-200",
+                            working ? "opacity-60 cursor-not-allowed" : "hover:scale-105"
                         )}
                         title="Xác nhận"
                     >
-                        <CheckCheck className="h-3.5 w-3.5" />
+                        {working ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <CheckCheck className="h-3.5 w-3.5" />
+                        )}
                         OK
                     </button>
                 )}
@@ -263,7 +287,6 @@ export default function NotificationsWidget() {
         );
     };
 
-    // 1 dòng "chờ duyệt"
     const PendingItem = ({ approval }) => {
         const typeConfig = {
             DRIVER_DAY_OFF: { icon: CalendarDays, label: "Nghỉ phép", color: "text-purple-600" },
@@ -278,53 +301,63 @@ export default function NotificationsWidget() {
         const canApprove = isAdmin || role === ROLES.MANAGER;
 
         return (
-            <div className="flex items-start gap-3 px-3 py-3 border-b border-slate-200 hover:bg-slate-50">
-                <div className="mt-0.5 p-1.5 rounded bg-slate-50">
+            <div className="flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-all duration-200 group">
+                <div className="mt-0.5 p-2 rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm transition-transform group-hover:scale-110">
                     <Icon className={cls("h-4 w-4", config.color)} />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-900 font-medium text-sm">{config.label}</span>
-                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-medium rounded">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-slate-900 font-semibold text-sm">{config.label}</span>
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full border border-amber-200">
                             Chờ duyệt
                         </span>
                     </div>
 
-                    <div className="text-[12px] text-slate-600 mt-1">
-                        <div><strong>Người yêu cầu:</strong> {approval.requestedByName}</div>
+                    <div className="text-[12px] leading-5 text-slate-600 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                            <UserRound className="h-3 w-3 text-slate-400" />
+                            <span><strong className="text-slate-700">Người yêu cầu:</strong> {approval.requestedByName}</span>
+                        </div>
                         {approval.requestReason && (
-                            <div className="mt-0.5 truncate" title={approval.requestReason}>
-                                <strong>Lý do:</strong> {approval.requestReason}
+                            <div className="flex items-start gap-1.5 truncate" title={approval.requestReason}>
+                                <FileText className="h-3 w-3 text-slate-400 shrink-0 mt-0.5" />
+                                <span><strong className="text-slate-700">Lý do:</strong> {approval.requestReason}</span>
                             </div>
                         )}
 
                         {approval.details && approval.approvalType === "DRIVER_DAY_OFF" && (
-                            <div className="mt-1 text-[11px] text-slate-500">
+                            <div className="mt-1.5 text-[11px] text-slate-500 flex items-center gap-1.5">
+                                <CalendarDays className="h-3 w-3" />
                                 {approval.details.driverName} · {approval.details.startDate} → {approval.details.endDate}
                             </div>
                         )}
 
                         {approval.details && approval.approvalType === "EXPENSE_REQUEST" && (
-                            <div className="mt-1 text-[11px] text-slate-500">
-                                {approval.details.requesterName} · {approval.details.amount?.toLocaleString()} VNĐ
+                            <div className="mt-1.5 text-[11px] text-slate-500 flex items-center gap-1.5">
+                                <DollarSign className="h-3 w-3" />
+                                {approval.details.requesterName} · <span className="font-semibold text-emerald-600">{approval.details.amount?.toLocaleString()} VNĐ</span>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {canApprove && (
-                    <div className="shrink-0 flex items-center gap-1.5">
+                    <div className="shrink-0 flex items-center gap-2">
                         <button
                             disabled={working}
                             onClick={() => handleApprove(approval.id)}
                             className={cls(
-                                "inline-flex items-center gap-1 rounded-md border border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium shadow-sm transition-colors",
-                                working ? "opacity-60 cursor-not-allowed" : ""
+                                "inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50 hover:shadow-md px-3 py-1.5 text-[12px] font-semibold transition-all duration-200",
+                                working ? "opacity-60 cursor-not-allowed" : "hover:scale-105"
                             )}
                             title="Duyệt"
                         >
-                            <Check className="h-3.5 w-3.5" />
+                            {working ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <Check className="h-3.5 w-3.5" />
+                            )}
                             Duyệt
                         </button>
 
@@ -332,12 +365,16 @@ export default function NotificationsWidget() {
                             disabled={working}
                             onClick={() => handleReject(approval.id)}
                             className={cls(
-                                "inline-flex items-center gap-1 rounded-md border border-rose-600 bg-white text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 text-[12px] font-medium shadow-sm transition-colors",
-                                working ? "opacity-60 cursor-not-allowed" : ""
+                                "inline-flex items-center gap-1.5 rounded-lg border-2 border-rose-600 bg-white text-rose-700 hover:bg-rose-50 hover:shadow-md px-3 py-1.5 text-[12px] font-semibold transition-all duration-200",
+                                working ? "opacity-60 cursor-not-allowed" : "hover:scale-105"
                             )}
                             title="Từ chối"
                         >
-                            <X className="h-3.5 w-3.5" />
+                            {working ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <X className="h-3.5 w-3.5" />
+                            )}
                             Từ chối
                         </button>
                     </div>
@@ -348,171 +385,244 @@ export default function NotificationsWidget() {
 
     const alerts = dashboard?.alerts || [];
     const pending = dashboard?.pendingApprovals || [];
+    const totalCount = alerts.length + pending.length;
+
+    // Calculate unread count (alerts not acknowledged + pending approvals)
+    const unreadAlerts = alerts.filter(a => !a.isAcknowledged).length;
+    const badgeCount = unreadAlerts + pending.length;
 
     return (
-        <div className="rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm overflow-hidden">
-            {/* Header tổng của widget */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
-                <div className="h-9 w-9 rounded-md bg-sky-600 text-white flex items-center justify-center shadow-[0_10px_30px_rgba(2,132,199,.35)]">
-                    <Bell className="h-5 w-5" />
-                </div>
+        <div className="relative">
+            {/* Bell Icon Button */}
+            <button
+                data-notifications-button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-sky-400 hover:shadow-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                title="Thông báo"
+            >
+                <Bell className="h-5 w-5" />
+                {badgeCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg animate-pulse border-2 border-white">
+                        {badgeCount > 9 ? '9+' : badgeCount}
+                    </span>
+                )}
+                {connected && (
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></span>
+                )}
+            </button>
 
-                <div className="flex flex-col">
-                    <div className="text-[11px] text-slate-500 leading-none mb-1">
-                        Trung tâm cảnh báo / phê duyệt
-                    </div>
-                    <div className="text-slate-900 font-semibold leading-tight">
-                        Thông báo điều phối
-                    </div>
-                </div>
+            {/* Dropdown Panel */}
+            {showDropdown && (
+                <div
+                    data-notifications-dropdown
+                    className="absolute right-0 mt-2 w-[90vw] sm:w-[600px] lg:w-[700px] max-h-[85vh] bg-white border-2 border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in"
+                    style={{ 
+                        right: 0,
+                        transformOrigin: 'top right'
+                    }}
+                >
+                    {/* Header */}
+                    <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-slate-50">
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-sky-500 to-sky-600 text-white flex items-center justify-center shadow-lg shadow-sky-500/30">
+                            <Bell className="h-5 w-5" />
+                        </div>
 
-                <div className="ml-auto flex items-center gap-2">
-                    {/* WebSocket connection status */}
-                    <div
-                        className={cls(
-                            "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium",
-                            connected
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "bg-slate-100 text-slate-500 border border-slate-200"
-                        )}
-                        title={connected ? "WebSocket đã kết nối" : "WebSocket chưa kết nối"}
-                    >
-                        {connected ? (
-                            <>
-                                <Wifi className="h-3 w-3" />
-                                <span>Live</span>
-                            </>
-                        ) : (
-                            <>
-                                <WifiOff className="h-3 w-3" />
-                                <span>Offline</span>
-                            </>
-                        )}
-                        {unreadCount > 0 && (
-                            <span className="ml-0.5 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-[9px] font-bold">
-                                {unreadCount}
-                            </span>
-                        )}
-                    </div>
+                        <div className="flex flex-col flex-1">
+                            <div className="text-[11px] text-slate-500 leading-none mb-1 font-medium">
+                                Trung tâm cảnh báo / phê duyệt
+                            </div>
+                            <div className="text-slate-900 font-bold text-base leading-tight">
+                                Thông báo điều phối
+                            </div>
+                        </div>
 
-                    {isAdmin && branches.length > 0 && (
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowBranchSelector(!showBranchSelector)}
-                                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
-                                title="Chọn chi nhánh"
+                        <div className="flex items-center gap-2">
+                            {/* WebSocket status */}
+                            <div
+                                className={cls(
+                                    "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-all duration-200",
+                                    connected
+                                        ? "bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border-2 border-emerald-300 shadow-sm"
+                                        : "bg-slate-100 text-slate-500 border-2 border-slate-300"
+                                )}
+                                title={connected ? "WebSocket đã kết nối" : "WebSocket chưa kết nối"}
                             >
-                                <Building2 className="h-4 w-4 text-slate-600" />
-                                {branchId ? branches.find(b => b.id === branchId)?.branchName || "Chi nhánh" : "Tất cả"}
+                                {connected ? (
+                                    <>
+                                        <Wifi className="h-3.5 w-3.5 animate-pulse" />
+                                        <span>Live</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <WifiOff className="h-3.5 w-3.5" />
+                                        <span>Offline</span>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Branch selector for admin */}
+                            {isAdmin && branches.length > 0 && (
+                                <div className="relative">
+                                    <button
+                                        data-branch-button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowBranchSelector(!showBranchSelector);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-200"
+                                        title="Chọn chi nhánh"
+                                    >
+                                        <Building2 className="h-4 w-4 text-slate-600" />
+                                        {branchId ? branches.find(b => b.id === branchId)?.branchName || "Chi nhánh" : "Tất cả"}
+                                    </button>
+
+                                    {showBranchSelector && (
+                                        <div
+                                            data-branch-selector
+                                            className="absolute right-0 mt-2 w-64 bg-white border-2 border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden"
+                                        >
+                                            <div className="py-2">
+                                                <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 mb-1">
+                                                    Chọn chi nhánh
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setBranchId(null);
+                                                        setShowBranchSelector(false);
+                                                        fetchAll();
+                                                    }}
+                                                    className={cls(
+                                                        "w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2",
+                                                        branchId === null ? "bg-sky-50 text-sky-700 font-semibold border-l-4 border-sky-600" : "text-slate-700"
+                                                    )}
+                                                >
+                                                    <Building2 className="h-4 w-4" />
+                                                    Tất cả chi nhánh
+                                                </button>
+                                                {branches.map((branch) => (
+                                                    <button
+                                                        key={branch.id}
+                                                        onClick={() => {
+                                                            setBranchId(branch.id);
+                                                            setShowBranchSelector(false);
+                                                            fetchAll();
+                                                        }}
+                                                        className={cls(
+                                                            "w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2",
+                                                            branchId === branch.id ? "bg-sky-50 text-sky-700 font-semibold border-l-4 border-sky-600" : "text-slate-700"
+                                                        )}
+                                                    >
+                                                        <Building2 className="h-4 w-4" />
+                                                        {branch.branchName || branch.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Refresh button */}
+                            <button
+                                onClick={fetchAll}
+                                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-200 hover:scale-105"
+                                title="Làm mới"
+                            >
+                                <RefreshCw className={cls("h-4 w-4 text-slate-600", loading ? "animate-spin" : "")} />
                             </button>
 
-                            {showBranchSelector && (
-                                <div className="absolute right-0 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-20">
-                                    <div className="py-1">
-                                        <button
-                                            onClick={() => {
-                                                setBranchId(null);
-                                                setShowBranchSelector(false);
-                                            }}
-                                            className={cls(
-                                                "w-full text-left px-3 py-2 text-sm hover:bg-slate-50",
-                                                branchId === null ? "bg-sky-50 text-sky-700 font-medium" : "text-slate-700"
-                                            )}
-                                        >
-                                            Tất cả chi nhánh
-                                        </button>
-                                        {branches.map((branch) => (
-                                            <button
-                                                key={branch.id}
-                                                onClick={() => {
-                                                    setBranchId(branch.id);
-                                                    setShowBranchSelector(false);
-                                                }}
-                                                className={cls(
-                                                    "w-full text-left px-3 py-2 text-sm hover:bg-slate-50",
-                                                    branchId === branch.id ? "bg-sky-50 text-sky-700 font-medium" : "text-slate-700"
-                                                )}
-                                            >
-                                                {branch.branchName || branch.name}
-                                            </button>
-                                        ))}
+                            {/* Close button */}
+                            <button
+                                onClick={() => setShowDropdown(false)}
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-200 hover:scale-105"
+                                title="Đóng"
+                            >
+                                <XCircle className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 max-h-[calc(85vh-80px)] overflow-hidden">
+                        {/* Cột Cảnh báo */}
+                        <div className="min-h-[300px] max-h-[calc(85vh-80px)] overflow-y-auto text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+                            <SectionHeader
+                                icon={<ShieldAlert className="h-4 w-4" />}
+                                title="Cảnh báo"
+                                count={alerts.length}
+                            />
+
+                            {error && (
+                                <div className="mx-4 mt-3 px-4 py-3 text-[12px] leading-5 text-amber-800 bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 rounded-lg flex items-start gap-2 shadow-sm">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <div className="font-semibold mb-1">Lỗi tải dữ liệu</div>
+                                        <span>{error}</span>
                                     </div>
+                                    <button
+                                        onClick={fetchAll}
+                                        className="shrink-0 text-amber-700 hover:text-amber-900 transition-colors"
+                                        title="Thử lại"
+                                    >
+                                        <RefreshCw className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {alerts.length === 0 && !loading && !error && (
+                                <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+                                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                                        <Inbox className="h-8 w-8 text-slate-400" />
+                                    </div>
+                                    <div className="text-sm font-medium text-slate-600 mb-1">Không có cảnh báo</div>
+                                    <div className="text-xs text-slate-500">Tất cả đều ổn!</div>
+                                </div>
+                            )}
+
+                            {alerts.map((a) => (
+                                <AlertItem key={a.id} alert={a} />
+                            ))}
+
+                            {loading && (
+                                <div className="flex flex-col items-center justify-center px-4 py-12">
+                                    <Loader2 className="h-8 w-8 text-sky-600 animate-spin mb-3" />
+                                    <div className="text-sm text-slate-600 font-medium">Đang tải cảnh báo...</div>
                                 </div>
                             )}
                         </div>
-                    )}
 
-                    <button
-                        onClick={fetchAll}
-                        className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
-                        title="Làm mới"
-                    >
-                        <RefreshCw className={cls("h-4 w-4 text-slate-600", loading ? "animate-spin" : "")} />
-                        {loading ? "Đang tải" : "Làm mới"}
-                    </button>
+                        {/* Cột Chờ duyệt */}
+                        <div className="min-h-[300px] max-h-[calc(85vh-80px)] overflow-y-auto text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+                            <SectionHeader
+                                icon={<CalendarDays className="h-4 w-4" />}
+                                title="Chờ duyệt"
+                                count={pending.length}
+                            />
+
+                            {pending.length === 0 && !loading && (
+                                <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+                                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                                        <Clock className="h-8 w-8 text-slate-400" />
+                                    </div>
+                                    <div className="text-sm font-medium text-slate-600 mb-1">Không có mục chờ duyệt</div>
+                                    <div className="text-xs text-slate-500">Tất cả đã được xử lý!</div>
+                                </div>
+                            )}
+
+                            {pending.map((p) => (
+                                <PendingItem key={p.id} approval={p} />
+                            ))}
+
+                            {loading && (
+                                <div className="flex flex-col items-center justify-center px-4 py-12">
+                                    <Loader2 className="h-8 w-8 text-sky-600 animate-spin mb-3" />
+                                    <div className="text-sm text-slate-600 font-medium">Đang tải yêu cầu...</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
-                {/* Cột Cảnh báo */}
-                <div className="min-h-[260px] max-h-[420px] overflow-y-auto text-sm">
-                    <SectionHeader
-                        icon={<ShieldAlert className="h-4 w-4" />}
-                        title="Cảnh báo"
-                        count={alerts.length}
-                    />
-
-                    {error && (
-                        <div className="px-3 py-2 text-[12px] leading-4 text-amber-700 bg-amber-50 border-b border-slate-200 flex items-start gap-1">
-                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                            <span>{error}</span>
-                        </div>
-                    )}
-
-                    {alerts.length === 0 && !loading && (
-                        <div className="px-3 py-6 text-sm text-slate-500">
-                            Không có cảnh báo.
-                        </div>
-                    )}
-
-                    {alerts.map((a) => (
-                        <AlertItem key={a.id} alert={a} />
-                    ))}
-
-                    {loading && (
-                        <div className="px-3 py-4 text-sm text-slate-500 flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-slate-400" />
-                            Đang tải…
-                        </div>
-                    )}
-                </div>
-
-                {/* Cột Chờ duyệt */}
-                <div className="min-h-[260px] max-h-[420px] overflow-y-auto text-sm">
-                    <SectionHeader
-                        icon={<CalendarDays className="h-4 w-4" />}
-                        title="Chờ duyệt"
-                        count={pending.length}
-                    />
-
-                    {pending.length === 0 && !loading && (
-                        <div className="px-3 py-6 text-sm text-slate-500">
-                            Không có mục chờ duyệt.
-                        </div>
-                    )}
-
-                    {pending.map((p) => (
-                        <PendingItem key={p.id} approval={p} />
-                    ))}
-
-                    {loading && (
-                        <div className="px-3 py-4 text-sm text-slate-500 flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-slate-400" />
-                            Đang tải…
-                        </div>
-                    )}
-                </div>
-            </div>
+            )}
         </div>
     );
 }

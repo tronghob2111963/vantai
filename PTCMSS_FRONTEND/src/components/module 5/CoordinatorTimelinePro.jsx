@@ -12,6 +12,8 @@ import {
     ListChecks,
     Building2,
     Loader2,
+    AlertCircle,
+    RefreshCw,
 } from "lucide-react";
 import { getDispatchDashboard, assignTrips } from "../../api/dispatch";
 import { listBranches, getBranchByUserId } from "../../api/branches";
@@ -1020,16 +1022,27 @@ export default function CoordinatorTimelinePro() {
             setBranchError("");
             try {
                 if (isBranchScoped) {
-                    if (!userId) {
-                        throw new Error("Khong xac dinh user.");
+                    // Validate userId
+                    if (!userId || userId.trim() === "") {
+                        throw new Error("Không xác định được user ID. Vui lòng đăng nhập lại.");
                     }
-                    const resp = await getBranchByUserId(Number(userId));
+                    const userIdNum = Number(userId);
+                    if (!Number.isFinite(userIdNum) || userIdNum <= 0) {
+                        throw new Error(`User ID không hợp lệ: ${userId}`);
+                    }
+                    
+                    console.log("[CoordinatorTimelinePro] Loading branch for userId:", userIdNum);
+                    const resp = await getBranchByUserId(userIdNum);
                     if (cancelled) return;
+                    
+                    console.log("[CoordinatorTimelinePro] Branch response:", resp);
                     const option = mapBranchRecord(resp);
+                    if (cancelled) return;
+                    
                     setBranches(option ? [option] : []);
                     setBranchId((prev) => prev || (option?.id || ""));
                     if (!option) {
-                        setBranchError("Khong tim thay chi nhanh phu trach.");
+                        setBranchError("Không tìm thấy chi nhánh phụ trách. Vui lòng liên hệ quản trị viên.");
                     }
                 } else {
                     const res = await listBranches({ page: 0, size: 100 });
@@ -1040,17 +1053,32 @@ export default function CoordinatorTimelinePro() {
                     setBranches(options);
                     setBranchId((prev) => prev || (options[0]?.id || ""));
                     if (!options.length) {
-                        setBranchError("Chua co chi nhanh.");
+                        setBranchError("Chưa có chi nhánh.");
                     }
                 }
             } catch (err) {
                 if (cancelled) return;
+                console.error("[CoordinatorTimelinePro] Failed to load branches:", err);
                 setBranches([]);
                 setBranchId("");
-                const msg =
-                    err?.data?.message ||
-                    err?.message ||
-                    "Khong tai duoc danh sach chi nhanh.";
+                
+                // Extract error message
+                let msg = "Không tải được danh sách chi nhánh.";
+                if (err?.data?.message) {
+                    msg = err.data.message;
+                } else if (err?.data?.data?.message) {
+                    msg = err.data.data.message;
+                } else if (err?.message) {
+                    msg = err.message;
+                }
+                
+                // Handle specific backend errors
+                if (err?.status === 404 || msg.includes("không thuộc") || msg.includes("không tìm thấy")) {
+                    msg = "Không tìm thấy chi nhánh phụ trách. Vui lòng liên hệ quản trị viên để được gán chi nhánh.";
+                } else if (err?.status === 401 || err?.status === 403) {
+                    msg = "Không có quyền truy cập. Vui lòng đăng nhập lại.";
+                }
+                
                 setBranchError(msg);
             } finally {
                 if (!cancelled) setBranchLoading(false);
@@ -1074,16 +1102,25 @@ export default function CoordinatorTimelinePro() {
     // Load data
     const fetchData = React.useCallback(
         async (branch, d) => {
-            if (!branch) return;
+            if (!branch) {
+                console.warn("[CoordinatorTimelinePro] No branch ID provided");
+                return;
+            }
             const branchNumeric = Number(branch);
-            if (!Number.isFinite(branchNumeric)) return;
+            if (!Number.isFinite(branchNumeric) || branchNumeric <= 0) {
+                console.warn("[CoordinatorTimelinePro] Invalid branch ID:", branch);
+                return;
+            }
             setLoading(true);
             setError("");
             try {
+                console.log("[CoordinatorTimelinePro] Fetching dashboard for branch:", branchNumeric, "date:", d);
                 const payload = await getDispatchDashboard({
                     branchId: branchNumeric,
                     date: d,
                 });
+                console.log("[CoordinatorTimelinePro] Dashboard payload:", payload);
+                
                 const pendingRows =
                     payload?.pendingTrips ??
                     payload?.pending_trips ??
@@ -1101,14 +1138,30 @@ export default function CoordinatorTimelinePro() {
                 setDrivers(normalizeDriverSchedules(driverRows));
                 setVehicles(normalizeVehicleSchedules(vehicleRows));
             } catch (err) {
-                const demo = demoData(d);
-                setPending(demo.pending_orders);
-                setDrivers(demo.driver_schedules);
-                setVehicles(demo.vehicle_schedules);
-                const msg =
-                    err?.data?.message ||
-                    err?.message ||
-                    "Khong tai duoc dashboard. Dang hien thi du lieu demo.";
+                console.error("[CoordinatorTimelinePro] Failed to load dashboard:", err);
+                
+                // Clear data on error
+                setPending([]);
+                setDrivers([]);
+                setVehicles([]);
+                
+                // Extract error message
+                let msg = "Không tải được dữ liệu dashboard.";
+                if (err?.data?.message) {
+                    msg = err.data.message;
+                } else if (err?.data?.data?.message) {
+                    msg = err.data.data.message;
+                } else if (err?.message) {
+                    msg = err.message;
+                }
+                
+                // Handle specific errors
+                if (err?.status === 401 || err?.status === 403) {
+                    msg = "Không có quyền truy cập dashboard. Vui lòng đăng nhập lại.";
+                } else if (err?.status === 404) {
+                    msg = "Không tìm thấy dữ liệu cho chi nhánh này.";
+                }
+                
                 setError(msg);
             } finally {
                 setLoading(false);
@@ -1342,7 +1395,7 @@ export default function CoordinatorTimelinePro() {
                     {/* right block: controls */}
                     <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 ml-auto">
                         {/* branch */}
-                        <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 min-w-[220px]">
+                        <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 min-w-[220px] relative z-10">
                             <Building2 className="h-4 w-4 text-slate-500" />
                             {branchLoading ? (
                                 <div className="flex items-center gap-1 text-slate-500">
@@ -1351,10 +1404,24 @@ export default function CoordinatorTimelinePro() {
                                 </div>
                             ) : branches.length ? (
                                 <select
-                                    className="bg-transparent outline-none text-[13px] text-slate-900 min-w-[140px]"
+                                    className={`bg-transparent outline-none text-[13px] text-slate-900 min-w-[140px] appearance-none pr-6 focus:ring-2 focus:ring-sky-500 rounded ${
+                                        isBranchScoped ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
+                                    }`}
                                     value={branchId}
-                                    onChange={(e) => setBranchId(e.target.value)}
+                                    onChange={(e) => {
+                                        const newBranchId = e.target.value;
+                                        if (newBranchId) {
+                                            setBranchId(newBranchId);
+                                        }
+                                    }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                    }}
                                     disabled={isBranchScoped}
+                                    title={isBranchScoped ? "Manager/Coordinator chỉ xem được chi nhánh của mình" : "Chọn chi nhánh"}
+                                    style={{ 
+                                        pointerEvents: isBranchScoped ? 'none' : 'auto'
+                                    }}
                                 >
                                     {branches.map((b) => (
                                         <option key={b.id} value={b.id}>
@@ -1368,15 +1435,26 @@ export default function CoordinatorTimelinePro() {
                         </div>
 
                         {/* date */}
-                        <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700">
+                        <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 relative z-10">
                             <CalendarDays className="h-4 w-4 text-slate-500" />
                             <input
                                 type="date"
-                                className="bg-transparent outline-none text-[13px] text-slate-900"
+                                className="bg-transparent outline-none text-[13px] text-slate-900 cursor-pointer w-full"
                                 value={date}
-                                onChange={(e) =>
-                                    setDate(e.target.value)
-                                }
+                                onChange={(e) => {
+                                    const newDate = e.target.value;
+                                    if (newDate) {
+                                        setDate(newDate);
+                                    }
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                }}
+                                style={{ 
+                                    pointerEvents: 'auto',
+                                    WebkitAppearance: 'none',
+                                    MozAppearance: 'textfield'
+                                }}
                             />
                         </div>
 
@@ -1655,16 +1733,50 @@ export default function CoordinatorTimelinePro() {
 
                 {(branchError || error) && (
                     <div className="space-y-2">
-                        {[branchError, error]
-                            .filter(Boolean)
-                            .map((msg, idx) => (
-                                <div
-                                    key={idx}
-                                    className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-                                >
-                                    {msg}
+                        {branchError && (
+                            <div className="flex items-center justify-between text-[13px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4 text-rose-600" />
+                                    <span>{branchError}</span>
                                 </div>
-                            ))}
+                                <button
+                                    onClick={() => {
+                                        setBranchError("");
+                                        setBranchLoading(true);
+                                        // Trigger reload by updating a dependency
+                                        const currentUserId = getStoredUserId();
+                                        if (currentUserId && isBranchScoped) {
+                                            getBranchByUserId(Number(currentUserId))
+                                                .then((resp) => {
+                                                    const option = mapBranchRecord(resp);
+                                                    setBranches(option ? [option] : []);
+                                                    setBranchId((prev) => prev || (option?.id || ""));
+                                                    if (!option) {
+                                                        setBranchError("Không tìm thấy chi nhánh phụ trách.");
+                                                    }
+                                                })
+                                                .catch((err) => {
+                                                    const msg =
+                                                        err?.data?.message ||
+                                                        err?.message ||
+                                                        "Không tải được thông tin chi nhánh.";
+                                                    setBranchError(msg);
+                                                })
+                                                .finally(() => setBranchLoading(false));
+                                        }
+                                    }}
+                                    className="ml-4 rounded-md bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 text-[12px] font-medium shadow-sm flex items-center gap-1"
+                                >
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    Thử lại
+                                </button>
+                            </div>
+                        )}
+                        {error && (
+                            <div className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                {error}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
