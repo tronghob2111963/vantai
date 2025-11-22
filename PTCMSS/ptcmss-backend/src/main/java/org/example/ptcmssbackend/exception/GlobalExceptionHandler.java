@@ -153,4 +153,34 @@ public class GlobalExceptionHandler {
 
         return errorResponse;
     }
+
+    /**
+     * Handle InvoiceException
+     */
+    @ExceptionHandler(InvoiceException.class)
+    @ResponseStatus(BAD_REQUEST)
+    public ErrorResponse handleInvoiceException(InvoiceException e, WebRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setTimestamp(new Date());
+        errorResponse.setPath(request.getDescription(false).replace("uri=", ""));
+        errorResponse.setStatus(BAD_REQUEST.value());
+        errorResponse.setError("Invoice Error");
+        errorResponse.setMessage(e.getMessage());
+        return errorResponse;
+    }
+
+    /**
+     * Handle PaymentException
+     */
+    @ExceptionHandler(PaymentException.class)
+    @ResponseStatus(BAD_REQUEST)
+    public ErrorResponse handlePaymentException(PaymentException e, WebRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setTimestamp(new Date());
+        errorResponse.setPath(request.getDescription(false).replace("uri=", ""));
+        errorResponse.setStatus(BAD_REQUEST.value());
+        errorResponse.setError("Payment Error");
+        errorResponse.setMessage(e.getMessage());
+        return errorResponse;
+    }
 }

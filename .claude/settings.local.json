@@ -14,7 +14,9 @@
       "Bash(mvnw.cmd clean compile:*)",
       "Bash(nul)",
       "Bash(npm run dev:*)",
-      "Bash(.mvnw.cmd clean compile:*)"
+      "Bash(.mvnw.cmd clean compile:*)",
+      "Bash(grep:*)",
+      "Bash(tr:*)"
     ],
     "deny": [],
     "ask": []

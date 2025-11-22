@@ -7,6 +7,8 @@ import {
     Info,
     Paperclip,
 } from "lucide-react";
+import { recordPayment } from "../../api/invoices";
+import { createDeposit } from "../../api/deposits";
 
 /**
  * DepositModal (LIGHT THEME REWORK, FIXED PRESET CALC)
@@ -244,25 +246,42 @@ export default function DepositModal({
             attachments: files && files.length ? files : undefined,
         };
 
-        const endpoint =
-            context?.type === "order"
-                ? "/api/v1/orders/" + String(context?.id) + "/payments"
-                : "/api/v1/invoices/" + String(context?.id) + "/payments";
-
         try {
-            // giả lập call API
-            await new Promise((r) => setTimeout(r, 400));
-
-            if (typeof onSubmitted === "function") {
-                onSubmitted(payload, {
-                    ...context,
-                    endpoint,
+            if (context?.type === "order") {
+                // Create deposit for booking
+                await createDeposit(context.id, {
+                    amount,
+                    paymentMethod: method,
+                    paymentDate: date,
+                    kind, // "DEPOSIT" | "PAYMENT"
+                    note: note || undefined,
+                    bankName: method === "BANK_TRANSFER" ? bankName : undefined,
+                    bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
+                    referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
+                    cashierName: method === "CASH" ? undefined : undefined, // Can add cashier field if needed
+                    receiptNumber: method === "CASH" ? undefined : undefined, // Can generate if needed
+                });
+            } else {
+                // Record payment for invoice
+                await recordPayment(context.id, {
+                    amount,
+                    paymentMethod: method,
+                    paymentDate: date,
+                    bankName: method === "BANK_TRANSFER" ? bankName : undefined,
+                    bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
+                    referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
+                    note: note || undefined,
                 });
             }
 
+            if (typeof onSubmitted === "function") {
+                onSubmitted(payload, context);
+            }
+
             onClose && onClose();
-        } catch {
-            setError("Không thể ghi nhận thanh toán. Vui lòng thử lại.");
+        } catch (err) {
+            console.error("Error submitting payment:", err);
+            setError("Không thể ghi nhận thanh toán: " + (err.message || "Unknown error"));
         } finally {
             setLoading(false);
         }
@@ -643,16 +662,9 @@ export default function DepositModal({
                 {/* Footer */}
                 <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center gap-3 justify-between">
                     <div className="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-0">
-                        Endpoint dự kiến:{" "}
-                        <code className="text-[11px] text-slate-800 bg-slate-100 border border-slate-300 rounded px-1 py-0.5">
-                            {context?.type === "order"
-                                ? "/api/v1/orders/" +
-                                String(context?.id) +
-                                "/payments"
-                                : "/api/v1/invoices/" +
-                                String(context?.id) +
-                                "/payments"}
-                        </code>
+                        {context?.type === "order"
+                            ? "Tạo deposit cho booking"
+                            : "Ghi nhận thanh toán cho invoice"}
                     </div>
 
                     <div className="flex items-center gap-2">

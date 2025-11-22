@@ -1676,8 +1676,8 @@ export default function ConsultantOrdersPage() {
 
     // paging / sort
     const [sortKey, setSortKey] =
-        React.useState("pickup_time");
-    const [sortDir, setSortDir] = React.useState("asc");
+        React.useState("created_at");
+    const [sortDir, setSortDir] = React.useState("desc");
     const [page, setPage] = React.useState(1);
     const [pageSize, setPageSize] = React.useState(10);
 
