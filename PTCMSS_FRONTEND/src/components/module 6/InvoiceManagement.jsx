@@ -14,6 +14,15 @@ import {
 } from "lucide-react";
 
 import DepositModal from "./DepositModal.jsx";
+import {
+  listInvoices,
+  createInvoice,
+  recordPayment,
+  sendInvoice,
+  generateInvoiceNumber,
+} from "../../api/invoices";
+import { listBookings } from "../../api/bookings";
+import { exportInvoiceListToExcel, exportInvoiceToPdf } from "../../api/exports";
 
 /* ===== Helpers / constants ===== */
 const BRAND_COLOR = "#0079BC";
@@ -721,41 +730,25 @@ function InvoiceTable({
                                 className="hover:bg-gray-50"
                             >
                                 <td className="px-3 py-2 text-sm text-gray-900 font-medium">
-                                    {
-                                        iv.invoice_no
-                                    }
+                                    {iv.invoice_no || `INV-${iv.id}`}
                                 </td>
                                 <td className="px-3 py-2 text-sm text-gray-800">
-                                    {
-                                        iv.customer
-                                    }
+                                    {iv.customer || "—"}
                                 </td>
                                 <td className="px-3 py-2 text-sm text-gray-800">
-                                    {
-                                        iv.order_code
-                                    }
+                                    {iv.order_code || "—"}
                                 </td>
                                 <td className="px-3 py-2 text-sm font-semibold tabular-nums text-gray-900">
-                                    {fmtVND(
-                                        iv.total
-                                    )}{" "}
-                                    đ
+                                    {fmtVND(iv.total || 0)} đ
                                 </td>
                                 <td className="px-3 py-2 text-sm tabular-nums text-gray-800">
-                                    {fmtVND(
-                                        iv.paid
-                                    )}{" "}
-                                    đ
+                                    {fmtVND(iv.paid || 0)} đ
                                 </td>
                                 <td className="px-3 py-2 text-sm tabular-nums text-gray-800">
-                                    {fmtVND(
-                                        balance
-                                    )}{" "}
-                                    đ
+                                    {fmtVND(balance)} đ
                                 </td>
                                 <td className="px-3 py-2 text-[11px] text-gray-500 whitespace-nowrap">
-                                    {iv.due_at ||
-                                        "—"}
+                                    {iv.due_at || "—"}
                                 </td>
                                 <td className="px-3 py-2 text-sm">
                                     <StatusBadge status={iv.status} />
@@ -1150,23 +1143,17 @@ function sortDebtPriority(list) {
 
 /* ===== Main Page ===== */
 export default function InvoiceManagement() {
-    const { toasts, push } =
-        useToasts();
+    const { toasts, push } = useToasts();
 
-    const [loading, setLoading] =
-        React.useState(false);
-    const [query, setQuery] =
-        React.useState("");
-    const [
-        statusFilter,
-        setStatusFilter,
-    ] = React.useState("");
-    const [createOpen, setCreateOpen] =
-        React.useState(false);
-    const [invoices, setInvoices] =
-        React.useState(
-            DEMO_INVOICES
-        );
+    const [loading, setLoading] = React.useState(false);
+    const [initialLoading, setInitialLoading] = React.useState(true);
+    const [query, setQuery] = React.useState("");
+    const [statusFilter, setStatusFilter] = React.useState("");
+    const [createOpen, setCreateOpen] = React.useState(false);
+    const [invoices, setInvoices] = React.useState([]);
+    const [completedOrders, setCompletedOrders] = React.useState([]);
+    const [page, setPage] = React.useState(0);
+    const [totalPages, setTotalPages] = React.useState(1);
 
     // modal thanh toán (DepositModal)
     const [depositOpen, setDepositOpen] =
@@ -1193,108 +1180,137 @@ export default function InvoiceManagement() {
             (v) => !v
         );
 
-    // lọc data (và sort ưu tiên công nợ)
-    const filtered =
-        React.useMemo(
-            () => {
-                const q =
-                    query
-                        .trim()
-                        .toLowerCase();
+    // Load invoices from API
+    const loadInvoices = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const params = {
+                page,
+                size: 20,
+                sortBy: debtMode ? "dueDate" : "createdAt",
+                sortDir: debtMode ? "asc" : "desc",
+            };
+            
+            if (debtMode) {
+                params.overdueOnly = true;
+            } else if (statusFilter) {
+                params.paymentStatus = statusFilter;
+            }
+            
+            if (query.trim()) {
+                params.keyword = query.trim();
+            }
+            
+            const response = await listInvoices(params);
+            
+            // Handle paginated response
+            if (response && response.content) {
+                setInvoices(response.content || []);
+                setTotalPages(response.totalPages || 1);
+            } else if (Array.isArray(response)) {
+                setInvoices(response);
+                setTotalPages(1);
+            } else {
+                setInvoices([]);
+            }
+        } catch (err) {
+            console.error("Error loading invoices:", err);
+            push("Lỗi khi tải danh sách hóa đơn: " + (err.message || "Unknown error"), "error");
+            setInvoices([]);
+        } finally {
+            setLoading(false);
+            setInitialLoading(false);
+        }
+    }, [page, debtMode, statusFilter, query, push]);
 
-                let base =
-                    invoices.filter(
-                        (
-                            iv
-                        ) =>
-                            !q
-                                ? true
-                                : (
-                                    iv.invoice_no +
-                                    " " +
-                                    iv.customer +
-                                    " " +
-                                    iv.order_code
-                                )
-                                    .toLowerCase()
-                                    .includes(
-                                        q
-                                    )
-                    );
+    // Load completed orders for create invoice modal
+    const loadCompletedOrders = React.useCallback(async () => {
+        try {
+            const response = await listBookings({ status: "COMPLETED" });
+            // Handle paginated response
+            const orders = response?.content || response || [];
+            const formatted = (Array.isArray(orders) ? orders : []).map(order => ({
+                id: order.bookingId || order.id,
+                code: order.bookingCode || order.code || `ORD-${order.bookingId || order.id}`,
+                customer: order.customerName || order.customer || "—",
+                total: order.totalPrice || order.total || 0,
+                completed_at: order.completedAt || order.completed_at || order.updatedAt || "—"
+            }));
+            setCompletedOrders(formatted);
+        } catch (err) {
+            console.error("Error loading completed orders:", err);
+            setCompletedOrders([]);
+        }
+    }, []);
 
-                if (
-                    debtMode
-                ) {
-                    base =
-                        base.filter(
-                            (
-                                iv
-                            ) =>
-                                iv.status ===
-                                STATUS.UNPAID ||
-                                iv.status ===
-                                STATUS.OVERDUE
-                        );
-                    base =
-                        sortDebtPriority(
-                            base
-                        );
-                } else if (
-                    statusFilter
-                ) {
-                    base =
-                        base.filter(
-                            (
-                                iv
-                            ) =>
-                                iv.status ===
-                                statusFilter
-                        );
-                }
+    // Load data on mount and when filters change
+    React.useEffect(() => {
+        loadInvoices();
+    }, [loadInvoices]);
 
-                return base;
-            },
-            [
-                invoices,
-                query,
-                statusFilter,
-                debtMode,
-            ]
+    React.useEffect(() => {
+        if (createOpen) {
+            loadCompletedOrders();
+        }
+    }, [createOpen, loadCompletedOrders]);
+
+    // Transform API response to UI format
+    const transformedInvoices = React.useMemo(() => {
+        return invoices.map((iv) => ({
+            id: iv.invoiceId,
+            invoice_no: iv.invoiceNumber || `INV-${iv.invoiceId}`,
+            customer: iv.customerName || "—",
+            order_code: iv.bookingId ? `ORD-${iv.bookingId}` : "—",
+            total: Number(iv.amount || 0),
+            paid: Number(iv.paidAmount || 0),
+            balance: Number(iv.balance || 0),
+            status: iv.paymentStatus || "UNPAID",
+            created_at: iv.invoiceDate ? new Date(iv.invoiceDate).toISOString().slice(0, 10) : "",
+            due_at: iv.dueDate || "",
+            daysOverdue: iv.daysOverdue || 0,
+        }));
+    }, [invoices]);
+
+    // Filter and sort (client-side for now, can be moved to server)
+    const filtered = React.useMemo(() => {
+        let base = [...transformedInvoices];
+        
+        if (debtMode) {
+            base = base.filter((iv) => 
+                iv.status === STATUS.UNPAID || iv.status === STATUS.OVERDUE
+            );
+            base = sortDebtPriority(base);
+        }
+        
+        return base;
+    }, [transformedInvoices, debtMode]);
+
+    const onRefresh = () => {
+        loadInvoices();
+        push(
+            debtMode
+                ? "Đã đồng bộ công nợ"
+                : "Đã làm mới danh sách hóa đơn",
+            "info"
         );
+    };
 
-    const onRefresh =
-        () => {
-            setLoading(
-                true
-            );
-            setTimeout(
-                () => {
-                    setLoading(
-                        false
-                    );
-                    push(
-                        debtMode
-                            ? "Đã đồng bộ công nợ (demo)"
-                            : "Đã làm mới danh sách hóa đơn (demo)",
-                        "info"
-                    );
-                },
-                500
-            );
-        };
-
-    const onExportCsv =
-        () => {
-            exportCSV(
-                filtered
-            );
+    const onExportCsv = async () => {
+        try {
+            await exportInvoiceListToExcel({
+                paymentStatus: debtMode ? "UNPAID" : statusFilter || undefined,
+            });
             push(
                 debtMode
-                    ? "Đã export CSV công nợ"
-                    : "Đã export CSV hóa đơn",
-                "info"
+                    ? "Đã export Excel công nợ"
+                    : "Đã export Excel hóa đơn",
+                "success"
             );
-        };
+        } catch (err) {
+            console.error("Export error:", err);
+            push("Lỗi khi export: " + (err.message || "Unknown error"), "error");
+        }
+    };
 
     const onCreateClick =
         () =>
@@ -1302,88 +1318,40 @@ export default function InvoiceManagement() {
                 true
             );
 
-    const onCreate = (
-        orderId
-    ) => {
-        const order =
-            COMPLETED_ORDERS.find(
-                (o) =>
-                    o.id ===
-                    orderId
-            );
-        if (!order)
+    const onCreate = async (bookingId) => {
+        const order = completedOrders.find((o) => o.bookingId === bookingId);
+        if (!order) {
+            push("Không tìm thấy đơn hàng", "error");
             return;
+        }
 
-        const nextNo =
-            "INV-2025-" +
-            String(
-                invoices.length +
-                1
-            ).padStart(
-                3,
-                "0"
-            );
+        setLoading(true);
+        try {
+            // Generate invoice number
+            const invoiceNumberData = await generateInvoiceNumber(order.branchId);
+            const invoiceNumber = invoiceNumberData?.invoiceNumber;
 
-        const newIv = {
-            id:
-                Math.max(
-                    0,
-                    ...invoices.map(
-                        (
-                            x
-                        ) =>
-                            x.id
-                    )
-                ) + 1,
-            invoice_no:
-            nextNo,
-            customer:
-            order.customer,
-            order_code:
-            order.code,
-            total:
-            order.total,
-            paid: 0,
-            status:
-            STATUS.UNPAID,
-            created_at:
-                new Date()
-                    .toISOString()
-                    .slice(
-                        0,
-                        10
-                    ),
-            due_at:
-                new Date(
-                    Date.now() +
-                    1000 *
-                    60 *
-                    60 *
-                    24 *
-                    30
-                )
-                    .toISOString()
-                    .slice(
-                        0,
-                        10
-                    ),
-        };
+            // Create invoice
+            const request = {
+                branchId: order.branchId,
+                bookingId: order.bookingId,
+                customerId: order.customerId,
+                type: "INCOME",
+                amount: Number(order.totalCost || order.estimatedCost || 0),
+                paymentTerms: "NET_7",
+                note: `Tạo từ đơn hàng ${order.bookingId}`,
+            };
 
-        setInvoices(
-            (arr) => [
-                newIv,
-                ...arr,
-            ]
-        );
-        setCreateOpen(
-            false
-        );
-        push(
-            "Đã tạo hóa đơn " +
-            newIv.invoice_no,
-            "success"
-        );
-        // TODO: POST /api/v1/accountant/invoices { order_id }
+            const newInvoice = await createInvoice(request);
+            setCreateOpen(false);
+            push(`Đã tạo hóa đơn ${newInvoice.invoiceNumber || invoiceNumber}`, "success");
+            loadInvoices(); // Reload list
+        } catch (err) {
+            console.error("Error creating invoice:", err);
+            push("Lỗi khi tạo hóa đơn: " + (err.message || "Unknown error"), "error");
+        } finally {
+            setLoading(false);
+        }
     };
 
     // helper để tính trạng thái mới sau khi thu tiền
@@ -1442,28 +1410,29 @@ export default function InvoiceManagement() {
             );
         };
 
-    // gửi HĐ qua email
-    const onSendInvoice =
-        (iv) => {
-            push(
-                "Đã gửi hóa đơn " +
-                iv.invoice_no +
-                " qua email",
-                "info"
-            );
-            // TODO: API gửi mail
-        };
+    // Gửi HĐ qua email
+    const onSendInvoice = async (iv) => {
+        try {
+            await sendInvoice(iv.id, {
+                email: "", // Will use customer email from invoice
+            });
+            push(`Đã gửi hóa đơn ${iv.invoice_no} qua email`, "success");
+        } catch (err) {
+            console.error("Error sending invoice:", err);
+            push("Lỗi khi gửi email: " + (err.message || "Unknown error"), "error");
+        }
+    };
 
-    // xuất PDF mock
-    const onExportPdf =
-        (iv) => {
-            push(
-                "Xuất PDF (design-only) cho " +
-                iv.invoice_no,
-                "info"
-            );
-            // TODO: generate pdf thật
-        };
+    // Xuất PDF
+    const onExportPdf = async (iv) => {
+        try {
+            await exportInvoiceToPdf(iv.id);
+            push(`Đã xuất PDF cho ${iv.invoice_no}`, "success");
+        } catch (err) {
+            console.error("Error exporting PDF:", err);
+            push("Lỗi khi xuất PDF: " + (err.message || "Unknown error"), "error");
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 p-5">
@@ -1568,57 +1537,64 @@ export default function InvoiceManagement() {
                         : "Danh sách hóa đơn"}
                 </div>
 
-                <InvoiceTable
-                    items={
-                        filtered
-                    }
-                    onRecordPayment={
-                        onRecordPayment
-                    }
-                    onSendInvoice={
-                        onSendInvoice
-                    }
-                    onExportPdf={
-                        onExportPdf
-                    }
-                />
+                {initialLoading ? (
+                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                        Đang tải dữ liệu...
+                    </div>
+                ) : (
+                    <>
+                        <InvoiceTable
+                            items={filtered}
+                            onRecordPayment={onRecordPayment}
+                            onSendInvoice={onSendInvoice}
+                            onExportPdf={onExportPdf}
+                        />
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                                <div className="text-sm text-gray-700">
+                                    Trang {page + 1} / {totalPages}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setPage(Math.max(0, page - 1))}
+                                        disabled={page === 0}
+                                        className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                                    >
+                                        Trước
+                                    </button>
+                                    <button
+                                        onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                                        disabled={page >= totalPages - 1}
+                                        className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                                    >
+                                        Sau
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
 
                 <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white leading-relaxed">
-                    Design-only.
-                    Khi chốt
-                    backend sẽ
-                    nối API
-                    thật:
-                    GET
-                    /api/v1/accountant/invoices
-                    (có thể
-                    kèm
-                    status=UNPAID,OVERDUE
-                    &
-                    sort_by=due_date&order=asc
-                    khi
-                    debtMode
-                    = true)
+                    Dữ liệu được tải từ API. Tổng: {invoices.length} hóa đơn.
+                    {debtMode && " Chế độ công nợ: chỉ hiển thị UNPAID/OVERDUE, sắp xếp theo due date."}
                 </div>
             </div>
 
             {/* Modals */}
             {!debtMode && (
                 <CreateInvoiceModal
-                    open={
-                        createOpen
-                    }
-                    orders={
-                        COMPLETED_ORDERS
-                    }
-                    onCancel={() =>
-                        setCreateOpen(
-                            false
-                        )
-                    }
-                    onCreate={
-                        onCreate
-                    }
+                    open={createOpen}
+                    orders={completedOrders.map((o) => ({
+                        id: o.bookingId,
+                        code: `ORD-${o.bookingId}`,
+                        customer: o.customerName || "—",
+                        total: Number(o.totalCost || o.estimatedCost || 0),
+                        completed_at: o.updatedAt || o.createdAt || "",
+                    }))}
+                    onCancel={() => setCreateOpen(false)}
+                    onCreate={onCreate}
                 />
             )}
 
@@ -1646,56 +1622,26 @@ export default function InvoiceManagement() {
                         false
                     )
                 }
-                onSubmitted={(
-                    { amount },
-                    ctx
-                ) => {
-                    // cập nhật local paid/status
-                    setInvoices(
-                        (
-                            arr
-                        ) =>
-                            arr.map(
-                                (
-                                    x
-                                ) => {
-                                    if (
-                                        String(
-                                            x.id
-                                        ) !==
-                                        String(
-                                            ctx.id
-                                        )
-                                    )
-                                        return x;
+                onSubmitted={async ({ amount, payment_method, payment_date, bank, note }) => {
+                    try {
+                        const paymentRequest = {
+                            amount: Number(amount || 0),
+                            paymentMethod: payment_method || "CASH",
+                            paymentDate: payment_date || new Date().toISOString().slice(0, 10),
+                            bankName: bank?.name,
+                            bankAccount: bank?.account,
+                            referenceNumber: bank?.reference,
+                            note: note || "",
+                        };
 
-                                    const paidNow =
-                                        (x.paid ||
-                                            0) +
-                                        Number(
-                                            amount ||
-                                            0
-                                        );
-
-                                    return {
-                                        ...x,
-                                        paid: paidNow,
-                                        status: computeNextStatus(
-                                            x.total,
-                                            paidNow,
-                                            x.due_at
-                                        ),
-                                    };
-                                }
-                            )
-                    );
-                    setDepositOpen(
-                        false
-                    );
-                    push(
-                        "Đã ghi nhận thanh toán",
-                        "success"
-                    );
+                        await recordPayment(depositCtx.id, paymentRequest);
+                        setDepositOpen(false);
+                        push("Đã ghi nhận thanh toán", "success");
+                        loadInvoices(); // Reload to get updated balance
+                    } catch (err) {
+                        console.error("Error recording payment:", err);
+                        push("Lỗi khi ghi nhận thanh toán: " + (err.message || "Unknown error"), "error");
+                    }
                 }}
             />
         </div>

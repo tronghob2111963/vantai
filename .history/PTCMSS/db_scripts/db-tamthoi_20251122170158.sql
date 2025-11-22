@@ -85,7 +85,7 @@ CREATE TABLE `approval_history` (
   CONSTRAINT `FK16wtf9gshfmvoylj7vgfrttwk` FOREIGN KEY (`approvedBy`) REFERENCES `users` (`userId`),
   CONSTRAINT `FKetd5rr5a5ragndtrnc6vgovlr` FOREIGN KEY (`requestedBy`) REFERENCES `users` (`userId`),
   CONSTRAINT `FKly3gq7psb2v5ia1abopveqv65` FOREIGN KEY (`branchId`) REFERENCES `branches` (`branchId`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -94,7 +94,6 @@ CREATE TABLE `approval_history` (
 
 LOCK TABLES `approval_history` WRITE;
 /*!40000 ALTER TABLE `approval_history` DISABLE KEYS */;
-INSERT INTO `approval_history` VALUES (1,NULL,'DRIVER_DAY_OFF',NULL,2,'Khám sức khỏe','2025-11-22 11:18:56.533556','PENDING',NULL,1,9);
 /*!40000 ALTER TABLE `approval_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -235,40 +234,6 @@ LOCK TABLES `customers` WRITE;
 /*!40000 ALTER TABLE `customers` DISABLE KEYS */;
 INSERT INTO `customers` VALUES (1,'Công ty TNHH ABC (KCN Thăng Long)','0987654321','contact@abc.com','KCN Thăng Long, Đông Anh, Hà Nội',NULL,'2025-11-12 11:23:08',5,'ACTIVE'),(2,'Đoàn du lịch Hướng Việt','0987654322','info@huongviet.vn','Hoàn Kiếm, Hà Nội',NULL,'2025-11-12 11:23:08',6,'ACTIVE'),(3,'Công ty CP XYZ (Đà Nẵng)','0987654323','hr@xyz.com','Hải Châu, Đà Nẵng',NULL,'2025-11-12 11:23:08',5,'ACTIVE'),(4,'Gia đình ông Trần Văn Hùng','0987654324','hung.tran@gmail.com','Quận 7, TP. HCM',NULL,'2025-11-12 11:23:08',6,'ACTIVE'),(5,'Trường quốc tế Vinschool','0987654325','school@vinschool.edu.vn','Times City, Hà Nội',NULL,'2025-11-12 11:23:08',5,'ACTIVE'),(8,'Nguyễn Văn Thuần','0706871283','vthuan.dev@gmail.com',NULL,NULL,'2025-11-21 17:35:52',1,'ACTIVE');
 /*!40000 ALTER TABLE `customers` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `debt_reminder_history`
---
-
-DROP TABLE IF EXISTS `debt_reminder_history`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `debt_reminder_history` (
-  `reminderId` int NOT NULL AUTO_INCREMENT,
-  `createdAt` datetime(6) DEFAULT NULL,
-  `message` text COLLATE utf8mb4_unicode_ci,
-  `recipient` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `reminderDate` datetime(6) NOT NULL,
-  `reminderType` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `invoiceId` int NOT NULL,
-  `sentBy` int DEFAULT NULL,
-  PRIMARY KEY (`reminderId`),
-  KEY `FKnexosvqlx5baie771nj228jff` (`invoiceId`),
-  KEY `FK6tbo7olurv14twat5sr2bo3iq` (`sentBy`),
-  CONSTRAINT `FK6tbo7olurv14twat5sr2bo3iq` FOREIGN KEY (`sentBy`) REFERENCES `users` (`userId`),
-  CONSTRAINT `FKnexosvqlx5baie771nj228jff` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `debt_reminder_history`
---
-
-LOCK TABLES `debt_reminder_history` WRITE;
-/*!40000 ALTER TABLE `debt_reminder_history` DISABLE KEYS */;
-INSERT INTO `debt_reminder_history` VALUES (1,'2025-11-22 11:19:22.056105','Please pay your invoice as soon as possible',NULL,'2025-11-22 11:19:22.053551','EMAIL',16,NULL),(2,'2025-11-22 11:21:02.552599','Please pay your invoice as soon as possible',NULL,'2025-11-22 11:21:02.552600','EMAIL',19,NULL),(3,'2025-11-22 11:21:33.768766','Please pay your invoice as soon as possible',NULL,'2025-11-22 11:21:33.763500','EMAIL',22,NULL);
-/*!40000 ALTER TABLE `debt_reminder_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -542,26 +507,7 @@ CREATE TABLE `invoices` (
   `createdBy` int DEFAULT NULL,
   `approvedBy` int DEFAULT NULL,
   `approvedAt` datetime DEFAULT NULL,
-  `bankAccount` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bankName` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `cancellationReason` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `cancelledAt` datetime(6) DEFAULT NULL,
-  `cashierName` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `contactNote` text COLLATE utf8mb4_unicode_ci,
-  `debtLabel` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `dueDate` date DEFAULT NULL,
-  `invoiceNumber` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `paymentTerms` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `promiseToPayDate` date DEFAULT NULL,
-  `receiptNumber` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `referenceNumber` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `sentAt` datetime(6) DEFAULT NULL,
-  `sentToEmail` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `subtotal` decimal(18,2) DEFAULT NULL,
-  `vatAmount` decimal(18,2) DEFAULT '0.00',
-  `cancelledBy` int DEFAULT NULL,
   PRIMARY KEY (`invoiceId`),
-  UNIQUE KEY `UKgwqud8ggt742y8g83ke44qvx` (`invoiceNumber`),
   KEY `fk_inv_reqDriver` (`requestedBy`),
   KEY `fk_inv_createdBy` (`createdBy`),
   KEY `fk_inv_approvedBy` (`approvedBy`),
@@ -570,8 +516,6 @@ CREATE TABLE `invoices` (
   KEY `IX_Invoices_Booking` (`bookingId`),
   KEY `IX_Invoices_Customer` (`customerId`),
   KEY `IX_Invoices_PaymentStatus` (`paymentStatus`),
-  KEY `FK55ebms893efmjp7rbhv14yngb` (`cancelledBy`),
-  CONSTRAINT `FK55ebms893efmjp7rbhv14yngb` FOREIGN KEY (`cancelledBy`) REFERENCES `employees` (`employeeId`),
   CONSTRAINT `fk_inv_approvedBy` FOREIGN KEY (`approvedBy`) REFERENCES `employees` (`employeeId`),
   CONSTRAINT `fk_inv_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`),
   CONSTRAINT `fk_inv_branch` FOREIGN KEY (`branchId`) REFERENCES `branches` (`branchId`),
@@ -579,7 +523,7 @@ CREATE TABLE `invoices` (
   CONSTRAINT `fk_inv_customer` FOREIGN KEY (`customerId`) REFERENCES `customers` (`customerId`),
   CONSTRAINT `fk_inv_reqDriver` FOREIGN KEY (`requestedBy`) REFERENCES `drivers` (`driverId`),
   CONSTRAINT `invoices_chk_1` CHECK ((`amount` > 0))
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -588,7 +532,7 @@ CREATE TABLE `invoices` (
 
 LOCK TABLES `invoices` WRITE;
 /*!40000 ALTER TABLE `invoices` DISABLE KEYS */;
-INSERT INTO `invoices` VALUES (1,1,1,2,'Income',NULL,1,1000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Đặt cọc Booking 1',NULL,5,2,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(2,1,1,2,'Income',NULL,0,2800000.00,'Tiền mặt','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Thu nốt Booking 1',NULL,5,2,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(3,3,2,4,'Income',NULL,1,500000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Đặt cọc Booking 2',NULL,6,4,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(4,1,3,1,'Income',NULL,0,25000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Thanh toán HĐ định kỳ T11',NULL,5,2,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(5,1,5,5,'Income',NULL,0,1000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Thanh toán Booking 5',NULL,5,2,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(6,1,1,NULL,'Expense','fuel',0,1000000.00,'Tiền mặt','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Đổ dầu xe Trip 1',1,8,2,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(7,1,1,NULL,'Expense','toll',0,300000.00,'Thẻ ETC','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Phí cao tốc HN-HL Trip 1',1,8,2,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(8,2,NULL,NULL,'Expense','maintenance',0,5000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Bảo dưỡng xe 43B-777.77',NULL,3,3,'2025-11-12 11:23:08',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(9,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 22:57:33','2025-11-21 22:57:33',NULL,'đơn 1',NULL,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(10,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:09:30','2025-11-21 23:09:30',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(11,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:14:13','2025-11-21 23:14:13',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(12,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:16:47','2025-11-21 23:16:47',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(13,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:19:16','2025-11-21 23:19:16',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(14,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:23:20','2025-11-21 23:23:20',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(15,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:27:27','2025-11-21 23:27:27',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(16,1,NULL,2,'INCOME',NULL,0,5500000.00,'BANK_TRANSFER','PAID','ACTIVE','2025-11-22 11:19:08','2025-11-22 11:19:08',NULL,'Updated invoice',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Customer promised to pay by Dec 1','NORMAL',NULL,'INV-HN-2025-0001','NET_14','2025-12-15',NULL,NULL,'2025-11-22 11:19:08.042508','test@example.com',NULL,0.00,NULL),(17,1,NULL,NULL,'EXPENSE','fuel',0,2000000.00,'CASH','UNPAID','ACTIVE','2025-11-22 11:19:08','2025-11-22 11:19:08',NULL,'Test expense invoice',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0002','NET_7',NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(18,1,1,2,'INCOME',NULL,1,500000.00,'CASH','UNPAID','ACTIVE','2025-11-22 11:19:22','2025-11-22 11:19:22',NULL,'Test deposit',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0003','NET_7',NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(19,1,NULL,2,'INCOME',NULL,0,5500000.00,'BANK_TRANSFER','PAID','ACTIVE','2025-11-22 11:20:49','2025-11-22 11:20:49',NULL,'Updated invoice',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Customer promised to pay by Dec 1','NORMAL',NULL,'INV-HN-2025-0004','NET_14','2025-12-15',NULL,NULL,'2025-11-22 11:20:49.309207','test@example.com',NULL,0.00,NULL),(20,1,NULL,NULL,'EXPENSE','fuel',0,2000000.00,'CASH','UNPAID','ACTIVE','2025-11-22 11:20:49','2025-11-22 11:20:49',NULL,'Test expense invoice',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0005','NET_7',NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(21,1,1,2,'INCOME',NULL,1,500000.00,'CASH','UNPAID','ACTIVE','2025-11-22 11:21:02','2025-11-22 11:21:02',NULL,'Test deposit',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0006','NET_7',NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(22,1,NULL,2,'INCOME',NULL,0,5500000.00,'BANK_TRANSFER','PAID','ACTIVE','2025-11-22 11:21:20','2025-11-22 11:21:20',NULL,'Updated invoice',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Customer promised to pay by Dec 1','NORMAL',NULL,'INV-HN-2025-0007','NET_14','2025-12-15',NULL,NULL,'2025-11-22 11:21:20.117962','test@example.com',NULL,0.00,NULL),(23,1,NULL,NULL,'EXPENSE','fuel',0,2000000.00,'CASH','UNPAID','ACTIVE','2025-11-22 11:21:20','2025-11-22 11:21:20',NULL,'Test expense invoice',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0008','NET_7',NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL),(24,1,1,2,'INCOME',NULL,1,500000.00,'CASH','UNPAID','ACTIVE','2025-11-22 11:21:33','2025-11-22 11:21:33',NULL,'Test deposit',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0009','NET_7',NULL,NULL,NULL,NULL,NULL,NULL,0.00,NULL);
+INSERT INTO `invoices` VALUES (1,1,1,2,'Income',NULL,1,1000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Đặt cọc Booking 1',NULL,5,2,'2025-11-12 11:23:08'),(2,1,1,2,'Income',NULL,0,2800000.00,'Tiền mặt','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Thu nốt Booking 1',NULL,5,2,'2025-11-12 11:23:08'),(3,3,2,4,'Income',NULL,1,500000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Đặt cọc Booking 2',NULL,6,4,'2025-11-12 11:23:08'),(4,1,3,1,'Income',NULL,0,25000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Thanh toán HĐ định kỳ T11',NULL,5,2,'2025-11-12 11:23:08'),(5,1,5,5,'Income',NULL,0,1000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Thanh toán Booking 5',NULL,5,2,'2025-11-12 11:23:08'),(6,1,1,NULL,'Expense','fuel',0,1000000.00,'Tiền mặt','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Đổ dầu xe Trip 1',1,8,2,'2025-11-12 11:23:08'),(7,1,1,NULL,'Expense','toll',0,300000.00,'Thẻ ETC','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Phí cao tốc HN-HL Trip 1',1,8,2,'2025-11-12 11:23:08'),(8,2,NULL,NULL,'Expense','maintenance',0,5000000.00,'Chuyển khoản','PAID','ACTIVE','2025-11-12 11:23:08','2025-11-12 11:23:08',NULL,'Bảo dưỡng xe 43B-777.77',NULL,3,3,'2025-11-12 11:23:08'),(9,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 22:57:33','2025-11-21 22:57:33',NULL,'đơn 1',NULL,1,NULL,NULL),(10,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:09:30','2025-11-21 23:09:30',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL),(11,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:14:13','2025-11-21 23:14:13',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL),(12,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:16:47','2025-11-21 23:16:47',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL),(13,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:19:16','2025-11-21 23:19:16',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL),(14,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:23:20','2025-11-21 23:23:20',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL),(15,1,8,8,'INCOME',NULL,1,811646.68,'QR','UNPAID','ACTIVE','2025-11-21 23:27:27','2025-11-21 23:27:27',NULL,'Cọc đơn ORD-8 - Nguyễn Văn Thuần',NULL,1,NULL,NULL);
 /*!40000 ALTER TABLE `invoices` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -620,45 +564,6 @@ LOCK TABLES `notifications` WRITE;
 /*!40000 ALTER TABLE `notifications` DISABLE KEYS */;
 INSERT INTO `notifications` VALUES (1,2,'Yêu cầu nghỉ phép','Tài xế Trần Văn B vừa tạo yêu cầu nghỉ phép.','2025-11-12 11:23:08',0),(2,6,'Booking đã xác nhận','Booking #2 (Đón sân bay) đã được xác nhận.','2025-11-12 11:23:08',0),(3,11,'Giao việc mới','Bạn được gán lái Trip #2 (Đón sân bay TSN).','2025-11-12 11:23:08',0),(4,1,'Hợp đồng mới','Hợp đồng thuê định kỳ (Booking #3) vừa được kích hoạt.','2025-11-12 11:23:08',1),(5,7,'Hóa đơn đã duyệt','Hóa đơn chi phí (Xăng dầu Trip 1) đã được duyệt.','2025-11-12 11:23:08',0);
 /*!40000 ALTER TABLE `notifications` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `payment_history`
---
-
-DROP TABLE IF EXISTS `payment_history`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `payment_history` (
-  `paymentId` int NOT NULL AUTO_INCREMENT,
-  `amount` decimal(18,2) NOT NULL,
-  `bankAccount` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bankName` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `cashierName` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdAt` datetime(6) DEFAULT NULL,
-  `note` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `paymentDate` datetime(6) NOT NULL,
-  `paymentMethod` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `receiptNumber` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `referenceNumber` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdBy` int DEFAULT NULL,
-  `invoiceId` int NOT NULL,
-  PRIMARY KEY (`paymentId`),
-  KEY `FKrl36wsp0mglanfdwamk3cl9cv` (`createdBy`),
-  KEY `FK585ytbhwcbntuhs3h16jih71p` (`invoiceId`),
-  CONSTRAINT `FK585ytbhwcbntuhs3h16jih71p` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`),
-  CONSTRAINT `FKrl36wsp0mglanfdwamk3cl9cv` FOREIGN KEY (`createdBy`) REFERENCES `employees` (`employeeId`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `payment_history`
---
-
-LOCK TABLES `payment_history` WRITE;
-/*!40000 ALTER TABLE `payment_history` DISABLE KEYS */;
-INSERT INTO `payment_history` VALUES (1,2000000.00,NULL,NULL,NULL,'2025-11-22 11:19:07.889259','Partial payment test','2025-11-22 11:19:07.885606','CASH',NULL,NULL,NULL,16),(2,2000000.00,NULL,NULL,NULL,'2025-11-22 11:20:49.250944','Partial payment test','2025-11-22 11:20:49.250371','CASH',NULL,NULL,NULL,19),(3,2000000.00,NULL,NULL,NULL,'2025-11-22 11:21:20.064336','Partial payment test','2025-11-22 11:21:20.064336','CASH',NULL,NULL,NULL,22);
-/*!40000 ALTER TABLE `payment_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1240,4 +1145,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-22 20:14:47
+-- Dump completed on 2025-11-22 17:01:41
