@@ -126,17 +126,11 @@ public class BranchController {
 
     @Operation(
             summary = "Lấy dashboard statistics cho Manager theo chi nhánh",
-            description = """
-                    API trả về các chỉ số dashboard cho Manager:
-                    - Thông tin chi nhánh
-                    - Các chỉ số tài chính (doanh thu, chi phí, lợi nhuận)
-                    - Thống kê chuyến đi (hoàn thành, hủy, tổng km)
-                    - Top tài xế hiệu suất cao
-                    - Hiệu suất xe (chi phí/km)
-
-                    Ví dụ:
-                    GET /api/branches/1/dashboard-stats?period=2025-10
-                    """
+            description = "API trả về các chỉ số dashboard cho Manager: " +
+                    "Thông tin chi nhánh, các chỉ số tài chính (doanh thu, chi phí, lợi nhuận), " +
+                    "Thống kê chuyến đi (hoàn thành, hủy, tổng km), " +
+                    "Top tài xế hiệu suất cao, Hiệu suất xe (chi phí/km). " +
+                    "Ví dụ: GET /api/branches/1/dashboard-stats?period=2025-10"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lấy dashboard stats thành công",
