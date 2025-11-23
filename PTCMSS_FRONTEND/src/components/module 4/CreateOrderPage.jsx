@@ -70,12 +70,7 @@ function toIsoZ(s) {
     return d.toISOString();
 }
 
-/* mock categories */
-const MOCK_CATEGORIES = [
-    { id: "SEDAN4", name: "Sedan 4 chỗ", seats: 4 },
-    { id: "SUV7", name: "SUV 7 chỗ", seats: 7 },
-    { id: "BUS16", name: "Minibus 16 chỗ", seats: 16 },
-];
+// Removed MOCK_CATEGORIES - chỉ dùng data từ API, báo lỗi nếu không fetch được
 
 /* mini toast (light style) */
 function useToasts() {
@@ -216,8 +211,13 @@ export default function CreateOrderPage() {
                 if (Array.isArray(list) && list.length > 0) {
                     setCategories(list.map(c => ({ id: String(c.id), name: c.categoryName })));
                     setCategoryId(String(list[0].id));
+                } else {
+                    push("Không thể tải danh mục xe: Dữ liệu trống", "error");
                 }
-            } catch {}
+            } catch (err) {
+                console.error("Failed to load categories:", err);
+                push("Không thể tải danh mục xe: " + (err.message || "Lỗi không xác định"), "error");
+            }
         })();
     }, []);
 
@@ -834,24 +834,18 @@ export default function CreateOrderPage() {
                                     }
                                     className={inputCls}
                                 >
-                                    {(categories.length ? categories : MOCK_CATEGORIES).map(
-                                        (c) => (
+                                    {categories.length > 0 ? (
+                                        categories.map((c) => (
                                             <option
-                                                key={
-                                                    c.id
-                                                }
-                                                value={
-                                                    c.id
-                                                }
+                                                key={c.id}
+                                                value={c.id}
                                             >
                                                 {c.name}{" "}
-                                                (
-                                                {
-                                                    c.seats
-                                                }{" "}
-                                                chỗ)
+                                                ({c.seats}{" "}chỗ)
                                             </option>
-                                        )
+                                        ))
+                                    ) : (
+                                        <option value="">Không có danh mục (lỗi tải dữ liệu)</option>
                                     )}
                                 </select>
 

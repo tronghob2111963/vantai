@@ -91,21 +91,7 @@ function Toasts({ toasts }) {
     );
 }
 
-/* -------------------- MOCK DATA (fallback) -------------------- */
-const FALLBACK_METRICS = {
-    revenue: 0,
-    expense: 0,
-    profit: 0,
-    changeRevenuePct: 0,
-    changeExpensePct: 0,
-    changeProfitPct: 0,
-};
-
-const FALLBACK_TRIPS = {
-    completed: 0,
-    cancelled: 0,
-    totalKm: 0,
-};
+// Removed FALLBACK_METRICS and FALLBACK_TRIPS - chỉ dùng data từ API, báo lỗi nếu không fetch được
 
 /* -------------------- KPI CARD (light style) -------------------- */
 function KpiBlock({

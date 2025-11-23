@@ -1,8 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { createUser, listRoles } from "../../api/users";
+import { listBranches } from "../../api/branches";
 import { Save, ArrowLeft, CheckCircle, XCircle } from "lucide-react";
-import { getCurrentRole, ROLES } from "../../utils/session";
+import { getCurrentRole, ROLES, getStoredUserId } from "../../utils/session";
 
 export default function AdminCreateUserPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function AdminCreateUserPage() {
     phone: "",
     address: "",
     roleId: "",
+    branchId: "",
   });
 
   // Error states
@@ -22,6 +24,7 @@ export default function AdminCreateUserPage() {
   const [generalError, setGeneralError] = React.useState("");
 
   const [roles, setRoles] = React.useState([]);
+  const [branches, setBranches] = React.useState([]);
   const [saving, setSaving] = React.useState(false);
   const [showSuccess, setShowSuccess] = React.useState(false);
 
@@ -36,17 +39,53 @@ export default function AdminCreateUserPage() {
     [currentRole]
   );
 
-  // Load roles
+  // Load roles and branches
   React.useEffect(() => {
     (async () => {
       try {
-        const rs = await listRoles();
-        setRoles(filterAssignableRoles(rs));
-      } catch {
-        /* ignore */
+        const [rolesData, branchesData] = await Promise.all([
+          listRoles(),
+          listBranches({ size: 100 }),
+        ]);
+        
+        setRoles(filterAssignableRoles(rolesData));
+        
+        // Handle branches data structure
+        let branchesList = [];
+        if (branchesData?.items && Array.isArray(branchesData.items)) {
+          branchesList = branchesData.items;
+        } else if (branchesData?.data?.items && Array.isArray(branchesData.data.items)) {
+          branchesList = branchesData.data.items;
+        } else if (branchesData?.data?.content && Array.isArray(branchesData.data.content)) {
+          branchesList = branchesData.data.content;
+        } else if (branchesData?.content && Array.isArray(branchesData.content)) {
+          branchesList = branchesData.content;
+        } else if (Array.isArray(branchesData)) {
+          branchesList = branchesData;
+        }
+        
+        setBranches(branchesList);
+        
+        // Nếu là Manager, tự động chọn branch của mình
+        if (currentRole === ROLES.MANAGER) {
+          const userId = getStoredUserId();
+          if (userId) {
+            try {
+              const { getBranchByUserId } = await import("../../api/branches");
+              const branch = await getBranchByUserId(userId);
+              if (branch?.branchId || branch?.id) {
+                setForm(prev => ({ ...prev, branchId: String(branch.branchId || branch.id) }));
+              }
+            } catch (err) {
+              console.warn("Could not get manager branch:", err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load data:", err);
       }
     })();
-  }, [filterAssignableRoles]);
+  }, [filterAssignableRoles, currentRole]);
 
   // Validate logic
   const validate = () => {
@@ -63,6 +102,7 @@ export default function AdminCreateUserPage() {
 
     if (!form.address.trim()) newErrors.address = "Vui lòng nhập địa chỉ";
     if (!form.roleId) newErrors.roleId = "Vui lòng chọn vai trò";
+    if (!form.branchId) newErrors.branchId = "Vui lòng chọn chi nhánh";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -90,6 +130,7 @@ export default function AdminCreateUserPage() {
         phone: form.phone,
         address: form.address,
         roleId: Number(form.roleId),
+        branchId: Number(form.branchId),
       });
 
       console.log("Create user response:", res);
@@ -108,15 +149,11 @@ export default function AdminCreateUserPage() {
       // Reaching here means the API responded with 2xx and success wrapper
       setShowSuccess(true);
 
-      // Chuyển sang trang tạo employee với userId vừa tạo
+      // Employee đã được tạo tự động cùng với User, không cần navigate sang trang tạo employee nữa
+      // Chuyển về trang danh sách users sau 2 giây
       setTimeout(() => {
-        navigate("/admin/employees/create", {
-          state: {
-            userId: newUserId, // ID của user vừa tạo
-            userName: form.fullName,
-          },
-        });
-      }, 1300);
+        navigate("/admin/users", { replace: true });
+      }, 2000);
     } catch (e) {
       const rawMsg =
         e?.data?.message ||
@@ -243,8 +280,42 @@ export default function AdminCreateUserPage() {
           )}
         </div>
 
+        {/* BRANCH */}
+        <div>
+          <div className="text-xs text-slate-600 mb-1">
+            Chi nhánh <span className="text-red-500">*</span>
+          </div>
+          <select
+            className={`w-full border rounded-md px-3 py-2 text-sm ${errors.branchId ? "border-red-400" : "border-slate-300"
+              }`}
+            value={form.branchId}
+            onChange={(e) => updateField("branchId", e.target.value)}
+            disabled={currentRole === ROLES.MANAGER && form.branchId !== ""}
+          >
+            <option value="">-- Chọn chi nhánh --</option>
+            {branches.map((b) => (
+              <option key={b.branchId || b.id} value={b.branchId || b.id}>
+                {b.branchName || b.name}
+              </option>
+            ))}
+          </select>
+
+          {errors.branchId && (
+            <div className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <XCircle size={12} />
+              {errors.branchId}
+            </div>
+          )}
+          
+          {currentRole === ROLES.MANAGER && form.branchId && (
+            <div className="text-xs text-slate-500 mt-1">
+              Chi nhánh của bạn đã được chọn tự động
+            </div>
+          )}
+        </div>
+
         <div className="text-[12px] text-slate-500 bg-blue-50 border border-blue-200 rounded p-3">
-          💡 Sau khi tạo, hệ thống sẽ gửi email xác thực để người dùng thiết lập mật khẩu lần đầu.
+          💡 Sau khi tạo, hệ thống sẽ tự động tạo Employee và gửi email xác thực để người dùng thiết lập mật khẩu lần đầu.
         </div>
       </div>
     </div>

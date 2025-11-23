@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { login as apiLogin } from "../../api/auth";
+import { login as apiLogin, forgotPassword as apiForgotPassword } from "../../api/auth";
 import {
     Mail,
     Lock,
@@ -38,6 +38,10 @@ export default function LoginPage() {
     // ui state
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState("");
+    const [showForgotPassword, setShowForgotPassword] = React.useState(false);
+    const [forgotEmail, setForgotEmail] = React.useState("");
+    const [forgotLoading, setForgotLoading] = React.useState(false);
+    const [forgotSuccess, setForgotSuccess] = React.useState(false);
 
     const canSubmit =
         email.trim() !== "" &&
@@ -155,11 +159,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 className="text-[10px] text-sky-600 hover:text-sky-500 font-medium"
-                                onClick={() => {
-                                    alert(
-                                        "Đi tới luồng 'Quên mật khẩu' (prototype)."
-                                    );
-                                }}
+                                onClick={() => setShowForgotPassword(true)}
                             >
                                 Quên mật khẩu?
                             </button>
@@ -328,6 +328,138 @@ export default function LoginPage() {
                     </footer>
                 </aside>
             </div>
+
+            {/* FORGOT PASSWORD MODAL */}
+            {showForgotPassword && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-lg max-w-md w-full p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-slate-900">
+                                Quên mật khẩu
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowForgotPassword(false);
+                                    setForgotEmail("");
+                                    setForgotSuccess(false);
+                                    setError("");
+                                }}
+                                className="text-slate-400 hover:text-slate-600"
+                            >
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {forgotSuccess ? (
+                            <div className="space-y-3">
+                                <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-700">
+                                    <div className="flex items-start gap-2">
+                                        <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-500 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium">Email đã được gửi!</p>
+                                            <p className="mt-1 text-emerald-600">
+                                                Chúng tôi đã gửi link đặt lại mật khẩu đến email <strong>{forgotEmail}</strong>. 
+                                                Vui lòng kiểm tra hộp thư của bạn.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowForgotPassword(false);
+                                        setForgotEmail("");
+                                        setForgotSuccess(false);
+                                    }}
+                                    className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500"
+                                >
+                                    Đóng
+                                </button>
+                            </div>
+                        ) : (
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    if (!forgotEmail.trim()) {
+                                        setError("Vui lòng nhập email");
+                                        return;
+                                    }
+
+                                    setForgotLoading(true);
+                                    setError("");
+
+                                    try {
+                                        await apiForgotPassword(forgotEmail.trim());
+                                        setForgotSuccess(true);
+                                    } catch (err) {
+                                        setError(err.message || "Không thể gửi email. Vui lòng thử lại sau.");
+                                    } finally {
+                                        setForgotLoading(false);
+                                    }
+                                }}
+                                className="space-y-4"
+                            >
+                                <div className="space-y-2">
+                                    <label className="text-sm text-slate-600">
+                                        Email đăng ký
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={forgotEmail}
+                                        onChange={(e) => setForgotEmail(e.target.value)}
+                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 outline-none"
+                                        placeholder="Nhập email của bạn"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {error && (
+                                    <div className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-700 flex items-start gap-2">
+                                        <Info className="h-4 w-4 flex-shrink-0 text-rose-500" />
+                                        <div>{error}</div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowForgotPassword(false);
+                                            setForgotEmail("");
+                                            setError("");
+                                        }}
+                                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={!forgotEmail.trim() || forgotLoading}
+                                        className={cls(
+                                            "flex-1 rounded-md px-3 py-2 text-sm font-medium",
+                                            forgotEmail.trim() && !forgotLoading
+                                                ? "bg-sky-600 text-white hover:bg-sky-500"
+                                                : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                                        )}
+                                    >
+                                        {forgotLoading ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                                                Đang gửi...
+                                            </>
+                                        ) : (
+                                            "Gửi email"
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

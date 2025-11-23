@@ -51,37 +51,8 @@ const fmtVND = (n) =>
     );
 const cls = (...a) => a.filter(Boolean).join(" ");
 
-// Demo chuỗi tháng
-const DEMO_MONTHS = [
-    "01",
-    "02",
-    "03",
-    "04",
-    "05",
-    "06",
-    "07",
-    "08",
-    "09",
-    "10",
-    "11",
-    "12",
-];
-
-// Demo chuỗi doanh thu / chi phí / net
-const DEMO_SERIES = DEMO_MONTHS.map((m, i) => ({
-    month: m,
-    revenue: [
-        120, 140, 135, 160, 180, 210, 200, 230, 240, 250,
-        260, 275,
-    ][i],
-    expense: [
-        80, 90, 110, 105, 120, 130, 150, 145, 155, 165,
-        170, 185,
-    ][i],
-}));
-
-// Demo queue yêu cầu chi phí
-const DEMO_QUEUE = [
+// Demo queue yêu cầu chi phí (REMOVED - chỉ dùng data từ API)
+const DEMO_QUEUE_OLD = [
     {
         id: 901,
         creator: "Driver · Văn A",
@@ -322,7 +293,7 @@ function ConfirmModal({
    Biểu đồ Doanh thu / Chi phí / Net
    (SVG thuần, light mode)
 =========================== */
-function RevExpChart({ data = DEMO_SERIES }) {
+function RevExpChart({ data = [] }) {
     // layout
     const padding = { t: 20, r: 16, b: 26, l: 36 };
     const W = 820,
@@ -1421,8 +1392,9 @@ export default function AccountantDashboard() {
             dateMap[month].expense = Number(item.value || 0) / 1000000; // Convert to millions
         });
         
-        // Fill missing months with zeros
-        const result = DEMO_MONTHS.map((m) => {
+        // Generate months from data or use current year
+        const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+        const result = months.map((m) => {
             if (dateMap[m]) return dateMap[m];
             return { month: m, revenue: 0, expense: 0 };
         });
