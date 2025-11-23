@@ -16,6 +16,11 @@ public interface EmployeeService {
 
     List<Employees> findByRoleName(String roleName);
 
+    List<Employees> findByBranchId(Integer branchId);
+
+    Employees createEmployee(org.example.ptcmssbackend.dto.request.Employee.CreateEmployeeRequest request);
+
+    Employees updateEmployee(Integer id, org.example.ptcmssbackend.dto.request.Employee.UpdateEmployeeRequest request);
 }
 
 

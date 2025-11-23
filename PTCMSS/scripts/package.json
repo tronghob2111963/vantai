@@ -1,0 +1,23 @@
+{
+  "name": "module6-api-tests",
+  "version": "1.0.0",
+  "description": "Test script for Module 6 APIs",
+  "main": "test-module6-apis.js",
+  "scripts": {
+    "test": "node test-module6-apis.js",
+    "test:admin": "node test-module6-apis.js admin",
+    "test:manager": "node test-module6-apis.js manager_hn",
+    "test:accountant": "node test-module6-apis.js accountant_hn1"
+  },
+  "keywords": [
+    "api",
+    "test",
+    "module6"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
+

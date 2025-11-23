@@ -93,10 +93,30 @@ export default function AdminCreateUserPage() {
       });
 
       console.log("Create user response:", res);
+      console.log("Response type:", typeof res);
+
+      // apiFetch đã unwrap response, res chính là userId (number)
+      const newUserId = typeof res === 'number' ? res : (res?.data || res?.id || res);
+      console.log("New user ID:", newUserId);
+
+      if (!newUserId || typeof newUserId !== 'number') {
+        console.error("Failed to get userId from response:", res);
+        setGeneralError(`Không lấy được User ID từ response`);
+        return;
+      }
 
       // Reaching here means the API responded with 2xx and success wrapper
       setShowSuccess(true);
-      setTimeout(() => navigate("/admin/users"), 1300);
+
+      // Chuyển sang trang tạo employee với userId vừa tạo
+      setTimeout(() => {
+        navigate("/admin/employees/create", {
+          state: {
+            userId: newUserId, // ID của user vừa tạo
+            userName: form.fullName,
+          },
+        });
+      }, 1300);
     } catch (e) {
       const rawMsg =
         e?.data?.message ||
@@ -180,9 +200,8 @@ export default function AdminCreateUserPage() {
             </div>
 
             <input
-              className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 ${
-                errors[f.key] ? "border-red-400" : "border-slate-300"
-              }`}
+              className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 ${errors[f.key] ? "border-red-400" : "border-slate-300"
+                }`}
               value={form[f.key]}
               placeholder={`Nhập ${f.label.toLowerCase()}`}
               onChange={(e) => updateField(f.key, e.target.value)}
@@ -203,9 +222,8 @@ export default function AdminCreateUserPage() {
             Vai trò <span className="text-red-500">*</span>
           </div>
           <select
-            className={`w-full border rounded-md px-3 py-2 text-sm ${
-              errors.roleId ? "border-red-400" : "border-slate-300"
-            }`}
+            className={`w-full border rounded-md px-3 py-2 text-sm ${errors.roleId ? "border-red-400" : "border-slate-300"
+              }`}
             value={form.roleId}
             onChange={(e) => updateField("roleId", e.target.value)}
           >
