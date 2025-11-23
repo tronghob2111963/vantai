@@ -16,7 +16,11 @@
       "Bash(npm run dev:*)",
       "Bash(.mvnw.cmd clean compile:*)",
       "Bash(grep:*)",
-      "Bash(tr:*)"
+      "Bash(tr:*)",
+      "Bash(./mvnw clean:*)",
+      "Bash(java -version:*)",
+      "Bash(./mvnw:*)",
+      "Bash(where:*)"
     ],
     "deny": [],
     "ask": []
