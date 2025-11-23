@@ -11,7 +11,7 @@ import {
     Check,
     Loader2,
 } from "lucide-react";
-import { getAssignmentSuggestions, assignTrips } from "../../api/dispatch";
+import { getAssignmentSuggestions, assignTrips, reassignTrips } from "../../api/dispatch";
 
 /**
  * AssignDriverDialog – M5.S3 (Popup/Subscreen) – LIGHT THEME VERSION
@@ -100,11 +100,11 @@ export default function AssignDriverDialog({
                 if (cancelled) return;
                 console.error("Failed to load suggestions:", err);
                 setError(
-                    "Không lấy được gợi ý. Hiển thị dữ liệu mẫu."
+                    "Không thể tải gợi ý tài xế/xe: " + (err.message || "Lỗi không xác định")
                 );
-                setSuggestions(
-                    demoSuggestions(order)
-                );
+                setSuggestions([]);
+                setDriverCandidates([]);
+                setVehicleCandidates([]);
             } finally {
                 if (!cancelled)
                     setLoading(false);
@@ -149,22 +149,45 @@ export default function AssignDriverDialog({
             return;
         setPosting(true);
         try {
-            const result = await assignTrips({
-                bookingId: Number(bookingId),
-                tripIds: tripId ? [Number(tripId)] : undefined,
-                driverId: Number(driverId),
-                vehicleId: Number(vehicleId),
-                autoAssign: false,
-            });
+            // Check if trip already has assignment (reassign) or new assignment
+            const isReassign = order?.driverId || order?.vehicleId;
+            
+            if (isReassign && tripId) {
+                // Use reassign API
+                const result = await reassignTrips({
+                    tripId: Number(tripId),
+                    driverId: Number(driverId),
+                    vehicleId: Number(vehicleId),
+                    note: "Reassign từ dialog",
+                });
 
-            onAssigned?.({
-                type: "manual",
-                tripId,
-                bookingId,
-                driverId: Number(driverId),
-                vehicleId: Number(vehicleId),
-                response: result,
-            });
+                onAssigned?.({
+                    type: "reassign",
+                    tripId,
+                    bookingId,
+                    driverId: Number(driverId),
+                    vehicleId: Number(vehicleId),
+                    response: result,
+                });
+            } else {
+                // Use assign API
+                const result = await assignTrips({
+                    bookingId: Number(bookingId),
+                    tripIds: tripId ? [Number(tripId)] : undefined,
+                    driverId: Number(driverId),
+                    vehicleId: Number(vehicleId),
+                    autoAssign: false,
+                });
+
+                onAssigned?.({
+                    type: "manual",
+                    tripId,
+                    bookingId,
+                    driverId: Number(driverId),
+                    vehicleId: Number(vehicleId),
+                    response: result,
+                });
+            }
             onClose?.();
         } catch (e) {
             console.error(e);
@@ -619,47 +642,3 @@ function fmtDateTime(iso) {
     return `${day}/${m}/${y} ${hh}:${mm}`;
 }
 
-// Dữ liệu demo fallback nếu API gợi ý lỗi
-function demoSuggestions(order) {
-    return [
-        {
-            id: 1,
-            driver: {
-                id: 101,
-                name: "Nguyễn Văn A",
-                branch_name:
-                    order?.branch_name,
-            },
-            vehicle: {
-                id: 55,
-                plate: "29A-123.45",
-                type: order?.vehicle_type,
-            },
-            score: 92,
-            reasons: [
-                "Rảnh tại thời điểm pickup",
-                "Cùng chi nhánh",
-                "Đúng loại xe",
-            ],
-        },
-        {
-            id: 2,
-            driver: {
-                id: 102,
-                name: "Trần Thị B",
-                branch_name:
-                    order?.branch_name,
-            },
-            vehicle: {
-                id: 58,
-                plate: "30G-678.90",
-                type: order?.vehicle_type,
-            },
-            score: 88,
-            reasons: [
-                "Rảnh",
-                "Khoảng cách gần",
-            ],
-        },
-    ];
-}

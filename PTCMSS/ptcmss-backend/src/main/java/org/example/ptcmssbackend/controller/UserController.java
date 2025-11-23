@@ -39,7 +39,7 @@ public class UserController {
     @ApiResponse(responseCode = "200", description = "Tạo thành công",
             content = @Content(schema = @Schema(implementation = Users.class)))
     @PostMapping("/register")
-    @PreAuthorize("hasRole('ADMIN')") //  Chỉ admin mới được tạo user
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')") //  Admin và Manager được tạo user
     public ResponseData<?> createUser(@Valid @RequestBody CreateUserRequest request) {
         try{
             log.info("createUser: {}", request);

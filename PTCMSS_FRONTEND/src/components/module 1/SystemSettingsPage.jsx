@@ -9,6 +9,11 @@ import {
     Info,
     X,
 } from "lucide-react";
+import {
+    listSystemSettings,
+    createSystemSetting,
+    updateSystemSetting,
+} from "../../api/systemSettings";
 
 /**
  * SystemSettingsPage – Module 1.S1 (THEME LIGHT VERSION)
@@ -228,44 +233,17 @@ function NewSettingRow({ draft, onChangeDraft, onConfirm, onCancel }) {
 export default function SystemSettingsPage() {
     const { toasts, push } = useToasts();
 
-    // mock data từ GET /api/admin/settings
-    const INITIAL_DATA = React.useMemo(
-        () => [
-            {
-                key: "VAT",
-                label: "Thuế VAT",
-                value: "10",
-                description: "Tỷ lệ thuế GTGT (%) áp dụng mặc định.",
-            },
-            {
-                key: "MAX_DRIVER_LEAVE_DAYS",
-                label: "Số ngày nghỉ tối đa tài xế",
-                value: "5",
-                description:
-                    "Số ngày nghỉ phép tối đa mỗi tháng mà tài xế có thể xin.",
-            },
-            {
-                key: "DEPOSIT_DUE_DAYS",
-                label: "Hạn đặt cọc",
-                value: "3",
-                description:
-                    "Số ngày kể từ khi xác nhận đơn mà khách phải đặt cọc.",
-            },
-        ],
-        []
-    );
-
     // state hiện tại
-    const [settings, setSettings] = React.useState(INITIAL_DATA);
+    const [settings, setSettings] = React.useState([]);
 
     // snapshot gốc để phát hiện dirty
-    const [originalSettings, setOriginalSettings] =
-        React.useState(INITIAL_DATA);
+    const [originalSettings, setOriginalSettings] = React.useState([]);
 
     // UI state
     const [query, setQuery] = React.useState("");
     const [loadingRefresh, setLoadingRefresh] = React.useState(false);
     const [loadingSave, setLoadingSave] = React.useState(false);
+    const [initialLoading, setInitialLoading] = React.useState(true);
 
     // state cho "thêm tham số"
     const [adding, setAdding] = React.useState(false);
@@ -346,8 +324,8 @@ export default function SystemSettingsPage() {
         setDraftNew((d) => ({ ...d, [field]: val }));
     };
 
-    // xác nhận thêm vào table (mock, chưa PUT server)
-    const confirmAdd = () => {
+    // xác nhận thêm vào table và gọi API
+    const confirmAdd = async () => {
         // tránh trùng key
         const exists = settings.some(
             (s) => normalize(s.key) === normalize(draftNew.key)
@@ -357,21 +335,33 @@ export default function SystemSettingsPage() {
             return;
         }
 
-        const newRow = {
-            key: draftNew.key.trim(),
-            label: draftNew.label.trim(),
-            value: draftNew.value.trim(),
-            description: draftNew.description.trim(),
-        };
+        try {
+            const newSetting = {
+                key: draftNew.key.trim(),
+                label: draftNew.label.trim(),
+                value: draftNew.value.trim(),
+                description: draftNew.description.trim(),
+            };
 
-        setSettings((list) => [...list, newRow]);
-        setAdding(false);
-        setDraftNew({
-            key: "",
-            label: "",
-            value: "",
-            description: "",
-        });
+            const created = await createSystemSetting(newSetting);
+            
+            // Add to local state
+            setSettings((list) => [...list, created]);
+            setOriginalSettings((list) => [...list, created]);
+            
+            setAdding(false);
+            setDraftNew({
+                key: "",
+                label: "",
+                value: "",
+                description: "",
+            });
+            
+            push("Đã thêm cấu hình mới.", "success");
+        } catch (err) {
+            console.error("Failed to create system setting:", err);
+            push("Không thể thêm cấu hình: " + (err.message || "Lỗi không xác định"), "error");
+        }
     };
 
     const cancelAdd = () => {
@@ -384,28 +374,84 @@ export default function SystemSettingsPage() {
         });
     };
 
-    // giả lập GET /api/admin/settings
-    const handleRefresh = () => {
+    // Load settings from API
+    const loadSettings = React.useCallback(async () => {
         setLoadingRefresh(true);
-        setTimeout(() => {
-            // TODO: fetch thật
+        try {
+            const data = await listSystemSettings();
+            const settingsList = Array.isArray(data) ? data : [];
+            setSettings(settingsList);
+            setOriginalSettings(settingsList);
+            if (initialLoading) {
+                setInitialLoading(false);
+            }
+        } catch (err) {
+            console.error("Failed to load system settings:", err);
+            push("Không thể tải cấu hình hệ thống: " + (err.message || "Lỗi không xác định"), "error");
+        } finally {
             setLoadingRefresh(false);
-            push("Đã tải lại System Settings (demo).", "info");
-        }, 500);
+        }
+    }, [push, initialLoading]);
+
+    // Load on mount
+    React.useEffect(() => {
+        loadSettings();
+    }, [loadSettings]);
+
+    // Refresh handler
+    const handleRefresh = () => {
+        loadSettings();
     };
 
-    // giả lập PUT /api/admin/settings
-    const handleSaveAll = () => {
+    // Save all changes
+    const handleSaveAll = async () => {
         if (!hasChanges || loadingSave) return;
         setLoadingSave(true);
 
-        // TODO: gọi PUT thật với dirtyPayload
-        setTimeout(() => {
-            // sau "lưu"
-            setOriginalSettings(settings);
-            setLoadingSave(false);
+        try {
+            // Update existing settings
+            const updatePromises = dirtyPayload
+                .filter((item) => {
+                    // Check if this is an existing setting (has id) or new one
+                    const existing = settings.find((s) => s.key === item.key);
+                    return existing && existing.id;
+                })
+                .map((item) => {
+                    const existing = settings.find((s) => s.key === item.key);
+                    return updateSystemSetting(existing.id, {
+                        key: item.key,
+                        value: item.value,
+                        label: item.label,
+                        description: item.description,
+                    });
+                });
+
+            // Create new settings
+            const createPromises = dirtyPayload
+                .filter((item) => {
+                    const existing = settings.find((s) => s.key === item.key);
+                    return !existing || !existing.id;
+                })
+                .map((item) =>
+                    createSystemSetting({
+                        key: item.key,
+                        value: item.value,
+                        label: item.label,
+                        description: item.description,
+                    })
+                );
+
+            await Promise.all([...updatePromises, ...createPromises]);
+
+            // Reload settings to get updated data
+            await loadSettings();
             push("Đã lưu thay đổi cấu hình hệ thống.", "success");
-        }, 600);
+        } catch (err) {
+            console.error("Failed to save system settings:", err);
+            push("Không thể lưu cấu hình: " + (err.message || "Lỗi không xác định"), "error");
+        } finally {
+            setLoadingSave(false);
+        }
     };
 
     return (
@@ -561,18 +607,12 @@ export default function SystemSettingsPage() {
                 </div>
             </div>
 
-            {/* API hint */}
-            <div className="text-[11px] text-slate-500 mt-4 leading-relaxed">
-                <div>
-                    <span className="text-slate-400">GET:</span>{" "}
-                    /api/admin/settings
+            {/* Loading indicator */}
+            {initialLoading && (
+                <div className="text-center py-8 text-slate-500 text-sm">
+                    Đang tải cấu hình hệ thống...
                 </div>
-                <div>
-                    <span className="text-slate-400">PUT:</span>{" "}
-                    /api/admin/settings &nbsp; Body: [{"{"}"key": "VAT",
-                    "value": "8"{"}"}]
-                </div>
-            </div>
+            )}
         </>
     );
 }

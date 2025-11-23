@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import { getBranchByUserId, listBranches } from "../../api/branches";
-import { apiFetch } from "../../api/http";
+import { getPendingTrips } from "../../api/dispatch";
 import AssignDriverDialog from "./AssignDriverDialog";
 
 /**
@@ -114,7 +114,7 @@ export default function PendingTripsPage() {
             setError("");
             try {
                 console.log("Loading pending trips for branch:", selectedBranchId);
-                const data = await apiFetch(`/api/dispatch/pending/${selectedBranchId}`);
+                const data = await getPendingTrips(selectedBranchId);
                 console.log("Pending trips response:", data);
 
                 // Handle different response structures

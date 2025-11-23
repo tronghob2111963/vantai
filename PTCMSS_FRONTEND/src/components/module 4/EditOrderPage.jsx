@@ -112,18 +112,7 @@ function Toasts({ toasts }) {
     );
 }
 
-/* ---------------- demo dropdowns ---------------- */
-const MOCK_CATEGORIES = [
-    { id: "SEDAN4", label: "Sedan 4 chỗ" },
-    { id: "SUV7", label: "SUV 7 chỗ" },
-    { id: "MINI16", label: "Minibus 16 chỗ" },
-];
-
-const MOCK_BRANCHES = [
-    { id: "HN", label: "Hà Nội" },
-    { id: "HCM", label: "TP.HCM" },
-    { id: "DN", label: "Đà Nẵng" },
-];
+// Removed MOCK_CATEGORIES and MOCK_BRANCHES - chỉ dùng data từ API, báo lỗi nếu không fetch được
 
 /* ---------------- giả lập data GET /api/orders/{orderId} ---------------- */
 const MOCK_ORDER = {
@@ -241,13 +230,27 @@ export default function EditOrderPage() {
         (async () => {
             try {
                 const cats = await listVehicleCategories();
-                if (Array.isArray(cats) && cats.length > 0) setCategories(cats);
-            } catch {}
+                if (Array.isArray(cats) && cats.length > 0) {
+                    setCategories(cats);
+                } else {
+                    pushToast("Không thể tải danh mục xe: Dữ liệu trống", "error");
+                }
+            } catch (err) {
+                console.error("Failed to load categories:", err);
+                pushToast("Không thể tải danh mục xe: " + (err.message || "Lỗi không xác định"), "error");
+            }
             try {
                 const br = await listBranches({ page: 0 });
                 const items = Array.isArray(br?.items) ? br.items : (Array.isArray(br) ? br : []);
-                if (items.length > 0) setBranches(items);
-            } catch {}
+                if (items.length > 0) {
+                    setBranches(items);
+                } else {
+                    pushToast("Không thể tải chi nhánh: Dữ liệu trống", "error");
+                }
+            } catch (err) {
+                console.error("Failed to load branches:", err);
+                pushToast("Không thể tải chi nhánh: " + (err.message || "Lỗi không xác định"), "error");
+            }
             try {
                 if (!orderId) return;
                 const b = await getBooking(orderId);
@@ -1000,11 +1003,15 @@ export default function EditOrderPage() {
                                 }
                                 {...disableInputProps}
                             >
-                                {(categories.length ? categories : MOCK_CATEGORIES).map((c) => (
-                                    <option key={c.id} value={String(c.id)}>
-                                        {c.categoryName || c.label}
-                                    </option>
-                                ))}
+                                {categories.length > 0 ? (
+                                    categories.map((c) => (
+                                        <option key={c.id} value={String(c.id)}>
+                                            {c.categoryName || c.label}
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option value="">Không có danh mục (lỗi tải dữ liệu)</option>
+                                )}
                             </select>
                         </div>
 
@@ -1026,11 +1033,15 @@ export default function EditOrderPage() {
                                 }
                                 {...disableInputProps}
                             >
-                                {(branches.length ? branches : MOCK_BRANCHES).map((b) => (
-                                    <option key={b.id} value={String(b.id)}>
-                                        {b.branchName || b.label}
-                                    </option>
-                                ))}
+                                {branches.length > 0 ? (
+                                    branches.map((b) => (
+                                        <option key={b.id} value={String(b.id)}>
+                                            {b.branchName || b.label}
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option value="">Không có chi nhánh (lỗi tải dữ liệu)</option>
+                                )}
                             </select>
                         </div>
 

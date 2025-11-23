@@ -1591,7 +1591,8 @@ export default function ConsultantOrdersPage() {
     const [searchText, setSearchText] = React.useState("");
 
     // list data
-    const [orders, setOrders] = React.useState(MOCK_ORDERS);
+    const [orders, setOrders] = React.useState([]);
+    const [loadError, setLoadError] = React.useState(null);
 
     // default branch to use when creating from quick modal
     const [defaultBranchId, setDefaultBranchId] = React.useState(null);
@@ -1631,9 +1632,12 @@ export default function ConsultantOrdersPage() {
                     notes: "",
                 }));
                 setOrders(mapped);
+                setLoadError(null);
             } catch (e) {
-                // keep mock if fails
-                push("Không tải được danh sách đơn hàng", "error");
+                console.error("Failed to load orders:", e);
+                setLoadError("Không thể tải danh sách đơn hàng: " + (e.message || "Lỗi không xác định"));
+                push("Không thể tải danh sách đơn hàng: " + (e.message || "Lỗi không xác định"), "error");
+                setOrders([]);
             }
         };
         load();

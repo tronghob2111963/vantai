@@ -36,3 +36,47 @@ export function getTripDetail(tripId) {
 export function searchTrips(body) {
   return apiFetch("/api/dispatch/search", { method: "POST", body });
 }
+
+/**
+ * Get pending trips for a branch
+ * GET /api/dispatch/pending/{branchId}
+ */
+export function getPendingTrips(branchId) {
+  if (!branchId) throw new Error("BRANCH_ID_REQUIRED");
+  return apiFetch(`/api/dispatch/pending/${branchId}`);
+}
+
+/**
+ * Get all pending trips (Admin only)
+ * GET /api/dispatch/pending
+ */
+export function getAllPendingTrips() {
+  return apiFetch("/api/dispatch/pending");
+}
+
+/**
+ * Reassign trips (unassign and assign again)
+ * POST /api/dispatch/reassign
+ * @param {Object} body - { tripId, driverId, vehicleId, note }
+ */
+export function reassignTrips(body) {
+  return apiFetch("/api/dispatch/reassign", {
+    method: "POST",
+    body,
+  });
+}
+
+/**
+ * Unassign trip (remove driver/vehicle assignment)
+ * POST /api/dispatch/trips/{tripId}/unassign
+ * @param {number} tripId - Trip ID
+ * @param {string} note - Reason for unassign (required)
+ */
+export function unassignTrip(tripId, note) {
+  if (!tripId) throw new Error("TRIP_ID_REQUIRED");
+  if (!note || !note.trim()) throw new Error("NOTE_REQUIRED");
+  return apiFetch(`/api/dispatch/trips/${tripId}/unassign`, {
+    method: "POST",
+    body: { note: note.trim() },
+  });
+}
