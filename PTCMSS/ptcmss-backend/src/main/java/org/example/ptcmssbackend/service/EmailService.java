@@ -29,7 +29,7 @@ public class EmailService {
     public void sendVerificationEmail(String toEmail, String fullName, String token, String baseUrl)
             throws MessagingException, UnsupportedEncodingException {
 
-        String subject = "Xác thực tài khoản nhân viên";
+        String subject = "✨ Chào mừng đến TranspoManager - Xác thực tài khoản của bạn";
         String verifyUrl = baseUrl + "/verify?token=" + token;
 
         Map<String, Object> variables = new HashMap<>();
@@ -42,7 +42,32 @@ public class EmailService {
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-        helper.setFrom(fromEmail, "Hệ thống quản lý nhân sự");
+        helper.setFrom(fromEmail, "TranspoManager - Hệ thống quản lý vận tải");
+        helper.setTo(toEmail);
+        helper.setSubject(subject);
+        helper.setText(htmlContent, true);
+
+        mailSender.send(message);
+    }
+
+    public void sendCredentialsEmail(String toEmail, String fullName, String username, String password, String baseUrl)
+            throws MessagingException, UnsupportedEncodingException {
+
+        String subject = "🔐 Thông tin đăng nhập TranspoManager - Tài khoản của bạn";
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("fullName", fullName);
+        variables.put("username", username);
+        variables.put("password", password);
+        variables.put("loginUrl", baseUrl + "/login");
+
+        Context context = new Context();
+        context.setVariables(variables);
+        String htmlContent = templateEngine.process("credentials-email", context);
+
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+        helper.setFrom(fromEmail, "TranspoManager - Hệ thống quản lý vận tải");
         helper.setTo(toEmail);
         helper.setSubject(subject);
         helper.setText(htmlContent, true);

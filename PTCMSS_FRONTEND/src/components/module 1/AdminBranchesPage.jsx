@@ -11,7 +11,12 @@ import {
   Edit,
   ChevronLeft,
   ChevronRight,
+  MapPin,
+  Users,
+  Phone,
+  UserCog,
 } from "lucide-react";
+import AnimatedDialog from "../common/AnimatedDialog";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
 
@@ -126,78 +131,91 @@ function CreateBranchModal({ open, onClose, onSave, availableManagers }) {
     if (!open) reset();
   }, [open]);
 
-  if (!open) return null;
+  const BRAND_COLOR = "#0079BC";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+    <AnimatedDialog
+      open={open}
+      onClose={onClose}
+      size="lg"
+      showCloseButton={true}
     >
-      <div
-        className="w-full max-w-lg rounded-xl bg-white border border-slate-200 text-slate-900 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
-          <div className="h-9 w-9 rounded-md bg-sky-600 text-white flex items-center justify-center shadow-[0_10px_30px_rgba(2,132,199,.35)]">
-            <Building2 className="h-5 w-5" />
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: BRAND_COLOR }}>
+            <Building2 className="h-6 w-6" />
           </div>
-          <div className="font-semibold text-slate-900">Tạo cơ sở / chi nhánh mới</div>
-          <button
-            onClick={onClose}
-            className="ml-auto rounded-md hover:bg-slate-100 p-1 text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Tạo cơ sở / chi nhánh mới</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Thêm chi nhánh mới vào hệ thống</p>
+          </div>
         </div>
 
-        <div className="p-4 space-y-4 text-sm">
+        <div className="space-y-5">
           {/* NAME */}
-          <div>
-            <div className="text-xs text-slate-600 mb-1">
-              Tên chi nhánh <span className="text-rose-500">*</span>
-            </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              <span>Tên chi nhánh</span>
+              <span className="text-red-500">*</span>
+            </label>
             <input
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
                 setFieldErrors((p) => ({ ...p, name: undefined }));
               }}
-              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${
-                fieldErrors.name ? "border-rose-300" : "border-slate-300"
+              className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
+                fieldErrors.name 
+                  ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
+                  : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
               }`}
               placeholder="VD: Chi nhánh Hà Nội"
             />
             {fieldErrors.name && (
-              <div className="text-[11px] text-rose-600 mt-1">{fieldErrors.name}</div>
+              <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
+                <X className="h-3.5 w-3.5" />
+                <span>{fieldErrors.name}</span>
+              </div>
             )}
           </div>
 
           {/* ADDRESS */}
-          <div>
-            <div className="text-xs text-slate-600 mb-1">
-              Địa chỉ <span className="text-rose-500">*</span>
-            </div>
-            <input
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <MapPin className="h-4 w-4 text-slate-400" />
+              <span>Địa chỉ</span>
+              <span className="text-red-500">*</span>
+            </label>
+            <textarea
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
                 setFieldErrors((p) => ({ ...p, address: undefined }));
               }}
-              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${
-                fieldErrors.address ? "border-rose-300" : "border-slate-300"
+              rows={3}
+              className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 resize-none ${
+                fieldErrors.address 
+                  ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
+                  : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
               }`}
-              placeholder="Số 1 Tràng Tiền, Hoàn Kiếm..."
+              placeholder="VD: 123 Đường ABC, Quận XYZ, TP. Hà Nội"
             />
             {fieldErrors.address && (
-              <div className="text-[11px] text-rose-600 mt-1">{fieldErrors.address}</div>
+              <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
+                <X className="h-3.5 w-3.5" />
+                <span>{fieldErrors.address}</span>
+              </div>
             )}
           </div>
 
           {/* PHONE */}
-          <div>
-            <div className="text-xs text-slate-600 mb-1">
-              Số điện thoại <span className="text-rose-500">*</span>
-            </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <Phone className="h-4 w-4 text-slate-400" />
+              <span>Số điện thoại</span>
+              <span className="text-red-500">*</span>
+            </label>
             <input
               value={phone}
               onChange={(e) => {
@@ -205,54 +223,64 @@ function CreateBranchModal({ open, onClose, onSave, availableManagers }) {
                 setPhone(cleaned);
                 setFieldErrors((p) => ({ ...p, phone: undefined }));
               }}
-              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 tabular-nums shadow-sm focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${
-                fieldErrors.phone ? "border-rose-300" : "border-slate-300"
+              className={`w-full border rounded-lg px-4 py-2.5 text-sm tabular-nums transition-all focus:outline-none focus:ring-2 ${
+                fieldErrors.phone 
+                  ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
+                  : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
               }`}
               placeholder="0123456789 hoặc +84 123 456 789"
               maxLength={15}
             />
             {fieldErrors.phone && (
-              <div className="text-[11px] text-rose-600 mt-1">{fieldErrors.phone}</div>
+              <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
+                <X className="h-3.5 w-3.5" />
+                <span>{fieldErrors.phone}</span>
+              </div>
             )}
             {!fieldErrors.phone && phone.trim() && (
-              <div className="text-[11px] text-slate-500 mt-1">
-                ✓ Hỗ trợ định dạng: 0123456789, +84123456789, 0123 456 789
+              <div className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Hỗ trợ định dạng: 0123456789, +84123456789, 0123 456 789</span>
               </div>
             )}
           </div>
 
           {/* MANAGER (optional) */}
-          <div>
-            <div className="text-xs text-slate-600 mb-1">
-              Quan ly chi nhanh <span className="text-slate-400">(tuy chon)</span>
-            </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <UserCog className="h-4 w-4 text-slate-400" />
+              <span>Quản lý chi nhánh</span>
+              <span className="text-slate-400 text-xs">(tùy chọn)</span>
+            </label>
             <select
               value={managerId}
               onChange={(e) => {
                 setManagerId(e.target.value);
                 setFieldErrors((p) => ({ ...p, managerId: undefined }));
               }}
-              className={`w-full bg-white border rounded-md px-3 py-2 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 ${
-                fieldErrors.managerId ? "border-rose-300" : "border-slate-300"
+              className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
+                fieldErrors.managerId 
+                  ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
+                  : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
               }`}
             >
-              <option value="">-- Khong gan Manager --</option>
+              <option value="">-- Không gán Manager --</option>
               {availableManagers.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name} ({m.email})
                 </option>
               ))}
             </select>
-            <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              Chi hien thi cac Manager da co ban ghi nhan vien. Co the de trong neu chua co.
+            <div className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              Chỉ hiển thị các Manager đã có bản ghi nhân viên. Có thể để trống nếu chưa có.
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50/50 flex justify-end gap-2">
+        <div className="mt-6 pt-5 border-t border-slate-200 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 shadow-sm"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-all active:scale-[0.98]"
           >
             Hủy
           </button>
@@ -268,13 +296,14 @@ function CreateBranchModal({ open, onClose, onSave, availableManagers }) {
               });
             }}
             disabled={!isFormValid}
-            className="rounded-md bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all active:scale-[0.98]"
+            style={{ backgroundColor: BRAND_COLOR }}
           >
             Lưu chi nhánh
           </button>
         </div>
       </div>
-    </div>
+    </AnimatedDialog>
   );
 }
 
@@ -388,151 +417,178 @@ export default function AdminBranchesPage() {
     navigate(`/admin/branches/${branch.id}`);
   };
 
+  const BRAND_COLOR = "#0079BC";
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-5">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 text-slate-900 p-5">
       <Toasts toasts={toasts} />
 
-      <div className="flex flex-wrap items-start gap-4 mb-5">
-        <div className="flex items-start gap-3 flex-1 min-w-[220px]">
-          <div className="h-10 w-10 rounded-md bg-sky-600 text-white flex items-center justify-center shadow-[0_10px_30px_rgba(2,132,199,.35)]">
-            <Building2 className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col">
-            <div className="text-[11px] text-slate-500 leading-none mb-1">
-              Hệ thống chi nhánh / cơ sở
+      <div className="max-w-7xl mx-auto space-y-5">
+        {/* Header */}
+        <div className="flex flex-wrap items-start gap-4 mb-6">
+          <div className="flex items-start gap-3 flex-1 min-w-[220px]">
+            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: BRAND_COLOR }}>
+              <Building2 className="h-6 w-6" />
             </div>
-            <h1 className="text-lg font-semibold text-slate-900 leading-tight">
-              Danh sách Cơ sở / Chi nhánh
-            </h1>
+            <div className="flex flex-col">
+              <div className="text-xs text-slate-500 leading-none mb-1">
+                Hệ thống chi nhánh / cơ sở
+              </div>
+              <h1 className="text-xl font-bold text-slate-900 leading-tight">
+                Danh sách Cơ sở / Chi nhánh
+              </h1>
+              <p className="text-xs text-slate-500 mt-1">Quản lý các chi nhánh và cơ sở trong hệ thống</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <button
+              onClick={() => setOpenCreate(true)}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+              style={{ backgroundColor: BRAND_COLOR }}
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Tạo cơ sở mới</span>
+            </button>
+
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50 transition-all active:scale-[0.98]"
+            >
+              <RefreshCw
+                className={cls(
+                  "h-4 w-4 text-slate-500",
+                  loading ? "animate-spin" : ""
+                )}
+              />
+              <span>Làm mới</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 ml-auto">
-          <button
-            onClick={() => setOpenCreate(true)}
-            className="inline-flex items-center gap-1 rounded-md bg-sky-600 hover:bg-sky-500 px-3 py-2 text-sm font-medium text-white shadow-sm"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Tạo cơ sở mới</span>
-          </button>
-
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white hover:bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw
-              className={cls(
-                "h-4 w-4 text-slate-500",
-                loading ? "animate-spin" : ""
-              )}
-            />
-            <span>Làm mới</span>
-          </button>
-        </div>
-      </div>
-
-      {/* TABLE */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="px-4 py-3 border-b border-slate-200 text-sm text-slate-600">
-          Danh sách chi nhánh
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600">
-                <th className="text-left font-medium px-4 py-2">
-                  TÊN CHI NHÁNH
-                </th>
-                <th className="text-left font-medium px-4 py-2">ĐỊA CHỈ</th>
-                <th className="text-left font-medium px-4 py-2">
-                  QUẢN LÝ CHI NHÁNH
-                </th>
-                <th className="text-left font-medium px-4 py-2">
-                  NHÂN VIÊN
-                </th>
-                <th className="text-left font-medium px-4 py-2">TRẠNG THÁI</th>
-                <th className="text-right font-medium px-4 py-2">HÀNH ĐỘNG</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-200">
-              {current.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-6 text-center text-slate-500"
-                  >
-                    Không có chi nhánh nào.
-                  </td>
+        {/* TABLE */}
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Danh sách chi nhánh</h3>
+              <div className="text-xs text-slate-500">
+                {branches.length} chi nhánh
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200">
+                  <th className="text-left font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
+                    Tên chi nhánh
+                  </th>
+                  <th className="text-left font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
+                    Địa chỉ
+                  </th>
+                  <th className="text-left font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
+                    Quản lý
+                  </th>
+                  <th className="text-left font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
+                    Nhân viên
+                  </th>
+                  <th className="text-left font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
+                    Trạng thái
+                  </th>
+                  <th className="text-right font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
+                    Hành động
+                  </th>
                 </tr>
-              ) : (
-                current.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 text-slate-800 font-medium">
-                      {b.name}
-                    </td>
-                    <td className="px-4 py-2 text-slate-700">{b.address}</td>
-                    <td className="px-4 py-2 text-slate-700">
-                      {b.managerName || "-"}
-                    </td>
-                    <td className="px-4 py-2 text-slate-700">
-                      {b.employeeCount || 0}
-                    </td>
-                    <td className="px-4 py-2">
-                      <StatusBadge status={b.status} />
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        onClick={() => onEditBranch(b)}
-                        className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white hover:bg-slate-50 px-2 py-1 text-xs text-slate-700 shadow-sm"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                        Sửa
-                      </button>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {current.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-12 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center">
+                          <Building2 className="h-8 w-8 text-slate-400" />
+                        </div>
+                        <div className="text-slate-500 font-medium">Không có chi nhánh nào</div>
+                        <div className="text-xs text-slate-400">Nhấn "Tạo cơ sở mới" để thêm chi nhánh đầu tiên</div>
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-4 py-3 border-t border-slate-200 flex items-center gap-3 text-sm text-slate-700">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white hover:bg-slate-50 px-2 py-1 text-xs text-slate-700 shadow-sm disabled:opacity-50"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-
-            <div>
-              Trang {page}/{totalPages}
-            </div>
-
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white hover:bg-slate-50 px-2 py-1 text-xs text-slate-700 shadow-sm disabled:opacity-50"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+                ) : (
+                  current.map((b) => (
+                    <tr key={b.id} className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-slate-900">{b.name}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-start gap-2 text-slate-700">
+                          <MapPin className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm">{b.address || "—"}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <UserCog className="h-4 w-4 text-slate-400" />
+                          <span className="text-sm">{b.managerName || "—"}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <Users className="h-4 w-4 text-slate-400" />
+                          <span className="text-sm font-medium">{b.employeeCount || 0}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={b.status} />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => onEditBranch(b)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                          Sửa
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white shadow-sm"
-            >
-              {[10, 20, 50, 100].map((n) => (
-                <option key={n} value={n}>
-                  {n}/trang
-                </option>
-              ))}
-            </select>
+          {/* Pagination */}
+          <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50 flex items-center justify-between">
+            <div className="text-xs text-slate-600">
+              Hiển thị {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, branches.length)} / {branches.length} chi nhánh
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Trước
+              </button>
+
+              <div className="px-3 py-1.5 text-xs font-medium text-slate-700">
+                Trang <span className="font-semibold">{page}</span> / {totalPages}
+              </div>
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+              >
+                Sau
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

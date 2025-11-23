@@ -25,6 +25,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.io.UnsupportedEncodingException;
 import java.util.List;
@@ -42,7 +43,8 @@ public class UserServiceImpl implements UserService {
     private final BranchesRepository branchesRepository;
     private final EmployeeRepository employeeRepository;
     private final EmailService emailService;
-    private final LocalImageService localImageService; //
+    private final LocalImageService localImageService;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -50,6 +52,11 @@ public class UserServiceImpl implements UserService {
         // Validate role
         Roles role = rolesRepository.findById(request.getRoleId())
                 .orElseThrow(() -> new RuntimeException("Role not found"));
+        
+        // Không cho phép tạo user với role Admin
+        if (role.getRoleName() != null && role.getRoleName().toUpperCase().equals("ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không được phép tạo tài khoản Admin. Vui lòng chọn vai trò khác.");
+        }
 
         // Validate branch
         Branches branch = branchesRepository.findById(request.getBranchId())
@@ -69,7 +76,10 @@ public class UserServiceImpl implements UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already exists");
         }
 
-        // Tạo user mới (chưa kích hoạt)
+        // Tạo verification token
+        String verificationToken = UUID.randomUUID().toString();
+        
+        // Tạo user mới (chưa kích hoạt) - Password sẽ được tạo khi user verify email
         Users user = new Users();
         user.setFullName(request.getFullName());
         user.setUsername(request.getUsername());
@@ -77,10 +87,13 @@ public class UserServiceImpl implements UserService {
         user.setPhone(request.getPhone());
         user.setAddress(request.getAddress());
         user.setRole(role);
-        user.setPasswordHash("TEAMP123"); // gán mật khẩu tạm thời
+        // Set password tạm thời (sẽ được thay thế khi verify email)
+        // Hash một password tạm thời để thỏa mãn constraint @NotNull
+        String tempPassword = "TEMP_PASSWORD_" + UUID.randomUUID().toString().substring(0, 8);
+        user.setPasswordHash(passwordEncoder.encode(tempPassword));
         user.setStatus(UserStatus.INACTIVE); // chưa kích hoạt
         user.setEmailVerified(false);
-        user.setVerificationToken(UUID.randomUUID().toString());
+        user.setVerificationToken(verificationToken);
 
         Users savedUser = usersRepository.save(user);
         log.info("User created successfully with ID: {}", savedUser.getId());
