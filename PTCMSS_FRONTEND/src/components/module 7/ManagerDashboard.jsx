@@ -3,7 +3,7 @@ import React from "react";
 import {
     RefreshCw,
     Building2,
-    CalendarRange,
+    Calendar,
     TrendingUp,
     TrendingDown,
     Car,
@@ -11,9 +11,28 @@ import {
     CheckCircle2,
     XCircle,
     Gauge,
+    AlertTriangle,
+    FileCheck,
+    DollarSign,
+    Clock,
 } from "lucide-react";
 import { getStoredUserId } from "../../utils/session";
-import { getBranchByUserId, getManagerDashboardStats } from "../../api/branches";
+import { getBranchByUserId } from "../../api/branches";
+import {
+    getManagerDashboard,
+    getBranchRevenueTrend,
+    getBranchDriverPerformance,
+    getBranchVehicleUtilization,
+    getBranchExpenseBreakdown,
+    getBranchPendingApprovals,
+    getBranchAlerts,
+    approveDayOff,
+    rejectDayOff,
+    approveExpenseRequest,
+    rejectExpenseRequest,
+} from "../../api/dashboards";
+import AlertsPanel from "./shared/AlertsPanel";
+import TrendChart from "./shared/TrendChart";
 
 /**
  * ManagerDashboardPro – LIGHT THEME
@@ -347,10 +366,15 @@ export default function ManagerDashboardPro() {
     const { toasts, push } = useToasts();
 
     // State
-    const [period, setPeriod] = React.useState(() => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    });
+    const PERIOD_OPTIONS = [
+        { value: "TODAY", label: "Hôm nay" },
+        { value: "THIS_WEEK", label: "Tuần này" },
+        { value: "THIS_MONTH", label: "Tháng này" },
+        { value: "THIS_QUARTER", label: "Quý này" },
+        { value: "YTD", label: "Năm nay" },
+    ];
+
+    const [period, setPeriod] = React.useState("THIS_MONTH");
     const [branch, setBranch] = React.useState("");
     const [branchInfo, setBranchInfo] = React.useState(null);
     const [branchLoading, setBranchLoading] = React.useState(false);
@@ -358,6 +382,12 @@ export default function ManagerDashboardPro() {
 
     // Dashboard data
     const [dashboardData, setDashboardData] = React.useState(null);
+    const [revenueTrend, setRevenueTrend] = React.useState([]);
+    const [driverPerformance, setDriverPerformance] = React.useState([]);
+    const [vehicleUtilization, setVehicleUtilization] = React.useState({});
+    const [expenseBreakdown, setExpenseBreakdown] = React.useState([]);
+    const [pendingApprovals, setPendingApprovals] = React.useState([]);
+    const [alerts, setAlerts] = React.useState([]);
     const [dataLoading, setDataLoading] = React.useState(false);
 
     // Load branch info on mount
@@ -394,17 +424,40 @@ export default function ManagerDashboardPro() {
         (async () => {
             setDataLoading(true);
             try {
-                const data = await getManagerDashboardStats(branchInfo.id, period);
+                const [
+                    dashboardData,
+                    revenueTrendData,
+                    driverPerformanceData,
+                    vehicleUtilizationData,
+                    expenseBreakdownData,
+                    pendingApprovalsData,
+                    alertsData,
+                ] = await Promise.all([
+                    getManagerDashboard({ branchId: branchInfo.id, period }),
+                    getBranchRevenueTrend({ branchId: branchInfo.id }),
+                    getBranchDriverPerformance({ branchId: branchInfo.id, limit: 5 }),
+                    getBranchVehicleUtilization({ branchId: branchInfo.id }),
+                    getBranchExpenseBreakdown({ branchId: branchInfo.id }),
+                    getBranchPendingApprovals({ branchId: branchInfo.id }),
+                    getBranchAlerts({ branchId: branchInfo.id, severity: "HIGH,CRITICAL" }),
+                ]);
+
                 if (cancelled) return;
-                console.log("Dashboard data received:", data);
-                console.log("Branch info from data:", data?.branchInfo);
-                setDashboardData(data);
-                // Update branch name from dashboard data or keep existing
-                const newBranchName = data?.branchInfo?.branchName || branchInfo?.branchName || branch;
-                console.log("Setting branch name:", newBranchName);
+
+                setDashboardData(dashboardData);
+                setRevenueTrend(revenueTrendData || []);
+                setDriverPerformance(driverPerformanceData || []);
+                setVehicleUtilization(vehicleUtilizationData || {});
+                setExpenseBreakdown(expenseBreakdownData || []);
+                setPendingApprovals(pendingApprovalsData || []);
+                setAlerts(alertsData || []);
+
+                // Update branch name
+                const newBranchName = branchInfo?.branchName || branch;
                 setBranch(newBranchName);
             } catch (err) {
                 if (!cancelled) {
+                    console.error("Error loading dashboard:", err);
                     push("Không thể tải dữ liệu dashboard: " + (err.message || "Lỗi không xác định"), "error");
                     setDashboardData(null);
                 }
@@ -415,7 +468,7 @@ export default function ManagerDashboardPro() {
         return () => {
             cancelled = true;
         };
-    }, [branchInfo?.id, period]);
+    }, [branchInfo?.id, period, push]);
 
     // Refresh data
     const onRefresh = () => {
@@ -423,8 +476,31 @@ export default function ManagerDashboardPro() {
         setLoading(true);
         (async () => {
             try {
-                const data = await getManagerDashboardStats(branchInfo.id, period);
-                setDashboardData(data);
+                const [
+                    dashboardData,
+                    revenueTrendData,
+                    driverPerformanceData,
+                    vehicleUtilizationData,
+                    expenseBreakdownData,
+                    pendingApprovalsData,
+                    alertsData,
+                ] = await Promise.all([
+                    getManagerDashboard({ branchId: branchInfo.id, period }),
+                    getBranchRevenueTrend({ branchId: branchInfo.id }),
+                    getBranchDriverPerformance({ branchId: branchInfo.id, limit: 5 }),
+                    getBranchVehicleUtilization({ branchId: branchInfo.id }),
+                    getBranchExpenseBreakdown({ branchId: branchInfo.id }),
+                    getBranchPendingApprovals({ branchId: branchInfo.id }),
+                    getBranchAlerts({ branchId: branchInfo.id, severity: "HIGH,CRITICAL" }),
+                ]);
+
+                setDashboardData(dashboardData);
+                setRevenueTrend(revenueTrendData || []);
+                setDriverPerformance(driverPerformanceData || []);
+                setVehicleUtilization(vehicleUtilizationData || {});
+                setExpenseBreakdown(expenseBreakdownData || []);
+                setPendingApprovals(pendingApprovalsData || []);
+                setAlerts(alertsData || []);
                 push("Đã tải lại số liệu chi nhánh", "success");
             } catch (err) {
                 push("Không thể tải lại dữ liệu: " + (err.message || "Lỗi không xác định"), "error");
@@ -434,16 +510,83 @@ export default function ManagerDashboardPro() {
         })();
     };
 
+    // Approval handlers
+    const handleApproveDayOff = async (dayOffId) => {
+        try {
+            await approveDayOff(dayOffId, { note: "Đã duyệt" });
+            push("Đã duyệt yêu cầu nghỉ phép", "success");
+            onRefresh();
+        } catch (err) {
+            push("Lỗi khi duyệt yêu cầu: " + (err.message || "Lỗi không xác định"), "error");
+        }
+    };
+
+    const handleRejectDayOff = async (dayOffId, reason) => {
+        if (!reason || reason.trim() === "") {
+            push("Vui lòng nhập lý do từ chối", "error");
+            return;
+        }
+        try {
+            await rejectDayOff(dayOffId, { reason });
+            push("Đã từ chối yêu cầu nghỉ phép", "success");
+            onRefresh();
+        } catch (err) {
+            push("Lỗi khi từ chối yêu cầu: " + (err.message || "Lỗi không xác định"), "error");
+        }
+    };
+
+    const handleApproveExpense = async (expenseRequestId) => {
+        try {
+            await approveExpenseRequest(expenseRequestId, { note: "Đã duyệt" });
+            push("Đã duyệt yêu cầu chi phí", "success");
+            onRefresh();
+        } catch (err) {
+            push("Lỗi khi duyệt yêu cầu: " + (err.message || "Lỗi không xác định"), "error");
+        }
+    };
+
+    const handleRejectExpense = async (expenseRequestId, reason) => {
+        if (!reason || reason.trim() === "") {
+            push("Vui lòng nhập lý do từ chối", "error");
+            return;
+        }
+        try {
+            await rejectExpenseRequest(expenseRequestId, { reason });
+            push("Đã từ chối yêu cầu chi phí", "success");
+            onRefresh();
+        } catch (err) {
+            push("Lỗi khi từ chối yêu cầu: " + (err.message || "Lỗi không xác định"), "error");
+        }
+    };
+
     // Extract data with fallbacks
-    const financialMetrics = dashboardData?.financialMetrics || FALLBACK_METRICS;
-    const tripMetrics = dashboardData?.tripMetrics || FALLBACK_TRIPS;
-    const topDrivers = dashboardData?.topDrivers || [];
-    const vehicleEfficiency = dashboardData?.vehicleEfficiency || [];
+    const totalRevenue = dashboardData?.totalRevenue || 0;
+    const totalExpense = dashboardData?.totalExpense || 0;
+    const netProfit = dashboardData?.netProfit || 0;
+    const totalTrips = dashboardData?.totalTrips || 0;
+    const completedTrips = dashboardData?.completedTrips || 0;
+    const ongoingTrips = dashboardData?.ongoingTrips || 0;
+    const scheduledTrips = dashboardData?.scheduledTrips || 0;
+    const fleetUtilization = dashboardData?.fleetUtilization || 0;
+    const totalVehicles = dashboardData?.totalVehicles || 0;
+    const vehiclesInUse = dashboardData?.vehiclesInUse || 0;
+    const totalDrivers = dashboardData?.totalDrivers || 0;
+    const driversOnTrip = dashboardData?.driversOnTrip || 0;
+    const driversAvailable = dashboardData?.driversAvailable || 0;
+
+    // Map driver performance data
+    const topDrivers = driverPerformance.map((d) => ({
+        driverId: d.driverId,
+        driverName: d.driverName,
+        trips: d.totalTrips || 0,
+        km: d.totalKm || 0,
+    }));
+
+    // Map vehicle efficiency (from expense breakdown if available)
+    const vehicleEfficiency = expenseBreakdown.length > 0 ? [] : [];
 
     // Tỷ lệ lợi nhuận (profit margin)
-    const profitMargin = financialMetrics.revenue > 0
-        ? (Number(financialMetrics.profit) / Number(financialMetrics.revenue)) * 100
-        : 0;
+    const profitMargin = totalRevenue > 0 ? (Number(netProfit) / Number(totalRevenue)) * 100 : 0;
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 p-5 relative">
@@ -466,13 +609,18 @@ export default function ManagerDashboardPro() {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 ml-auto text-sm">
                     {/* Kỳ báo cáo */}
                     <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
-                        <CalendarRange className="h-4 w-4 text-slate-500" />
-                        <input
-                            type="month"
-                            className="bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400"
+                        <Calendar className="h-4 w-4 text-slate-500" />
+                        <select
                             value={period}
                             onChange={(e) => setPeriod(e.target.value)}
-                        />
+                            className="bg-transparent outline-none text-sm text-slate-900"
+                        >
+                            {PERIOD_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Branch info */}
@@ -517,10 +665,10 @@ export default function ManagerDashboardPro() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
                     <KpiBlock
                         label="Doanh thu chi nhánh"
-                        value={fmtVND(financialMetrics.revenue) + " đ"}
-                        sub="So với kỳ trước"
-                        deltaPct={financialMetrics.changeRevenuePct}
-                        up={financialMetrics.changeRevenuePct >= 0}
+                        value={fmtVND(totalRevenue) + " đ"}
+                        sub="Tổng doanh thu trong kỳ"
+                        deltaPct={null}
+                        up={true}
                         icon={
                             <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
                         }
@@ -528,10 +676,10 @@ export default function ManagerDashboardPro() {
 
                     <KpiBlock
                         label="Chi phí chi nhánh"
-                        value={fmtVND(financialMetrics.expense) + " đ"}
+                        value={fmtVND(totalExpense) + " đ"}
                         sub="Bao gồm nhiên liệu, lương, bảo trì"
-                        deltaPct={financialMetrics.changeExpensePct}
-                        up={financialMetrics.changeExpensePct >= 0}
+                        deltaPct={null}
+                        up={false}
                         icon={
                             <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
                         }
@@ -539,10 +687,10 @@ export default function ManagerDashboardPro() {
 
                     <KpiBlock
                         label="Lợi nhuận"
-                        value={fmtVND(financialMetrics.profit) + " đ"}
+                        value={fmtVND(netProfit) + " đ"}
                         sub="Doanh thu - Chi phí"
-                        deltaPct={financialMetrics.changeProfitPct}
-                        up={financialMetrics.changeProfitPct >= 0}
+                        deltaPct={null}
+                        up={netProfit >= 0}
                         icon={
                             <TrendingUp className="h-3.5 w-3.5 text-sky-600" />
                         }
@@ -552,15 +700,15 @@ export default function ManagerDashboardPro() {
                         label="Biên lợi nhuận"
                         value={profitMargin.toFixed(1) + " %"}
                         sub="(Lợi nhuận / Doanh thu)"
-                        deltaPct={financialMetrics.changeProfitPct}
-                        up={financialMetrics.changeProfitPct >= 0}
+                        deltaPct={null}
+                        up={profitMargin >= 0}
                         icon={<Gauge className="h-3.5 w-3.5 text-indigo-600" />}
                     />
 
                     <KpiBlock
-                        label="Tổng km đã chạy"
-                        value={fmtInt(tripMetrics.totalKm) + " km"}
-                        sub="Trong kỳ đã lọc"
+                        label="Tỷ lệ sử dụng xe"
+                        value={fleetUtilization.toFixed(1) + " %"}
+                        sub={`${vehiclesInUse}/${totalVehicles} xe đang sử dụng`}
                         deltaPct={null}
                         up={true}
                         icon={<Car className="h-3.5 w-3.5 text-amber-500" />}
@@ -573,9 +721,9 @@ export default function ManagerDashboardPro() {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {/* cột trái: hiệu suất chuyến */}
                     <TripsSummaryCard
-                        completed={tripMetrics.completed}
-                        cancelled={tripMetrics.cancelled}
-                        kmTotal={tripMetrics.totalKm}
+                        completed={completedTrips}
+                        cancelled={totalTrips - completedTrips - ongoingTrips - scheduledTrips}
+                        kmTotal={0}
                     />
 
                     {/* cột giữa: tài xế */}
@@ -586,11 +734,131 @@ export default function ManagerDashboardPro() {
                 </div>
             )}
 
+            {/* REVENUE TREND CHART */}
+            {!dataLoading && revenueTrend.length > 0 && (
+                <div className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+                    <div className="text-sm font-semibold text-slate-900 mb-4">
+                        Xu hướng Doanh thu & Chi phí (12 tháng)
+                    </div>
+                    <TrendChart
+                        data={revenueTrend}
+                        lines={[
+                            { dataKey: "revenue", name: "Doanh thu", color: "#10b981" },
+                            { dataKey: "expense", name: "Chi phí", color: "#ef4444" },
+                            { dataKey: "netProfit", name: "Lợi nhuận", color: "#3b82f6" },
+                        ]}
+                        xKey="month"
+                        height={300}
+                    />
+                </div>
+            )}
+
+            {/* ALERTS & PENDING APPROVALS */}
+            {!dataLoading && (alerts.length > 0 || pendingApprovals.length > 0) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    {/* Alerts Panel */}
+                    {alerts.length > 0 && (
+                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                                <div className="text-sm font-semibold text-slate-900">
+                                    Cảnh báo Chi nhánh
+                                </div>
+                                <span className="ml-auto text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                    {alerts.length} cảnh báo
+                                </span>
+                            </div>
+                            <AlertsPanel alerts={alerts} maxHeight={300} />
+                        </div>
+                    )}
+
+                    {/* Pending Approvals */}
+                    {pendingApprovals.length > 0 && (
+                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Clock className="h-5 w-5 text-blue-600" />
+                                <div className="text-sm font-semibold text-slate-900">
+                                    Chờ Duyệt
+                                </div>
+                                <span className="ml-auto text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                    {pendingApprovals.length} yêu cầu
+                                </span>
+                            </div>
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                {pendingApprovals.map((approval) => (
+                                    <div
+                                        key={approval.approvalId}
+                                        className="border border-slate-200 rounded-lg p-3 bg-slate-50"
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1">
+                                                <div className="text-sm font-medium text-slate-900">
+                                                    {approval.approvalType === "DRIVER_DAY_OFF"
+                                                        ? "Nghỉ phép"
+                                                        : approval.approvalType === "EXPENSE_REQUEST"
+                                                        ? "Chi phí"
+                                                        : approval.approvalType}
+                                                </div>
+                                                <div className="text-xs text-slate-600 mt-1">
+                                                    {approval.requestReason || "Không có lý do"}
+                                                </div>
+                                                <div className="text-xs text-slate-500 mt-1">
+                                                    Yêu cầu bởi: {approval.requestedBy}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                {approval.approvalType === "DRIVER_DAY_OFF" ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleApproveDayOff(approval.relatedEntityId)}
+                                                            className="px-2 py-1 text-xs bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200"
+                                                        >
+                                                            Duyệt
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                const reason = prompt("Lý do từ chối:");
+                                                                if (reason) handleRejectDayOff(approval.relatedEntityId, reason);
+                                                            }}
+                                                            className="px-2 py-1 text-xs bg-rose-100 text-rose-700 rounded hover:bg-rose-200"
+                                                        >
+                                                            Từ chối
+                                                        </button>
+                                                    </>
+                                                ) : approval.approvalType === "EXPENSE_REQUEST" ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleApproveExpense(approval.relatedEntityId)}
+                                                            className="px-2 py-1 text-xs bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200"
+                                                        >
+                                                            Duyệt
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                const reason = prompt("Lý do từ chối:");
+                                                                if (reason) handleRejectExpense(approval.relatedEntityId, reason);
+                                                            }}
+                                                            className="px-2 py-1 text-xs bg-rose-100 text-rose-700 rounded hover:bg-rose-200"
+                                                        >
+                                                            Từ chối
+                                                        </button>
+                                                    </>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* FOOTER HINT */}
             <div className="text-[11px] text-slate-500 mt-6 text-center leading-relaxed">
-                Dữ liệu thực từ API{" "}
+                Dữ liệu từ Module 7 API{" "}
                 <code className="text-[11px] text-slate-800 bg-slate-100 border border-slate-300 rounded px-1 py-0.5">
-                    /api/branches/{"{branchId}"}/dashboard-stats
+                    /api/v1/manager/dashboard
                 </code>{" "}
                 được lọc theo chi nhánh của Manager.
             </div>
