@@ -42,8 +42,8 @@ public class SystemSetting {
     private LocalDate effectiveEndDate;
 
     @NotNull
-    @Enumerated(EnumType.STRING)
     @Column(name = "valueType", nullable = false)
+    @Convert(converter = org.example.ptcmssbackend.converter.ValueTypeConverter.class)
     @Builder.Default
     private ValueType valueType = ValueType.STRING;
 

@@ -20,7 +20,10 @@
       "Bash(./mvnw clean:*)",
       "Bash(java -version:*)",
       "Bash(./mvnw:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(cat:*)",
+      "Bash(done)",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []

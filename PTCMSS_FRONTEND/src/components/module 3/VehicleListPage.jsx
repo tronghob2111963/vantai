@@ -1450,10 +1450,10 @@ export default function VehicleListPage() {
                     onClickDetail={handleClickDetail}
                 />
 
-                <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 leading-relaxed">
+                {/* <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 leading-relaxed">
                     Design-only: Dữ liệu đang là mock. Khi nối API thật,
                     Manager sẽ chỉ thấy xe thuộc chi nhánh của họ.
-                </div>
+                </div> */}
             </div>
 
             {/* MODALS */}

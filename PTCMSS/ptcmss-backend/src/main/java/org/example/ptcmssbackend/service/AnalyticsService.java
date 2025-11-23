@@ -7,7 +7,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -431,117 +433,131 @@ public class AnalyticsService {
         Map<String, LocalDateTime> dates = getPeriodDates("THIS_MONTH");
         LocalDateTime startDate = dates.get("start");
         LocalDateTime endDate = dates.get("end");
+        
+        // Convert LocalDateTime to Instant for database comparison
+        Instant startInstant = startDate.atZone(ZoneId.systemDefault()).toInstant();
+        Instant endInstant = endDate.atZone(ZoneId.systemDefault()).toInstant();
 
         String sql = "SELECT " +
-                "i.category, " +
+                "i.costType, " +
                 "COALESCE(SUM(i.amount), 0) as totalAmount, " +
                 "COUNT(*) as count " +
                 "FROM invoices i " +
                 "WHERE i.status = 'ACTIVE' AND i.type = 'EXPENSE' " +
                 "AND i.branchId = ? AND i.invoiceDate BETWEEN ? AND ? " +
-                "GROUP BY i.category " +
+                "GROUP BY i.costType " +
                 "ORDER BY totalAmount DESC";
 
         return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
-                "category", rs.getString("category") != null ? rs.getString("category") : "UNCATEGORIZED",
+                "category", rs.getString("costType") != null ? rs.getString("costType") : "UNCATEGORIZED",
                 "totalAmount", rs.getBigDecimal("totalAmount"),
                 "count", rs.getLong("count")
-        ), branchId, startDate, endDate);
+        ), branchId, startInstant, endInstant);
     }
 
     /**
      * Get pending approvals (all branches for admin, specific branch for manager)
      */
     public List<Map<String, Object>> getPendingApprovals(Integer branchId) {
-        String sql;
-        List<Map<String, Object>> results;
+        try {
+            String sql;
+            List<Map<String, Object>> results;
 
-        if (branchId != null) {
-            // Manager: filter by branch
-            sql = "SELECT " +
-                    "ah.id as approvalId, " +
-                    "ah.approvalType, " +
-                    "ah.relatedEntityId, " +
-                    "ah.requestReason, " +
-                    "ah.requestedAt, " +
-                    "u.fullName as requestedBy, " +
-                    "b.branchName, " +
-                    "b.branchId " +
-                    "FROM approval_history ah " +
-                    "INNER JOIN users u ON ah.requestedBy = u.userId " +
-                    "INNER JOIN branches b ON ah.branchId = b.branchId " +
-                    "WHERE ah.status = 'PENDING' AND ah.branchId = ? " +
-                    "ORDER BY ah.requestedAt DESC";
-            results = jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
-                    "approvalId", rs.getInt("approvalId"),
-                    "approvalType", rs.getString("approvalType"),
-                    "relatedEntityId", rs.getInt("relatedEntityId"),
-                    "requestReason", rs.getString("requestReason") != null ? rs.getString("requestReason") : "",
-                    "requestedAt", rs.getTimestamp("requestedAt").toString(),
-                    "requestedBy", rs.getString("requestedBy"),
-                    "branchName", rs.getString("branchName"),
-                    "branchId", rs.getInt("branchId")
-            ), branchId);
-        } else {
-            // Admin: all branches
-            sql = "SELECT " +
-                    "ah.id as approvalId, " +
-                    "ah.approvalType, " +
-                    "ah.relatedEntityId, " +
-                    "ah.requestReason, " +
-                    "ah.requestedAt, " +
-                    "u.fullName as requestedBy, " +
-                    "b.branchName, " +
-                    "b.branchId " +
-                    "FROM approval_history ah " +
-                    "INNER JOIN users u ON ah.requestedBy = u.userId " +
-                    "INNER JOIN branches b ON ah.branchId = b.branchId " +
-                    "WHERE ah.status = 'PENDING' " +
-                    "ORDER BY ah.requestedAt DESC";
-            results = jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
-                    "approvalId", rs.getInt("approvalId"),
-                    "approvalType", rs.getString("approvalType"),
-                    "relatedEntityId", rs.getInt("relatedEntityId"),
-                    "requestReason", rs.getString("requestReason") != null ? rs.getString("requestReason") : "",
-                    "requestedAt", rs.getTimestamp("requestedAt").toString(),
-                    "requestedBy", rs.getString("requestedBy"),
-                    "branchName", rs.getString("branchName"),
-                    "branchId", rs.getInt("branchId")
-            ));
+            if (branchId != null) {
+                // Manager: filter by branch
+                sql = "SELECT " +
+                        "ah.historyId as approvalId, " +
+                        "ah.approvalType, " +
+                        "ah.relatedEntityId, " +
+                        "ah.requestReason, " +
+                        "ah.requestedAt, " +
+                        "u.fullName as requestedBy, " +
+                        "b.branchName, " +
+                        "b.branchId " +
+                        "FROM approval_history ah " +
+                        "INNER JOIN users u ON ah.requestedBy = u.userId " +
+                        "INNER JOIN branches b ON ah.branchId = b.branchId " +
+                        "WHERE ah.status = 'PENDING' AND ah.branchId = ? " +
+                        "ORDER BY ah.requestedAt DESC";
+                results = jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
+                        "approvalId", rs.getInt("approvalId"),
+                        "approvalType", rs.getString("approvalType"),
+                        "relatedEntityId", rs.getInt("relatedEntityId"),
+                        "requestReason", rs.getString("requestReason") != null ? rs.getString("requestReason") : "",
+                        "requestedAt", rs.getTimestamp("requestedAt").toString(),
+                        "requestedBy", rs.getString("requestedBy"),
+                        "branchName", rs.getString("branchName"),
+                        "branchId", rs.getInt("branchId")
+                ), branchId);
+            } else {
+                // Admin: all branches
+                sql = "SELECT " +
+                        "ah.historyId as approvalId, " +
+                        "ah.approvalType, " +
+                        "ah.relatedEntityId, " +
+                        "ah.requestReason, " +
+                        "ah.requestedAt, " +
+                        "u.fullName as requestedBy, " +
+                        "b.branchName, " +
+                        "b.branchId " +
+                        "FROM approval_history ah " +
+                        "INNER JOIN users u ON ah.requestedBy = u.userId " +
+                        "INNER JOIN branches b ON ah.branchId = b.branchId " +
+                        "WHERE ah.status = 'PENDING' " +
+                        "ORDER BY ah.requestedAt DESC";
+                results = jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
+                        "approvalId", rs.getInt("approvalId"),
+                        "approvalType", rs.getString("approvalType"),
+                        "relatedEntityId", rs.getInt("relatedEntityId"),
+                        "requestReason", rs.getString("requestReason") != null ? rs.getString("requestReason") : "",
+                        "requestedAt", rs.getTimestamp("requestedAt").toString(),
+                        "requestedBy", rs.getString("requestedBy"),
+                        "branchName", rs.getString("branchName"),
+                        "branchId", rs.getInt("branchId")
+                ));
+            }
+
+            return results;
+        } catch (Exception e) {
+            log.error("Error getting pending approvals for branchId: {}", branchId, e);
+            return List.of(); // Return empty list instead of throwing exception
         }
-
-        return results;
     }
 
     /**
      * Get top routes
      */
     public List<Map<String, Object>> getTopRoutes(String period, Integer limit) {
-        Map<String, LocalDateTime> dates = getPeriodDates(period);
-        LocalDateTime startDate = dates.get("start");
-        LocalDateTime endDate = dates.get("end");
+        try {
+            Map<String, LocalDateTime> dates = getPeriodDates(period);
+            LocalDateTime startDate = dates.get("start");
+            LocalDateTime endDate = dates.get("end");
 
-        String sql = "SELECT " +
-                "bk.pickupLocation, " +
-                "bk.dropoffLocation, " +
-                "COUNT(DISTINCT bk.bookingId) as tripCount, " +
-                "COALESCE(SUM(t.distance), 0) as totalDistance, " +
-                "COALESCE(SUM(CASE WHEN i.type = 'INCOME' THEN i.amount ELSE 0 END), 0) as totalRevenue " +
-                "FROM bookings bk " +
-                "INNER JOIN trips t ON bk.bookingId = t.bookingId " +
-                "LEFT JOIN invoices i ON t.tripId = i.tripId AND i.type = 'INCOME' " +
-                "WHERE bk.bookingDate BETWEEN ? AND ? AND t.status = 'COMPLETED' " +
-                "GROUP BY bk.pickupLocation, bk.dropoffLocation " +
-                "ORDER BY tripCount DESC, totalRevenue DESC " +
-                "LIMIT ?";
+            String sql = "SELECT " +
+                    "t.startLocation, " +
+                    "t.endLocation, " +
+                    "COUNT(DISTINCT t.tripId) as tripCount, " +
+                    "COALESCE(SUM(t.distance), 0) as totalDistance, " +
+                    "COALESCE(SUM(CASE WHEN i.type = 'INCOME' THEN i.amount ELSE 0 END), 0) as totalRevenue " +
+                    "FROM trips t " +
+                    "INNER JOIN bookings bk ON t.bookingId = bk.bookingId " +
+                    "LEFT JOIN invoices i ON bk.bookingId = i.bookingId AND i.type = 'INCOME' " +
+                    "WHERE bk.bookingDate BETWEEN ? AND ? AND t.status = 'COMPLETED' " +
+                    "GROUP BY t.startLocation, t.endLocation " +
+                    "ORDER BY tripCount DESC, totalRevenue DESC " +
+                    "LIMIT ?";
 
-        return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
-                "pickupLocation", rs.getString("pickupLocation") != null ? rs.getString("pickupLocation") : "",
-                "dropoffLocation", rs.getString("dropoffLocation") != null ? rs.getString("dropoffLocation") : "",
-                "tripCount", rs.getLong("tripCount"),
-                "totalDistance", rs.getBigDecimal("totalDistance"),
-                "totalRevenue", rs.getBigDecimal("totalRevenue")
-        ), startDate, endDate, limit);
+            return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
+                    "startLocation", rs.getString("startLocation") != null ? rs.getString("startLocation") : "",
+                    "endLocation", rs.getString("endLocation") != null ? rs.getString("endLocation") : "",
+                    "tripCount", rs.getLong("tripCount"),
+                    "totalDistance", rs.getBigDecimal("totalDistance"),
+                    "totalRevenue", rs.getBigDecimal("totalRevenue")
+            ), startDate, endDate, limit);
+        } catch (Exception e) {
+            log.error("Error getting top routes for period: {}, limit: {}", period, limit, e);
+            return List.of(); // Return empty list instead of throwing exception
+        }
     }
 
     /**

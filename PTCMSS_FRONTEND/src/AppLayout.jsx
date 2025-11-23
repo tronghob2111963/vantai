@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate, NavLink, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import {
   Settings,
@@ -13,6 +13,8 @@ import {
   ChevronDown,
   Bell,
   Search,
+  Shield,
+  LayoutDashboard,
 } from "lucide-react";
 import { logout as apiLogout } from "./api/auth";
 import {
@@ -28,6 +30,16 @@ import NotificationToast from "./components/common/NotificationToast";
 
 const SIDEBAR_SECTIONS = [
   {
+    sectionId: "analytics",
+    icon: BarChart3,
+    label: "Báo cáo & Phân tích",
+    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    items: [
+      { label: "Dashboard Công ty", to: "/analytics/admin", roles: [ROLES.ADMIN] },
+      { label: "Dashboard Chi nhánh", to: "/analytics/manager", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+    ],
+  },
+  {
     sectionId: "admin",
     icon: Settings,
     label: "Quản trị hệ thống",
@@ -35,10 +47,10 @@ const SIDEBAR_SECTIONS = [
     items: [
       { label: "Cấu hình hệ thống", to: "/admin/settings", roles: [ROLES.ADMIN] },
       { label: "Danh sách chi nhánh", to: "/admin/branches", roles: [ROLES.ADMIN, ROLES.MANAGER] },
-      { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
+      // { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
       { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
       { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN, ROLES.MANAGER] },
-      { label: "Tạo tài khoản", to: "/admin/users/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      // { label: "Tạo tài khoản", to: "/admin/users/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Quản lý nhân viên", to: "/admin/employees", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
     ],
@@ -47,7 +59,7 @@ const SIDEBAR_SECTIONS = [
     sectionId: "driver",
     icon: Users,
     label: "Tài xế",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER],
+    roles: [ROLES.DRIVER], // Only actual drivers can access driver dashboard
     items: [
       { label: "Bảng điều khiển tài xế", to: "/driver/dashboard" },
       { label: "Thông báo", to: "/driver/notifications" },
@@ -64,10 +76,10 @@ const SIDEBAR_SECTIONS = [
     roles: [ROLES.ADMIN, ROLES.MANAGER],
     items: [
       { label: "Danh sách xe", to: "/vehicles" },
-      { label: "Tạo xe mới", to: "/vehicles/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      // { label: "Tạo xe mới", to: "/vehicles/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Danh mục xe", to: "/vehicles/categories" },
       { label: "Tạo danh mục", to: "/vehicles/categories/new", roles: [ROLES.ADMIN] },
-      { label: "Chi tiết xe", to: "/vehicles/1" },
+      // { label: "Chi tiết xe", to: "/vehicles/1" },
     ],
   },
   {
@@ -84,11 +96,6 @@ const SIDEBAR_SECTIONS = [
       },
       { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
       { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR] },
-      {
-        label: "Chi tiết đơn hàng",
-        to: "/orders/1",
-        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
-      },
     ],
   },
   {
@@ -101,8 +108,8 @@ const SIDEBAR_SECTIONS = [
       { label: "Đơn chưa gán chuyến", to: "/dispatch/pending" },
       { label: "Cảnh báo & Chờ duyệt", to: "/dispatch/notifications-dashboard" },
       { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
-      { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
-      { label: "Thông báo điều phối", to: "/dispatch/notifications" },
+      // { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
+      // { label: "Thông báo điều phối", to: "/dispatch/notifications" }, // Đã xóa - trùng với "Cảnh báo & Chờ duyệt"
       { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.MANAGER] },
     ],
   },
@@ -116,16 +123,6 @@ const SIDEBAR_SECTIONS = [
       { label: "Hóa đơn / Thanh toán", to: "/accounting/invoices", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
       { label: "Báo cáo chi phí", to: "/accounting/expenses", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
       { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
-    ],
-  },
-  {
-    sectionId: "analytics",
-    icon: BarChart3,
-    label: "Báo cáo & Phân tích",
-    roles: [ROLES.ADMIN, ROLES.MANAGER],
-    items: [
-      { label: "Dashboard Công ty", to: "/analytics/admin", roles: [ROLES.ADMIN] },
-      { label: "Dashboard Chi nhánh", to: "/analytics/manager", roles: [ROLES.ADMIN, ROLES.MANAGER] },
     ],
   },
 ];
@@ -224,10 +221,20 @@ function SidebarSection({
   items,
   activeSection,
   setActiveSection,
+  location,
 }) {
   const open = activeSection === sectionId;
+  
+  // Kiểm tra xem có item nào trong section này đang active không
+  const hasActiveItem = items.some(item => location.pathname.startsWith(item.to));
+  // Section đang active nếu có item active hoặc section đang mở
+  const isCurrentSection = hasActiveItem || open;
+  
+  // Không cho phép đóng nếu section này đang chứa route hiện tại
+  const canToggle = !hasActiveItem;
 
   const handleToggle = () => {
+    if (!canToggle) return; // Không cho đóng nếu đang ở trang trong section này
     setActiveSection((curr) => (curr === sectionId ? "" : sectionId));
   };
 
@@ -237,44 +244,70 @@ function SidebarSection({
       <button
         type="button"
         onClick={handleToggle}
-        className="w-full flex items-center justify-between rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
+        disabled={!canToggle && open}
+        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out ${
+          isCurrentSection 
+            ? "bg-gradient-to-r from-sky-50 to-blue-50 shadow-sm shadow-sky-100/50" 
+            : "hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 hover:shadow-sm hover:shadow-sky-100/50"
+        } ${canToggle || !open ? "active:scale-[0.98] cursor-pointer" : "cursor-default"}`}
+        title={!canToggle && open ? "Đang ở trang này, không thể đóng" : ""}
       >
-        <span className="flex items-center gap-2">
-          {React.createElement(icon, { className: "h-4 w-4 text-sky-600" })}
-          <span className="font-medium leading-none text-slate-800">{label}</span>
+        <span className="flex items-center gap-2.5">
+          {React.createElement(icon, { 
+            className: `h-4 w-4 transition-all duration-200 ${
+              open 
+                ? "text-[#0079BC] scale-110" 
+                : "text-sky-600 group-hover:text-[#0079BC] group-hover:scale-110"
+            }` 
+          })}
+          <span className={`font-medium leading-none transition-colors duration-200 ${
+            open 
+              ? "text-slate-900" 
+              : "text-slate-800 group-hover:text-slate-900"
+          }`}>
+            {label}
+          </span>
         </span>
-        {open ? (
-          <ChevronDown className="h-4 w-4 text-slate-400" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-slate-400" />
-        )}
+        <div className="transition-transform duration-200 ease-in-out">
+          {open ? (
+            <ChevronDown className={`h-4 w-4 transition-all duration-200 ${
+              isCurrentSection ? "text-[#0079BC] rotate-0" : "text-slate-400"
+            } ${!canToggle ? "opacity-60" : ""}`} />
+          ) : (
+            <ChevronRight className={`h-4 w-4 transition-all duration-200 text-slate-400 group-hover:text-[#0079BC] group-hover:translate-x-0.5`} />
+          )}
+        </div>
       </button>
 
       {/* submenu */}
       {open && (
-        <ul className="mt-1 mb-3 ml-2 flex flex-col border-l border-slate-200">
+        <ul className={`mt-1.5 mb-3 ml-2 flex flex-col border-l-2 ${hasActiveItem ? "border-[#0079BC]" : "border-slate-200"} space-y-0.5 animate-in fade-in slide-in-from-top-2 duration-200`}>
           {items.map((item) => (
             <li key={`${sectionId}-${item.to}-${item.label}`}>
               <NavLink
                 to={item.to}
                 className={({ isActive }) => {
                   const base =
-                    "relative flex items-center justify-between pl-3 pr-3 py-2 text-[12px] rounded-md transition-colors border border-transparent";
+                    "group/item relative flex items-center justify-between pl-3.5 pr-3 py-2 text-[12px] rounded-lg transition-all duration-200 ease-in-out border border-transparent";
                   if (isActive) {
                     return [
                       base,
-                      "bg-sky-50 text-sky-700 border-sky-200 font-medium",
-                      "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-sky-600 before:rounded-r",
+                      "bg-gradient-to-r from-[#0079BC]/10 to-sky-50 text-[#0079BC] border-[#0079BC]/20 font-semibold shadow-sm shadow-[#0079BC]/10",
+                      "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[#0079BC] before:rounded-r-md",
+                      "hover:from-[#0079BC]/15 hover:to-sky-100 hover:shadow-md hover:shadow-[#0079BC]/20",
                     ].join(" ");
                   }
                   return [
                     base,
-                    "text-slate-600 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-200",
+                    "text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100/50 hover:text-slate-900 hover:border-slate-200 hover:shadow-sm",
+                    "hover:translate-x-1",
                   ].join(" ");
                 }}
               >
                 <span className="truncate">{item.label}</span>
-                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                <ChevronRight className={`h-3.5 w-3.5 transition-all duration-200 ${
+                  "opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 group-hover/item:text-[#0079BC]"
+                }`} />
               </NavLink>
             </li>
           ))}
@@ -293,8 +326,68 @@ function SidebarSection({
 --------------------------------------------------- */
 function SidebarNav() {
   const role = useRole();
+  const location = useLocation();
   const sections = React.useMemo(() => filterSectionsByRole(role), [role]);
   const [activeSection, setActiveSection] = React.useState(() => sections[0]?.sectionId || "");
+
+  // Tự động mở section tương ứng với route hiện tại
+  React.useEffect(() => {
+    const pathname = location.pathname;
+    
+    // Tự động mở section "analytics" khi vào dashboard
+    if (pathname.startsWith("/analytics/")) {
+      const analyticsSection = sections.find(s => s.sectionId === "analytics");
+      if (analyticsSection) {
+        setActiveSection("analytics");
+        return;
+      }
+    }
+    
+    // Tự động mở section "admin" khi vào admin pages
+    if (pathname.startsWith("/admin/")) {
+      const adminSection = sections.find(s => s.sectionId === "admin");
+      if (adminSection) {
+        setActiveSection("admin");
+        return;
+      }
+    }
+    
+    // Tự động mở section "vehicles" khi vào vehicle pages
+    if (pathname.startsWith("/vehicles/")) {
+      const vehiclesSection = sections.find(s => s.sectionId === "vehicles");
+      if (vehiclesSection) {
+        setActiveSection("vehicles");
+        return;
+      }
+    }
+    
+    // Tự động mở section "bookings" khi vào booking pages
+    if (pathname.startsWith("/bookings/") || pathname.startsWith("/quotes/")) {
+      const bookingsSection = sections.find(s => s.sectionId === "bookings");
+      if (bookingsSection) {
+        setActiveSection("bookings");
+        return;
+      }
+    }
+    
+    // Tự động mở section "dispatch" khi vào dispatch pages
+    if (pathname.startsWith("/dispatch/")) {
+      const dispatchSection = sections.find(s => s.sectionId === "dispatch");
+      if (dispatchSection) {
+        setActiveSection("dispatch");
+        return;
+      }
+    }
+    
+    // Tự động mở section "accounting" khi vào accounting pages
+    if (pathname.startsWith("/accounting/")) {
+      const accountingSection = sections.find(s => s.sectionId === "accounting");
+      if (accountingSection) {
+        setActiveSection("accounting");
+        return;
+      }
+    }
+  }, [location.pathname, sections]);
 
   React.useEffect(() => {
     if (!sections.length) {
@@ -307,20 +400,20 @@ function SidebarNav() {
   }, [sections, activeSection]);
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
       {/* brand / account mini */}
-      <div className="px-4 py-4 border-b border-slate-200 flex items-start gap-2">
-        <div className="h-9 w-9 rounded-md bg-sky-600 flex items-center justify-center text-white font-semibold text-sm shadow-[0_8px_24px_rgba(2,132,199,.35)]">
-          TM
+      <div className="px-4 py-4 border-b border-slate-200 flex items-center gap-3 bg-gradient-to-br from-white to-slate-50/50">
+        <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-[0_8px_24px_rgba(0,121,188,.35)] flex-shrink-0 transition-transform duration-200 hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,121,188,.45)]" style={{ backgroundColor: '#0079BC' }}>
+          <Shield className="h-5 w-5" />
         </div>
-        <div className="flex flex-col leading-tight">
-          <div className="text-slate-900 font-semibold text-sm">TranspoManager</div>
-          <div className="text-[11px] text-slate-500">bản thử nghiệm nội bộ</div>
+        <div className="flex flex-col leading-tight min-w-0 flex-1">
+          <div className="text-slate-900 font-bold text-sm truncate">TranspoManager</div>
+          <div className="text-[10px] text-slate-500 leading-tight">Hệ thống quản lý vận tải</div>
         </div>
       </div>
 
       {/* groups */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-sm">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-3 text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
         {sections.map((section) => (
           <SidebarSection
             key={section.sectionId}
@@ -330,11 +423,12 @@ function SidebarNav() {
             items={section.items}
             activeSection={activeSection}
             setActiveSection={setActiveSection}
+            location={location}
           />
         ))}
       </nav>
 
-      <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500">v0.1 thử nghiệm</div>
+      <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50/50">v0.1 thử nghiệm</div>
     </aside>
   );
 }
@@ -345,6 +439,7 @@ function SidebarNav() {
    - search pill nền slate-50
 --------------------------------------------------- */
 function Topbar() {
+  const navigate = useNavigate();
   const username = getStoredUsername() || "John Doe";
   const roleName = getStoredRoleLabel() || "Qu???n tr??< viA?n";
   const initials =
@@ -364,12 +459,16 @@ function Topbar() {
     }
     window.location.href = "/login";
   };
+  
+  const handleProfileClick = () => {
+    navigate("/me/profile");
+  };
 
   return (
-    <header className="flex items-center gap-4 border-b border-slate-200 bg-white px-5 py-3 shadow-sm">
+    <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-3.5 shadow-sm">
       {/* search */}
-      <div className="flex-1 max-w-md flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 focus-within:ring-2 focus-within:ring-sky-500/30 focus-within:border-sky-500/40">
-        <Search className="h-4 w-4 text-slate-400" />
+      <div className="flex-1 max-w-md flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-sm transition-all focus-within:ring-2 focus-within:ring-[#0079BC]/20 focus-within:border-[#0079BC]/50 focus-within:bg-white hover:bg-white">
+        <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
         <input
           className="bg-transparent outline-none flex-1 text-slate-700 placeholder:text-slate-400 text-sm"
           placeholder="Tìm nhanh..."
@@ -380,17 +479,23 @@ function Topbar() {
       <NotificationsWidget />
 
       {/* user chip + logout */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm shadow-sm">
-          <div className="h-8 w-8 rounded-full bg-sky-600 flex items-center justify-center text-[10px] font-medium text-white">
+      <div className="flex items-center gap-2.5">
+        <button
+          onClick={handleProfileClick}
+          className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:shadow-md hover:border-[#0079BC]/50 transition-all cursor-pointer active:scale-[0.98]"
+        >
+          <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm" style={{ backgroundColor: '#0079BC' }}>
             {initials}
           </div>
           <div className="hidden sm:flex flex-col leading-tight text-left">
-            <span className="text-slate-800 text-xs font-medium">{username}</span>
+            <span className="text-slate-900 text-xs font-semibold">{username}</span>
             <span className="text-slate-500 text-[10px]">{roleName}</span>
           </div>
-        </div>
-        <button onClick={onLogout} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 shadow-sm">
+        </button>
+        <button 
+          onClick={onLogout} 
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-all active:scale-[0.98]"
+        >
           Đăng xuất
         </button>
       </div>
@@ -572,11 +677,11 @@ export default function AppLayout() {
             }
           />
 
-          {/* Tài xế */}
+          {/* Tài xế - Only for actual drivers */}
           <Route
             path="/driver/dashboard"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverDashboard />
               </ProtectedRoute>
             }
@@ -584,7 +689,7 @@ export default function AppLayout() {
           <Route
             path="/driver/notifications"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverNotificationsPage />
               </ProtectedRoute>
             }
@@ -592,7 +697,7 @@ export default function AppLayout() {
           <Route
             path="/driver/profile"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverProfilePage />
               </ProtectedRoute>
             }
@@ -600,7 +705,7 @@ export default function AppLayout() {
           <Route
             path="/driver/schedule"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverSchedulePage />
               </ProtectedRoute>
             }
@@ -608,7 +713,7 @@ export default function AppLayout() {
           <Route
             path="/driver/leave-request"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverLeaveRequestPage />
               </ProtectedRoute>
             }
@@ -616,7 +721,7 @@ export default function AppLayout() {
           <Route
             path="/driver/report-incident"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverReportIncidentPage />
               </ProtectedRoute>
             }
@@ -624,7 +729,7 @@ export default function AppLayout() {
           <Route
             path="/driver/trips"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverTripDetailPage />
               </ProtectedRoute>
             }
@@ -632,7 +737,7 @@ export default function AppLayout() {
           <Route
             path="/driver/trips/:tripId"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverTripDetailPage />
               </ProtectedRoute>
             }
@@ -767,6 +872,7 @@ export default function AppLayout() {
               </ProtectedRoute>
             }
           />
+          {/* Route đã xóa - trùng với /dispatch/notifications-dashboard
           <Route
             path="/dispatch/notifications"
             element={
@@ -775,6 +881,7 @@ export default function AppLayout() {
               </ProtectedRoute>
             }
           />
+          */}
           <Route
             path="/dispatch/ratings"
             element={

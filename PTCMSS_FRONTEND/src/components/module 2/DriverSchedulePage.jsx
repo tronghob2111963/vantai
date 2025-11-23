@@ -366,9 +366,9 @@ function CalendarGrid({
       "0"
   )}/${year}`;
 
-  const apiHint = `GET /api/drivers/{driverId}/schedule?month=${String(
-      monthIdx + 1
-  )}&year=${year}`;
+  // const apiHint = `GET /api/drivers/{driverId}/schedule?month=${String(
+  //     monthIdx + 1
+  // )}&year=${year}`;
 
   const weekdays = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
@@ -382,9 +382,9 @@ function CalendarGrid({
               <span>{monthLabel}</span>
             </div>
 
-            <div className="text-[11px] text-slate-500 leading-relaxed">
+            {/* <div className="text-[11px] text-slate-500 leading-relaxed">
               {apiHint}
-            </div>
+            </div> */}
           </div>
 
           {/* điều hướng tháng / tuần */}

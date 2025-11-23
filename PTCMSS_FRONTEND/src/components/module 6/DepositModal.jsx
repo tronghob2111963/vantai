@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { recordPayment } from "../../api/invoices";
 import { createDeposit } from "../../api/deposits";
+import { getCookie } from "../../utils/cookies";
 
 /**
  * DepositModal (LIGHT THEME REWORK, FIXED PRESET CALC)
@@ -61,17 +62,17 @@ const fmtVND = (n) =>
     );
 
 export default function DepositModal({
-                                         open,
-                                         context, // { type: 'order'|'invoice', id, title? }
-                                         totals = { total: 0, paid: 0 }, // { total, paid } có thể là số hoặc chuỗi "12.000.000"
-                                         defaultAmount = 0,
-                                         defaultMethod = "CASH",
-                                         defaultDate,
-                                         modeLabel = "Thanh toán",
-                                         allowOverpay = false,
-                                         onClose,
-                                         onSubmitted,
-                                     }) {
+    open,
+    context, // { type: 'order'|'invoice', id, title? }
+    totals = { total: 0, paid: 0 }, // { total, paid } có thể là số hoặc chuỗi "12.000.000"
+    defaultAmount = 0,
+    defaultMethod = "CASH",
+    defaultDate,
+    modeLabel = "Thanh toán",
+    allowOverpay = false,
+    onClose,
+    onSubmitted,
+}) {
     // ----- STATE -----
     const [amountStr, setAmountStr] = React.useState("");
     const [preset, setPreset] = React.useState("CUSTOM"); // "30" | "50" | "ALL" | "CUSTOM"
@@ -182,7 +183,7 @@ export default function DepositModal({
         ? new Intl.NumberFormat("vi-VN", {
             maximumFractionDigits: 0,
             minimumFractionDigits: 0
-          }).format(Math.floor(Number(amountStr)))
+        }).format(Math.floor(Number(amountStr)))
         : "";
 
     // chọn preset % (30 / 50)
@@ -247,9 +248,20 @@ export default function DepositModal({
         };
 
         try {
+            // Get user info from cookies
+            const userId = getCookie("userId");
+            const branchId = context?.branchId || getCookie("branchId");
+            const customerId = context?.customerId;
+
+            console.log("[DepositModal] Context:", context);
+            console.log("[DepositModal] userId:", userId, "branchId:", branchId, "customerId:", customerId);
+            console.log("[DepositModal] amount:", amount, "method:", method, "date:", date);
+
             if (context?.type === "order") {
                 // Create deposit for booking
-                await createDeposit(context.id, {
+                const depositPayload = {
+                    branchId: branchId ? parseInt(branchId) : undefined,
+                    customerId: customerId ? parseInt(customerId) : undefined,
                     amount,
                     paymentMethod: method,
                     paymentDate: date,
@@ -258,20 +270,27 @@ export default function DepositModal({
                     bankName: method === "BANK_TRANSFER" ? bankName : undefined,
                     bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
                     referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
-                    cashierName: method === "CASH" ? undefined : undefined, // Can add cashier field if needed
-                    receiptNumber: method === "CASH" ? undefined : undefined, // Can generate if needed
-                });
+                    cashierName: method === "CASH" ? undefined : undefined,
+                    receiptNumber: method === "CASH" ? undefined : undefined,
+                    createdBy: userId ? parseInt(userId) : undefined,
+                };
+                console.log("[DepositModal] Deposit payload:", depositPayload);
+                await createDeposit(context.id, depositPayload);
             } else {
                 // Record payment for invoice
-                await recordPayment(context.id, {
+                const paymentPayload = {
                     amount,
                     paymentMethod: method,
-                    paymentDate: date,
                     bankName: method === "BANK_TRANSFER" ? bankName : undefined,
                     bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
                     referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
+                    cashierName: method === "CASH" ? undefined : undefined,
+                    receiptNumber: method === "CASH" ? undefined : undefined,
                     note: note || undefined,
-                });
+                    createdBy: userId ? parseInt(userId) : undefined,
+                };
+                console.log("[DepositModal] Payment payload:", paymentPayload);
+                await recordPayment(context.id, paymentPayload);
             }
 
             if (typeof onSubmitted === "function") {
@@ -281,7 +300,10 @@ export default function DepositModal({
             onClose && onClose();
         } catch (err) {
             console.error("Error submitting payment:", err);
-            setError("Không thể ghi nhận thanh toán: " + (err.message || "Unknown error"));
+            console.error("Error status:", err.status);
+            console.error("Error data:", err.data);
+            const errorMsg = err.data?.message || err.message || "Unknown error";
+            setError("Không thể ghi nhận thanh toán: " + errorMsg);
         } finally {
             setLoading(false);
         }

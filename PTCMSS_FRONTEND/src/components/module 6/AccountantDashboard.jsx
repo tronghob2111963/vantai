@@ -170,13 +170,13 @@ const PERIOD_OPTIONS = [
 =========================== */
 function useToasts() {
     const [toasts, setToasts] = React.useState([]);
-    const push = (msg, kind = "info", ttl = 2400) => {
+    const push = React.useCallback((msg, kind = "info", ttl = 2400) => {
         const id = Math.random().toString(36).slice(2);
         setToasts((arr) => [...arr, { id, msg, kind }]);
         setTimeout(() => {
             setToasts((arr) => arr.filter((t) => t.id !== id));
         }, ttl);
-    };
+    }, []);
     return { toasts, push };
 }
 
@@ -1324,7 +1324,8 @@ export default function AccountantDashboard() {
             setLoading(false);
             setInitialLoading(false);
         }
-    }, [branchId, period, push]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branchId, period]);
 
     // Load dashboard on mount and when filters change
     React.useEffect(() => {
