@@ -1228,20 +1228,44 @@ export default function InvoiceManagement() {
         try {
             const response = await listBookings({ status: "COMPLETED" });
             // Handle paginated response
-            const orders = response?.content || response || [];
-            const formatted = (Array.isArray(orders) ? orders : []).map(order => ({
-                id: order.bookingId || order.id,
-                code: order.bookingCode || order.code || `ORD-${order.bookingId || order.id}`,
-                customer: order.customerName || order.customer || "—",
-                total: order.totalPrice || order.total || 0,
-                completed_at: order.completedAt || order.completed_at || order.updatedAt || "—"
-            }));
+            const orders = response?.content || response?.data?.content || response?.data || response || [];
+            const formatted = (Array.isArray(orders) ? orders : []).map(order => {
+                const bookingId = order.bookingId || order.id;
+                
+                // Extract branchId from multiple possible sources
+                const branchId = order.branchId 
+                    || (order.branch && (order.branch.id || order.branch.branchId))
+                    || (order.branchId && Number(order.branchId))
+                    || null;
+                
+                // Extract customerId from multiple possible sources
+                const customerId = order.customerId 
+                    || (order.customer && (order.customer.id || order.customer.customerId))
+                    || (order.customerId && Number(order.customerId))
+                    || null;
+                
+                return {
+                    id: bookingId,
+                    code: order.bookingCode || order.code || (bookingId ? `ORD-${bookingId}` : "ORD-?"),
+                    customer: order.customerName || (order.customer && order.customer.fullName) || (order.customer && order.customer.name) || order.customer || "—",
+                    total: order.totalPrice || order.totalCost || order.total || 0,
+                    completed_at: order.completedAt || order.completed_at || order.updatedAt || order.createdAt || "—",
+                    branchId: branchId,
+                    customerId: customerId
+                };
+            }).filter(order => {
+                // Only include orders that have both branchId and customerId
+                return order.branchId != null && order.customerId != null;
+            });
+            
+            console.log("Loaded completed orders:", formatted);
             setCompletedOrders(formatted);
         } catch (err) {
             console.error("Error loading completed orders:", err);
+            push("Lỗi khi tải danh sách đơn hàng hoàn thành: " + (err?.data?.message || err?.message || "Unknown error"), "error");
             setCompletedOrders([]);
         }
-    }, []);
+    }, [push]);
 
     // Load data on mount and when filters change
     React.useEffect(() => {
@@ -1319,36 +1343,75 @@ export default function InvoiceManagement() {
             );
 
     const onCreate = async (bookingId) => {
-        const order = completedOrders.find((o) => o.bookingId === bookingId);
+        const order = completedOrders.find((o) => o.id === bookingId);
         if (!order) {
             push("Không tìm thấy đơn hàng", "error");
+            return;
+        }
+
+        console.log("Selected order for invoice creation:", order);
+
+        // Validate required fields with better error messages
+        if (!order.branchId) {
+            push(`Đơn hàng ${order.code || order.id} không có thông tin chi nhánh. Vui lòng kiểm tra lại đơn hàng.`, "error");
+            return;
+        }
+        if (!order.customerId) {
+            push(`Đơn hàng ${order.code || order.id} không có thông tin khách hàng. Vui lòng kiểm tra lại đơn hàng.`, "error");
+            return;
+        }
+        if (!order.total || Number(order.total) <= 0) {
+            push(`Tổng tiền đơn hàng ${order.code || order.id} không hợp lệ (${order.total}). Vui lòng kiểm tra lại.`, "error");
             return;
         }
 
         setLoading(true);
         try {
             // Generate invoice number
-            const invoiceNumberData = await generateInvoiceNumber(order.branchId);
-            const invoiceNumber = invoiceNumberData?.invoiceNumber;
+            let invoiceNumber = null;
+            try {
+                const invoiceNumberData = await generateInvoiceNumber(order.branchId);
+                invoiceNumber = invoiceNumberData?.data?.invoiceNumber || invoiceNumberData?.invoiceNumber;
+            } catch (err) {
+                console.warn("Failed to generate invoice number, will use auto-generated:", err);
+                // Continue without invoice number, backend will generate
+            }
 
             // Create invoice
             const request = {
-                branchId: order.branchId,
-                bookingId: order.bookingId,
-                customerId: order.customerId,
+                branchId: Number(order.branchId),
+                bookingId: Number(order.id),
+                customerId: Number(order.customerId),
                 type: "INCOME",
-                amount: Number(order.totalCost || order.estimatedCost || 0),
+                amount: Number(order.total || 0),
                 paymentTerms: "NET_7",
-                note: `Tạo từ đơn hàng ${order.bookingId}`,
+                note: `Tạo từ đơn hàng ${order.code || order.id}`,
             };
 
-            const newInvoice = await createInvoice(request);
+            console.log("Creating invoice with request:", request);
+
+            const response = await createInvoice(request);
+            const newInvoice = response?.data || response;
+            
             setCreateOpen(false);
-            push(`Đã tạo hóa đơn ${newInvoice.invoiceNumber || invoiceNumber}`, "success");
+            push(`Đã tạo hóa đơn ${newInvoice?.invoiceNumber || invoiceNumber || "thành công"}`, "success");
             loadInvoices(); // Reload list
         } catch (err) {
             console.error("Error creating invoice:", err);
-            push("Lỗi khi tạo hóa đơn: " + (err.message || "Unknown error"), "error");
+            
+            // Extract error message from different possible formats
+            let errorMessage = "Lỗi không xác định";
+            if (err?.data?.message) {
+                errorMessage = err.data.message;
+            } else if (err?.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err?.message) {
+                errorMessage = err.message;
+            } else if (typeof err === "string") {
+                errorMessage = err;
+            }
+            
+            push(`Lỗi khi tạo hóa đơn: ${errorMessage}`, "error");
         } finally {
             setLoading(false);
         }
@@ -1586,13 +1649,7 @@ export default function InvoiceManagement() {
             {!debtMode && (
                 <CreateInvoiceModal
                     open={createOpen}
-                    orders={completedOrders.map((o) => ({
-                        id: o.bookingId,
-                        code: `ORD-${o.bookingId}`,
-                        customer: o.customerName || "—",
-                        total: Number(o.totalCost || o.estimatedCost || 0),
-                        completed_at: o.updatedAt || o.createdAt || "",
-                    }))}
+                    orders={completedOrders}
                     onCancel={() => setCreateOpen(false)}
                     onCreate={onCreate}
                 />

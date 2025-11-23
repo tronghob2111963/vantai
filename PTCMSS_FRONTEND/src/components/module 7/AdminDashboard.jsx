@@ -6,7 +6,7 @@ import {
     Car,
     MapPin,
     RefreshCw,
-    Download,
+    Upload,
     Calendar,
     Building2,
     BarChart3,
@@ -263,7 +263,7 @@ export default function AdminDashboard() {
                         onClick={handleExport}
                         className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
                     >
-                        <Download className="h-4 w-4" />
+                        <Upload className="h-4 w-4" />
                         <span>Xuất Excel</span>
                     </button>
                 </div>

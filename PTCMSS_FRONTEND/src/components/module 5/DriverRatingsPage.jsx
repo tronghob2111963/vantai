@@ -120,22 +120,15 @@ const DriverRatingsPage = () => {
         if (!selectedTrip) return;
 
         try {
-            const overallRating = (
-                ratingForm.punctualityRating +
-                ratingForm.attitudeRating +
-                ratingForm.safetyRating +
-                ratingForm.complianceRating
-            ) / 4;
-
+            // Backend sẽ tự tính overallRating, không cần gửi
+            // Backend sẽ tự lấy driverId từ trip, không cần gửi
             await createRating({
                 tripId: selectedTrip.tripId,
-                driverId: Number(driverId),
                 punctualityRating: ratingForm.punctualityRating,
                 attitudeRating: ratingForm.attitudeRating,
                 safetyRating: ratingForm.safetyRating,
                 complianceRating: ratingForm.complianceRating,
-                overallRating: overallRating,
-                comment: ratingForm.comment
+                comment: ratingForm.comment || null
             });
 
             alert('Đánh giá thành công!');

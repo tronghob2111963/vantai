@@ -108,10 +108,13 @@ export default function AdminUsersPage() {
     [normalizedKeyword, selectedRoleName, normalizedStatus]
   );
 
+  const [allUsers, setAllUsers] = React.useState([]);
+
   const onRefresh = React.useCallback(async () => {
     if (isManagerView) {
       if (managerBranchLoading) return;
       if (!branchFilterValue) {
+        setAllUsers([]);
         setUsers([]);
         return;
       }
@@ -122,25 +125,18 @@ export default function AdminUsersPage() {
       if (isManagerView) {
         data = await listUsersByBranch(branchFilterValue);
       } else {
-        data = await listUsers({
-          keyword: keyword || undefined,
-          roleId: roleId ? Number(roleId) : undefined,
-          status: status || undefined,
-        });
+        // Load tất cả users, không filter ở API level
+        data = await listUsers();
       }
-      const arr = Array.isArray(data) ? data : data?.items || [];
-      setUsers(applyFilters(arr));
+      const arr = Array.isArray(data) ? data : data?.items || data?.data?.items || data?.data?.content || [];
+      setAllUsers(arr);
     } finally {
       setLoading(false);
     }
   }, [
-    keyword,
-    roleId,
-    status,
     branchFilterValue,
     isManagerView,
     managerBranchLoading,
-    applyFilters,
   ]);
 
   const refreshRef = React.useRef(onRefresh);
@@ -155,14 +151,29 @@ export default function AdminUsersPage() {
     refreshRef.current();
   }, [isManagerView, managerBranchLoading, branchFilterValue]);
 
+  // Apply filters whenever allUsers or filter values change
+  React.useEffect(() => {
+    const filtered = applyFilters(allUsers);
+    setUsers(filtered);
+  }, [allUsers, applyFilters]);
+
   React.useEffect(() => {
     (async () => {
       try {
         const rs = await listRoles();
-        setRoles(Array.isArray(rs) ? rs : []);
-      } catch {
-         /* empty */ 
-    }
+        // Handle different response formats
+        const rolesList = Array.isArray(rs) 
+          ? rs 
+          : Array.isArray(rs?.data) 
+            ? rs.data 
+            : Array.isArray(rs?.items)
+              ? rs.items
+              : [];
+        setRoles(rolesList);
+      } catch (error) {
+        console.error("Failed to load roles:", error);
+        setRoles([]);
+      }
     })();
   }, []);
 
@@ -214,7 +225,7 @@ export default function AdminUsersPage() {
         <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-slate-50 text-slate-600">
-              <th className="text-left font-medium px-4 py-2">H? tên</th>
+              <th className="text-left font-medium px-4 py-2">Họ tên</th>
               <th className="text-left font-medium px-4 py-2">Email</th>
               <th className="text-left font-medium px-4 py-2">SÐT</th>
               <th className="text-left font-medium px-4 py-2">Vai trò</th>

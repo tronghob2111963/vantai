@@ -51,7 +51,7 @@ export function getExpenseReport({
 } = {}) {
   const params = new URLSearchParams();
   if (branchId != null) params.append("branchId", String(branchId));
-  if (costType) params.append("costType", costType);
+  if (costType) params.append("expenseType", costType); // Backend expects expenseType
   if (vehicleId != null) params.append("vehicleId", String(vehicleId));
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);

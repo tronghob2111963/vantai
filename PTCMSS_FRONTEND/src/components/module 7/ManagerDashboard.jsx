@@ -410,15 +410,8 @@ export default function ManagerDashboardPro() {
         (async () => {
             setDataLoading(true);
             try {
-                const [
-                    dashboardData,
-                    revenueTrendData,
-                    driverPerformanceData,
-                    vehicleUtilizationData,
-                    expenseBreakdownData,
-                    pendingApprovalsData,
-                    alertsData,
-                ] = await Promise.all([
+                // Use Promise.allSettled to handle partial failures gracefully
+                const results = await Promise.allSettled([
                     getManagerDashboard({ branchId: branchInfo.id, period }),
                     getBranchRevenueTrend({ branchId: branchInfo.id }),
                     getBranchDriverPerformance({ branchId: branchInfo.id, limit: 5 }),
@@ -430,13 +423,48 @@ export default function ManagerDashboardPro() {
 
                 if (cancelled) return;
 
-                setDashboardData(dashboardData);
-                setRevenueTrend(revenueTrendData || []);
-                setDriverPerformance(driverPerformanceData || []);
-                setVehicleUtilization(vehicleUtilizationData || {});
-                setExpenseBreakdown(expenseBreakdownData || []);
-                setPendingApprovals(pendingApprovalsData || []);
-                setAlerts(alertsData || []);
+                // Extract results, handling both fulfilled and rejected promises
+                const [
+                    dashboardResult,
+                    revenueTrendResult,
+                    driverPerformanceResult,
+                    vehicleUtilizationResult,
+                    expenseBreakdownResult,
+                    pendingApprovalsResult,
+                    alertsResult,
+                ] = results;
+
+                // Set data, using fallback values for failed requests
+                if (dashboardResult.status === 'fulfilled') {
+                    setDashboardData(dashboardResult.value);
+                } else {
+                    console.error("Error loading dashboard data:", dashboardResult.reason);
+                    setDashboardData(null);
+                }
+
+                setRevenueTrend(revenueTrendResult.status === 'fulfilled' ? (revenueTrendResult.value || []) : []);
+                setDriverPerformance(driverPerformanceResult.status === 'fulfilled' ? (driverPerformanceResult.value || []) : []);
+                setVehicleUtilization(vehicleUtilizationResult.status === 'fulfilled' ? (vehicleUtilizationResult.value || {}) : {});
+                setExpenseBreakdown(expenseBreakdownResult.status === 'fulfilled' ? (expenseBreakdownResult.value || []) : []);
+                setPendingApprovals(pendingApprovalsResult.status === 'fulfilled' ? (pendingApprovalsResult.value || []) : []);
+                setAlerts(alertsResult.status === 'fulfilled' ? (alertsResult.value || []) : []);
+
+                // Log any errors for debugging
+                const errors = results
+                    .map((r, idx) => r.status === 'rejected' ? idx : null)
+                    .filter(idx => idx !== null);
+                if (errors.length > 0) {
+                    const apiNames = [
+                        'dashboard',
+                        'revenue-trend',
+                        'driver-performance',
+                        'vehicle-utilization',
+                        'expense-breakdown',
+                        'pending-approvals',
+                        'alerts'
+                    ];
+                    console.warn("Some APIs failed to load:", errors.map(idx => apiNames[idx]).join(', '));
+                }
 
                 // Update branch name
                 const newBranchName = branchInfo?.branchName || branch;
@@ -454,7 +482,8 @@ export default function ManagerDashboardPro() {
         return () => {
             cancelled = true;
         };
-    }, [branchInfo?.id, period, push]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branchInfo?.id, period]);
 
     // Refresh data
     const onRefresh = () => {
@@ -462,15 +491,8 @@ export default function ManagerDashboardPro() {
         setLoading(true);
         (async () => {
             try {
-                const [
-                    dashboardData,
-                    revenueTrendData,
-                    driverPerformanceData,
-                    vehicleUtilizationData,
-                    expenseBreakdownData,
-                    pendingApprovalsData,
-                    alertsData,
-                ] = await Promise.all([
+                // Use Promise.allSettled to handle partial failures gracefully
+                const results = await Promise.allSettled([
                     getManagerDashboard({ branchId: branchInfo.id, period }),
                     getBranchRevenueTrend({ branchId: branchInfo.id }),
                     getBranchDriverPerformance({ branchId: branchInfo.id, limit: 5 }),
@@ -480,14 +502,38 @@ export default function ManagerDashboardPro() {
                     getBranchAlerts({ branchId: branchInfo.id, severity: "HIGH,CRITICAL" }),
                 ]);
 
-                setDashboardData(dashboardData);
-                setRevenueTrend(revenueTrendData || []);
-                setDriverPerformance(driverPerformanceData || []);
-                setVehicleUtilization(vehicleUtilizationData || {});
-                setExpenseBreakdown(expenseBreakdownData || []);
-                setPendingApprovals(pendingApprovalsData || []);
-                setAlerts(alertsData || []);
-                push("Đã tải lại số liệu chi nhánh", "success");
+                // Extract results, handling both fulfilled and rejected promises
+                const [
+                    dashboardResult,
+                    revenueTrendResult,
+                    driverPerformanceResult,
+                    vehicleUtilizationResult,
+                    expenseBreakdownResult,
+                    pendingApprovalsResult,
+                    alertsResult,
+                ] = results;
+
+                // Set data, using fallback values for failed requests
+                if (dashboardResult.status === 'fulfilled') {
+                    setDashboardData(dashboardResult.value);
+                } else {
+                    console.error("Error refreshing dashboard data:", dashboardResult.reason);
+                }
+
+                setRevenueTrend(revenueTrendResult.status === 'fulfilled' ? (revenueTrendResult.value || []) : []);
+                setDriverPerformance(driverPerformanceResult.status === 'fulfilled' ? (driverPerformanceResult.value || []) : []);
+                setVehicleUtilization(vehicleUtilizationResult.status === 'fulfilled' ? (vehicleUtilizationResult.value || {}) : {});
+                setExpenseBreakdown(expenseBreakdownResult.status === 'fulfilled' ? (expenseBreakdownResult.value || []) : []);
+                setPendingApprovals(pendingApprovalsResult.status === 'fulfilled' ? (pendingApprovalsResult.value || []) : []);
+                setAlerts(alertsResult.status === 'fulfilled' ? (alertsResult.value || []) : []);
+
+                // Check if any requests failed
+                const failedCount = results.filter(r => r.status === 'rejected').length;
+                if (failedCount === 0) {
+                    push("Đã tải lại số liệu chi nhánh", "success");
+                } else {
+                    push(`Đã tải lại dữ liệu (${results.length - failedCount}/${results.length} thành công)`, "warning");
+                }
             } catch (err) {
                 push("Không thể tải lại dữ liệu: " + (err.message || "Lỗi không xác định"), "error");
             } finally {

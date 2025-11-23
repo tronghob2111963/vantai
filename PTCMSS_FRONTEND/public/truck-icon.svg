@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#0079BC" opacity="0.1"/>
+  
+  <!-- Truck body -->
+  <rect x="12" y="28" width="28" height="16" rx="2" fill="#0079BC"/>
+  
+  <!-- Truck cab -->
+  <rect x="40" y="32" width="12" height="12" rx="1" fill="#005A8B"/>
+  
+  <!-- Truck window -->
+  <rect x="42" y="34" width="8" height="6" rx="0.5" fill="#E6F4FF"/>
+  
+  <!-- Checkmark on cargo -->
+  <path d="M 20 36 L 24 40 L 32 32" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Wheels -->
+  <circle cx="22" cy="48" r="4" fill="#333333"/>
+  <circle cx="38" cy="48" r="4" fill="#333333"/>
+  <circle cx="22" cy="48" r="2" fill="#666666"/>
+  <circle cx="38" cy="48" r="2" fill="#666666"/>
+  
+  <!-- Road line -->
+  <line x1="8" y1="52" x2="56" y2="52" stroke="#CCCCCC" stroke-width="1" stroke-dasharray="2,2"/>
+</svg>
+

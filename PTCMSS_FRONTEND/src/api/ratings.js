@@ -3,7 +3,7 @@ import { apiFetch } from './http';
 export function createRating(ratingData) {
     return apiFetch('/api/ratings', {
         method: 'POST',
-        body: JSON.stringify(ratingData),
+        body: ratingData, // apiFetch sẽ tự động stringify
     });
 }
 

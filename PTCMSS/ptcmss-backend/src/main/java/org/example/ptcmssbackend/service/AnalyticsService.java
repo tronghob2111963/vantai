@@ -7,7 +7,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -431,22 +433,26 @@ public class AnalyticsService {
         Map<String, LocalDateTime> dates = getPeriodDates("THIS_MONTH");
         LocalDateTime startDate = dates.get("start");
         LocalDateTime endDate = dates.get("end");
+        
+        // Convert LocalDateTime to Instant for database comparison
+        Instant startInstant = startDate.atZone(ZoneId.systemDefault()).toInstant();
+        Instant endInstant = endDate.atZone(ZoneId.systemDefault()).toInstant();
 
         String sql = "SELECT " +
-                "i.category, " +
+                "i.costType, " +
                 "COALESCE(SUM(i.amount), 0) as totalAmount, " +
                 "COUNT(*) as count " +
                 "FROM invoices i " +
                 "WHERE i.status = 'ACTIVE' AND i.type = 'EXPENSE' " +
                 "AND i.branchId = ? AND i.invoiceDate BETWEEN ? AND ? " +
-                "GROUP BY i.category " +
+                "GROUP BY i.costType " +
                 "ORDER BY totalAmount DESC";
 
         return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
-                "category", rs.getString("category") != null ? rs.getString("category") : "UNCATEGORIZED",
+                "category", rs.getString("costType") != null ? rs.getString("costType") : "UNCATEGORIZED",
                 "totalAmount", rs.getBigDecimal("totalAmount"),
                 "count", rs.getLong("count")
-        ), branchId, startDate, endDate);
+        ), branchId, startInstant, endInstant);
     }
 
     /**

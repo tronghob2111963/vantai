@@ -50,6 +50,7 @@ public class AccountingServiceImpl implements AccountingService {
         response.setTotalExpense(getTotalExpense(branchId, startDate, endDate));
         response.setNetProfit(response.getTotalRevenue().subtract(response.getTotalExpense()));
         response.setArBalance(getARBalance(branchId));
+        response.setApBalance(getAPBalance(branchId));
         response.setInvoicesDueIn7Days(getInvoicesDueIn7Days(branchId));
         response.setOverdueInvoices(getOverdueInvoices(branchId));
         response.setCollectionRate(getCollectionRate(branchId, startDate, endDate));
@@ -115,8 +116,11 @@ public class AccountingServiceImpl implements AccountingService {
         // Top customers
         response.setTopCustomers(getTopCustomersForReport(invoices));
 
-        // Invoice list - simplified for now
-        response.setInvoices(new ArrayList<>());
+        // Invoice list - convert to InvoiceListResponse
+        List<InvoiceListResponse> invoiceList = invoices.stream()
+                .map(this::mapInvoiceToListResponse)
+                .collect(Collectors.toList());
+        response.setInvoices(invoiceList);
 
         return response;
     }
@@ -164,6 +168,27 @@ public class AccountingServiceImpl implements AccountingService {
         // Top items
         response.setTopExpenseItems(getTopExpenseItems(expenses));
         // TODO: Top expense vehicles (need to join with trips/vehicles)
+
+        // Map expenses list for table display
+        List<ExpenseReportResponse.ExpenseItem> expenseItems = expenses.stream()
+                .map(inv -> {
+                    ExpenseReportResponse.ExpenseItem item = new ExpenseReportResponse.ExpenseItem();
+                    item.setInvoiceId(inv.getId());
+                    item.setInvoiceDate(inv.getInvoiceDate() != null 
+                            ? inv.getInvoiceDate().toString() 
+                            : null);
+                    item.setBranchName(inv.getBranch() != null 
+                            ? inv.getBranch().getBranchName() 
+                            : null);
+                    // Vehicle info not directly available from Invoices, would need to join with ExpenseRequests
+                    item.setVehicleLicensePlate(null); // TODO: Get from ExpenseRequests if available
+                    item.setCostType(inv.getCostType());
+                    item.setAmount(inv.getAmount());
+                    item.setNote(inv.getNote());
+                    return item;
+                })
+                .collect(Collectors.toList());
+        response.setExpenses(expenseItems);
 
         return response;
     }
@@ -538,6 +563,44 @@ public class AccountingServiceImpl implements AccountingService {
                 .sorted((a, b) -> b.getTotalAmount().compareTo(a.getTotalAmount()))
                 .limit(5)
                 .collect(Collectors.toList());
+    }
+
+    private InvoiceListResponse mapInvoiceToListResponse(Invoices invoice) {
+        InvoiceListResponse response = new InvoiceListResponse();
+        response.setInvoiceId(invoice.getId());
+        response.setInvoiceNumber(invoice.getInvoiceNumber());
+        if (invoice.getBranch() != null) {
+            response.setBranchId(invoice.getBranch().getId());
+            response.setBranchName(invoice.getBranch().getBranchName());
+        }
+        if (invoice.getCustomer() != null) {
+            response.setCustomerId(invoice.getCustomer().getId());
+            response.setCustomerName(invoice.getCustomer().getFullName());
+        }
+        if (invoice.getBooking() != null) {
+            response.setBookingId(invoice.getBooking().getId());
+        }
+        response.setType(invoice.getType() != null ? invoice.getType().toString() : null);
+        response.setAmount(invoice.getAmount());
+        response.setDueDate(invoice.getDueDate());
+        response.setPaymentStatus(invoice.getPaymentStatus() != null ? invoice.getPaymentStatus().toString() : null);
+        response.setStatus(invoice.getStatus() != null ? invoice.getStatus().toString() : null);
+        response.setInvoiceDate(invoice.getInvoiceDate());
+
+        // Calculate paid amount and balance
+        BigDecimal paidAmount = paymentHistoryRepository.sumByInvoiceId(invoice.getId());
+        response.setPaidAmount(paidAmount != null ? paidAmount : BigDecimal.ZERO);
+        response.setBalance(invoiceService.calculateBalance(invoice.getId()));
+
+        // Calculate days overdue
+        if (invoice.getDueDate() != null && invoice.getPaymentStatus() != PaymentStatus.PAID) {
+            LocalDate today = LocalDate.now();
+            if (invoice.getDueDate().isBefore(today)) {
+                response.setDaysOverdue((int) java.time.temporal.ChronoUnit.DAYS.between(invoice.getDueDate(), today));
+            }
+        }
+
+        return response;
     }
 
     private InvoiceListResponse convertToInvoiceListResponse(

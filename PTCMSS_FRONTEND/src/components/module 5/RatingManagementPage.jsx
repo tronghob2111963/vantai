@@ -24,59 +24,38 @@ const RatingManagementPage = () => {
     const loadTrips = async () => {
         setLoading(true);
         try {
-            // TODO: Replace with actual API call to get completed trips
-            // Uncomment when backend API is ready:
-            // const response = await fetch('/api/trips?status=COMPLETED');
-            // const data = await response.json();
-
-            // Mock data for demo - Replace this with real API call
-            const mockTrips = [
-                {
-                    tripId: 1,
-                    bookingId: 101,
-                    driverName: 'Nguyễn Văn A',
-                    driverId: 1,
-                    customerName: 'Công ty ABC',
-                    startLocation: 'Hà Nội',
-                    endLocation: 'Hải Phòng',
-                    startTime: '2024-01-15T08:00:00',
-                    endTime: '2024-01-15T12:00:00',
-                    status: 'COMPLETED',
-                },
-                {
-                    tripId: 2,
-                    bookingId: 102,
-                    driverName: 'Trần Văn B',
-                    driverId: 2,
-                    customerName: 'Công ty XYZ',
-                    startLocation: 'Hà Nội',
-                    endLocation: 'Đà Nẵng',
-                    startTime: '2024-01-14T06:00:00',
-                    endTime: '2024-01-14T18:00:00',
-                    status: 'COMPLETED',
-                },
-                {
-                    tripId: 3,
-                    bookingId: 103,
-                    driverName: 'Lê Văn C',
-                    driverId: 3,
-                    customerName: 'Công ty DEF',
-                    startLocation: 'Hà Nội',
-                    endLocation: 'Huế',
-                    startTime: '2024-01-13T07:00:00',
-                    endTime: '2024-01-13T16:00:00',
-                    status: 'COMPLETED',
-                },
-            ];
+            // Call real API to get completed trips
+            const response = await getCompletedTripsForRating();
+            const tripsData = response.data || response || [];
 
             // Check rating status for each trip
             const tripsWithRating = await Promise.all(
-                mockTrips.map(async (trip) => {
+                tripsData.map(async (trip) => {
                     try {
                         const ratingResponse = await getRatingByTrip(trip.tripId);
-                        return { ...trip, hasRating: !!ratingResponse.data, rating: ratingResponse.data };
-                    } catch {
-                        return { ...trip, hasRating: false, rating: null };
+                        // Handle different response formats
+                        const ratingData = ratingResponse?.data ?? ratingResponse;
+                        // Check if rating exists and has valid data
+                        const hasRating = ratingData !== null && 
+                                        ratingData !== undefined && 
+                                        (ratingData.ratingId || ratingData.overallRating !== undefined);
+                        
+                        if (hasRating) {
+                            console.log(`Trip ${trip.tripId} has rating:`, ratingData);
+                        }
+                        
+                        return { 
+                            ...trip, 
+                            hasRating: hasRating, 
+                            rating: hasRating ? ratingData : null 
+                        };
+                    } catch (err) {
+                        console.error(`Error checking rating for trip ${trip.tripId}:`, err);
+                        return { 
+                            ...trip, 
+                            hasRating: false, 
+                            rating: null 
+                        };
                     }
                 })
             );
@@ -120,7 +99,10 @@ const RatingManagementPage = () => {
     const handleRatingSuccess = () => {
         setShowRatingDialog(false);
         setSelectedTrip(null);
-        loadTrips(); // Reload to update rating status
+        // Delay nhỏ để đảm bảo backend đã lưu xong
+        setTimeout(() => {
+            loadTrips(); // Reload to update rating status
+        }, 500);
     };
 
     const getStatusBadge = (hasRating) => {
@@ -328,7 +310,33 @@ const RatingManagementPage = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {trip.hasRating && trip.rating ? (
-                                                <StarRating rating={trip.rating.overallRating} size={16} />
+                                                (() => {
+                                                    // Lấy overallRating, nếu không có thì tính từ các rating khác
+                                                    let overallRating = trip.rating.overallRating;
+                                                    if (overallRating === null || overallRating === undefined) {
+                                                        // Tính trung bình từ 4 tiêu chí
+                                                        const ratings = [
+                                                            trip.rating.punctualityRating,
+                                                            trip.rating.attitudeRating,
+                                                            trip.rating.safetyRating,
+                                                            trip.rating.complianceRating
+                                                        ].filter(r => r !== null && r !== undefined);
+                                                        if (ratings.length > 0) {
+                                                            overallRating = ratings.reduce((sum, r) => sum + Number(r), 0) / ratings.length;
+                                                        }
+                                                    }
+                                                    const ratingValue = overallRating !== null && overallRating !== undefined 
+                                                        ? Number(overallRating) 
+                                                        : 0;
+                                                    return ratingValue > 0 ? (
+                                                        <StarRating 
+                                                            rating={ratingValue} 
+                                                            size={16} 
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm text-gray-400">Đang tính...</span>
+                                                    );
+                                                })()
                                             ) : (
                                                 <span className="text-sm text-gray-400">Chưa có</span>
                                             )}
@@ -362,6 +370,7 @@ const RatingManagementPage = () => {
             {showRatingDialog && selectedTrip && (
                 <RateDriverDialog
                     trip={selectedTrip}
+                    existingRating={selectedTrip.hasRating ? selectedTrip.rating : null}
                     onClose={() => {
                         setShowRatingDialog(false);
                         setSelectedTrip(null);

@@ -57,7 +57,7 @@ const CATEGORY_LABELS = {
 /* ================= Toast system (light) ================= */
 function useToasts() {
     const [toasts, setToasts] = React.useState([]);
-    const push = (
+    const push = React.useCallback((
         msg,
         kind = "info",
         ttl = 2600
@@ -80,7 +80,7 @@ function useToasts() {
                 ),
             ttl
         );
-    };
+    }, []);
     return { toasts, push };
 }
 
@@ -489,8 +489,8 @@ function FiltersBar({
                         className="bg-transparent outline-none text-[13px] text-slate-900"
                     >
                         <option value="">Tất cả chi nhánh</option>
-                        {branchOptions.map((br) => (
-                            <option key={br.branchId || br} value={br.branchId || br}>
+                        {branchOptions.map((br, idx) => (
+                            <option key={br.branchId || `branch-${idx}`} value={br.branchId || br}>
                                 {br.branchName || br}
                             </option>
                         ))}
@@ -509,8 +509,8 @@ function FiltersBar({
                         className="bg-transparent outline-none text-[13px] text-slate-900"
                     >
                         <option value="">Tất cả xe</option>
-                        {vehicleOptions.map((v) => (
-                            <option key={v.vehicleId || v} value={v.vehicleId || v}>
+                        {vehicleOptions.map((v, idx) => (
+                            <option key={v.vehicleId || `vehicle-${idx}`} value={v.vehicleId || v}>
                                 {v.licensePlate || v}
                             </option>
                         ))}
@@ -1258,7 +1258,8 @@ export default function ExpenseReportPage() {
             setLoading(false);
             setInitialLoading(false);
         }
-    }, [branchId, vehicleId, catFilter, fromDate, toDate, period, push]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branchId, vehicleId, catFilter, fromDate, toDate, period]);
 
     // Load on mount and when filters change
     React.useEffect(() => {

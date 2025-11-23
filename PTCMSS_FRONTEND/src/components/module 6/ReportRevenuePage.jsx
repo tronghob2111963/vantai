@@ -68,6 +68,7 @@ export default function ReportRevenuePage() {
     const [loading, setLoading] = React.useState(false);
     const [initialLoading, setInitialLoading] = React.useState(true);
     const [error, setError] = React.useState(null);
+    const [chartMounted, setChartMounted] = React.useState(false);
 
     // Data from API
     const [reportData, setReportData] = React.useState({
@@ -130,6 +131,14 @@ export default function ReportRevenuePage() {
     React.useEffect(() => {
         loadReport();
     }, [loadReport]);
+
+    // Delay chart rendering to ensure container has size
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            setChartMounted(true);
+        }, 100);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Transform chart data
     const chartData = React.useMemo(() => {
@@ -426,12 +435,15 @@ export default function ReportRevenuePage() {
                         </div>
                     </div>
 
-                    <div className="w-full h-[220px]">
-                        <ResponsiveContainer
-                            width="100%"
-                            height="100%"
-                        >
-                            <LineChart data={chartData}>
+                    <div className="w-full h-[220px] min-h-[220px] min-w-0" style={{ position: 'relative' }}>
+                        {chartMounted ? (
+                            <ResponsiveContainer
+                                width="100%"
+                                height={220}
+                                minHeight={220}
+                                minWidth={0}
+                            >
+                                <LineChart data={chartData}>
                                 <CartesianGrid
                                     stroke="#E5E7EB"
                                     strokeDasharray="3 3"
@@ -485,6 +497,11 @@ export default function ReportRevenuePage() {
                                 />
                             </LineChart>
                         </ResponsiveContainer>
+                        ) : (
+                            <div className="w-full h-[220px] flex items-center justify-center text-gray-400 text-sm">
+                                Đang tải biểu đồ...
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

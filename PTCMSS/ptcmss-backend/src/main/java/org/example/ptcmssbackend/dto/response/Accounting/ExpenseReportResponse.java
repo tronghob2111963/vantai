@@ -28,6 +28,9 @@ public class ExpenseReportResponse {
     private BigDecimal averageCostPerKm;
     private Map<String, BigDecimal> costPerKmByVehicle;
     
+    // List of expenses for table display
+    private List<ExpenseItem> expenses;
+    
     @Data
     public static class ChartDataPoint {
         private String date;
@@ -54,6 +57,17 @@ public class ExpenseReportResponse {
         private String licensePlate;
         private BigDecimal totalExpense;
         private Integer tripCount;
+    }
+    
+    @Data
+    public static class ExpenseItem {
+        private Integer invoiceId;
+        private String invoiceDate;
+        private String branchName;
+        private String vehicleLicensePlate;
+        private String costType;
+        private BigDecimal amount;
+        private String note;
     }
 }
 
