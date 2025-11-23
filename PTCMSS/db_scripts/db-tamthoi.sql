@@ -272,6 +272,60 @@ INSERT INTO `debt_reminder_history` VALUES (1,'2025-11-22 11:19:22.056105','Plea
 UNLOCK TABLES;
 
 --
+-- Table structure for table `deposits`
+--
+
+DROP TABLE IF EXISTS `deposits`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `deposits` (
+  `depositId` int NOT NULL AUTO_INCREMENT,
+  `invoiceId` int DEFAULT NULL COMMENT 'Hóa đơn liên quan',
+  `bookingId` int NOT NULL COMMENT 'Đơn hàng',
+  `customerId` int NOT NULL COMMENT 'Khách hàng',
+  `amount` decimal(18,2) NOT NULL COMMENT 'Số tiền cọc',
+  `depositPercent` decimal(5,2) DEFAULT '0.00' COMMENT 'Phần trăm cọc',
+  `paymentMethod` enum('CASH','BANK_TRANSFER','QR','CARD') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'CASH',
+  `bankName` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bankAccount` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `referenceCode` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã tham chiếu CK',
+  `receiptNumber` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Số phiếu thu',
+  `receiptUrl` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'URL chứng từ',
+  `status` enum('PENDING','CONFIRMED','USED','REFUNDED','CANCELLED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
+  `depositedAt` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Ngày nhận cọc',
+  `usedAt` datetime DEFAULT NULL COMMENT 'Ngày sử dụng cọc',
+  `cancelledAt` datetime DEFAULT NULL,
+  `cancelReason` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `note` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `createdBy` int DEFAULT NULL,
+  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`depositId`),
+  UNIQUE KEY `UK_deposit_receipt` (`receiptNumber`),
+  KEY `FK_dep_invoice` (`invoiceId`),
+  KEY `FK_dep_booking` (`bookingId`),
+  KEY `FK_dep_customer` (`customerId`),
+  KEY `FK_dep_createdBy` (`createdBy`),
+  KEY `IX_deposits_status` (`status`),
+  KEY `IX_deposits_depositedAt` (`depositedAt`),
+  CONSTRAINT `FK_dep_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`) ON DELETE CASCADE,
+  CONSTRAINT `FK_dep_createdBy` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL,
+  CONSTRAINT `FK_dep_customer` FOREIGN KEY (`customerId`) REFERENCES `customers` (`customerId`),
+  CONSTRAINT `FK_dep_invoice` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Quản lý tiền cọc - Module 6';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `deposits`
+--
+
+LOCK TABLES `deposits` WRITE;
+/*!40000 ALTER TABLE `deposits` DISABLE KEYS */;
+INSERT INTO `deposits` VALUES (1,2,1,2,1140000.00,30.00,'BANK_TRANSFER',NULL,NULL,NULL,NULL,NULL,'USED','2025-10-20 08:00:00',NULL,NULL,NULL,NULL,7,'2025-11-22 20:26:01','2025-11-22 20:26:01'),(2,3,2,4,600000.00,50.00,'CASH',NULL,NULL,NULL,NULL,NULL,'USED','2025-10-21 09:30:00',NULL,NULL,NULL,NULL,7,'2025-11-22 20:26:01','2025-11-22 20:26:01'),(3,4,3,1,7500000.00,30.00,'BANK_TRANSFER',NULL,NULL,NULL,NULL,NULL,'USED','2025-10-22 14:00:00',NULL,NULL,NULL,NULL,7,'2025-11-22 20:26:01','2025-11-22 20:26:01');
+/*!40000 ALTER TABLE `deposits` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `driver_day_off`
 --
 
@@ -488,6 +542,67 @@ LOCK TABLES `expense_requests` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `expenses`
+--
+
+DROP TABLE IF EXISTS `expenses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `expenses` (
+  `expenseId` int NOT NULL AUTO_INCREMENT,
+  `expenseCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã chi phí',
+  `branchId` int NOT NULL,
+  `vehicleId` int DEFAULT NULL COMMENT 'Xe liên quan',
+  `driverId` int DEFAULT NULL COMMENT 'Tài xế',
+  `tripId` int DEFAULT NULL COMMENT 'Chuyến đi',
+  `bookingId` int DEFAULT NULL COMMENT 'Đơn hàng',
+  `expenseType` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Loại chi phí',
+  `category` enum('FUEL','MAINTENANCE','SALARY','PARKING','INSURANCE','TOLL','OTHER') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'OTHER',
+  `amount` decimal(18,2) NOT NULL COMMENT 'Số tiền',
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `receiptUrl` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Chứng từ',
+  `status` enum('PENDING','APPROVED','REJECTED','PAID') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
+  `approvedBy` int DEFAULT NULL,
+  `approvedAt` datetime DEFAULT NULL,
+  `rejectedReason` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `paidAt` datetime DEFAULT NULL,
+  `expenseDate` datetime NOT NULL COMMENT 'Ngày phát sinh chi phí',
+  `note` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `createdBy` int DEFAULT NULL,
+  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`expenseId`),
+  UNIQUE KEY `UK_expense_code` (`expenseCode`),
+  KEY `FK_exp_branch` (`branchId`),
+  KEY `FK_exp_vehicle` (`vehicleId`),
+  KEY `FK_exp_driver` (`driverId`),
+  KEY `FK_exp_trip` (`tripId`),
+  KEY `FK_exp_booking` (`bookingId`),
+  KEY `FK_exp_approvedBy` (`approvedBy`),
+  KEY `FK_exp_createdBy` (`createdBy`),
+  KEY `IX_expenses_status` (`status`),
+  KEY `IX_expenses_category` (`category`),
+  KEY `IX_expenses_expenseDate` (`expenseDate`),
+  CONSTRAINT `FK_exp_approvedBy` FOREIGN KEY (`approvedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL,
+  CONSTRAINT `FK_exp_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`) ON DELETE SET NULL,
+  CONSTRAINT `FK_exp_branch` FOREIGN KEY (`branchId`) REFERENCES `branches` (`branchId`),
+  CONSTRAINT `FK_exp_createdBy` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL,
+  CONSTRAINT `FK_exp_driver` FOREIGN KEY (`driverId`) REFERENCES `drivers` (`driverId`) ON DELETE SET NULL,
+  CONSTRAINT `FK_exp_trip` FOREIGN KEY (`tripId`) REFERENCES `trips` (`tripId`) ON DELETE SET NULL,
+  CONSTRAINT `FK_exp_vehicle` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles` (`vehicleId`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Chi phí thực tế - Module 6';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `expenses`
+--
+
+LOCK TABLES `expenses` WRITE;
+/*!40000 ALTER TABLE `expenses` DISABLE KEYS */;
+/*!40000 ALTER TABLE `expenses` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `hire_types`
 --
 
@@ -513,6 +628,42 @@ LOCK TABLES `hire_types` WRITE;
 /*!40000 ALTER TABLE `hire_types` DISABLE KEYS */;
 INSERT INTO `hire_types` VALUES (1,'ONE_WAY','Thuê 1 chiều','Thuê xe đi 1 chiều',1),(2,'ROUND_TRIP','Thuê 2 chiều (trong ngày)','Thuê xe đi và về trong ngày',1),(3,'MULTI_DAY','Thuê nhiều ngày','Thuê xe theo gói nhiều ngày',1),(4,'PERIODIC','Thuê định kỳ','Thuê lặp lại (đưa đón nhân viên, học sinh)',1),(5,'AIRPORT_TRANSFER','Đưa/đón sân bay','Gói đưa đón sân bay 1 chiều',1);
 /*!40000 ALTER TABLE `hire_types` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `invoice_items`
+--
+
+DROP TABLE IF EXISTS `invoice_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `invoice_items` (
+  `itemId` int NOT NULL AUTO_INCREMENT,
+  `invoiceId` int NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Mô tả dòng hóa đơn',
+  `quantity` decimal(10,2) NOT NULL DEFAULT '1.00' COMMENT 'Số lượng',
+  `unitPrice` decimal(18,2) NOT NULL COMMENT 'Đơn giá',
+  `amount` decimal(18,2) GENERATED ALWAYS AS ((`quantity` * `unitPrice`)) STORED COMMENT 'Thành tiền (tự động)',
+  `taxRate` decimal(5,2) DEFAULT '0.00' COMMENT 'Thuế suất (%)',
+  `taxAmount` decimal(18,2) DEFAULT '0.00' COMMENT 'Tiền thuế',
+  `note` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`itemId`),
+  KEY `FK_item_invoice` (`invoiceId`),
+  KEY `IX_invoice_items_invoiceId` (`invoiceId`),
+  CONSTRAINT `FK_item_invoice` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Chi tiết dòng hóa đơn - Module 6';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `invoice_items`
+--
+
+LOCK TABLES `invoice_items` WRITE;
+/*!40000 ALTER TABLE `invoice_items` DISABLE KEYS */;
+INSERT INTO `invoice_items` (`itemId`, `invoiceId`, `description`, `quantity`, `unitPrice`, `taxRate`, `taxAmount`, `note`, `createdAt`, `updatedAt`) VALUES (1,2,'Vận chuyển Hà Nội - Hải Phòng',1.00,3800000.00,10.00,380000.00,NULL,'2025-11-22 20:26:01','2025-11-22 20:26:01'),(2,3,'Vận chuyển nội thành TP.HCM',1.00,1200000.00,10.00,120000.00,NULL,'2025-11-22 20:26:01','2025-11-22 20:26:01'),(3,4,'Vận chuyển container 40ft',1.00,25000000.00,10.00,2500000.00,NULL,'2025-11-22 20:26:01','2025-11-22 20:26:01'),(4,5,'Vận chuyển Hà Nội - Đà Nẵng',1.00,1000000.00,10.00,100000.00,NULL,'2025-11-22 20:26:01','2025-11-22 20:26:01');
+/*!40000 ALTER TABLE `invoice_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1240,4 +1391,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-22 20:14:47
+-- Dump completed on 2025-11-24  0:01:10

@@ -116,23 +116,41 @@ export default function AdminDashboard() {
     const loadDashboard = React.useCallback(async () => {
         setLoading(true);
         try {
-            const [
-                dashboardData,
-                trendData,
-                branchData,
-                fleetUtilData,
-                routesData,
-                alertsData,
-                approvalsData,
-            ] = await Promise.all([
+            // Use Promise.allSettled to handle individual API failures gracefully
+            const results = await Promise.allSettled([
                 getAdminDashboard({ period }),
                 getRevenueTrend(),
                 getBranchComparison({ period }),
                 getFleetUtilization(),
-                getTopRoutes({ period }),
+                getTopRoutes({ period }).catch(err => {
+                    console.warn("Top routes API failed, returning empty array:", err);
+                    return [];
+                }),
                 getSystemAlerts({ severity: "HIGH,CRITICAL" }),
-                getPendingApprovals(),
+                getPendingApprovals().catch(err => {
+                    console.warn("Pending approvals API failed, returning empty array:", err);
+                    return [];
+                }),
             ]);
+
+            const [
+                dashboardResult,
+                trendResult,
+                branchResult,
+                fleetUtilResult,
+                routesResult,
+                alertsResult,
+                approvalsResult,
+            ] = results;
+
+            // Extract data with fallbacks
+            const dashboardData = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null;
+            const trendData = trendResult.status === 'fulfilled' ? trendResult.value : [];
+            const branchData = branchResult.status === 'fulfilled' ? branchResult.value : [];
+            const fleetUtilData = fleetUtilResult.status === 'fulfilled' ? fleetUtilResult.value : [];
+            const routesData = routesResult.status === 'fulfilled' ? routesResult.value : [];
+            const alertsData = alertsResult.status === 'fulfilled' ? alertsResult.value : [];
+            const approvalsData = approvalsResult.status === 'fulfilled' ? approvalsResult.value : [];
 
             // KPIs
             setKpis({
@@ -152,14 +170,19 @@ export default function AdminDashboard() {
             // Alerts & Approvals
             setAlerts(alertsData || []);
             setPendingApprovals(approvalsData || []);
+
+            // Show warning if some APIs failed
+            const failedCount = results.filter(r => r.status === 'rejected').length;
+            if (failedCount > 0) {
+                console.log(`${failedCount} API(s) failed. Showing partial data.`);
+            }
         } catch (err) {
             console.error("Error loading admin dashboard:", err);
-            push("Lỗi khi tải dashboard", "error");
         } finally {
             setLoading(false);
             setInitialLoading(false);
         }
-    }, [period, push]);
+    }, [period]);
 
     React.useEffect(() => {
         loadDashboard();

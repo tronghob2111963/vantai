@@ -47,7 +47,7 @@ const SIDEBAR_SECTIONS = [
     sectionId: "driver",
     icon: Users,
     label: "Tài xế",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER],
+    roles: [ROLES.DRIVER], // Only actual drivers can access driver dashboard
     items: [
       { label: "Bảng điều khiển tài xế", to: "/driver/dashboard" },
       { label: "Thông báo", to: "/driver/notifications" },
@@ -84,11 +84,6 @@ const SIDEBAR_SECTIONS = [
       },
       { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
       { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR] },
-      {
-        label: "Chi tiết đơn hàng",
-        to: "/orders/1",
-        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
-      },
     ],
   },
   {
@@ -102,7 +97,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Cảnh báo & Chờ duyệt", to: "/dispatch/notifications-dashboard" },
       { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
       // { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
-      { label: "Thông báo điều phối", to: "/dispatch/notifications" },
+      // { label: "Thông báo điều phối", to: "/dispatch/notifications" }, // Đã xóa - trùng với "Cảnh báo & Chờ duyệt"
       { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.MANAGER] },
     ],
   },
@@ -572,11 +567,11 @@ export default function AppLayout() {
             }
           />
 
-          {/* Tài xế */}
+          {/* Tài xế - Only for actual drivers */}
           <Route
             path="/driver/dashboard"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverDashboard />
               </ProtectedRoute>
             }
@@ -584,7 +579,7 @@ export default function AppLayout() {
           <Route
             path="/driver/notifications"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverNotificationsPage />
               </ProtectedRoute>
             }
@@ -592,7 +587,7 @@ export default function AppLayout() {
           <Route
             path="/driver/profile"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverProfilePage />
               </ProtectedRoute>
             }
@@ -600,7 +595,7 @@ export default function AppLayout() {
           <Route
             path="/driver/schedule"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverSchedulePage />
               </ProtectedRoute>
             }
@@ -608,7 +603,7 @@ export default function AppLayout() {
           <Route
             path="/driver/leave-request"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverLeaveRequestPage />
               </ProtectedRoute>
             }
@@ -616,7 +611,7 @@ export default function AppLayout() {
           <Route
             path="/driver/report-incident"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverReportIncidentPage />
               </ProtectedRoute>
             }
@@ -624,7 +619,7 @@ export default function AppLayout() {
           <Route
             path="/driver/trips"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverTripDetailPage />
               </ProtectedRoute>
             }
@@ -632,7 +627,7 @@ export default function AppLayout() {
           <Route
             path="/driver/trips/:tripId"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.DRIVER]}>
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
                 <DriverTripDetailPage />
               </ProtectedRoute>
             }
@@ -767,6 +762,7 @@ export default function AppLayout() {
               </ProtectedRoute>
             }
           />
+          {/* Route đã xóa - trùng với /dispatch/notifications-dashboard
           <Route
             path="/dispatch/notifications"
             element={
@@ -775,6 +771,7 @@ export default function AppLayout() {
               </ProtectedRoute>
             }
           />
+          */}
           <Route
             path="/dispatch/ratings"
             element={

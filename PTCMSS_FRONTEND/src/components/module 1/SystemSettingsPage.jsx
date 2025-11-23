@@ -336,18 +336,26 @@ export default function SystemSettingsPage() {
         }
 
         try {
+            // Map frontend format to backend format
             const newSetting = {
-                key: draftNew.key.trim(),
-                label: draftNew.label.trim(),
-                value: draftNew.value.trim(),
+                settingKey: draftNew.key.trim(),
+                settingValue: draftNew.value.trim(),
                 description: draftNew.description.trim(),
             };
 
             const created = await createSystemSetting(newSetting);
-            
+
+            // Map backend response to frontend format
+            const mappedCreated = {
+                ...created,
+                key: created.settingKey,
+                value: created.settingValue,
+                label: created.settingKey
+            };
+
             // Add to local state
-            setSettings((list) => [...list, created]);
-            setOriginalSettings((list) => [...list, created]);
+            setSettings((list) => [...list, mappedCreated]);
+            setOriginalSettings((list) => [...list, mappedCreated]);
             
             setAdding(false);
             setDraftNew({
@@ -380,18 +388,24 @@ export default function SystemSettingsPage() {
         try {
             const data = await listSystemSettings();
             const settingsList = Array.isArray(data) ? data : [];
-            setSettings(settingsList);
-            setOriginalSettings(settingsList);
-            if (initialLoading) {
-                setInitialLoading(false);
-            }
+
+            // Map backend response to frontend format
+            const mappedSettings = settingsList.map(item => ({
+                ...item,
+                key: item.settingKey,
+                value: item.settingValue,
+                label: item.settingKey // Use settingKey as label since backend doesn't have separate label
+            }));
+
+            setSettings(mappedSettings);
+            setOriginalSettings(mappedSettings);
+            setInitialLoading(false);
         } catch (err) {
             console.error("Failed to load system settings:", err);
-            push("Không thể tải cấu hình hệ thống: " + (err.message || "Lỗi không xác định"), "error");
         } finally {
             setLoadingRefresh(false);
         }
-    }, [push, initialLoading]);
+    }, []);
 
     // Load on mount
     React.useEffect(() => {
@@ -418,10 +432,10 @@ export default function SystemSettingsPage() {
                 })
                 .map((item) => {
                     const existing = settings.find((s) => s.key === item.key);
+                    // Map frontend format to backend format
                     return updateSystemSetting(existing.id, {
-                        key: item.key,
-                        value: item.value,
-                        label: item.label,
+                        settingKey: item.key,
+                        settingValue: item.value,
                         description: item.description,
                     });
                 });
@@ -433,10 +447,10 @@ export default function SystemSettingsPage() {
                     return !existing || !existing.id;
                 })
                 .map((item) =>
+                    // Map frontend format to backend format
                     createSystemSetting({
-                        key: item.key,
-                        value: item.value,
-                        label: item.label,
+                        settingKey: item.key,
+                        settingValue: item.value,
                         description: item.description,
                     })
                 );

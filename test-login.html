@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background: #0079BC;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005a8d;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            background: #fee;
+            color: #c00;
+        }
+        .success {
+            background: #efe;
+            color: #060;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test PTCMSS Login API</h1>
+
+    <div class="form-group">
+        <label>Username:</label>
+        <input type="text" id="username" value="admin" />
+    </div>
+
+    <div class="form-group">
+        <label>Password:</label>
+        <input type="password" id="password" value="admin123" />
+    </div>
+
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testDashboard()">Test Dashboard (After Login)</button>
+    <button onclick="checkToken()">Check Token</button>
+
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+
+            try {
+                resultDiv.innerHTML = '<div class="result">Loading...</div>';
+
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Save token
+                    localStorage.setItem('access_token', data.AccessToken || data.accessToken);
+                    localStorage.setItem('refresh_token', data.RefreshToken || data.refreshToken);
+                    localStorage.setItem('username', data.username);
+                    localStorage.setItem('roleName', data.roleName);
+                    localStorage.setItem('userId', data.userId);
+
+                    resultDiv.innerHTML = `<div class="result success">
+✅ Login Success!
+
+Response:
+${JSON.stringify(data, null, 2)}
+
+Tokens saved to localStorage.
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">
+❌ Login Failed!
+
+Status: ${response.status}
+Response:
+${JSON.stringify(data, null, 2)}
+                    </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">
+❌ Error!
+${error.message}
+                </div>`;
+            }
+        }
+
+        async function testDashboard() {
+            const resultDiv = document.getElementById('result');
+            const token = localStorage.getItem('access_token');
+
+            if (!token) {
+                resultDiv.innerHTML = '<div class="result error">❌ No token found! Please login first.</div>';
+                return;
+            }
+
+            try {
+                resultDiv.innerHTML = '<div class="result">Loading dashboard...</div>';
+
+                const response = await fetch(`${API_BASE}/api/v1/admin/dashboard?period=THIS_MONTH`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = text;
+                }
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">
+✅ Dashboard API Success!
+
+Status: ${response.status}
+Response:
+${JSON.stringify(data, null, 2)}
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">
+❌ Dashboard API Failed!
+
+Status: ${response.status}
+Response:
+${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}
+                    </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">
+❌ Error!
+${error.message}
+                </div>`;
+            }
+        }
+
+        function checkToken() {
+            const resultDiv = document.getElementById('result');
+            const token = localStorage.getItem('access_token');
+            const refreshToken = localStorage.getItem('refresh_token');
+            const username = localStorage.getItem('username');
+            const roleName = localStorage.getItem('roleName');
+            const userId = localStorage.getItem('userId');
+
+            resultDiv.innerHTML = `<div class="result ${token ? 'success' : 'error'}">
+Token Status:
+${token ? '✅ Token exists' : '❌ No token'}
+
+Access Token: ${token || '(none)'}
+
+Refresh Token: ${refreshToken || '(none)'}
+
+Username: ${username || '(none)'}
+Role: ${roleName || '(none)'}
+User ID: ${userId || '(none)'}
+            </div>`;
+        }
+    </script>
+</body>
+</html>

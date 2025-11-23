@@ -103,6 +103,19 @@ public class SystemSettingServiceImpl implements SystemSettingService {
     }
 
     private SystemSettingResponse mapToResponse(SystemSetting entity) {
+        String updatedByName = null;
+        try {
+            if (entity.getUpdatedBy() != null) {
+                Employees updater = entity.getUpdatedBy();
+                if (updater.getUser() != null) {
+                    updatedByName = updater.getUser().getFullName();
+                }
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading exceptions
+            updatedByName = null;
+        }
+
         return SystemSettingResponse.builder()
                 .id(entity.getId())
                 .settingKey(entity.getSettingKey())
@@ -113,9 +126,7 @@ public class SystemSettingServiceImpl implements SystemSettingService {
                 .category(entity.getCategory())
                 .description(entity.getDescription())
                 .status(entity.getStatus())
-                .updatedByName(entity.getUpdatedBy() != null && entity.getUpdatedBy().getUser() != null
-                        ? entity.getUpdatedBy().getUser().getFullName()
-                        : null)
+                .updatedByName(updatedByName)
                 .updatedAt(entity.getUpdatedAt())
                 .build();
     }

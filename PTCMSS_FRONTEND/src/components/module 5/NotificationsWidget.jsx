@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import {
     Bell,
     ShieldAlert,
@@ -30,9 +31,13 @@ import { useNotifications } from "../../hooks/useNotifications";
 /**
  * NotificationsWidget – Hiển thị cảnh báo & yêu cầu chờ duyệt
  * 
- * UI: Icon chuông với badge, click vào mới hiển thị dropdown chi tiết
+ * UI: 
+ * - Widget mode: Icon chuông với badge, click vào mới hiển thị dropdown chi tiết
+ * - Page mode: Tự động hiển thị full content (khi route = /dispatch/notifications)
  */
 export default function NotificationsWidget() {
+    const location = useLocation();
+    const isPageMode = location.pathname === "/dispatch/notifications";
     const [dashboard, setDashboard] = React.useState(null);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState("");
@@ -111,12 +116,19 @@ export default function NotificationsWidget() {
         }
     }, [branchId]);
 
-    // Fetch when dropdown opens
+    // Fetch when dropdown opens OR when in page mode
     React.useEffect(() => {
-        if (showDropdown && (isAdmin || branchLoaded)) {
+        if ((showDropdown || isPageMode) && (isAdmin || branchLoaded)) {
             fetchAll();
         }
-    }, [showDropdown, isAdmin, branchLoaded, fetchAll]);
+    }, [showDropdown, isPageMode, isAdmin, branchLoaded, fetchAll]);
+    
+    // Auto-open dropdown when in page mode
+    React.useEffect(() => {
+        if (isPageMode) {
+            setShowDropdown(true);
+        }
+    }, [isPageMode]);
 
     // Auto-refresh when receiving WebSocket notifications
     React.useEffect(() => {
@@ -392,40 +404,47 @@ export default function NotificationsWidget() {
     const badgeCount = unreadAlerts + pending.length;
 
     return (
-        <div className="relative">
-            {/* Bell Icon Button */}
-            <button
-                data-notifications-button
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-sky-400 hover:shadow-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-                title="Thông báo"
-            >
-                <Bell className="h-5 w-5" />
-                {badgeCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg animate-pulse border-2 border-white">
-                        {badgeCount > 9 ? '9+' : badgeCount}
-                    </span>
-                )}
-                {connected && (
-                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></span>
-                )}
-            </button>
+        <div className={isPageMode ? "min-h-screen" : "relative"}>
+            {/* Bell Icon Button - Only show in widget mode */}
+            {!isPageMode && (
+                <button
+                    data-notifications-button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-sky-400 hover:shadow-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                    title="Thông báo"
+                >
+                    <Bell className="h-5 w-5" />
+                    {badgeCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg animate-pulse border-2 border-white">
+                            {badgeCount > 9 ? '9+' : badgeCount}
+                        </span>
+                    )}
+                    {connected && (
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></span>
+                    )}
+                </button>
+            )}
 
-            {/* Dropdown Panel - Fixed position from right edge */}
+            {/* Dropdown Panel - Fixed position in widget mode, full page in page mode */}
             {showDropdown && (
                 <>
-                    {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 bg-black/20 z-[9998]"
-                        onClick={() => setShowDropdown(false)}
-                    />
+                    {/* Backdrop - Only in widget mode */}
+                    {!isPageMode && (
+                        <div
+                            className="fixed inset-0 bg-black/20 z-[9998]"
+                            onClick={() => setShowDropdown(false)}
+                        />
+                    )}
                     <div
                         data-notifications-dropdown
-                        className="fixed right-4 top-16 w-[90vw] sm:w-[600px] lg:w-[700px] max-h-[85vh] bg-white border-2 border-slate-200 rounded-xl shadow-2xl z-[9999] overflow-hidden"
-                        style={{ 
+                        className={isPageMode 
+                            ? "w-full max-w-7xl mx-auto bg-white border-2 border-slate-200 rounded-xl shadow-2xl overflow-hidden my-6"
+                            : "fixed right-4 top-16 w-[90vw] sm:w-[600px] lg:w-[700px] max-h-[85vh] bg-white border-2 border-slate-200 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+                        }
+                        style={!isPageMode ? { 
                             transformOrigin: 'top right',
                             animation: 'slideInFromRight 0.2s ease-out'
-                        }}
+                        } : {}}
                     >
                     {/* Header */}
                     <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-slate-50">
@@ -537,14 +556,16 @@ export default function NotificationsWidget() {
                                 <RefreshCw className={cls("h-4 w-4 text-slate-600", loading ? "animate-spin" : "")} />
                             </button>
 
-                            {/* Close button */}
-                            <button
-                                onClick={() => setShowDropdown(false)}
-                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-200 hover:scale-105"
-                                title="Đóng"
-                            >
-                                <XCircle className="h-4 w-4" />
-                            </button>
+                            {/* Close button - Only in widget mode */}
+                            {!isPageMode && (
+                                <button
+                                    onClick={() => setShowDropdown(false)}
+                                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-200 hover:scale-105"
+                                    title="Đóng"
+                                >
+                                    <XCircle className="h-4 w-4" />
+                                </button>
+                            )}
                         </div>
                     </div>
 
