@@ -971,7 +971,7 @@ export default function CreateOrderPage() {
             </div>
 
             {/* FOOTER NOTE */}
-            <div className="text-[11px] text-slate-500 mt-8 leading-relaxed">
+            {/* <div className="text-[11px] text-slate-500 mt-8 leading-relaxed">
                 <div className="opacity-80">
                     API khi submit:
                 </div>
@@ -988,7 +988,7 @@ export default function CreateOrderPage() {
                         2
                     )}
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }

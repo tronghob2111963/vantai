@@ -107,14 +107,13 @@ public class DriverServiceImpl implements DriverService {
         // Tính thống kê: Tổng số chuyến đã hoàn thành
         long totalTrips = tripDriverRepository.findAllByDriverId(driverId).stream()
                 .filter(td -> td.getTrip().getStatus() != null && 
-                             td.getTrip().getStatus().name().equals("COMPLETED"))
+                             td.getTrip()
+                                     .getStatus()
+                                     .name()
+                                     .equals("COMPLETED"))
                 .count();
         response.setTotalTrips(totalTrips);
-        
-        // TODO: Tính tổng km nếu có dữ liệu khoảng cách trong database
-        // Hiện tại database không có trường distance/km trong Trips
         response.setTotalKm(null);
-        
         return response;
     }
 

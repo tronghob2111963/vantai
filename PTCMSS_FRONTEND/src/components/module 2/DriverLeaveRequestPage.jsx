@@ -82,11 +82,17 @@ export default function DriverLeaveRequestPage() {
     const validDateOrder =
         startDate && endDate ? new Date(startDate) <= new Date(endDate) : false;
 
+    // Kiểm tra ngày bắt đầu không được trong quá khứ
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDateObj = startDate ? new Date(startDate + "T00:00:00") : null;
+    const isStartDateValid = startDateObj ? startDateObj >= today : false;
+
     const withinAllowance = requestedDays > 0 && requestedDays <= remainingDays;
 
     const hasReason = reason.trim().length >= 10;
 
-    const canSubmit = validDateOrder && withinAllowance && hasReason && !submitting;
+    const canSubmit = validDateOrder && withinAllowance && hasReason && isStartDateValid && !submitting;
 
     async function onSubmit() {
         if (!canSubmit) {
@@ -191,6 +197,11 @@ export default function DriverLeaveRequestPage() {
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
                         />
+                        {startDate && !isStartDateValid ? (
+                            <div className="text-[11px] text-rose-600">
+                                Ngày bắt đầu không được trong quá khứ
+                            </div>
+                        ) : null}
                     </div>
 
                     {/* Ngày kết thúc */}

@@ -79,28 +79,46 @@ export function sendInvoice(id, body) {
 }
 
 // Record payment for invoice
+// Backend expects RecordPaymentRequest format
 export function recordPayment(invoiceId, body) {
+  // Transform frontend format to backend RecordPaymentRequest
+  const payload = {
+    amount: body.amount,
+    paymentMethod: body.paymentMethod,
+    // Bank transfer info
+    bankName: body.bankName,
+    bankAccount: body.bankAccount,
+    referenceNumber: body.referenceNumber,
+    // Cash info
+    cashierName: body.cashierName,
+    receiptNumber: body.receiptNumber,
+    note: body.note,
+    createdBy: body.createdBy,
+  };
+
   return apiFetch(`/api/invoices/${invoiceId}/payments`, {
     method: "POST",
-    body,
-  });
+    body: payload,
+  }).then(res => res.data); // Backend returns ApiResponse wrapper
 }
 
 // Get payment history for invoice
 export function getPaymentHistory(invoiceId) {
-  return apiFetch(`/api/invoices/${invoiceId}/payments`);
+  return apiFetch(`/api/invoices/${invoiceId}/payments`)
+    .then(res => res.data);
 }
 
 // Get invoice balance
 export function getInvoiceBalance(invoiceId) {
-  return apiFetch(`/api/invoices/${invoiceId}/balance`);
+  return apiFetch(`/api/invoices/${invoiceId}/balance`)
+    .then(res => res.data);
 }
 
 // Mark invoice as paid
 export function markInvoiceAsPaid(invoiceId) {
   return apiFetch(`/api/invoices/${invoiceId}/mark-paid`, {
     method: "POST",
-  });
+  }).then(res => res.data);
 }
 
 // Generate invoice number

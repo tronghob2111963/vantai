@@ -675,8 +675,8 @@ function QrPaymentModal({
                             {(() => {
                                 const fallbackImageUrl = result?.qrText
                                     ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(
-                                          result.qrText
-                                      )}`
+                                        result.qrText
+                                    )}`
                                     : null;
                                 const qrImgSrc =
                                     useFallbackImage || !result?.qrImageUrl
@@ -892,6 +892,8 @@ export default function OrderDetailPage() {
             id: b.id,
             code: `ORD-${b.id}`,
             status: b.status === 'CONFIRMED' ? 'ASSIGNED' : (b.status || 'PENDING'),
+            branchId: b.branchId,
+            customerId: b.customer?.id,
             customer: {
                 name: b.customer?.fullName || '',
                 phone: b.customer?.phone || '',
@@ -978,7 +980,7 @@ export default function OrderDetailPage() {
             });
             await fetchOrder();
             await fetchPayments();
-            push(`Đã ghi nhận thanh toán +${Number(payload.amount||0).toLocaleString('vi-VN')}đ cho đơn ${order.id}`, 'success');
+            push(`Đã ghi nhận thanh toán +${Number(payload.amount || 0).toLocaleString('vi-VN')}đ cho đơn ${order.id}`, 'success');
         } catch (e) {
             push('Ghi nhận thanh toán thất bại', 'error');
         }
@@ -1083,14 +1085,14 @@ export default function OrderDetailPage() {
                     {/* cảnh báo nếu huỷ / nháp */}
                     {(order.status === "CANCELLED" ||
                         order.status === "DRAFT") && (
-                        <div className="flex max-w-fit items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                            <span className="leading-relaxed">
-                                Đơn chưa xác nhận. Cần
-                                chốt lại với khách.
-                            </span>
-                        </div>
-                    )}
+                            <div className="flex max-w-fit items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                <span className="leading-relaxed">
+                                    Đơn chưa xác nhận. Cần
+                                    chốt lại với khách.
+                                </span>
+                            </div>
+                        )}
                 </div>
 
                 {/* thanh toán summary box */}
@@ -1203,6 +1205,8 @@ export default function OrderDetailPage() {
                 context={{
                     type: "order",
                     id: order.id,
+                    branchId: order.branchId,
+                    customerId: order.customerId,
                     title:
                         order.customer.name +
                         " · " +

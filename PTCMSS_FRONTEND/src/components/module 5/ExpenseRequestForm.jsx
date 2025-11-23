@@ -483,7 +483,7 @@ export default function ExpenseRequestForm() {
                     </button>
                 </div>
 
-                <div className="text-[11px] text-slate-500 font-mono leading-relaxed break-all bg-slate-50 border border-slate-200 rounded-md p-3 shadow-inner">
+                {/* <div className="text-[11px] text-slate-500 font-mono leading-relaxed break-all bg-slate-50 border border-slate-200 rounded-md p-3 shadow-inner">
                     POST /api/expense-requests{"\n"}
                     {JSON.stringify(
                         {
@@ -498,7 +498,7 @@ export default function ExpenseRequestForm() {
                         null,
                         2
                     )}
-                </div>
+                </div> */}
             </form>
         </div>
     );

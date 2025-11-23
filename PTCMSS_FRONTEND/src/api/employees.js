@@ -5,8 +5,9 @@ import { apiFetch } from "./http";
  * @param {string} roleName - Tên role (ví dụ: "Manager", "Driver", "Admin")
  * @returns {Promise} Danh sách nhân viên
  */
-export const getEmployeesByRole = async (roleName) => {
-  return apiFetch(`/api/employees/role/${roleName}`);
+const fetchEmployeesByRole = (roleName) => {
+  const rn = String(roleName || "").trim();
+  return apiFetch(`/api/employees/role/${encodeURIComponent(rn)}`);
 };
 
 /**
@@ -27,16 +28,11 @@ export const getEmployeeById = async (id) => {
 };
 
 // Alias cho compatibility với code cũ
-export const listEmployeesByRole = getEmployeesByRole;
+export const getEmployeesByRole = fetchEmployeesByRole;
+export const listEmployeesByRole = fetchEmployeesByRole;
 // GET /api/employees
 export function listEmployees() {
   return apiFetch("/api/employees");
-}
-
-// GET /api/employees/role/{roleName}
-export function listEmployeesByRole(roleName) {
-  const rn = String(roleName || "").trim();
-  return apiFetch(`/api/employees/role/${encodeURIComponent(rn)}`);
 }
 
 // GET /api/employees/{id}
