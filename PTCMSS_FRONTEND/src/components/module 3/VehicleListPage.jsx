@@ -758,14 +758,14 @@ function EditVehicleModal({
                         </div>
                     ) : null}
 
-                    <div className="text-[11px] text-slate-500 leading-relaxed rounded-md border border-slate-200 bg-slate-50 p-3">
+                    {/* <div className="text-[11px] text-slate-500 leading-relaxed rounded-md border border-slate-200 bg-slate-50 p-3">
                         Sau khi lưu, trạng thái xe sẽ cập nhật ngay trong danh
                         sách. API thật sẽ gọi{" "}
                         <code className="text-slate-700">
                             PUT /api/vehicles/{vehicle.id}
                         </code>
                         .
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* footer */}

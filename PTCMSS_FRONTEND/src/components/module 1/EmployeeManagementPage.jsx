@@ -115,11 +115,11 @@ export default function EmployeeManagementPage() {
                     <h1 className="text-2xl font-bold text-slate-800">Quản lý nhân viên</h1>
                 </div>
                 <button
-                    onClick={() => navigate("/admin/employees/create")}
-                    className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg shadow-sm font-medium"
+                    onClick={() => navigate("/admin/employees/create-with-user")}
+                    className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg shadow-sm font-medium transition-all"
                 >
                     <Plus size={18} />
-                    Thêm nhân viên
+                    Tạo nhân viên mới
                 </button>
             </div>
 

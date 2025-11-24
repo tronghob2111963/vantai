@@ -46,6 +46,7 @@ export default function UpdateProfilePage() {
   const [loading, setLoading] = React.useState(false);
   const [errors, setErrors] = React.useState({});
   const [generalError, setGeneralError] = React.useState("");
+  const [showSuccess, setShowSuccess] = React.useState(false);
   const userId = getCookie("userId") || localStorage.getItem("userId");
 
   const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
@@ -140,7 +141,8 @@ export default function UpdateProfilePage() {
       }
 
       setGeneralError("");
-      alert("Cập nhật hồ sơ thành công");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
 
       // Reload profile to get updated data
       const p = await getMyProfile();
@@ -164,60 +166,82 @@ export default function UpdateProfilePage() {
   const BRAND_COLOR = "#0079BC";
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-5">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-lg flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: BRAND_COLOR }}>
-            <User className="h-5 w-5" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 text-slate-900 p-5">
+      {/* SUCCESS TOAST */}
+      {showSuccess && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 shadow-xl rounded-xl p-4 flex gap-3 items-center min-w-[320px]">
+            <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="text-green-600" size={20} />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-green-800 text-sm">Thành công!</div>
+              <div className="text-xs text-green-700">Cập nhật hồ sơ thành công</div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Hồ sơ cá nhân</h1>
-            <p className="text-xs text-slate-500">Quản lý thông tin tài khoản của bạn</p>
-          </div>
-        </div>
-        {loading && (
-          <div className="ml-auto text-xs text-slate-500 px-3 py-1.5 bg-slate-100 rounded-md">
-            Đang tải…
-          </div>
-        )}
-        <button 
-          onClick={onSave} 
-          disabled={saving} 
-          className="ml-auto inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md transition-all active:scale-[0.98]"
-          style={{ backgroundColor: BRAND_COLOR }}
-        >
-          <Save className="h-4 w-4" /> 
-          <span>{saving ? "Đang lưu..." : "Lưu thay đổi"}</span>
-        </button>
-      </div>
-
-      {generalError && (
-        <div className="max-w-3xl mb-5 bg-red-50 border border-red-200 p-4 rounded-lg text-sm text-rose-700 flex items-start gap-2.5 shadow-sm">
-          <XCircle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
-          <span>{generalError}</span>
         </div>
       )}
 
-      <div className="max-w-3xl space-y-5">
+      {/* Header */}
+      <div className="max-w-3xl mx-auto mb-6">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: BRAND_COLOR }}>
+              <User className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Hồ sơ cá nhân</h1>
+              <p className="text-xs text-slate-500 mt-0.5">Quản lý thông tin tài khoản của bạn</p>
+            </div>
+          </div>
+          {loading && (
+            <div className="text-xs text-slate-500 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+              <div className="animate-spin h-3.5 w-3.5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <span>Đang tải...</span>
+            </div>
+          )}
+          <button 
+            onClick={onSave} 
+            disabled={saving || loading} 
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all active:scale-[0.98]"
+            style={{ backgroundColor: BRAND_COLOR }}
+          >
+            <Save className="h-4 w-4" /> 
+            <span>{saving ? "Đang lưu..." : "Lưu thay đổi"}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto space-y-5">
+        {generalError && (
+          <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-4 flex gap-3 shadow-sm">
+            <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <XCircle className="text-red-600" size={20} />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-red-800 text-sm mb-1">Lỗi</div>
+              <div className="text-sm text-red-700">{generalError}</div>
+            </div>
+          </div>
+        )}
         {/* Avatar Section */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6">
           <div className="flex items-start gap-6">
             <AvatarPreview src={authImgSrc || avatarPreview} name={fullName} />
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-slate-900 mb-3">Ảnh đại diện</h3>
-              <label className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:border-[#0079BC]/50 cursor-pointer transition-all">
+              <label className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:border-[#0079BC]/50 cursor-pointer transition-all active:scale-[0.98]">
                 <Upload className="h-4 w-4" style={{ color: BRAND_COLOR }} /> 
                 <span>Chọn ảnh</span>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => onPickAvatar(e.target.files?.[0])} />
               </label>
-              <div className="text-xs text-slate-500 mt-2">Khuyến nghị ảnh vuông (1:1), JPG/PNG, tối đa 2MB.</div>
+              <div className="text-xs text-slate-500 mt-2">Khuyến nghị ảnh vuông (1:1), JPG/PNG, tối đa 2MB</div>
             </div>
           </div>
         </div>
 
         {/* Personal Information */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <User className="h-4 w-4" style={{ color: BRAND_COLOR }} />
             <span>Thông tin cá nhân</span>
@@ -263,7 +287,7 @@ export default function UpdateProfilePage() {
         </div>
 
         {/* Contact Information */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <Mail className="h-4 w-4" style={{ color: BRAND_COLOR }} />
             <span>Thông tin liên hệ</span>
@@ -297,7 +321,7 @@ export default function UpdateProfilePage() {
         </div>
 
         {/* Account Information */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <Shield className="h-4 w-4" style={{ color: BRAND_COLOR }} />
             <span>Thông tin tài khoản</span>

@@ -49,4 +49,7 @@ public interface VehicleRepository extends JpaRepository<Vehicles, Integer> {
     @Query("SELECT v FROM Vehicles v JOIN FETCH v.branch JOIN FETCH v.category")
     List<Vehicles> findAllWithBranchAndCategory();
 
+    @Query("SELECT COUNT(v) FROM Vehicles v WHERE v.category.id = :categoryId")
+    long countByCategoryId(@Param("categoryId") Integer categoryId);
+
 }

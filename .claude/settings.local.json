@@ -23,7 +23,10 @@
       "Bash(where:*)",
       "Bash(cat:*)",
       "Bash(done)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(mvn spring-boot:run:*)",
+      "Bash(timeout /t 15 /nobreak)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

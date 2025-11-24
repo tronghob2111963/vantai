@@ -969,7 +969,7 @@ export default function VehicleDetailPage() {
             ) : null}
 
             {/* footer note */}
-            <div className="text-[11px] text-slate-500 text-center mt-6 leading-relaxed">
+            {/* <div className="text-[11px] text-slate-500 text-center mt-6 leading-relaxed">
                 Đây là bản prototype UI. Kết nối API thật sẽ:
                 <br />
                 - load dữ liệu bằng vehicleId (param route)
@@ -977,7 +977,7 @@ export default function VehicleDetailPage() {
                 - gọi PUT khi Lưu thay đổi tab Hồ sơ xe
                 <br />
                 - tab Lịch sử chuyến & Chi phí sẽ phân trang từ backend
-            </div>
+            </div> */}
         </div>
     );
 }

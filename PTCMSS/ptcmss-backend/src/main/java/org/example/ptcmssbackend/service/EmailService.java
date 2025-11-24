@@ -158,6 +158,21 @@ public class EmailService {
         log.info("[EmailService] SMS reminder would be sent to {} for invoice {} amount {}", 
                 phoneNumber, invoiceNumber, amount);
     }
+    
+    /**
+     * Gửi email đơn giản (HTML)
+     */
+    public void sendSimpleEmail(String toEmail, String subject, String htmlContent) 
+            throws MessagingException, UnsupportedEncodingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+        helper.setFrom(fromEmail, "TranspoManager - Hệ thống quản lý vận tải");
+        helper.setTo(toEmail);
+        helper.setSubject(subject);
+        helper.setText(htmlContent, true);
+        
+        mailSender.send(message);
+    }
 
     // Helper methods for fallback HTML
     private String buildInvoiceEmailHtml(String customerName, String invoiceNumber, 
