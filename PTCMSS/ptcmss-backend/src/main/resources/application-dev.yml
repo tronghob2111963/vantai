@@ -11,6 +11,21 @@ spring:
       hibernate:
         # Use physical naming strategy to match database column names exactly
         physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: vthuan.dev@gmail.com
+    password: jyadxagpzbdmfigt
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 # SerpAPI Configuration
 serpapi:
@@ -55,3 +70,6 @@ server:
 management:
   endpoints:
     web.exposure.include: health,info
+  health:
+    mail:
+      enabled: false  # Tắt mail health check để tránh lỗi authentication

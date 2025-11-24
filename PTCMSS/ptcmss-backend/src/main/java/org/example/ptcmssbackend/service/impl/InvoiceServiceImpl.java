@@ -333,8 +333,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             );
             log.info("[InvoiceService] Invoice {} sent to {}", invoice.getInvoiceNumber(), request.getEmail());
         } catch (Exception e) {
-            log.error("[InvoiceService] Failed to send invoice email", e);
-            // Don't throw exception, just log - invoice is already marked as sent
+            log.error("[InvoiceService] Failed to send invoice email: {}", e.getMessage(), e);
+            throw new RuntimeException("Không thể gửi email: " + e.getMessage(), e);
         }
     }
 
@@ -429,6 +429,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         response.setBranchName(invoice.getBranch().getBranchName());
         response.setCustomerId(invoice.getCustomer() != null ? invoice.getCustomer().getId() : null);
         response.setCustomerName(invoice.getCustomer() != null ? invoice.getCustomer().getFullName() : null);
+        response.setCustomerEmail(invoice.getCustomer() != null ? invoice.getCustomer().getEmail() : null);
         response.setBookingId(invoice.getBooking() != null ? invoice.getBooking().getId() : null);
         response.setType(invoice.getType().toString());
         response.setAmount(invoice.getAmount());

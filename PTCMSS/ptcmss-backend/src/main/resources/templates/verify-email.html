@@ -30,17 +30,7 @@
             text-align: center;
             color: #ffffff;
         }
-        .email-header .logo {
-            width: 64px;
-            height: 64px;
-            background-color: rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-        }
+
         .email-header h1 {
             font-size: 24px;
             font-weight: 700;
@@ -150,36 +140,35 @@
     <div class="email-container">
         <!-- Header -->
         <div class="email-header">
-            <div class="logo">🚛</div>
-            <h1>Chào mừng đến TranspoManager</h1>
-            <p>Hệ thống quản lý vận tải chuyên nghiệp</p>
+            <h1>TranspoManager</h1>
+            <p>Hệ thống quản lý vận tải</p>
         </div>
 
         <!-- Body -->
         <div class="email-body">
             <div class="greeting">
-                Xin chào <span class="name" th:text="${fullName}">Người dùng</span>! 👋
+                Xin chào <span class="name" th:text="${fullName}">Người dùng</span>
             </div>
 
             <div class="content">
-                <p>Bạn đã được tạo tài khoản nhân viên tại hệ thống <strong>TranspoManager</strong> của chúng tôi.</p>
-                <p>Để bắt đầu sử dụng hệ thống, vui lòng xác thực tài khoản và thiết lập mật khẩu lần đầu bằng cách nhấn vào nút bên dưới:</p>
+                <p>Bạn đã được tạo tài khoản nhân viên tại hệ thống <strong>TranspoManager</strong>.</p>
+                <p>Để bắt đầu sử dụng hệ thống, vui lòng xác thực tài khoản bằng cách nhấn vào nút bên dưới:</p>
             </div>
 
             <div class="button-container">
                 <a th:href="${verifyUrl}" class="verify-button" target="_blank">
-                    ✨ Xác thực tài khoản ngay
+                    Xác thực tài khoản
                 </a>
             </div>
 
             <div class="info-box">
-                <p><strong>💡 Lưu ý:</strong> Liên kết xác thực sẽ hết hạn sau 24 giờ. Vui lòng thực hiện xác thực sớm nhất có thể.</p>
+                <p><strong>Lưu ý:</strong> Liên kết xác thực sẽ hết hạn sau 24 giờ. Vui lòng thực hiện xác thực sớm nhất có thể.</p>
             </div>
 
             <div class="divider"></div>
 
             <div class="warning">
-                <p><strong>⚠️ Bảo mật:</strong> Nếu bạn không yêu cầu tạo tài khoản này, vui lòng bỏ qua email này hoặc liên hệ với bộ phận IT để được hỗ trợ.</p>
+                <p><strong>Bảo mật:</strong> Nếu bạn không yêu cầu tạo tài khoản này, vui lòng bỏ qua email này hoặc liên hệ với quản trị viên hệ thống.</p>
             </div>
         </div>
 

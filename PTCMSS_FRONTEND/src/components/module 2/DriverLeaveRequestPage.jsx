@@ -303,12 +303,12 @@ export default function DriverLeaveRequestPage() {
 
                 {/* FOOTER */}
                 <div className="px-5 py-4 border-t border-slate-200 flex flex-wrap items-center gap-3 justify-between bg-slate-50/60">
-                    <div className="text-[11px] text-slate-600 leading-relaxed">
+                    {/* <div className="text-[11px] text-slate-600 leading-relaxed">
                         Endpoint dự kiến:{" "}
                         <code className="bg-slate-100 text-slate-700 px-1 py-[1px] rounded">
                             /api/driver/leave-requests
                         </code>
-                    </div>
+                    </div> */}
 
                     <button
                         onClick={onSubmit}

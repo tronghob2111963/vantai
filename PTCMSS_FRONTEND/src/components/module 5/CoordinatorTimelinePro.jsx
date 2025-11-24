@@ -1030,17 +1030,33 @@ export default function CoordinatorTimelinePro() {
                     }
                     
                     console.log("[CoordinatorTimelinePro] Loading branch for userId:", userIdNum);
-                    const resp = await getBranchByUserId(userIdNum);
-                    if (cancelled) return;
                     
-                    console.log("[CoordinatorTimelinePro] Branch response:", resp);
-                    const option = mapBranchRecord(resp);
-                    if (cancelled) return;
-                    
-                    setBranches(option ? [option] : []);
-                    setBranchId((prev) => prev || (option?.id || ""));
-                    if (!option) {
-                        setBranchError("Không tìm thấy chi nhánh phụ trách. Vui lòng liên hệ quản trị viên.");
+                    try {
+                        const resp = await getBranchByUserId(userIdNum);
+                        if (cancelled) return;
+                        
+                        console.log("[CoordinatorTimelinePro] Branch response:", resp);
+                        const option = mapBranchRecord(resp);
+                        if (cancelled) return;
+                        
+                        setBranches(option ? [option] : []);
+                        setBranchId((prev) => prev || (option?.id || ""));
+                        if (!option) {
+                            setBranchError("Không tìm thấy chi nhánh phụ trách. Vui lòng liên hệ quản trị viên.");
+                        }
+                    } catch (branchErr) {
+                        // If getBranchByUserId fails, try to load all branches as fallback
+                        console.warn("[CoordinatorTimelinePro] Failed to get user branch, trying all branches:", branchErr);
+                        const res = await listBranches({ page: 0, size: 100 });
+                        if (cancelled) return;
+                        const options = extractBranchItems(res)
+                            .map(mapBranchRecord)
+                            .filter(Boolean);
+                        setBranches(options);
+                        setBranchId((prev) => prev || (options[0]?.id || ""));
+                        if (!options.length) {
+                            throw new Error("Không tìm thấy chi nhánh nào.");
+                        }
                     }
                 } else {
                     const res = await listBranches({ page: 0, size: 100 });
@@ -1380,7 +1396,7 @@ export default function CoordinatorTimelinePro() {
                             </div>
 
                             <h1 className="text-lg font-semibold text-slate-900 leading-tight">
-                                M5 — Coordinator (Queue + Schedule)
+                                Coordinator (Queue + Schedule)
                             </h1>
 
                             <p className="text-slate-500 text-[13px]">

@@ -50,7 +50,6 @@ const SIDEBAR_SECTIONS = [
       // { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
       { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
       { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN, ROLES.MANAGER] },
-      // { label: "Tạo tài khoản", to: "/admin/users/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Quản lý nhân viên", to: "/admin/employees", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
     ],
@@ -152,7 +151,6 @@ import SystemSettingsPage from "./components/module 1/SystemSettingsPage.jsx";
 import CreateBranchPage from "./components/module 1/CreateBranchPage.jsx";
 import AdminBranchesPage from "./components/module 1/AdminBranchesPage.jsx";
 import AdminBranchDetailPage from "./components/module 1/AdminBranchDetailPage.jsx";
-import AdminCreateUserPage from "./components/module 1/AdminCreateUserPage.jsx";
 import AdminUsersPage from "./components/module 1/AdminUsersPage.jsx";
 import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
 import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
@@ -160,7 +158,10 @@ import UpdateProfilePage from "./components/module 1/UpdateProfilePage.jsx";
 import LoginPage from "./components/module 1/LoginPage.jsx";
 import EmployeeManagementPage from "./components/module 1/EmployeeManagementPage.jsx";
 import CreateEmployeePage from "./components/module 1/CreateEmployeePage.jsx";
+import CreateEmployeeWithUserPage from "./components/module 1/CreateEmployeeWithUserPage.jsx";
 import EditEmployeePage from "./components/module 1/EditEmployeePage.jsx";
+import VerificationSuccessPage from "./components/module 1/VerificationSuccessPage.jsx";
+import VerificationErrorPage from "./components/module 1/VerificationErrorPage.jsx";
 
 /* Module 2 – Tài xế */
 import DriverDashboard from "./components/module 2/DriverDashboard.jsx";
@@ -229,13 +230,18 @@ function SidebarSection({
   const hasActiveItem = items.some(item => location.pathname.startsWith(item.to));
   // Section đang active nếu có item active hoặc section đang mở
   const isCurrentSection = hasActiveItem || open;
-  
-  // Không cho phép đóng nếu section này đang chứa route hiện tại
-  const canToggle = !hasActiveItem;
 
   const handleToggle = () => {
-    if (!canToggle) return; // Không cho đóng nếu đang ở trang trong section này
-    setActiveSection((curr) => (curr === sectionId ? "" : sectionId));
+    // Nếu section đang đóng, mở nó
+    if (!open) {
+      setActiveSection(sectionId);
+    } else {
+      // Nếu section đang mở và không có item active, cho phép đóng
+      if (!hasActiveItem) {
+        setActiveSection("");
+      }
+      // Nếu có item active, giữ nguyên (không đóng)
+    }
   };
 
   return (
@@ -244,13 +250,11 @@ function SidebarSection({
       <button
         type="button"
         onClick={handleToggle}
-        disabled={!canToggle && open}
-        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out ${
+        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out cursor-pointer active:scale-[0.98] ${
           isCurrentSection 
             ? "bg-gradient-to-r from-sky-50 to-blue-50 shadow-sm shadow-sky-100/50" 
             : "hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 hover:shadow-sm hover:shadow-sky-100/50"
-        } ${canToggle || !open ? "active:scale-[0.98] cursor-pointer" : "cursor-default"}`}
-        title={!canToggle && open ? "Đang ở trang này, không thể đóng" : ""}
+        }`}
       >
         <span className="flex items-center gap-2.5">
           {React.createElement(icon, { 
@@ -272,7 +276,7 @@ function SidebarSection({
           {open ? (
             <ChevronDown className={`h-4 w-4 transition-all duration-200 ${
               isCurrentSection ? "text-[#0079BC] rotate-0" : "text-slate-400"
-            } ${!canToggle ? "opacity-60" : ""}`} />
+            }`} />
           ) : (
             <ChevronRight className={`h-4 w-4 transition-all duration-200 text-slate-400 group-hover:text-[#0079BC] group-hover:translate-x-0.5`} />
           )}
@@ -323,12 +327,15 @@ function SidebarSection({
    - border phải xám nhạt
    - header app với chip màu sky-600
    - QUAN TRỌNG: quản lý state mở/đóng cho toàn bộ sidebar
+   - Tích hợp tìm kiếm chức năng
 --------------------------------------------------- */
 function SidebarNav() {
   const role = useRole();
   const location = useLocation();
+  const navigate = useNavigate();
   const sections = React.useMemo(() => filterSectionsByRole(role), [role]);
   const [activeSection, setActiveSection] = React.useState(() => sections[0]?.sectionId || "");
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   // Tự động mở section tương ứng với route hiện tại
   React.useEffect(() => {
@@ -399,8 +406,37 @@ function SidebarNav() {
     }
   }, [sections, activeSection]);
 
+  // Filter sections and items based on search query
+  const filteredSections = React.useMemo(() => {
+    if (!searchQuery.trim()) return sections;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return sections.map(section => {
+      const matchedItems = section.items.filter(item => 
+        item.label.toLowerCase().includes(query) ||
+        section.label.toLowerCase().includes(query)
+      );
+      
+      if (matchedItems.length === 0 && !section.label.toLowerCase().includes(query)) {
+        return null;
+      }
+      
+      return {
+        ...section,
+        items: matchedItems.length > 0 ? matchedItems : section.items
+      };
+    }).filter(Boolean);
+  }, [sections, searchQuery]);
+
+  // Handle search result click
+  const handleSearchResultClick = (item, sectionId) => {
+    navigate(item.to);
+    setActiveSection(sectionId);
+    setSearchQuery(""); // Clear search after navigation
+  };
+
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm fixed left-0 top-0 bottom-0 z-10">
       {/* brand / account mini */}
       <div className="px-4 py-4 border-b border-slate-200 flex items-center gap-3 bg-gradient-to-br from-white to-slate-50/50">
         <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-[0_8px_24px_rgba(0,121,188,.35)] flex-shrink-0 transition-transform duration-200 hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,121,188,.45)]" style={{ backgroundColor: '#0079BC' }}>
@@ -412,23 +448,67 @@ function SidebarNav() {
         </div>
       </div>
 
+      {/* Search box */}
+      <div className="px-3 py-3 border-b border-slate-200">
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm transition-all focus-within:ring-2 focus-within:ring-[#0079BC]/20 focus-within:border-[#0079BC]/50 focus-within:bg-white">
+          <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent outline-none flex-1 text-slate-700 placeholder:text-slate-400 text-xs"
+            placeholder="Tìm chức năng..."
+          />
+        </div>
+      </div>
+
       {/* groups */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-3 text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
-        {sections.map((section) => (
-          <SidebarSection
-            key={section.sectionId}
-            sectionId={section.sectionId}
-            icon={section.icon}
-            label={section.label}
-            items={section.items}
-            activeSection={activeSection}
-            setActiveSection={setActiveSection}
-            location={location}
-          />
-        ))}
+        {searchQuery.trim() ? (
+          // Search results view
+          <div className="space-y-1">
+            {filteredSections.length > 0 ? (
+              filteredSections.map((section) => (
+                <div key={section.sectionId} className="mb-3">
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1 mb-1">
+                    {section.label}
+                  </div>
+                  {section.items.map((item) => (
+                    <button
+                      key={`${section.sectionId}-${item.to}`}
+                      onClick={() => handleSearchResultClick(item, section.sectionId)}
+                      className="w-full text-left flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-gradient-to-r hover:from-[#0079BC]/10 hover:to-sky-50 hover:text-[#0079BC] transition-all"
+                    >
+                      <span className="truncate">{item.label}</span>
+                      <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-slate-400 text-xs">
+                Không tìm thấy kết quả
+              </div>
+            )}
+          </div>
+        ) : (
+          // Normal sections view
+          sections.map((section) => (
+            <SidebarSection
+              key={section.sectionId}
+              sectionId={section.sectionId}
+              icon={section.icon}
+              label={section.label}
+              items={section.items}
+              activeSection={activeSection}
+              setActiveSection={setActiveSection}
+              location={location}
+            />
+          ))
+        )}
       </nav>
 
-      <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50/50">v0.1 thử nghiệm</div>
+      {/* <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50/50">v0.1 thử nghiệm</div> */}
     </aside>
   );
 }
@@ -436,12 +516,12 @@ function SidebarNav() {
    Topbar
    - nền trắng
    - viền dưới + bóng mờ nhẹ
-   - search pill nền slate-50
+   - Admin info và nút đăng xuất ở bên phải
 --------------------------------------------------- */
 function Topbar() {
   const navigate = useNavigate();
   const username = getStoredUsername() || "John Doe";
-  const roleName = getStoredRoleLabel() || "Qu???n tr??< viA?n";
+  const roleName = getStoredRoleLabel() || "Quản trị viên";
   const initials =
     String(username)
       .trim()
@@ -465,21 +545,16 @@ function Topbar() {
   };
 
   return (
-    <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-3.5 shadow-sm">
-      {/* search */}
-      <div className="flex-1 max-w-md flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-sm transition-all focus-within:ring-2 focus-within:ring-[#0079BC]/20 focus-within:border-[#0079BC]/50 focus-within:bg-white hover:bg-white">
-        <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
-        <input
-          className="bg-transparent outline-none flex-1 text-slate-700 placeholder:text-slate-400 text-sm"
-          placeholder="Tìm nhanh..."
-        />
-      </div>
+    <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3.5 shadow-sm">
+      {/* Left side - empty or can add breadcrumb later */}
+      <div className="flex-1"></div>
 
-      {/* bell - WebSocket Notifications */}
-      <NotificationsWidget />
-
-      {/* user chip + logout */}
+      {/* Right side - bell + user chip + logout */}
       <div className="flex items-center gap-2.5">
+        {/* bell - WebSocket Notifications */}
+        <NotificationsWidget />
+
+        {/* user chip */}
         <button
           onClick={handleProfileClick}
           className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:shadow-md hover:border-[#0079BC]/50 transition-all cursor-pointer active:scale-[0.98]"
@@ -492,6 +567,8 @@ function Topbar() {
             <span className="text-slate-500 text-[10px]">{roleName}</span>
           </div>
         </button>
+        
+        {/* logout button */}
         <button 
           onClick={onLogout} 
           className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-all active:scale-[0.98]"
@@ -520,7 +597,7 @@ function ShellLayout() {
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <SidebarNav />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 ml-64">
         <Topbar />
         <main className="flex-1 overflow-y-auto p-5">
           {/* Ghi chú: Một số màn con vẫn theme dark. Có thể refactor sau. */}
@@ -555,6 +632,8 @@ export default function AppLayout() {
       <Routes>
         {/* Trang đăng nhập không dùng shell */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verification-success" element={<VerificationSuccessPage />} />
+        <Route path="/verification-error" element={<VerificationErrorPage />} />
         <Route path="/" element={<RoleRedirect />} />
 
         {/* Các route cần shell layout */}
@@ -629,14 +708,6 @@ export default function AppLayout() {
             }
           />
           <Route
-            path="/admin/users/new"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-                <AdminCreateUserPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/admin/users/:userId"
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
@@ -665,6 +736,14 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
                 <CreateEmployeePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/employees/create-with-user"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <CreateEmployeeWithUserPage />
               </ProtectedRoute>
             }
           />

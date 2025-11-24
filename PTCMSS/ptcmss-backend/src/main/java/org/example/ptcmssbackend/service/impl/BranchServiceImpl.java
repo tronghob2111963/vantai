@@ -147,6 +147,10 @@ public class BranchServiceImpl implements BranchService {
                 .orElseThrow(() -> new RuntimeException("User không thuộc chi nhánh nào"));
 
         Branches branch = employee.getBranch();
+        
+        if (branch == null) {
+            throw new RuntimeException("Employee chưa được gán chi nhánh");
+        }
 
         return BranchResponse.builder()
                 .id(branch.getId())

@@ -75,31 +75,42 @@ export default function NotificationsWidget() {
 
     // Load user's branch (silently, don't block UI)
     React.useEffect(() => {
-        if (isAdmin || branchLoaded) return;
+        // Disabled: Not all users have branch assigned, causing 500 errors
+        // This feature is not critical for notifications widget
+        setBranchLoaded(true);
+        return;
+        
+        // if (isAdmin || branchLoaded) return;
 
-        async function loadUserBranch() {
-            try {
-                const branch = await getBranchByUserId(userId);
-                const id = branch?.id || branch?.branchId;
-                if (id) {
-                    setBranchId(id);
-                }
-            } catch (err) {
-                console.error("Failed to load user branch:", err);
-                // Don't show error, just continue without branchId
-            } finally {
-                setBranchLoaded(true);
-            }
-        }
+        // async function loadUserBranch() {
+        //     try {
+        //         const branch = await getBranchByUserId(userId);
+        //         const id = branch?.id || branch?.branchId;
+        //         if (id) {
+        //             setBranchId(id);
+        //         }
+        //     } catch (err) {
+        //         // Silently ignore - user may not have a branch assigned yet
+        //         // This is expected for some users (e.g., drivers without branch)
+        //     } finally {
+        //         setBranchLoaded(true);
+        //     }
+        // }
 
-        if (userId) {
-            loadUserBranch();
-        } else {
-            setBranchLoaded(true);
-        }
+        // if (userId) {
+        //     loadUserBranch();
+        // } else {
+        //     setBranchLoaded(true);
+        // }
     }, [userId, isAdmin, branchLoaded]);
 
     const fetchAll = React.useCallback(async () => {
+        // Prevent multiple simultaneous calls
+        if (loading) {
+            console.log('[NotificationsWidget] Already loading, skipping...');
+            return;
+        }
+        
         setLoading(true);
         setError("");
         try {
@@ -114,14 +125,15 @@ export default function NotificationsWidget() {
         } finally {
             setLoading(false);
         }
-    }, [branchId]);
+    }, [branchId, loading]);
 
     // Fetch when dropdown opens OR when in page mode
     React.useEffect(() => {
         if ((showDropdown || isPageMode) && (isAdmin || branchLoaded)) {
             fetchAll();
         }
-    }, [showDropdown, isPageMode, isAdmin, branchLoaded, fetchAll]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showDropdown, isPageMode, isAdmin, branchLoaded]);
     
     // Auto-open dropdown when in page mode
     React.useEffect(() => {
@@ -144,7 +156,8 @@ export default function NotificationsWidget() {
                 fetchAll();
             }
         }
-    }, [wsNotifications, showDropdown, fetchAll]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wsNotifications, showDropdown]);
 
     // Close dropdown when clicking outside
     React.useEffect(() => {

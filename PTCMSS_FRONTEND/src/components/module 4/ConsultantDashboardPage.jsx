@@ -343,13 +343,13 @@ export default function ConsultantDashboardPage() {
             <PendingQueueCard items={pendingOrders} onSelect={handleSelectPending} />
 
             {/* FOOTNOTE */}
-            <div className="text-[11px] text-slate-500 mt-6 leading-relaxed">
+            {/* <div className="text-[11px] text-slate-500 mt-6 leading-relaxed">
                 Endpoint dự kiến:{" "}
                 <code className="text-slate-700">
                     GET /api/consultant/dashboard
                 </code>
                 . Backend sẽ tự filter theo tài khoản tư vấn viên (branch, user id).
-            </div>
+            </div> */}
         </div>
     );
 }

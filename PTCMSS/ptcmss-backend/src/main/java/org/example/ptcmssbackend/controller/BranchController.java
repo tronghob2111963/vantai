@@ -121,7 +121,12 @@ public class BranchController {
             @Parameter(description = "ID của User", example = "5")
             @PathVariable Integer userId
     ) {
-        return ResponseEntity.ok(branchService.getBranchByUserId(userId));
+        try {
+            return ResponseEntity.ok(branchService.getBranchByUserId(userId));
+        } catch (RuntimeException e) {
+            log.warn("User {} does not have a branch: {}", userId, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @Operation(

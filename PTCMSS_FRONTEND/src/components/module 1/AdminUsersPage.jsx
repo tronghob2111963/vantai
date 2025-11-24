@@ -208,14 +208,6 @@ export default function AdminUsersPage() {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             <button 
-              onClick={() => navigate("/admin/users/new")} 
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
-              style={{ backgroundColor: BRAND_COLOR }}
-            >
-              <PlusCircle className="h-4 w-4" /> 
-              <span>Tạo mới</span>
-            </button>
-            <button 
               onClick={onRefresh} 
               disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))} 
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50 transition-all active:scale-[0.98]"

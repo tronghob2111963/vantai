@@ -378,13 +378,13 @@ export default function TripExpenseModal({
 
                 {/* FOOTER */}
                 <div className="px-5 py-4 border-t border-slate-200 flex flex-wrap items-center gap-3 justify-between bg-slate-50 rounded-b-2xl">
-                    <div className="text-[11px] text-slate-500 leading-snug break-all">
+                    {/* <div className="text-[11px] text-slate-500 leading-snug break-all">
                         Endpoint dự kiến:
                         <br />
                         <code className="text-slate-700">
                             /api/driver/trips/{String(tripId ?? "—")}/expenses
                         </code>
-                    </div>
+                    </div> */}
 
                     <div className="flex items-center gap-2">
                         <button

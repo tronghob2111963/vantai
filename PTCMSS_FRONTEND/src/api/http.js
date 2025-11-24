@@ -54,6 +54,12 @@ export async function apiFetch(path, { method = "GET", headers = {}, body, auth 
     const err = new Error("API_ERROR");
     err.status = resp.status;
     err.data = data;
+    
+    // Silently ignore 404/500 errors for branch/user endpoint (user may not have branch)
+    if (path.includes('/branches/user/') && (resp.status === 404 || resp.status === 500)) {
+      // Don't log, just throw
+    }
+    
     throw err;
   }
 

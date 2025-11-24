@@ -117,8 +117,11 @@ public class EmployeeController {
         );
     }
 
-    // ----------- API: Tạo nhân viên mới -----------
-    @Operation(summary = "Tạo mới nhân viên")
+    // ----------- API: Tạo nhân viên mới (với User ID có sẵn) -----------
+    @Operation(
+            summary = "Tạo mới nhân viên từ User có sẵn",
+            description = "Tạo nhân viên cho User đã tồn tại trong hệ thống"
+    )
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseData<EmployeeResponse> createEmployee(@Valid @RequestBody CreateEmployeeRequest request) {
@@ -134,6 +137,34 @@ public class EmployeeController {
             System.err.println("Error creating employee: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Failed to create employee: " + e.getMessage());
+        }
+    }
+
+    // ----------- API: Tạo nhân viên mới (kèm tạo User) -----------
+    @Operation(
+            summary = "Tạo mới nhân viên kèm tài khoản User",
+            description = "Tạo cả User và Employee trong một lần. Phù hợp cho tuyển dụng nhân viên mới."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Tạo thành công"),
+            @ApiResponse(responseCode = "400", description = "Dữ liệu không hợp lệ hoặc username/email/phone đã tồn tại")
+    })
+    @PostMapping("/create-with-user")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public ResponseData<EmployeeResponse> createEmployeeWithUser(
+            @Valid @RequestBody org.example.ptcmssbackend.dto.request.Employee.CreateEmployeeWithUserRequest request) {
+        try {
+            System.out.println("Controller received create-with-user request: " + request.getUsername());
+            Employees saved = employeeService.createEmployeeWithUser(request);
+            return new ResponseData<>(
+                    HttpStatus.OK.value(),
+                    "Create employee with user successfully",
+                    employeeMapper.toDTO(saved)
+            );
+        } catch (Exception e) {
+            System.err.println("Error creating employee with user: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to create employee with user: " + e.getMessage());
         }
     }
 

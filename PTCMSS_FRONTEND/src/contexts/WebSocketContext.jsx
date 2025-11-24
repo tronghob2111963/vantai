@@ -32,29 +32,53 @@ export const WebSocketProvider = ({ children }) => {
         console.log('[WebSocket] Connected');
         setConnected(true);
 
-        // Subscribe to global notifications
+        // Subscribe to global notifications (includes all types)
         const sub1 = client.subscribe('/topic/notifications', (message) => {
           const notification = JSON.parse(message.body);
           console.log('[WebSocket] Received notification:', notification);
-          setNotifications((prev) => [notification, ...prev]);
+          
+          // Check if notification already exists to prevent duplicates
+          setNotifications((prev) => {
+            const exists = prev.some(n => 
+              n.id === notification.id || 
+              (n.timestamp === notification.timestamp && n.message === notification.message)
+            );
+            if (exists) {
+              console.log('[WebSocket] Duplicate notification ignored');
+              return prev;
+            }
+            return [notification, ...prev];
+          });
         });
 
-        // Subscribe to booking updates
+        // Subscribe to booking updates (separate channel for real-time updates)
         const sub2 = client.subscribe('/topic/bookings', (message) => {
           const update = JSON.parse(message.body);
           console.log('[WebSocket] Received booking update:', update);
-          setNotifications((prev) => [
-            {
-              id: Date.now(),
-              title: 'Cập nhật đơn hàng',
-              message: update.message,
-              type: 'BOOKING_UPDATE',
-              timestamp: update.timestamp,
-              read: false,
-              data: update
-            },
-            ...prev
-          ]);
+          
+          // Only add if not already in notifications
+          setNotifications((prev) => {
+            const exists = prev.some(n => 
+              n.data?.bookingId === update.bookingId && 
+              n.timestamp === update.timestamp
+            );
+            if (exists) {
+              console.log('[WebSocket] Duplicate booking notification ignored');
+              return prev;
+            }
+            return [
+              {
+                id: Date.now(),
+                title: 'Cập nhật đơn hàng',
+                message: update.message,
+                type: 'BOOKING_UPDATE',
+                timestamp: update.timestamp,
+                read: false,
+                data: update
+              },
+              ...prev
+            ];
+          });
         });
 
         // Subscribe to payment updates

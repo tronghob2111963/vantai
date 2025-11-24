@@ -54,7 +54,7 @@ function normalizeTripDetail(payload) {
     pickup_time: payload.startTime || "",
     customer_name: payload.customerName || "",
     customer_phone: payload.customerPhone || "",
-    vehicle_plate: payload.vehiclePlate || "Chua gan xe",
+    vehicle_plate: payload.vehiclePlate || "Chưa gán xe",
     vehicle_type: payload.vehicleModel || "",
     note: "",
   };
@@ -204,7 +204,7 @@ function TripMetaCard({ trip }) {
           )}
         </div>
         <div>
-          <div className="text-xs text-slate-500">Thong tin xe</div>
+          <div className="text-xs text-slate-500">Thông tin xe</div>
           <div className="font-semibold text-slate-900">
             {trip.vehicle_plate} {trip.vehicle_type ? `· ${trip.vehicle_type}` : ""}
           </div>
@@ -219,7 +219,7 @@ function RouteCard({ pickupLocation, dropoffLocation, pickupTime }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-4 shadow-inner">
       <div className="flex items-center gap-2 text-slate-600 text-xs font-medium uppercase tracking-wide">
         <Navigation className="h-4 w-4 text-sky-600" />
-        Lo trinh
+        Lộ trình
       </div>
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         <div className="flex-1 flex gap-3">
@@ -232,24 +232,24 @@ function RouteCard({ pickupLocation, dropoffLocation, pickupTime }) {
             <div>
               <div className="text-[11px] text-slate-500 mb-1 flex items-center gap-1 font-medium">
                 <MapPin className="h-3.5 w-3.5 text-emerald-600" />
-                Diem don
+                Điểm đón
               </div>
               <div className="font-semibold text-slate-900">{pickupLocation || "—"}</div>
-              <div className="text-xs text-slate-500">Thoi gian: {fmtDateTime(pickupTime)}</div>
+              <div className="text-xs text-slate-500">Thời gian: {fmtDateTime(pickupTime)}</div>
             </div>
             <div>
               <div className="text-[11px] text-slate-500 mb-1 flex items-center gap-1 font-medium">
                 <MapPin className="h-3.5 w-3.5 text-rose-600" />
-                Diem tra
+                Điểm trả
               </div>
               <div className="font-semibold text-slate-900">{dropoffLocation || "—"}</div>
-              <div className="text-xs text-slate-500">Ket thuc: Sau khi don khach</div>
+              <div className="text-xs text-slate-500">Kết thúc: Sau khi đón khách</div>
             </div>
           </div>
         </div>
         <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 p-3 text-xs flex items-start gap-2">
           <AlertTriangle className="h-4 w-4" />
-          <span>Den diem don dung gio va goi khach truoc ~10 phut.</span>
+          <span>Đến điểm đón đúng giờ và gọi khách trước ~10 phút.</span>
         </div>
       </div>
     </div>
@@ -258,10 +258,10 @@ function RouteCard({ pickupLocation, dropoffLocation, pickupTime }) {
 
 function getNextStepInfo(status) {
   if (status === "NOT_STARTED") {
-    return { btnText: "Bat dau chuyen", to: "IN_PROGRESS", desc: "Xac nhan bat dau di chuyen den diem don." };
+    return { btnText: "Bắt đầu chuyến", to: "IN_PROGRESS", desc: "Xác nhận bắt đầu di chuyển đến điểm đón." };
   }
   if (status === "IN_PROGRESS") {
-    return { btnText: "Hoan thanh chuyen", to: "COMPLETED", desc: "Xac nhan da dua khach den diem den." };
+    return { btnText: "Hoàn thành chuyến", to: "COMPLETED", desc: "Xác nhận đã đưa khách đến điểm đến." };
   }
   return null;
 }
@@ -290,7 +290,7 @@ export default function DriverTripDetailPage() {
       setError("");
     } catch (err) {
       setTrip(null);
-      setError(err?.data?.message || err?.message || "Khong tai duoc chi tiet chuyen.");
+      setError(err?.data?.message || err?.message || "Không tải được chi tiết chuyến.");
     } finally {
       if (silent) setDetailLoading(false);
       else setLoading(false);
@@ -302,7 +302,7 @@ export default function DriverTripDetailPage() {
     async function load() {
       try {
         const uid = getCookie("userId");
-        if (!uid) throw new Error("Khong xac dinh tai khoan.");
+        if (!uid) throw new Error("Không xác định tài khoản.");
         const profile = await getDriverProfileByUser(uid);
         if (cancelled) return;
         setDriver(profile);
@@ -317,7 +317,7 @@ export default function DriverTripDetailPage() {
         }
         if (!targetTripId) {
           setTrip(null);
-          setError("Ban hien chua co chuyen nao duoc giao.");
+          setError("Bạn hiện chưa có chuyến nào được giao.");
           setLoading(false);
           return;
         }
@@ -325,7 +325,7 @@ export default function DriverTripDetailPage() {
       } catch (err) {
         if (!cancelled) {
           setTrip(null);
-          setError(err?.data?.message || err?.message || "Khong tai duoc chi tiet chuyen.");
+          setError(err?.data?.message || err?.message || "Không tải được chi tiết chuyến.");
           setLoading(false);
         }
       }
@@ -352,10 +352,10 @@ export default function DriverTripDetailPage() {
     try {
       if (nextStatus === "IN_PROGRESS") await apiStartTrip(driver.driverId, trip.id);
       else if (nextStatus === "COMPLETED") await apiCompleteTrip(driver.driverId, trip.id);
-      pushToast("Da cap nhat trang thai chuyen.", "success");
+      pushToast("Đã cập nhật trạng thái chuyến.", "success");
       await loadTripDetail(trip.id, { silent: true });
     } catch (err) {
-      pushToast(err?.data?.message || err?.message || "Khong the cap nhat trang thai chuyen.", "error");
+      pushToast(err?.data?.message || err?.message || "Không thể cập nhật trạng thái chuyến.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -364,7 +364,7 @@ export default function DriverTripDetailPage() {
   const tripRouteLabel = trip ? `${trip.pickup_location} -> ${trip.dropoff_location}` : "";
 
   const handleExpenseSubmitted = ({ amount }) => {
-    pushToast(`Da gui bao cao chi phi +${Number(amount || 0).toLocaleString("vi-VN")}đ`, "success");
+    pushToast(`Đã gửi báo cáo chi phí +${Number(amount || 0).toLocaleString("vi-VN")}đ`, "success");
   };
 
   return (
@@ -373,14 +373,14 @@ export default function DriverTripDetailPage() {
       {loading ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 flex items-center gap-3 text-slate-600 shadow-sm">
           <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
-          <span>Dang tai chi tiet chuyen...</span>
+          <span>Đang tải chi tiết chuyến...</span>
         </div>
       ) : trip ? (
         <>
           {detailLoading && (
             <div className="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
-              <span>Dang cap nhat du lieu...</span>
+              <span>Đang cập nhật dữ liệu...</span>
             </div>
           )}
           <div className="flex flex-col lg:flex-row lg:items-start gap-4 mb-5">
@@ -388,7 +388,7 @@ export default function DriverTripDetailPage() {
               <div className="flex flex-wrap items-start gap-3">
                 <div className="text-2xl font-semibold text-slate-900 flex items-center gap-2 leading-tight">
                   <Flag className="h-6 w-6 text-emerald-600" />
-                  <span>Chi tiet chuyen</span>
+                  <span>Chi tiết chuyến</span>
                 </div>
                 <StatusChip status={trip.status} />
               </div>
@@ -396,7 +396,7 @@ export default function DriverTripDetailPage() {
                 <div className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5 text-slate-400" />
                   <span>
-                    Don luc{" "}
+                    Đón lúc{" "}
                     <span className="text-slate-800 font-semibold">
                       {fmtDateTime(trip.pickup_time)}
                     </span>
@@ -431,7 +431,7 @@ export default function DriverTripDetailPage() {
                   {actionLoading ? (
                     <span className="inline-flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Dang cap nhat...
+                      Đang cập nhật...
                     </span>
                   ) : (
                     stepInfo.btnText
@@ -440,7 +440,7 @@ export default function DriverTripDetailPage() {
               ) : (
                 <div className="rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-medium px-4 py-2 flex items-center gap-2 justify-center shadow-sm">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  Da hoan thanh chuyen
+                  Đã hoàn thành chuyến
                 </div>
               )}
               <button
@@ -448,14 +448,14 @@ export default function DriverTripDetailPage() {
                 className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm text-slate-700 px-4 py-2 flex items-center justify-center gap-2 shadow-sm"
               >
                 <BadgeDollarSign className="h-4 w-4 text-emerald-600" />
-                <span>Bao cao chi phi</span>
+                <span>Báo cáo chi phí</span>
               </button>
             </div>
           </div>
           <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-900/5">
             <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium flex items-center gap-2 mb-3">
               <Navigation className="h-4 w-4 text-sky-600" />
-              Tien trinh chuyen di
+              Tiến trình chuyến đi
             </div>
             <ProgressSteps status={trip.status} />
           </div>
@@ -465,8 +465,8 @@ export default function DriverTripDetailPage() {
           </div>
           <ConfirmModal
             open={confirmOpen}
-            title="Xac nhan cap nhat trang thai"
-            message={`Ban muon danh dau trang thai:\n${nextLabel}\n\nThao tac nay se bao ve dieu phoi.`}
+            title="Xác nhận cập nhật trạng thái"
+            message={`Bạn muốn đánh dấu trạng thái:\n${nextLabel}\n\nThao tác này sẽ báo về điều phối.`}
             onCancel={() => setConfirmOpen(false)}
             onConfirm={doChangeStatus}
           />
@@ -480,7 +480,7 @@ export default function DriverTripDetailPage() {
         </>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600 shadow-sm">
-          {error || "Ban hien chua co chuyen nao duoc giao."}
+          {error || "Bạn hiện chưa có chuyến nào được giao."}
         </div>
       )}
     </div>

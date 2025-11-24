@@ -1,4 +1,4 @@
-package org.example.ptcmssbackend.entity;
+                package org.example.ptcmssbackend.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -65,6 +65,7 @@ public class SystemAlerts {
     private Branches branch;
     
     @Column(name = "isAcknowledged")
+    @lombok.Builder.Default
     private Boolean isAcknowledged = false;
     
     @ManyToOne(fetch = FetchType.LAZY)
