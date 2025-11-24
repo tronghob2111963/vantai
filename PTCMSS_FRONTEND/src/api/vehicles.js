@@ -45,8 +45,34 @@ export function deleteVehicle(id) {
   return apiFetch(`/api/vehicles/${id}`, { method: "DELETE" });
 }
 
+// ==================== Vehicle Category APIs ====================
+
 export function listVehicleCategories() {
   return apiFetch("/api/vehicle-categories");
+}
+
+export function getVehicleCategory(id) {
+  return apiFetch(`/api/vehicle-categories/${id}`);
+}
+
+export function createVehicleCategory(body) {
+  return apiFetch("/api/vehicle-categories", {
+    method: "POST",
+    body,
+  });
+}
+
+export function updateVehicleCategory(id, body) {
+  return apiFetch(`/api/vehicle-categories/${id}`, {
+    method: "PUT",
+    body,
+  });
+}
+
+export function deleteVehicleCategory(id) {
+  return apiFetch(`/api/vehicle-categories/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export function listVehiclesByBranch(branchId) {

@@ -22,6 +22,14 @@ public interface EmployeeRepository extends JpaRepository<Employees, Integer> {
     @Query("SELECT e FROM Employees e WHERE e.user.id = :userId")
     Optional<Employees> findByUserId(Integer userId);
 
+    //  Tìm nhân viên theo user_id với JOIN FETCH
+    @Query("SELECT e FROM Employees e " +
+           "LEFT JOIN FETCH e.user " +
+           "LEFT JOIN FETCH e.branch " +
+           "LEFT JOIN FETCH e.role " +
+           "WHERE e.user.id = :userId")
+    Optional<Employees> findByUser_Id(Integer userId);
+
     //  Tìm danh sách nhân viên theo branch_id với JOIN FETCH để load eager
     @Query("SELECT e FROM Employees e " +
            "LEFT JOIN FETCH e.user " +

@@ -643,7 +643,7 @@ function EditVehicleModal({
                         {/* year */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                N─âm SX{" "}
+                                Ngày sản xuất{" "}
                                 <span className="text-red-500">*</span>
                             </div>
                             <input

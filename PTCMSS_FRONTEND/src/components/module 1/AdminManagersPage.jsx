@@ -27,14 +27,8 @@ export default function AdminManagersPage() {
 
   const filterAssignableRoles = React.useCallback(
     (list) => {
-      // Luôn filter Admin role - không cho phép tạo Admin
-      const deny = new Set(["ADMIN"]);
-      
-      // Nếu là Manager thì cũng không cho tạo Manager
-      if (currentRole === ROLES.MANAGER) {
-        deny.add("MANAGER");
-      }
-      
+      if (currentRole !== ROLES.MANAGER) return list;
+      const deny = new Set(["ADMIN", "MANAGER"]);
       return (list || []).filter((r) => !deny.has((r.roleName || "").toUpperCase()));
     },
     [currentRole]

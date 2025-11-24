@@ -11,7 +11,7 @@ public interface UserService {
     Integer createUser(CreateUserRequest request);
     Integer updateUser(Integer id, UpdateUserRequest request);
     List<UserResponse> getAllUsers(String keyword, Integer roleId, UserStatus status);
-    UserResponse getUserById(Integer id);
+    UserResponse getUserById(Integer id, Integer currentUserId);
     void toggleUserStatus(Integer id);
 
     //  Thêm hàm upload ảnh đại diện
