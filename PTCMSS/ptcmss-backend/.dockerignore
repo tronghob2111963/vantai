@@ -1,15 +1,37 @@
+# Maven
 target/
-.mvn/
-mvnw
-mvnw.cmd
-*.md
-.git
+!target/*.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
 .gitignore
+
+# Env
 .env
 .env.local
-.DS_Store
-.idea
-.vscode
-*.iml
-*.log
-
