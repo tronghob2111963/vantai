@@ -89,9 +89,22 @@ export default function ReportRevenuePage() {
         (async () => {
             try {
                 const branchesData = await listBranches({ size: 100 });
-                setBranches(Array.isArray(branchesData) ? branchesData : []);
+                console.log("[ReportRevenuePage] Branches loaded:", branchesData);
+                
+                // Handle paginated response - backend returns {items: [...], pageNo, pageSize, totalElements, totalPages}
+                if (branchesData?.items && Array.isArray(branchesData.items)) {
+                    setBranches(branchesData.items);
+                } else if (branchesData?.content && Array.isArray(branchesData.content)) {
+                    setBranches(branchesData.content);
+                } else if (Array.isArray(branchesData)) {
+                    setBranches(branchesData);
+                } else {
+                    console.warn("[ReportRevenuePage] Unexpected branches format:", branchesData);
+                    setBranches([]);
+                }
             } catch (err) {
-                console.error("Error loading branches:", err);
+                console.error("[ReportRevenuePage] Error loading branches:", err);
+                setBranches([]);
             }
         })();
     }, []);
@@ -341,16 +354,21 @@ export default function ReportRevenuePage() {
                             <select
                                 className="bg-transparent outline-none text-[13px] text-gray-800 w-full"
                                 value={branchId || ""}
-                                onChange={(e) =>
-                                    setBranchId(e.target.value ? Number(e.target.value) : null)
-                                }
+                                onChange={(e) => {
+                                    console.log('[ReportRevenuePage] Branch selected:', e.target.value);
+                                    setBranchId(e.target.value ? Number(e.target.value) : null);
+                                }}
                             >
                                 <option value="">Tất cả chi nhánh</option>
-                                {branches.map((b) => (
-                                    <option key={b.branchId} value={b.branchId}>
-                                        {b.branchName}
-                                    </option>
-                                ))}
+                                {branches.length > 0 ? (
+                                    branches.map((b) => (
+                                        <option key={b.branchId || b.id} value={b.branchId || b.id}>
+                                            {b.branchName || b.name || 'Unknown'}
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option disabled>Đang tải...</option>
+                                )}
                             </select>
                         </div>
                     </div>

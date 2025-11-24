@@ -100,8 +100,40 @@ export default function CreateEmployeeWithUserPage() {
         return Object.keys(newErrors).length === 0;
     };
 
+    // Helper function to generate username from full name
+    const generateUsername = (fullName) => {
+        if (!fullName) return "";
+        
+        // Remove Vietnamese accents
+        const from = "àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ";
+        const to = "aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd";
+        
+        let result = fullName.toLowerCase().trim();
+        for (let i = 0; i < from.length; i++) {
+            result = result.replace(new RegExp(from[i], "g"), to[i]);
+        }
+        
+        // Replace spaces with dots and remove special characters
+        result = result.replace(/\s+/g, ".").replace(/[^a-z0-9.]/g, "");
+        
+        return result;
+    };
+
     const updateField = (field, value) => {
-        setForm((prev) => ({ ...prev, [field]: value }));
+        // Auto-suggest username when fullName changes (only if username is empty)
+        if (field === "fullName" && value) {
+            setForm((prev) => {
+                const newForm = { ...prev, [field]: value };
+                // Only auto-suggest if username is empty or was auto-generated
+                if (!prev.username || prev.username === generateUsername(prev.fullName)) {
+                    newForm.username = generateUsername(value);
+                }
+                return newForm;
+            });
+        } else {
+            setForm((prev) => ({ ...prev, [field]: value }));
+        }
+        
         setErrors((prev) => ({ ...prev, [field]: undefined }));
         setGeneralError("");
     };
@@ -212,33 +244,7 @@ export default function CreateEmployeeWithUserPage() {
                             <h2 className="text-base font-bold text-slate-900">Thông tin tài khoản</h2>
                         </div>
 
-                        {/* Username */}
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                <User className="h-4 w-4 text-slate-400" />
-                                <span>Tên đăng nhập</span>
-                                <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                                    errors.username 
-                                        ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
-                                        : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                                }`}
-                                value={form.username}
-                                onChange={(e) => updateField("username", e.target.value)}
-                                placeholder="Ví dụ: nguyen.van.a"
-                            />
-                            {errors.username && (
-                                <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
-                                    <AlertCircle className="h-3.5 w-3.5" />
-                                    <span>{errors.username}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Full Name */}
+                        {/* Full Name - Moved to top */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                                 <User className="h-4 w-4 text-slate-400" />
@@ -260,6 +266,38 @@ export default function CreateEmployeeWithUserPage() {
                                 <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
                                     <AlertCircle className="h-3.5 w-3.5" />
                                     <span>{errors.fullName}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Username - Auto-suggested from full name */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                <User className="h-4 w-4 text-slate-400" />
+                                <span>Tên đăng nhập</span>
+                                <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
+                                    errors.username 
+                                        ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
+                                        : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
+                                }`}
+                                value={form.username}
+                                onChange={(e) => updateField("username", e.target.value)}
+                                placeholder="Tự động gợi ý từ họ tên"
+                            />
+                            {errors.username && (
+                                <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
+                                    <AlertCircle className="h-3.5 w-3.5" />
+                                    <span>{errors.username}</span>
+                                </div>
+                            )}
+                            {form.username && !errors.username && (
+                                <div className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+                                    <Info className="h-3.5 w-3.5" />
+                                    <span>Username được gợi ý từ họ tên (có thể chỉnh sửa)</span>
                                 </div>
                             )}
                         </div>

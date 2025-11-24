@@ -618,6 +618,7 @@ export default function VehicleCategoryManagePage() {
 
     async function handleSaved(cat) {
         try {
+            console.log("[UPDATE] Sending update request:", cat);
             const result = await updateVehicleCategory(cat.id, {
                 categoryName: cat.name,
                 seats: cat.seats,
@@ -629,13 +630,20 @@ export default function VehicleCategoryManagePage() {
                 status: cat.status,
             });
 
-            setCategories((arr) =>
-                arr.map((i) => (i.id === cat.id ? mapCat(result) : i))
-            );
+            console.log("[UPDATE] Response:", result);
+            const mapped = mapCat(result);
+            console.log("[UPDATE] Mapped result:", mapped);
+
+            setCategories((arr) => {
+                const updated = arr.map((i) => (i.id === cat.id ? mapped : i));
+                console.log("[UPDATE] Updated categories:", updated);
+                return updated;
+            });
 
             pushToast("Cập nhật thành công", "success");
         } catch (e) {
-            pushToast("Cập nhật thất bại", "error");
+            console.error("[UPDATE] Error:", e);
+            pushToast("Cập nhật thất bại: " + (e.message || "Unknown error"), "error");
         }
     }
 
@@ -728,6 +736,7 @@ Quản lý danh mục xe
                                     <td className="px-4 py-3 align-top">
                                         <button
                                             onClick={() => {
+                                                console.log("[EDIT] Opening modal for category:", cat);
                                                 setEditData(cat);
                                                 setEditOpen(true);
                                             }}

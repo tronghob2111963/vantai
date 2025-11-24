@@ -94,10 +94,15 @@ export default function EmployeeManagementPage() {
     };
 
     // Filter logic - Chỉ lọc search và role ở frontend (branch đã lọc ở backend)
+    // QUAN TRỌNG: Loại bỏ Admin khỏi danh sách vì Admin không phải employee
     const filteredEmployees = React.useMemo(() => {
         return employees.filter((emp) => {
             const userName = emp.userFullName?.toLowerCase() || "";
+            const roleName = emp.roleName?.toLowerCase() || "";
             const search = searchTerm.toLowerCase();
+
+            // Loại bỏ Admin
+            if (roleName === "admin") return false;
 
             const matchSearch = !searchTerm || userName.includes(search);
             const matchRole = !filterRole || emp.roleId === Number(filterRole);
@@ -174,11 +179,13 @@ export default function EmployeeManagementPage() {
                         className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
                     >
                         <option value="">Tất cả</option>
-                        {roles.map((r, index) => (
-                            <option key={r.id || `role-${index}`} value={r.id}>
-                                {r.roleName}
-                            </option>
-                        ))}
+                        {roles
+                            .filter((r) => r.roleName?.toLowerCase() !== "admin")
+                            .map((r, index) => (
+                                <option key={r.id || `role-${index}`} value={r.id}>
+                                    {r.roleName}
+                                </option>
+                            ))}
                     </select>
                 </div>
             </div>

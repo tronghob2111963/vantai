@@ -160,6 +160,8 @@ import EmployeeManagementPage from "./components/module 1/EmployeeManagementPage
 import CreateEmployeePage from "./components/module 1/CreateEmployeePage.jsx";
 import CreateEmployeeWithUserPage from "./components/module 1/CreateEmployeeWithUserPage.jsx";
 import EditEmployeePage from "./components/module 1/EditEmployeePage.jsx";
+import VerificationSuccessPage from "./components/module 1/VerificationSuccessPage.jsx";
+import VerificationErrorPage from "./components/module 1/VerificationErrorPage.jsx";
 
 /* Module 2 – Tài xế */
 import DriverDashboard from "./components/module 2/DriverDashboard.jsx";
@@ -228,13 +230,18 @@ function SidebarSection({
   const hasActiveItem = items.some(item => location.pathname.startsWith(item.to));
   // Section đang active nếu có item active hoặc section đang mở
   const isCurrentSection = hasActiveItem || open;
-  
-  // Không cho phép đóng nếu section này đang chứa route hiện tại
-  const canToggle = !hasActiveItem;
 
   const handleToggle = () => {
-    if (!canToggle) return; // Không cho đóng nếu đang ở trang trong section này
-    setActiveSection((curr) => (curr === sectionId ? "" : sectionId));
+    // Nếu section đang đóng, mở nó
+    if (!open) {
+      setActiveSection(sectionId);
+    } else {
+      // Nếu section đang mở và không có item active, cho phép đóng
+      if (!hasActiveItem) {
+        setActiveSection("");
+      }
+      // Nếu có item active, giữ nguyên (không đóng)
+    }
   };
 
   return (
@@ -243,13 +250,11 @@ function SidebarSection({
       <button
         type="button"
         onClick={handleToggle}
-        disabled={!canToggle && open}
-        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out ${
+        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out cursor-pointer active:scale-[0.98] ${
           isCurrentSection 
             ? "bg-gradient-to-r from-sky-50 to-blue-50 shadow-sm shadow-sky-100/50" 
             : "hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 hover:shadow-sm hover:shadow-sky-100/50"
-        } ${canToggle || !open ? "active:scale-[0.98] cursor-pointer" : "cursor-default"}`}
-        title={!canToggle && open ? "Đang ở trang này, không thể đóng" : ""}
+        }`}
       >
         <span className="flex items-center gap-2.5">
           {React.createElement(icon, { 
@@ -271,7 +276,7 @@ function SidebarSection({
           {open ? (
             <ChevronDown className={`h-4 w-4 transition-all duration-200 ${
               isCurrentSection ? "text-[#0079BC] rotate-0" : "text-slate-400"
-            } ${!canToggle ? "opacity-60" : ""}`} />
+            }`} />
           ) : (
             <ChevronRight className={`h-4 w-4 transition-all duration-200 text-slate-400 group-hover:text-[#0079BC] group-hover:translate-x-0.5`} />
           )}
@@ -431,7 +436,7 @@ function SidebarNav() {
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm fixed left-0 top-0 bottom-0 z-10">
       {/* brand / account mini */}
       <div className="px-4 py-4 border-b border-slate-200 flex items-center gap-3 bg-gradient-to-br from-white to-slate-50/50">
         <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-[0_8px_24px_rgba(0,121,188,.35)] flex-shrink-0 transition-transform duration-200 hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,121,188,.45)]" style={{ backgroundColor: '#0079BC' }}>
@@ -503,7 +508,7 @@ function SidebarNav() {
         )}
       </nav>
 
-      <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50/50">v0.1 thử nghiệm</div>
+      {/* <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50/50">v0.1 thử nghiệm</div> */}
     </aside>
   );
 }
@@ -592,7 +597,7 @@ function ShellLayout() {
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <SidebarNav />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 ml-64">
         <Topbar />
         <main className="flex-1 overflow-y-auto p-5">
           {/* Ghi chú: Một số màn con vẫn theme dark. Có thể refactor sau. */}
@@ -627,6 +632,8 @@ export default function AppLayout() {
       <Routes>
         {/* Trang đăng nhập không dùng shell */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verification-success" element={<VerificationSuccessPage />} />
+        <Route path="/verification-error" element={<VerificationErrorPage />} />
         <Route path="/" element={<RoleRedirect />} />
 
         {/* Các route cần shell layout */}

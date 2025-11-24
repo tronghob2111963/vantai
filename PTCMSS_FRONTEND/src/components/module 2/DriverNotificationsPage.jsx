@@ -320,10 +320,11 @@ export default function DriverNotificationsPage() {
         }
     }, [page, pageSize, push]);
 
-    // Load on mount
+    // Load on mount and when page/pageSize changes
     React.useEffect(() => {
         loadNotifications();
-    }, [loadNotifications]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, pageSize]);
 
     // refresh
     const onRefresh = () => {

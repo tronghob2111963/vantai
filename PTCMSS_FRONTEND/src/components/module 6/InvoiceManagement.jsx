@@ -1284,6 +1284,7 @@ export default function InvoiceManagement() {
             id: iv.invoiceId,
             invoice_no: iv.invoiceNumber || `INV-${iv.invoiceId}`,
             customer: iv.customerName || "—",
+            customerEmail: iv.customerEmail,
             order_code: iv.bookingId ? `ORD-${iv.bookingId}` : "—",
             total: Number(iv.amount || 0),
             paid: Number(iv.paidAmount || 0),
@@ -1475,14 +1476,27 @@ export default function InvoiceManagement() {
 
     // Gửi HĐ qua email
     const onSendInvoice = async (iv) => {
+        // Get customer email from invoice
+        const customerEmail = iv.customer_email || iv.customerEmail;
+        
+        if (!customerEmail) {
+            push("❌ Không tìm thấy email khách hàng", "error", 3000);
+            return;
+        }
+        
+        // Show loading notification
+        push(`📧 Đang gửi hóa đơn ${iv.invoice_no}...`, "info", 2000);
+        
         try {
             await sendInvoice(iv.id, {
-                email: "", // Will use customer email from invoice
+                email: customerEmail,
+                message: `Hóa đơn ${iv.invoice_no} từ TranspoManager`
             });
-            push(`Đã gửi hóa đơn ${iv.invoice_no} qua email`, "success");
+            push(`✅ Đã gửi hóa đơn ${iv.invoice_no} đến ${customerEmail}`, "success", 4000);
         } catch (err) {
             console.error("Error sending invoice:", err);
-            push("Lỗi khi gửi email: " + (err.message || "Unknown error"), "error");
+            const errorMsg = err?.data?.message || err?.message || "Unknown error";
+            push(`❌ Lỗi khi gửi email: ${errorMsg}`, "error", 4000);
         }
     };
 

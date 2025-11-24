@@ -12,6 +12,7 @@ export function getVehicleCategory(id) {
 function toReq(b) {
   return {
     categoryName: b.categoryName ?? b.name,
+    seats: b.seats ?? null,
     description: b.description ?? "",
     baseFare: b.baseFare ?? null,
     pricePerKm: b.pricePerKm ?? null,
