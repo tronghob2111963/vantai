@@ -15,11 +15,11 @@ import {
 
 import DepositModal from "./DepositModal.jsx";
 import {
-  listInvoices,
-  createInvoice,
-  recordPayment,
-  sendInvoice,
-  generateInvoiceNumber,
+    listInvoices,
+    createInvoice,
+    recordPayment,
+    sendInvoice,
+    generateInvoiceNumber,
 } from "../../api/invoices";
 import { listBookings } from "../../api/bookings";
 import { exportInvoiceListToExcel, exportInvoiceToPdf } from "../../api/exports";
@@ -71,7 +71,7 @@ function StatusBadge({ status }) {
 /* ===== Toast mini ===== */
 function useToasts() {
     const [toasts, setToasts] = React.useState([]);
-    const push = (
+    const push = React.useCallback((
         msg,
         kind = "info",
         ttl = 2400
@@ -90,7 +90,7 @@ function useToasts() {
                 )
             );
         }, ttl);
-    };
+    }, []);
     return { toasts, push };
 }
 
@@ -122,11 +122,11 @@ function Toasts({ toasts }) {
 
 /* ===== Modal tạo HĐ từ đơn hàng hoàn thành ===== */
 function CreateInvoiceModal({
-                                open,
-                                orders,
-                                onCancel,
-                                onCreate,
-                            }) {
+    open,
+    orders,
+    onCancel,
+    onCreate,
+}) {
     const [selected, setSelected] =
         React.useState(null);
     const [q, setQ] = React.useState("");
@@ -204,95 +204,95 @@ function CreateInvoiceModal({
                     <div className="max-h-[360px] overflow-y-auto rounded-lg border border-gray-200">
                         <table className="w-full text-sm">
                             <thead className="text-xs text-gray-500 border-b border-gray-200 bg-gray-50">
-                            <tr>
-                                <th className="px-3 py-2 w-10" />
-                                <th className="px-3 py-2 text-left font-medium">
-                                    Mã
-                                    đơn
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium">
-                                    Khách
-                                    hàng
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium whitespace-nowrap">
-                                    Tổng
-                                    tiền
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium whitespace-nowrap">
-                                    Hoàn
-                                    thành lúc
-                                </th>
-                            </tr>
+                                <tr>
+                                    <th className="px-3 py-2 w-10" />
+                                    <th className="px-3 py-2 text-left font-medium">
+                                        Mã
+                                        đơn
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium">
+                                        Khách
+                                        hàng
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium whitespace-nowrap">
+                                        Tổng
+                                        tiền
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium whitespace-nowrap">
+                                        Hoàn
+                                        thành lúc
+                                    </th>
+                                </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                            {list.map(
-                                (
-                                    o
-                                ) => (
-                                    <tr
-                                        key={
-                                            o.id
-                                        }
-                                        className="hover:bg-gray-50"
-                                    >
-                                        <td className="px-3 py-2">
-                                            <input
-                                                type="radio"
-                                                name="order"
-                                                checked={
-                                                    selected ===
-                                                    o.id
-                                                }
-                                                onChange={() =>
-                                                    setSelected(
-                                                        o.id
-                                                    )
-                                                }
-                                                className="accent-[#0079BC]"
-                                            />
-                                        </td>
-                                        <td className="px-3 py-2 text-gray-900 font-medium">
-                                            {
-                                                o.code
+                                {list.map(
+                                    (
+                                        o
+                                    ) => (
+                                        <tr
+                                            key={
+                                                o.id
                                             }
-                                        </td>
-                                        <td className="px-3 py-2 text-gray-700">
-                                            {
-                                                o.customer
-                                            }
-                                        </td>
-                                        <td className="px-3 py-2 tabular-nums font-semibold text-gray-900">
-                                            {fmtVND(
-                                                o.total
-                                            )}{" "}
-                                            đ
-                                        </td>
-                                        <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
-                                            {
-                                                o.completed_at
-                                            }
-                                        </td>
-                                    </tr>
-                                )
-                            )}
-
-                            {list.length ===
-                                0 && (
-                                    <tr>
-                                        <td
-                                            colSpan={
-                                                5
-                                            }
-                                            className="px-3 py-8 text-center text-gray-500 text-sm"
+                                            className="hover:bg-gray-50"
                                         >
-                                            Không
-                                            có
-                                            đơn
-                                            phù
-                                            hợp.
-                                        </td>
-                                    </tr>
+                                            <td className="px-3 py-2">
+                                                <input
+                                                    type="radio"
+                                                    name="order"
+                                                    checked={
+                                                        selected ===
+                                                        o.id
+                                                    }
+                                                    onChange={() =>
+                                                        setSelected(
+                                                            o.id
+                                                        )
+                                                    }
+                                                    className="accent-[#0079BC]"
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-900 font-medium">
+                                                {
+                                                    o.code
+                                                }
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-700">
+                                                {
+                                                    o.customer
+                                                }
+                                            </td>
+                                            <td className="px-3 py-2 tabular-nums font-semibold text-gray-900">
+                                                {fmtVND(
+                                                    o.total
+                                                )}{" "}
+                                                đ
+                                            </td>
+                                            <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                                                {
+                                                    o.completed_at
+                                                }
+                                            </td>
+                                        </tr>
+                                    )
                                 )}
+
+                                {list.length ===
+                                    0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={
+                                                    5
+                                                }
+                                                className="px-3 py-8 text-center text-gray-500 text-sm"
+                                            >
+                                                Không
+                                                có
+                                                đơn
+                                                phù
+                                                hợp.
+                                            </td>
+                                        </tr>
+                                    )}
                             </tbody>
                         </table>
                     </div>
@@ -329,9 +329,9 @@ function CreateInvoiceModal({
                                 ? undefined
                                 : {
                                     backgroundColor:
-                                    BRAND_COLOR,
+                                        BRAND_COLOR,
                                     borderColor:
-                                    BRAND_COLOR,
+                                        BRAND_COLOR,
                                 }
                         }
                     >
@@ -346,17 +346,17 @@ function CreateInvoiceModal({
 
 /* ===== Toolbar ===== */
 function Toolbar({
-                     query,
-                     setQuery,
-                     statusFilter,
-                     setStatusFilter,
-                     onCreateClick,
-                     onRefresh,
-                     onExportCsv,
-                     loading,
-                     debtMode,
-                     toggleDebtMode,
-                 }) {
+    query,
+    setQuery,
+    statusFilter,
+    setStatusFilter,
+    onCreateClick,
+    onRefresh,
+    onExportCsv,
+    loading,
+    debtMode,
+    toggleDebtMode,
+}) {
     return (
         <div className="flex flex-wrap items-center gap-3 w-full">
             {/* nút tạo hóa đơn (ẩn khi ở công nợ) */}
@@ -368,9 +368,9 @@ function Toolbar({
                     className="rounded-lg px-3 py-2 text-sm font-medium text-white shadow-sm flex items-center gap-1 hover:brightness-110"
                     style={{
                         backgroundColor:
-                        BRAND_COLOR,
+                            BRAND_COLOR,
                         borderColor:
-                        BRAND_COLOR,
+                            BRAND_COLOR,
                     }}
                 >
                     <FilePlus2
@@ -393,7 +393,7 @@ function Toolbar({
                 className="rounded-lg border px-3 py-2 text-sm font-medium flex items-center gap-1 bg-white hover:bg-gray-50 shadow-sm"
                 style={{
                     borderColor:
-                    BRAND_COLOR,
+                        BRAND_COLOR,
                     color: BRAND_COLOR,
                 }}
             >
@@ -503,11 +503,11 @@ function Toolbar({
 
 /* ===== InvoiceTable ===== */
 function InvoiceTable({
-                          items,
-                          onRecordPayment,
-                          onSendInvoice,
-                          onExportPdf,
-                      }) {
+    items,
+    onRecordPayment,
+    onSendInvoice,
+    onExportPdf,
+}) {
     const [page, setPage] =
         React.useState(1);
     const [pageSize, setPageSize] =
@@ -582,12 +582,12 @@ function InvoiceTable({
 
             if (A < B)
                 return sortDir ===
-                "asc"
+                    "asc"
                     ? -1
                     : 1;
             if (A > B)
                 return sortDir ===
-                "asc"
+                    "asc"
                     ? 1
                     : -1;
             return 0;
@@ -639,7 +639,7 @@ function InvoiceTable({
                             d
                         ) =>
                             d ===
-                            "asc"
+                                "asc"
                                 ? "desc"
                                 : "asc"
                     );
@@ -656,9 +656,9 @@ function InvoiceTable({
             <span className="inline-flex items-center gap-1">
                 {label}
                 {sortKey ===
-                key ? (
+                    key ? (
                     sortDir ===
-                    "asc" ? (
+                        "asc" ? (
                         <ChevronUp className="h-3 w-3 text-gray-500" />
                     ) : (
                         <ChevronDown className="h-3 w-3 text-gray-500" />
@@ -672,158 +672,158 @@ function InvoiceTable({
         <div className="overflow-x-auto bg-white">
             <table className="w-full text-left text-sm">
                 <thead className="text-xs text-gray-500 border-b border-gray-200 bg-gray-50">
-                <tr>
-                    {headerCell(
-                        "invoice_no",
-                        "Số hóa đơn"
-                    )}
-                    {headerCell(
-                        "customer",
-                        "Tên khách hàng"
-                    )}
-                    {headerCell(
-                        "order_code",
-                        "Mã đơn hàng"
-                    )}
-                    {headerCell(
-                        "total",
-                        "Tổng tiền"
-                    )}
-                    {headerCell(
-                        "paid",
-                        "Đã thanh toán"
-                    )}
-                    {headerCell(
-                        "balance",
-                        "Còn lại"
-                    )}
-                    {headerCell(
-                        "due_at",
-                        "Hạn TT"
-                    )}
-                    {headerCell(
-                        "status",
-                        "Trạng thái"
-                    )}
-                    <th className="px-3 py-2 font-medium text-gray-600 text-xs sm:text-[13px] whitespace-nowrap">
-                        Hành động
-                    </th>
-                </tr>
+                    <tr>
+                        {headerCell(
+                            "invoice_no",
+                            "Số hóa đơn"
+                        )}
+                        {headerCell(
+                            "customer",
+                            "Tên khách hàng"
+                        )}
+                        {headerCell(
+                            "order_code",
+                            "Mã đơn hàng"
+                        )}
+                        {headerCell(
+                            "total",
+                            "Tổng tiền"
+                        )}
+                        {headerCell(
+                            "paid",
+                            "Đã thanh toán"
+                        )}
+                        {headerCell(
+                            "balance",
+                            "Còn lại"
+                        )}
+                        {headerCell(
+                            "due_at",
+                            "Hạn TT"
+                        )}
+                        {headerCell(
+                            "status",
+                            "Trạng thái"
+                        )}
+                        <th className="px-3 py-2 font-medium text-gray-600 text-xs sm:text-[13px] whitespace-nowrap">
+                            Hành động
+                        </th>
+                    </tr>
                 </thead>
 
                 <tbody className="divide-y divide-gray-200">
-                {current.map(
-                    (iv) => {
-                        const balance =
-                            Math.max(
-                                0,
-                                (iv.total ||
-                                    0) -
-                                (iv.paid ||
-                                    0)
-                            );
-                        return (
-                            <tr
-                                key={
-                                    iv.id
-                                }
-                                className="hover:bg-gray-50"
-                            >
-                                <td className="px-3 py-2 text-sm text-gray-900 font-medium">
-                                    {iv.invoice_no || `INV-${iv.id}`}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-gray-800">
-                                    {iv.customer || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-gray-800">
-                                    {iv.order_code || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-sm font-semibold tabular-nums text-gray-900">
-                                    {fmtVND(iv.total || 0)} đ
-                                </td>
-                                <td className="px-3 py-2 text-sm tabular-nums text-gray-800">
-                                    {fmtVND(iv.paid || 0)} đ
-                                </td>
-                                <td className="px-3 py-2 text-sm tabular-nums text-gray-800">
-                                    {fmtVND(balance)} đ
-                                </td>
-                                <td className="px-3 py-2 text-[11px] text-gray-500 whitespace-nowrap">
-                                    {iv.due_at || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-sm">
-                                    <StatusBadge status={iv.status} />
-                                </td>
-                                <td className="px-3 py-2">
-                                    <div className="flex flex-wrap gap-2">
-                                        {/* Ghi nhận thanh toán */}
-                                        <button
-                                            onClick={() =>
-                                                onRecordPayment(
-                                                    iv
-                                                )
-                                            }
-                                            className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
-                                        >
-                                            <BadgeDollarSign className="h-3.5 w-3.5 text-gray-500" />
-                                            <span>
+                    {current.map(
+                        (iv) => {
+                            const balance =
+                                Math.max(
+                                    0,
+                                    (iv.total ||
+                                        0) -
+                                    (iv.paid ||
+                                        0)
+                                );
+                            return (
+                                <tr
+                                    key={
+                                        iv.id
+                                    }
+                                    className="hover:bg-gray-50"
+                                >
+                                    <td className="px-3 py-2 text-sm text-gray-900 font-medium">
+                                        {iv.invoice_no || `INV-${iv.id}`}
+                                    </td>
+                                    <td className="px-3 py-2 text-sm text-gray-800">
+                                        {iv.customer || "—"}
+                                    </td>
+                                    <td className="px-3 py-2 text-sm text-gray-800">
+                                        {iv.order_code || "—"}
+                                    </td>
+                                    <td className="px-3 py-2 text-sm font-semibold tabular-nums text-gray-900">
+                                        {fmtVND(iv.total || 0)} đ
+                                    </td>
+                                    <td className="px-3 py-2 text-sm tabular-nums text-gray-800">
+                                        {fmtVND(iv.paid || 0)} đ
+                                    </td>
+                                    <td className="px-3 py-2 text-sm tabular-nums text-gray-800">
+                                        {fmtVND(balance)} đ
+                                    </td>
+                                    <td className="px-3 py-2 text-[11px] text-gray-500 whitespace-nowrap">
+                                        {iv.due_at || "—"}
+                                    </td>
+                                    <td className="px-3 py-2 text-sm">
+                                        <StatusBadge status={iv.status} />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <div className="flex flex-wrap gap-2">
+                                            {/* Ghi nhận thanh toán */}
+                                            <button
+                                                onClick={() =>
+                                                    onRecordPayment(
+                                                        iv
+                                                    )
+                                                }
+                                                className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
+                                            >
+                                                <BadgeDollarSign className="h-3.5 w-3.5 text-gray-500" />
+                                                <span>
                                                     Ghi
                                                     nhận
                                                 </span>
-                                        </button>
+                                            </button>
 
-                                        {/* Gửi HĐ qua email */}
-                                        <button
-                                            onClick={() =>
-                                                onSendInvoice(
-                                                    iv
-                                                )
-                                            }
-                                            className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
-                                        >
-                                            <Mail className="h-3.5 w-3.5 text-gray-500" />
-                                            <span>
+                                            {/* Gửi HĐ qua email */}
+                                            <button
+                                                onClick={() =>
+                                                    onSendInvoice(
+                                                        iv
+                                                    )
+                                                }
+                                                className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
+                                            >
+                                                <Mail className="h-3.5 w-3.5 text-gray-500" />
+                                                <span>
                                                     Gửi
                                                     HĐ
                                                 </span>
-                                        </button>
+                                            </button>
 
-                                        {/* Xuất PDF */}
-                                        <button
-                                            onClick={() =>
-                                                onExportPdf(
-                                                    iv
-                                                )
-                                            }
-                                            className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
-                                        >
-                                            <FileDown className="h-3.5 w-3.5 text-gray-500" />
-                                            <span>
+                                            {/* Xuất PDF */}
+                                            <button
+                                                onClick={() =>
+                                                    onExportPdf(
+                                                        iv
+                                                    )
+                                                }
+                                                className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
+                                            >
+                                                <FileDown className="h-3.5 w-3.5 text-gray-500" />
+                                                <span>
                                                     PDF
                                                 </span>
-                                        </button>
-                                    </div>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        }
+                    )}
+
+                    {current.length ===
+                        0 && (
+                            <tr>
+                                <td
+                                    colSpan={
+                                        9
+                                    }
+                                    className="px-3 py-6 text-center text-gray-500 text-sm"
+                                >
+                                    Không
+                                    có hóa
+                                    đơn
+                                    nào.
                                 </td>
                             </tr>
-                        );
-                    }
-                )}
-
-                {current.length ===
-                    0 && (
-                        <tr>
-                            <td
-                                colSpan={
-                                    9
-                                }
-                                className="px-3 py-6 text-center text-gray-500 text-sm"
-                            >
-                                Không
-                                có hóa
-                                đơn
-                                nào.
-                            </td>
-                        </tr>
-                    )}
+                        )}
                 </tbody>
             </table>
 
@@ -892,13 +892,13 @@ function InvoiceTable({
 
 /* ===== PaginationInfo ===== */
 function PaginationInfo({
-                            page,
-                            totalPages,
-                            onPrev,
-                            onNext,
-                            pageSize,
-                            setPageSize,
-                        }) {
+    page,
+    totalPages,
+    onPrev,
+    onNext,
+    pageSize,
+    setPageSize,
+}) {
     return (
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
             <button
@@ -936,7 +936,7 @@ function PaginationInfo({
                 className={cls(
                     "rounded-lg border px-2 py-1.5 bg-white text-gray-700 shadow-sm hover:bg-gray-50 flex items-center justify-center",
                     page >=
-                    totalPages
+                        totalPages
                         ? "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50"
                         : "border-gray-300"
                 )}
@@ -1190,19 +1190,19 @@ export default function InvoiceManagement() {
                 sortBy: debtMode ? "dueDate" : "createdAt",
                 sortDir: debtMode ? "asc" : "desc",
             };
-            
+
             if (debtMode) {
                 params.overdueOnly = true;
             } else if (statusFilter) {
                 params.paymentStatus = statusFilter;
             }
-            
+
             if (query.trim()) {
                 params.keyword = query.trim();
             }
-            
+
             const response = await listInvoices(params);
-            
+
             // Handle paginated response
             if (response && response.content) {
                 setInvoices(response.content || []);
@@ -1231,19 +1231,19 @@ export default function InvoiceManagement() {
             const orders = response?.content || response?.data?.content || response?.data || response || [];
             const formatted = (Array.isArray(orders) ? orders : []).map(order => {
                 const bookingId = order.bookingId || order.id;
-                
+
                 // Extract branchId from multiple possible sources
-                const branchId = order.branchId 
+                const branchId = order.branchId
                     || (order.branch && (order.branch.id || order.branch.branchId))
                     || (order.branchId && Number(order.branchId))
                     || null;
-                
+
                 // Extract customerId from multiple possible sources
-                const customerId = order.customerId 
+                const customerId = order.customerId
                     || (order.customer && (order.customer.id || order.customer.customerId))
                     || (order.customerId && Number(order.customerId))
                     || null;
-                
+
                 return {
                     id: bookingId,
                     code: order.bookingCode || order.code || (bookingId ? `ORD-${bookingId}` : "ORD-?"),
@@ -1257,7 +1257,7 @@ export default function InvoiceManagement() {
                 // Only include orders that have both branchId and customerId
                 return order.branchId != null && order.customerId != null;
             });
-            
+
             console.log("Loaded completed orders:", formatted);
             setCompletedOrders(formatted);
         } catch (err) {
@@ -1298,14 +1298,14 @@ export default function InvoiceManagement() {
     // Filter and sort (client-side for now, can be moved to server)
     const filtered = React.useMemo(() => {
         let base = [...transformedInvoices];
-        
+
         if (debtMode) {
-            base = base.filter((iv) => 
+            base = base.filter((iv) =>
                 iv.status === STATUS.UNPAID || iv.status === STATUS.OVERDUE
             );
             base = sortDebtPriority(base);
         }
-        
+
         return base;
     }, [transformedInvoices, debtMode]);
 
@@ -1392,13 +1392,13 @@ export default function InvoiceManagement() {
 
             const response = await createInvoice(request);
             const newInvoice = response?.data || response;
-            
+
             setCreateOpen(false);
             push(`Đã tạo hóa đơn ${newInvoice?.invoiceNumber || invoiceNumber || "thành công"}`, "success");
             loadInvoices(); // Reload list
         } catch (err) {
             console.error("Error creating invoice:", err);
-            
+
             // Extract error message from different possible formats
             let errorMessage = "Lỗi không xác định";
             if (err?.data?.message) {
@@ -1410,7 +1410,7 @@ export default function InvoiceManagement() {
             } else if (typeof err === "string") {
                 errorMessage = err;
             }
-            
+
             push(`Lỗi khi tạo hóa đơn: ${errorMessage}`, "error");
         } finally {
             setLoading(false);
@@ -1519,7 +1519,7 @@ export default function InvoiceManagement() {
                         className="ml-auto rounded-lg border px-2 py-1 text-[11px] font-medium flex items-center gap-1 bg-white shadow-sm"
                         style={{
                             borderColor:
-                            BRAND_COLOR,
+                                BRAND_COLOR,
                             color: BRAND_COLOR,
                         }}
                     >
@@ -1718,7 +1718,7 @@ const DEMO_INVOICES = [
         total: 5_500_000,
         paid: 2_000_000,
         status:
-        STATUS.UNPAID,
+            STATUS.UNPAID,
         created_at:
             "2025-10-15",
         due_at:
@@ -1735,7 +1735,7 @@ const DEMO_INVOICES = [
         total: 3_250_000,
         paid: 3_250_000,
         status:
-        STATUS.PAID,
+            STATUS.PAID,
         created_at:
             "2025-10-16",
         due_at:
@@ -1752,7 +1752,7 @@ const DEMO_INVOICES = [
         total: 9_900_000,
         paid: 1_900_000,
         status:
-        STATUS.OVERDUE,
+            STATUS.OVERDUE,
         created_at:
             "2025-09-10",
         due_at:
@@ -1769,7 +1769,7 @@ const DEMO_INVOICES = [
         total: 1_200_000,
         paid: 0,
         status:
-        STATUS.UNPAID,
+            STATUS.UNPAID,
         created_at:
             "2025-10-20",
         due_at:
