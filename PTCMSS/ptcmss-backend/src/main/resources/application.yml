@@ -7,6 +7,7 @@ spring:
     hibernate:
       ddl-auto: update  # Auto create/update tables from entities
     show-sql: true
+    defer-datasource-initialization: true  # IMPORTANT: Run data.sql AFTER Hibernate creates tables
     properties:
       hibernate:
         # Use physical naming strategy to match database column names exactly
