@@ -124,11 +124,11 @@ export default function EmployeeManagementPage() {
                 </div>
                 {isAdmin && (
                     <button
-                        onClick={() => navigate("/admin/employees/create")}
+                        onClick={() => navigate("/admin/users/new")}
                         className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg shadow-sm font-medium transition-all"
                     >
                         <Plus size={18} />
-                        Tạo nhân viên mới
+                        Tạo tài khoản mới
                     </button>
                 )}
             </div>

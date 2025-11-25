@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -440,39 +441,56 @@ public class AnalyticsService {
         LocalDateTime startDate = dates.get("start");
         LocalDateTime endDate = dates.get("end");
         
-        // Convert LocalDateTime to Instant for database comparison
-        Instant startInstant = startDate.atZone(ZoneId.systemDefault()).toInstant();
-        Instant endInstant = endDate.atZone(ZoneId.systemDefault()).toInstant();
+        // Convert to Timestamp for JDBC compatibility
+        Timestamp tripStart = Timestamp.valueOf(startDate);
+        Timestamp tripEnd = Timestamp.valueOf(endDate);
+        Timestamp invoiceStart = Timestamp.valueOf(startDate);
+        Timestamp invoiceEnd = Timestamp.valueOf(endDate); 
 
-        String sql = "SELECT " +
-                "v.licensePlate, " +
-                "COALESCE(SUM(t.distance), 0) as totalKm, " +
-                "COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' AND (i.costType = 'FUEL' OR i.costType = 'MAINTENANCE' OR i.costType = 'TOLL') THEN i.amount ELSE 0 END), 0) as totalCost, " +
-                "CASE " +
-                "  WHEN COALESCE(SUM(t.distance), 0) > 0 THEN " +
-                "    COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' AND (i.costType = 'FUEL' OR i.costType = 'MAINTENANCE' OR i.costType = 'TOLL') THEN i.amount ELSE 0 END), 0) / COALESCE(SUM(t.distance), 1) " +
-                "  ELSE 0 " +
-                "END as costPerKm " +
-                "FROM vehicles v " +
-                "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
-                "LEFT JOIN trips t ON tv.tripId = t.tripId AND t.status = 'COMPLETED' " +
-                "  AND t.startTime >= ? AND t.startTime <= ? " +
-                "LEFT JOIN invoices i ON i.vehicleId = v.vehicleId " +
-                "  AND i.status = 'ACTIVE' AND i.type = 'EXPENSE' " +
-                "  AND (i.costType = 'FUEL' OR i.costType = 'MAINTENANCE' OR i.costType = 'TOLL') " +
-                "  AND i.invoiceDate >= ? AND i.invoiceDate <= ? " +
-                "WHERE v.branchId = ? AND v.status != 'INACTIVE' " +
-                "GROUP BY v.vehicleId, v.licensePlate " +
-                "HAVING totalKm > 0 " +
-                "ORDER BY costPerKm ASC, totalKm DESC " +
-                "LIMIT 10";
-
+        String sql = """
+                SELECT 
+                    v.licensePlate,
+                    COALESCE(trips.totalKm, 0) AS totalKm,
+                    COALESCE(costs.totalCost, 0) AS totalCost,
+                    CASE
+                        WHEN COALESCE(trips.totalKm, 0) > 0 THEN COALESCE(costs.totalCost, 0) / COALESCE(trips.totalKm, 1)
+                        ELSE 0
+                    END AS costPerKm
+                FROM vehicles v
+                LEFT JOIN (
+                    SELECT 
+                        tv.vehicleId,
+                        SUM(t.distance) AS totalKm
+                    FROM trip_vehicles tv
+                    INNER JOIN trips t ON tv.tripId = t.tripId
+                        AND t.status = 'COMPLETED'
+                        AND t.startTime BETWEEN ? AND ?
+                    GROUP BY tv.vehicleId
+                ) trips ON v.vehicleId = trips.vehicleId
+                LEFT JOIN (
+                    SELECT 
+                        e.vehicleId,
+                        SUM(e.amount) AS totalCost
+                    FROM expenses e
+                    WHERE e.vehicleId IS NOT NULL
+                      AND e.branchId = ?
+                      AND e.category IN ('FUEL', 'MAINTENANCE', 'TOLL')
+                      AND e.status IN ('APPROVED', 'PAID')
+                      AND e.expenseDate BETWEEN ? AND ?
+                    GROUP BY e.vehicleId
+                ) costs ON v.vehicleId = costs.vehicleId
+                WHERE v.branchId = ?
+                  AND v.status <> 'INACTIVE'
+                  AND COALESCE(trips.totalKm, 0) > 0
+                ORDER BY costPerKm ASC, totalKm DESC
+                LIMIT 10
+                """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
                 "licensePlate", rs.getString("licensePlate"),
                 "totalKm", rs.getBigDecimal("totalKm"),
                 "totalCost", rs.getBigDecimal("totalCost"),
                 "costPerKm", rs.getBigDecimal("costPerKm")
-        ), startInstant, endInstant, startDate, endDate, branchId);
+        ), tripStart, tripEnd, branchId, invoiceStart, invoiceEnd, branchId);
     }
 
     /**

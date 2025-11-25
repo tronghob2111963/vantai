@@ -154,12 +154,12 @@ import CreateBranchPage from "./components/module 1/CreateBranchPage.jsx";
 import AdminBranchesPage from "./components/module 1/AdminBranchesPage.jsx";
 import AdminBranchDetailPage from "./components/module 1/AdminBranchDetailPage.jsx";
 import AdminUsersPage from "./components/module 1/AdminUsersPage.jsx";
+import CreateUserPage from "./components/module 1/CreateUserPage.jsx";
 import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
 import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
 import UpdateProfilePage from "./components/module 1/UpdateProfilePage.jsx";
 import LoginPage from "./components/module 1/LoginPage.jsx";
 import EmployeeManagementPage from "./components/module 1/EmployeeManagementPage.jsx";
-import CreateEmployeePage from "./components/module 1/CreateEmployeePage.jsx";
 import CreateEmployeeWithUserPage from "./components/module 1/CreateEmployeeWithUserPage.jsx";
 import EditEmployeePage from "./components/module 1/EditEmployeePage.jsx";
 import VerificationSuccessPage from "./components/module 1/VerificationSuccessPage.jsx";
@@ -780,6 +780,14 @@ export default function AppLayout() {
             }
           />
           <Route
+            path="/admin/users/new"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <CreateUserPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/users/:userId"
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
@@ -800,14 +808,6 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
                 <EmployeeManagementPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/employees/create"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-                <CreateEmployeePage />
               </ProtectedRoute>
             }
           />

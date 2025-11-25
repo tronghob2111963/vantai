@@ -1,7 +1,7 @@
 // CreateOrderPage.jsx (LIGHT THEME)
 import React from "react";
 import { listVehicleCategories } from "../../api/vehicleCategories";
-import { calculatePrice, createBooking } from "../../api/bookings";
+import { calculatePrice, createBooking, getBooking, pageBookings } from "../../api/bookings";
 import { calculateDistance } from "../../api/graphhopper";
 import PlaceAutocomplete from "../common/PlaceAutocomplete";
 import {
@@ -24,7 +24,11 @@ import {
     Plus,
     Minus,
     Search,
+    History,
+    Sparkles,
+    ArrowRight,
 } from "lucide-react";
+import AnimatedDialog from "../common/AnimatedDialog";
 
 /**
  * M4.S2 - Create Order (Tạo Đơn Hàng)
@@ -65,6 +69,95 @@ const cls = (...a) => a.filter(Boolean).join(" ");
 const fmtVND = (n) =>
     new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(n || 0)));
 
+function stripAccents(str = "") {
+    try {
+        return str
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase();
+    } catch {
+        return String(str || "").toLowerCase();
+    }
+}
+
+function normalizeNumberValue(value) {
+    if (value == null) return NaN;
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : NaN;
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return NaN;
+
+    // Remove all characters except digits, dot, comma, minus
+    const digitsOnly = raw.replace(/[^\d.,-]/g, "");
+    if (!digitsOnly) return NaN;
+
+    // Replace commas with dots to unify decimal separators
+    const dotNormalized = digitsOnly.replace(/,/g, ".");
+
+    // If there are multiple dots, treat the last one as decimal and remove the others (thousand separators)
+    const parts = dotNormalized.split(".");
+    let normalizedNumber = dotNormalized;
+    if (parts.length > 2) {
+        const decimalPart = parts.pop();
+        const integerPart = parts.join("");
+        normalizedNumber = `${integerPart}.${decimalPart}`;
+    }
+
+    const parsed = parseFloat(normalizedNumber);
+    return Number.isNaN(parsed) ? NaN : parsed;
+}
+
+function mapHireTypeNameToCode(name) {
+    const normalized = stripAccents(name);
+    if (!normalized) return "ONE_WAY";
+    if (normalized.includes("hai") || normalized.includes("round") || normalized.includes("khu")) {
+        return "ROUND_TRIP";
+    }
+    if (normalized.includes("ngay") || normalized.includes("daily")) {
+        return "DAILY";
+    }
+    if (normalized.includes("multi")) {
+        return "MULTI_DAY";
+    }
+    if (normalized.includes("co dinh") || normalized.includes("fixed")) {
+        return "FIXED_ROUTE";
+    }
+    return "ONE_WAY";
+}
+
+function toDatetimeLocalValue(isoString) {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return "";
+    const tzOffsetMinutes = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - tzOffsetMinutes * 60 * 1000);
+    return localDate.toISOString().slice(0, 16);
+}
+
+function formatReadableDateTime(isoString) {
+    if (!isoString) return "Chưa rõ";
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return "Chưa rõ";
+    return date.toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
+function extractPageItems(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload.items)) return payload.items;
+    if (Array.isArray(payload.data?.items)) return payload.data.items;
+    if (Array.isArray(payload.content)) return payload.content;
+    if (Array.isArray(payload.data?.content)) return payload.data.content;
+    return [];
+}
+
 // Convert "YYYY-MM-DDTHH:mm" (datetime-local) to ISO string with Z
 function toIsoZ(s) {
     if (!s) return null;
@@ -78,13 +171,16 @@ function toIsoZ(s) {
 /* mini toast (light style) */
 function useToasts() {
     const [toasts, setToasts] = React.useState([]);
-    const push = (msg, kind = "info", ttl = 2500) => {
-        const id = Math.random().toString(36).slice(2);
-        setToasts((arr) => [...arr, { id, msg, kind }]);
-        setTimeout(() => {
-            setToasts((arr) => arr.filter((t) => t.id !== id));
-        }, ttl);
-    };
+    const push = React.useCallback(
+        (msg, kind = "info", ttl = 2500) => {
+            const id = Math.random().toString(36).slice(2);
+            setToasts((arr) => [...arr, { id, msg, kind }]);
+            setTimeout(() => {
+                setToasts((arr) => arr.filter((t) => t.id !== id));
+            }, ttl);
+        },
+        [setToasts]
+    );
     return { toasts, push };
 }
 function Toasts({ toasts }) {
@@ -156,6 +252,9 @@ export default function CreateOrderPage() {
     const [paxCount, setPaxCount] = React.useState(1);
     const [vehicleCount, setVehicleCount] =
         React.useState(1); // Mặc định = 1
+    const [recentBookingSuggestion, setRecentBookingSuggestion] = React.useState(null);
+    const [showPrefillDialog, setShowPrefillDialog] = React.useState(false);
+    const [prefillLoading, setPrefillLoading] = React.useState(false);
 
     // branch mặc định theo user đăng nhập
     const [branchId] = React.useState("1");
@@ -198,8 +297,8 @@ export default function CreateOrderPage() {
     const [discount, setDiscount] = React.useState(0);
     const [discountReason, setDiscountReason] =
         React.useState("");
-    const [quotedPrice, setQuotedPrice] =
-        React.useState(0);
+    const [quotedPrice, setQuotedPrice] = React.useState(0);
+    const [quotedPriceTouched, setQuotedPriceTouched] = React.useState(false);
 
     const [calculatingPrice, setCalculatingPrice] =
         React.useState(false);
@@ -213,6 +312,88 @@ export default function CreateOrderPage() {
     const [isWeekend, setIsWeekend] = React.useState(false);
     const [additionalPickupPoints, setAdditionalPickupPoints] = React.useState(0);
     const [additionalDropoffPoints, setAdditionalDropoffPoints] = React.useState(0);
+    const loadRecentBookingSuggestion = React.useCallback(async (phoneNumber) => {
+        if (!phoneNumber) return;
+        try {
+            const payload = await pageBookings({
+                keyword: phoneNumber,
+                page: 1,
+                size: 1,
+                sortBy: "id:desc",
+            });
+            const items = extractPageItems(payload);
+            if (items.length > 0) {
+                const latest = items[0];
+                setRecentBookingSuggestion({
+                    id: latest.id,
+                    customerName: latest.customerName,
+                    routeSummary: latest.routeSummary,
+                    startDate: latest.startDate,
+                    totalCost: latest.totalCost,
+                    status: latest.status,
+                });
+                setShowPrefillDialog(true);
+            } else {
+                setRecentBookingSuggestion(null);
+            }
+        } catch (error) {
+            console.error("Failed to load recent booking suggestion:", error);
+        }
+    }, []);
+    const applyBookingToForm = React.useCallback((booking) => {
+        if (!booking) return;
+        setHireTypeId(booking.hireTypeId ? String(booking.hireTypeId) : "");
+        setHireType(mapHireTypeNameToCode(booking.hireTypeName));
+        setCustomerName(booking.customer?.fullName || "");
+        setEmail(booking.customer?.email || "");
+        const primaryTrip = booking.trips?.[0];
+        setPickup(primaryTrip?.startLocation || "");
+        setDropoff(primaryTrip?.endLocation || "");
+        setStartTime(primaryTrip?.startTime ? toDatetimeLocalValue(primaryTrip.startTime) : "");
+        setEndTime(primaryTrip?.endTime ? toDatetimeLocalValue(primaryTrip.endTime) : "");
+        if (Array.isArray(booking.vehicles) && booking.vehicles.length > 0) {
+            const firstVehicle = booking.vehicles[0];
+            if (firstVehicle?.vehicleCategoryId) {
+                setCategoryId(String(firstVehicle.vehicleCategoryId));
+            }
+            const totalVehicles = booking.vehicles.reduce((sum, v) => sum + (v.quantity || 0), 0);
+            if (totalVehicles > 0) {
+                setVehicleCount(totalVehicles);
+            }
+        }
+        if (primaryTrip?.distance != null) {
+            const parsedDistance = normalizeNumberValue(primaryTrip.distance);
+            if (!Number.isNaN(parsedDistance)) {
+                setDistanceKm(parsedDistance.toFixed(2));
+            }
+        }
+        setDiscount(Number(booking.discountAmount || 0));
+        setQuotedPrice(Number(booking.totalCost || 0));
+        setQuotedPriceTouched(false);
+        setEstPriceSys(Number(booking.estimatedCost || 0));
+    }, []);
+    const handleApplyRecentBooking = React.useCallback(async () => {
+        if (!recentBookingSuggestion?.id) return;
+        try {
+            setPrefillLoading(true);
+            const booking = await getBooking(recentBookingSuggestion.id);
+            applyBookingToForm(booking);
+            push(`Đã tự động điền theo đơn #${recentBookingSuggestion.id}`, "success");
+            setShowPrefillDialog(false);
+        } catch (error) {
+            console.error("Prefill booking failed:", error);
+            push("Không thể tải đơn hàng gần nhất để tự động điền", "error");
+        } finally {
+            setPrefillLoading(false);
+        }
+    }, [recentBookingSuggestion, applyBookingToForm, push]);
+    React.useEffect(() => {
+        const cleaned = (phone || "").replace(/[^0-9]/g, "");
+        if (!cleaned || cleaned.length < 10) {
+            setRecentBookingSuggestion(null);
+            setShowPrefillDialog(false);
+        }
+    }, [phone]);
 
     // load categories from backend
     React.useEffect(() => {
@@ -271,7 +452,14 @@ export default function CreateOrderPage() {
 
             try {
                 const result = await calculateDistance(pickup, dropoff);
-                setDistanceKm(String(result.distance));
+                const parsedDistance = normalizeNumberValue(result.distance);
+                if (Number.isNaN(parsedDistance)) {
+                    setDistanceError("Không xác định được quãng đường. Vui lòng nhập thủ công.");
+                    setDistanceKm("");
+                } else {
+                    setDistanceError("");
+                    setDistanceKm(parsedDistance.toFixed(2));
+                }
                 push(`Khoảng cách: ${result.formattedDistance} (~${result.formattedDuration})`, "success");
             } catch (error) {
                 console.error("Distance calculation error:", error);
@@ -332,13 +520,13 @@ export default function CreateOrderPage() {
                 });
                 const base = Number(price || 0);
                 setEstPriceSys(base);
-                setQuotedPrice((old) => (old > 0 ? old : base));
+                setQuotedPrice((old) => (quotedPriceTouched ? old : base));
             } catch {} finally {
                 setCalculatingPrice(false);
             }
         };
         run();
-    }, [categoryId, vehicleCount, distanceKm, hireTypeId, isHoliday, isWeekend, additionalPickupPoints, additionalDropoffPoints, startTime, endTime]);
+    }, [categoryId, vehicleCount, distanceKm, hireTypeId, isHoliday, isWeekend, additionalPickupPoints, additionalDropoffPoints, startTime, endTime, quotedPriceTouched]);
 
     /* --- submit states --- */
     const [loadingDraft, setLoadingDraft] =
@@ -351,7 +539,8 @@ export default function CreateOrderPage() {
     React.useEffect(() => {
         const timeoutId = setTimeout(async () => {
             // Chỉ search nếu phone có ít nhất 10 số
-            if (!phone || phone.replace(/[^0-9]/g, "").length < 10) {
+            const normalizedPhone = phone ? phone.replace(/[^0-9]/g, "") : "";
+            if (!phone || normalizedPhone.length < 10) {
                 return;
             }
             
@@ -373,6 +562,7 @@ export default function CreateOrderPage() {
                         setCustomerName(customer.fullName);
                         if (customer.email) setEmail(customer.email);
                         push("Đã tìm thấy khách hàng trong hệ thống", "success");
+                        await loadRecentBookingSuggestion(normalizedPhone);
                     }
                 } else if (response.status === 404) {
                     // Không tìm thấy - không làm gì, user sẽ nhập thủ công
@@ -386,7 +576,7 @@ export default function CreateOrderPage() {
         }, 1000); // Debounce 1 giây
         
         return () => clearTimeout(timeoutId);
-    }, [phone]);
+    }, [phone, loadRecentBookingSuggestion, push]);
 
     /* --- helpers nhỏ --- */
     const numOnly = (s) => s.replace(/[^0-9]/g, "");
@@ -837,8 +1027,21 @@ export default function CreateOrderPage() {
                                 <input
                                     type="number"
                                     min="0"
+                                    step="0.01"
                                     value={distanceKm}
-                                    onChange={(e) => setDistanceKm(e.target.value)}
+                                    onChange={(e) => {
+                                        const raw = e.target.value;
+                                        if (raw === "" || raw === null) {
+                                            setDistanceKm("");
+                                            return;
+                                        }
+                                        const numberValue = Number(raw);
+                                        if (Number.isNaN(numberValue)) {
+                                            setDistanceKm(raw);
+                                            return;
+                                        }
+                                        setDistanceKm(numberValue.toFixed(2));
+                                    }}
                                     className={cls(inputCls, "tabular-nums")}
                                     placeholder={calculatingDistance ? "Đang tính..." : "Tự động tính hoặc nhập thủ công"}
                                     disabled={calculatingDistance}
@@ -905,7 +1108,8 @@ export default function CreateOrderPage() {
                                 </div>
                                 <input
                                     value={quotedPrice}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                        setQuotedPriceTouched(true);
                                         setQuotedPrice(
                                             Number(
                                                 numOnly(
@@ -914,8 +1118,8 @@ export default function CreateOrderPage() {
                                                         .value
                                                 )
                                             ) || 0
-                                        )
-                                    }
+                                        );
+                                    }}
                                     className={cls(
                                         inputCls,
                                         "tabular-nums font-semibold"
@@ -1243,23 +1447,85 @@ export default function CreateOrderPage() {
 
             {/* FOOTER NOTE */}
             {/* <div className="text-[11px] text-slate-500 mt-8 leading-relaxed">
-                <div className="opacity-80">
-                    API khi submit:
-                </div>
-                <div className="font-mono text-[11px] text-slate-400 break-all">
-                    POST /api/orders
-                </div>
-                <div className="font-mono text-[11px] text-slate-400 break-all whitespace-pre-wrap">
-                    {JSON.stringify(
-                        {
-                            ...basePayload,
-                            status: "PENDING",
-                        },
-                        null,
-                        2
-                    )}
-                </div>
+                ...
             </div> */}
+
+            {recentBookingSuggestion && showPrefillDialog && (
+                <AnimatedDialog
+                    open={showPrefillDialog}
+                    onClose={() => setShowPrefillDialog(false)}
+                    size="lg"
+                >
+                    <div className="p-6 space-y-5">
+                        <div className="flex items-start gap-3">
+                            <div className="h-12 w-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-inner">
+                                <History className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
+                                    Khách quen vừa được nhận diện
+                                </p>
+                                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                                    {recentBookingSuggestion.customerName || "Khách hàng cũ"}
+                                    <Sparkles className="h-4 w-4 text-amber-500" />
+                                </h3>
+                                <p className="text-sm text-slate-600 mt-1">
+                                    Hệ thống tìm thấy đơn gần nhất của khách này. Bạn có muốn tự động điền lại theo lịch sử để tiết kiệm thời gian không?
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 grid sm:grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <p className="text-slate-500 mb-1">Hành trình</p>
+                                <p className="font-semibold text-slate-900">
+                                    {recentBookingSuggestion.routeSummary || "Chưa có mô tả"}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-slate-500 mb-1">Thời gian dự kiến</p>
+                                <p className="font-semibold text-slate-900">
+                                    {formatReadableDateTime(recentBookingSuggestion.startDate)}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-slate-500 mb-1">Giá báo khách</p>
+                                <p className="font-semibold text-emerald-600">
+                                    {fmtVND(recentBookingSuggestion.totalCost)} đ
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-600 bg-white flex items-center gap-2">
+                            <ArrowRight className="h-4 w-4 text-sky-500" />
+                            Bạn có thể chỉnh lại sau khi hệ thống tự động điền thông tin từ đơn #{recentBookingSuggestion.id}.
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowPrefillDialog(false)}
+                                className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium bg-white hover:bg-slate-50 transition-colors"
+                            >
+                                Để sau
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleApplyRecentBooking}
+                                disabled={prefillLoading}
+                                className="px-4 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {prefillLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Sparkles className="h-4 w-4" />
+                                )}
+                                Tự động điền ngay
+                            </button>
+                        </div>
+                    </div>
+                </AnimatedDialog>
+            )}
         </div>
     );
 }

@@ -226,6 +226,14 @@ export default function AdminUsersPage() {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             <button 
+              onClick={() => navigate("/admin/users/new")}
+              disabled={isManagerView && (managerBranchLoading || !branchFilterValue)}
+              className="inline-flex items-center gap-2 rounded-lg border border-transparent bg-[#0079BC] hover:bg-[#0067a1] px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Tạo tài khoản</span>
+            </button>
+            <button 
               onClick={onRefresh} 
               disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))} 
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50 transition-all active:scale-[0.98]"
