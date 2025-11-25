@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { listUsers, listUsersByBranch, listRoles, toggleUserStatus } from "../../api/users";
 import { listEmployeesByRole } from "../../api/employees";
-import { RefreshCw, PlusCircle, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield } from "lucide-react";
+import { RefreshCw, PlusCircle, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, Building2 } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -25,13 +25,16 @@ export default function AdminUsersPage() {
   const navigate = useNavigate();
   const [users, setUsers] = React.useState([]);
   const [roles, setRoles] = React.useState([]);
+  const [branches, setBranches] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [keyword, setKeyword] = React.useState("");
   const [roleId, setRoleId] = React.useState("");
   const [status, setStatus] = React.useState("");
+  const [branchFilter, setBranchFilter] = React.useState("");
   const currentRole = React.useMemo(() => getCurrentRole(), []);
   const currentUserId = React.useMemo(() => getStoredUserId(), []);
   const isManagerView = currentRole === ROLES.MANAGER;
+  const isAdminView = currentRole === ROLES.ADMIN;
   const [managerBranchInfo, setManagerBranchInfo] = React.useState({ id: null, name: "" });
   const [managerBranchLoading, setManagerBranchLoading] = React.useState(isManagerView);
   const [managerBranchError, setManagerBranchError] = React.useState("");
@@ -136,6 +139,9 @@ export default function AdminUsersPage() {
       let data;
       if (isManagerView) {
         data = await listUsersByBranch(branchFilterValue);
+      } else if (isAdminView && branchFilter) {
+        // ADMIN filter by branch
+        data = await listUsersByBranch(branchFilter);
       } else {
         // Load tất cả users, không filter ở API level
         data = await listUsers();
@@ -147,7 +153,9 @@ export default function AdminUsersPage() {
     }
   }, [
     branchFilterValue,
+    branchFilter,
     isManagerView,
+    isAdminView,
     managerBranchLoading,
   ]);
 
@@ -189,6 +197,35 @@ export default function AdminUsersPage() {
     })();
   }, []);
 
+  // Load branches for ADMIN only
+  React.useEffect(() => {
+    if (!isAdminView) return;
+    (async () => {
+      try {
+        const { listBranches } = await import("../../api/branches");
+        const branchData = await listBranches({ size: 100 });
+        let branchesList = [];
+        if (branchData?.items && Array.isArray(branchData.items)) {
+          branchesList = branchData.items;
+        } else if (branchData?.data?.items && Array.isArray(branchData.data.items)) {
+          branchesList = branchData.data.items;
+        } else if (branchData?.data?.content && Array.isArray(branchData.data.content)) {
+          branchesList = branchData.data.content;
+        } else if (branchData?.content && Array.isArray(branchData.content)) {
+          branchesList = branchData.content;
+        } else if (Array.isArray(branchData?.data)) {
+          branchesList = branchData.data;
+        } else if (Array.isArray(branchData)) {
+          branchesList = branchData;
+        }
+        setBranches(branchesList);
+      } catch (error) {
+        console.error("Failed to load branches:", error);
+        setBranches([]);
+      }
+    })();
+  }, [isAdminView]);
+
   const onToggle = async (id) => {
     try {
       try {
@@ -225,6 +262,14 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <button 
+              onClick={() => navigate("/admin/users/new")}
+              disabled={isManagerView && (managerBranchLoading || !branchFilterValue)}
+              className="inline-flex items-center gap-2 rounded-lg border border-transparent bg-[#0079BC] hover:bg-[#0067a1] px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Tạo tài khoản</span>
+            </button>
             <button 
               onClick={onRefresh} 
               disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))} 
@@ -267,6 +312,20 @@ export default function AdminUsersPage() {
                 className="flex-1 bg-transparent outline-none text-sm text-slate-900 placeholder:text-slate-400" 
               />
             </div>
+            
+            {isAdminView && (
+              <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
+                <Building2 className="h-4 w-4 text-slate-400" />
+                <select 
+                  value={branchFilter} 
+                  onChange={(e)=>setBranchFilter(e.target.value)} 
+                  className="bg-transparent outline-none text-sm text-slate-900 border-none cursor-pointer"
+                >
+                  <option value="">-- Tất cả chi nhánh --</option>
+                  {branches.map(b => (<option key={b.id} value={b.id}>{b.branchName}</option>))}
+                </select>
+              </div>
+            )}
             
             <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
               <Shield className="h-4 w-4 text-slate-400" />

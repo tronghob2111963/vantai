@@ -1,3 +1,5 @@
+CREATE DATABASE  IF NOT EXISTS `ptcmss_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `ptcmss_db`;
 -- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: localhost    Database: ptcmss_db
@@ -149,6 +151,10 @@ CREATE TABLE `bookings` (
   `note` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `isHoliday` tinyint(1) DEFAULT '0' COMMENT 'Có phải ngày lễ không',
+  `isWeekend` tinyint(1) DEFAULT '0' COMMENT 'Có phải cuối tuần không',
+  `additionalPickupPoints` int DEFAULT '0' COMMENT 'Số điểm đón thêm so với ban đầu',
+  `additionalDropoffPoints` int DEFAULT '0' COMMENT 'Số điểm trả thêm so với ban đầu',
   PRIMARY KEY (`bookingId`),
   KEY `fk_book_cons` (`consultantId`),
   KEY `IX_Bookings_BranchId` (`branchId`),
@@ -168,7 +174,7 @@ CREATE TABLE `bookings` (
 
 LOCK TABLES `bookings` WRITE;
 /*!40000 ALTER TABLE `bookings` DISABLE KEYS */;
-INSERT INTO `bookings` VALUES (1,2,1,5,2,1,'2025-11-12 11:23:08',3500000.00,1000000.00,3800000.00,NULL,NULL,'COMPLETED','Đoàn 25 khách, đi Hà Nội - Hạ Long 2 chiều','2025-11-12 11:23:08','2025-11-12 11:23:08'),(2,4,3,6,5,1,'2025-11-12 11:23:08',1200000.00,500000.00,1200000.00,NULL,NULL,'CONFIRMED','Đón sân bay TSN về Quận 7 (16 chỗ)','2025-11-12 11:23:08','2025-11-12 11:23:08'),(3,1,1,5,4,0,'2025-11-12 11:23:08',25000000.00,10000000.00,0.00,NULL,NULL,'INPROGRESS','Hợp đồng đưa đón nhân viên KCN Thăng Long T11/2025','2025-11-12 11:23:08','2025-11-12 11:23:08'),(4,3,2,6,3,1,'2025-11-12 11:23:08',15000000.00,500000.00,0.00,NULL,NULL,'PENDING','Thuê xe 45 chỗ đi 3N2Đ Đà Nẵng - Huế - Hội An','2025-11-12 11:23:08','2025-11-24 18:13:53'),(5,5,1,5,1,1,'2025-11-12 11:23:08',1000000.00,1000000.00,1000000.00,NULL,NULL,'CONFIRMED','Thuê 1 chiều xe Limo (9 chỗ) đi Nội Bài','2025-11-12 11:23:08','2025-11-12 11:23:08'),(8,8,1,1,NULL,0,'2025-11-21 17:35:52',811646.68,0.00,811646.68,NULL,NULL,'CONFIRMED',NULL,'2025-11-21 17:35:52','2025-11-22 00:35:52'),(9,8,1,1,NULL,0,'2025-11-24 10:15:32',3519205.55,0.00,3519205.55,NULL,NULL,'CONFIRMED',NULL,'2025-11-24 10:15:32','2025-11-24 17:15:32');
+INSERT INTO `bookings` VALUES (1,2,1,5,2,1,'2025-11-12 11:23:08',3500000.00,1000000.00,3800000.00,NULL,NULL,'COMPLETED','Đoàn 25 khách, đi Hà Nội - Hạ Long 2 chiều','2025-11-12 11:23:08','2025-11-12 11:23:08',0,0,0,0),(2,4,3,6,5,1,'2025-11-12 11:23:08',1200000.00,500000.00,1200000.00,NULL,NULL,'CONFIRMED','Đón sân bay TSN về Quận 7 (16 chỗ)','2025-11-12 11:23:08','2025-11-12 11:23:08',0,0,0,0),(3,1,1,5,4,0,'2025-11-12 11:23:08',25000000.00,10000000.00,0.00,NULL,NULL,'INPROGRESS','Hợp đồng đưa đón nhân viên KCN Thăng Long T11/2025','2025-11-12 11:23:08','2025-11-12 11:23:08',0,0,0,0),(4,3,2,6,3,1,'2025-11-12 11:23:08',15000000.00,500000.00,0.00,NULL,NULL,'PENDING','Thuê xe 45 chỗ đi 3N2Đ Đà Nẵng - Huế - Hội An','2025-11-12 11:23:08','2025-11-24 18:13:53',0,0,0,0),(5,5,1,5,1,1,'2025-11-12 11:23:08',1000000.00,1000000.00,1000000.00,NULL,NULL,'CONFIRMED','Thuê 1 chiều xe Limo (9 chỗ) đi Nội Bài','2025-11-12 11:23:08','2025-11-12 11:23:08',0,0,0,0),(8,8,1,1,NULL,0,'2025-11-21 17:35:52',811646.68,0.00,811646.68,NULL,NULL,'CONFIRMED',NULL,'2025-11-21 17:35:52','2025-11-22 00:35:52',0,0,0,0),(9,8,1,1,NULL,0,'2025-11-24 10:15:32',3519205.55,0.00,3519205.55,NULL,NULL,'CONFIRMED',NULL,'2025-11-24 10:15:32','2025-11-24 17:15:32',0,0,0,0);
 /*!40000 ALTER TABLE `bookings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -793,6 +799,7 @@ CREATE TABLE `payment_history` (
   `referenceNumber` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `createdBy` int DEFAULT NULL,
   `invoiceId` int NOT NULL,
+  `confirmationStatus` enum('CONFIRMED','PENDING','REJECTED') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`paymentId`),
   KEY `FKrl36wsp0mglanfdwamk3cl9cv` (`createdBy`),
   KEY `FK585ytbhwcbntuhs3h16jih71p` (`invoiceId`),
@@ -807,7 +814,7 @@ CREATE TABLE `payment_history` (
 
 LOCK TABLES `payment_history` WRITE;
 /*!40000 ALTER TABLE `payment_history` DISABLE KEYS */;
-INSERT INTO `payment_history` VALUES (1,2000000.00,NULL,NULL,NULL,'2025-11-22 11:19:07.889259','Partial payment test','2025-11-22 11:19:07.885606','CASH',NULL,NULL,NULL,16),(2,2000000.00,NULL,NULL,NULL,'2025-11-22 11:20:49.250944','Partial payment test','2025-11-22 11:20:49.250371','CASH',NULL,NULL,NULL,19),(3,2000000.00,NULL,NULL,NULL,'2025-11-22 11:21:20.064336','Partial payment test','2025-11-22 11:21:20.064336','CASH',NULL,NULL,NULL,22);
+INSERT INTO `payment_history` VALUES (1,2000000.00,NULL,NULL,NULL,'2025-11-22 11:19:07.889259','Partial payment test','2025-11-22 11:19:07.885606','CASH',NULL,NULL,NULL,16,NULL),(2,2000000.00,NULL,NULL,NULL,'2025-11-22 11:20:49.250944','Partial payment test','2025-11-22 11:20:49.250371','CASH',NULL,NULL,NULL,19,NULL),(3,2000000.00,NULL,NULL,NULL,'2025-11-22 11:21:20.064336','Partial payment test','2025-11-22 11:21:20.064336','CASH',NULL,NULL,NULL,22,NULL);
 /*!40000 ALTER TABLE `payment_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -899,7 +906,7 @@ CREATE TABLE `system_settings` (
   UNIQUE KEY `settingKey` (`settingKey`),
   KEY `fk_sys_updBy` (`updatedBy`),
   CONSTRAINT `fk_sys_updBy` FOREIGN KEY (`updatedBy`) REFERENCES `employees` (`employeeId`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -908,7 +915,7 @@ CREATE TABLE `system_settings` (
 
 LOCK TABLES `system_settings` WRITE;
 /*!40000 ALTER TABLE `system_settings` DISABLE KEYS */;
-INSERT INTO `system_settings` VALUES (1,'VAT_RATE','0.08','2025-01-01',NULL,'decimal','Billing','Tỷ lệ thuế VAT (8%)',1,'2025-11-12 11:23:08','ACTIVE'),(2,'DEFAULT_HIGHWAY','true','2025-01-01',NULL,'boolean','Booking','Mặc định chọn cao tốc khi tạo booking',1,'2025-11-12 11:23:08','ACTIVE'),(3,'MAX_DRIVING_HOURS_PER_DAY','10','2025-01-01',NULL,'int','Driver','Số giờ lái xe tối đa của tài xế/ngày',1,'2025-11-12 11:23:08','ACTIVE'),(4,'SUPPORT_HOTLINE','1900 1234','2025-01-01',NULL,'string','General','Số hotline hỗ trợ khách hàng',1,'2025-11-12 11:23:08','ACTIVE'),(5,'LATE_PAYMENT_FEE_RATE','0.05','2025-01-01',NULL,'decimal','Billing','Lãi suất phạt thanh toán chậm (5%/ngày)',1,'2025-11-12 11:23:08','ACTIVE');
+INSERT INTO `system_settings` VALUES (1,'VAT_RATE','0.08','2025-01-01',NULL,'decimal','Billing','Tỷ lệ thuế VAT (8%)',1,'2025-11-12 11:23:08','ACTIVE'),(2,'DEFAULT_HIGHWAY','true','2025-01-01',NULL,'boolean','Booking','Mặc định chọn cao tốc khi tạo booking',1,'2025-11-12 11:23:08','ACTIVE'),(3,'MAX_DRIVING_HOURS_PER_DAY','10','2025-01-01',NULL,'int','Driver','Số giờ lái xe tối đa của tài xế/ngày',1,'2025-11-12 11:23:08','ACTIVE'),(4,'SUPPORT_HOTLINE','1900 1234','2025-01-01',NULL,'string','General','Số hotline hỗ trợ khách hàng',1,'2025-11-12 11:23:08','ACTIVE'),(5,'LATE_PAYMENT_FEE_RATE','0.05','2025-01-01',NULL,'decimal','Billing','Lãi suất phạt thanh toán chậm (5%/ngày)',1,'2025-11-12 11:23:08','ACTIVE'),(6,'HOLIDAY_SURCHARGE_RATE','0.25','2025-11-25',NULL,'decimal','Pricing','Phụ phí ngày lễ (25%)',1,'2025-11-25 08:53:06','ACTIVE'),(7,'WEEKEND_SURCHARGE_RATE','0.20','2025-11-25',NULL,'decimal','Pricing','Phụ phí cuối tuần (20%)',1,'2025-11-25 08:53:06','ACTIVE'),(8,'ONE_WAY_DISCOUNT_RATE','0.6667','2025-11-25',NULL,'decimal','Pricing','Hệ số giảm giá 1 chiều (2/3)',1,'2025-11-25 08:53:06','ACTIVE'),(9,'ADDITIONAL_POINT_SURCHARGE_RATE','0.05','2025-11-25',NULL,'decimal','Pricing','Phụ phí mỗi điểm đón/trả thêm (5%)',1,'2025-11-25 08:53:06','ACTIVE'),(10,'DEFAULT_DEPOSIT_PERCENT','0.50','2025-01-01',NULL,'decimal','Booking','Tỷ lệ đặt cọc mặc định (50%)',1,'2025-11-25 15:20:00','ACTIVE'),(11,'MAX_DEPOSIT_PERCENT','0.70','2025-01-01',NULL,'decimal','Booking','Tỷ lệ đặt cọc tối đa (70%)',1,'2025-11-25 15:20:00','ACTIVE'),(12,'SINGLE_DRIVER_MAX_DISTANCE_KM','300','2025-01-01',NULL,'int','Dispatch','Quãng đường tối đa cho 1 tài xế (300km cả đi lẫn về)',1,'2025-11-25 15:20:00','ACTIVE'),(13,'CANCELLATION_FULL_DEPOSIT_LOSS_HOURS','24','2025-01-01',NULL,'int','Booking','Số giờ trước khởi hành để mất 100% tiền cọc (24h)',1,'2025-11-25 15:20:00','ACTIVE'),(14,'CANCELLATION_PARTIAL_DEPOSIT_LOSS_HOURS','48','2025-01-01',NULL,'int','Booking','Số giờ trước khởi hành để mất một phần tiền cọc (48h)',1,'2025-11-25 15:20:00','ACTIVE'),(15,'CANCELLATION_PARTIAL_DEPOSIT_PERCENT','0.30','2025-01-01',NULL,'decimal','Booking','Tỷ lệ mất cọc khi hủy trong khoảng thời gian (30%)',1,'2025-11-25 15:20:00','ACTIVE'),(16,'MAX_CONTINUOUS_DRIVING_HOURS','4','2025-01-01',NULL,'int','Driver','Số giờ lái xe liên tục tối đa (4 giờ)',1,'2025-11-25 15:20:00','ACTIVE'),(17,'MAX_DRIVING_HOURS_PER_WEEK','48','2025-01-01',NULL,'int','Driver','Số giờ lái xe tối đa mỗi tuần (48 giờ)',1,'2025-11-25 15:20:00','ACTIVE');
 /*!40000 ALTER TABLE `system_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1190,7 +1197,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,1,'Admin Tổng','admin','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','admin@ptcmss.com','0900000001',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(2,2,'Quản Lý Hà Nội','manager_hn','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','manager.hn@ptcmss.com','0900000002',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(3,2,'Quản Lý Đà Nẵng','manager_dn','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','manager.dn@ptcmss.com','0900000003',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(4,2,'Quản Lý HCM','manager_hcm','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','manager.hcm@ptcmss.com','0900000004',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(5,3,'Điều Hành Viên 1 (HN)','consultant_hn1','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','c1.hn@ptcmss.com','0900000005',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(6,3,'Điều Hành Viên 2 (HN)','consultant_hn2','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','c2.hn@ptcmss.com','0900000006',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(7,5,'Kế Toán 1 (HN)','accountant_hn1','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','k1.hn@ptcmss.com','0900000007',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(8,4,'Tài Xế Nguyễn Văn A','driver_a','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.a@ptcmss.com','0912345671',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(9,4,'Tài Xế Trần Văn B','driver_b','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.b@ptcmss.com','0912345672',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(10,4,'Tài Xế Lê Hữu C','driver_c','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.c@ptcmss.com','0912345673',NULL,'sóc trăng, cần thơ','ACTIVE',0,NULL,'2025-11-12 11:23:08'),(11,4,'Tài Xế Phạm Đình D','driver_d','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.d@ptcmss.com','0912345674',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(12,4,'Tài Xế Huỳnh Tấn E','driver_e','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.e@ptcmss.com','0912345675',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(13,4,'Tài Xế Vũ Minh F','driver_f','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.f@ptcmss.com','0912345676',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(14,4,'Tài Xế Đặng Văn G','driver_g','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.g@ptcmss.com','0912345677',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(15,2,'Nguyenexc Văn Thuần','vt1001','TEAMP123','vthuan.dev@gmail.com','0706871283',NULL,'can tho','ACTIVE',1,'a272ffce-da0f-434c-b304-81eefa9c0e16','2025-11-23 22:08:30'),(16,2,'Nguyễn Văn AN','test','$2a$10$SHY1HlsLEs.nAmd6bR1nke2VePGDY8nosBHAwv.oBTvAJcFsIv7mG','thuanhero1@gmail.com','0904521297',NULL,'ct','ACTIVE',1,NULL,'2025-11-23 22:17:05'),(17,2,'testtt','test2','$2a$10$Jb4Noe6WBsBDD.vWi3mKSu6doDCA6Bm3TlGvQ/V41Du/e./jFrhO6','thuanb2112012@student.ctu.edu.vn','0904545454',NULL,'ss','ACTIVE',1,'c4c39222-dc35-4d72-88f9-db2fe9d1559c','2025-11-23 22:34:42'),(18,2,'Nguyễn Văn Thuần','nguyenv','$2a$10$KYSvH3HQN7B9yDNOTBLrauaSO84ub.sGDZaDxNT72dtWdwJLMyJI.','nguyenvthuanctu@gmail.com','07068712223',NULL,'ct','ACTIVE',1,NULL,'2025-11-24 08:57:07'),(19,2,'nguyen van vx','nguyena','$2a$10$i8upQ1bNJkoqulJGyOQee.xvCUovSQ1DX8w9YyyEcQfntdDD3rk0i','chinh@shopyenquynh.store','09045256162',NULL,'đ','INACTIVE',0,'04ee8777-745a-45e2-8c3d-2f05e0e26fe0','2025-11-24 10:21:53');
+INSERT INTO `users` VALUES (1,1,'Admin Tổng','admin','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','admin@ptcmss.com','0900000001',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(2,2,'Quản Lý Hà Nội','manager_hn','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','manager.hn@ptcmss.com','0900000002',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(3,2,'Quản Lý Đà Nẵng','manager_dn','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','manager.dn@ptcmss.com','0900000003',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(4,2,'Quản Lý HCM','manager_hcm','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','manager.hcm@ptcmss.com','0900000004',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(5,3,'Điều Hành Viên 1 (HN)','consultant_hn1','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','c1.hn@ptcmss.com','0900000005',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(6,3,'Điều Hành Viên 2 (HN)','consultant_hn2','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','c2.hn@ptcmss.com','0900000006',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(7,5,'Kế Toán 1 (HN)','accountant_hn1','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','k1.hn@ptcmss.com','0900000007',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(8,4,'Tài Xế Nguyễn Văn A','driver_a','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.a@ptcmss.com','0912345671',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(9,4,'Tài Xế Trần Văn B','driver_b','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.b@ptcmss.com','0912345672',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(10,4,'Tài Xế Lê Hữu C','driver_c','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.c@ptcmss.com','0912345673',NULL,'sóc trăng, cần thơ','ACTIVE',0,NULL,'2025-11-12 11:23:08'),(11,4,'Tài Xế Phạm Đình D','driver_d','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.d@ptcmss.com','0912345674',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(12,4,'Tài Xế Huỳnh Tấn E','driver_e','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.e@ptcmss.com','0912345675',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(13,4,'Tài Xế Vũ Minh F','driver_f','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.f@ptcmss.com','0912345676',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(14,4,'Tài Xế Đặng Văn G','driver_g','$2a$10$P2Hh.Eos8YK/MxXUXSqOjOQMdmoQay/aL7lpNv.LHjC3AdSUGODfq','driver.g@ptcmss.com','0912345677',NULL,NULL,'ACTIVE',0,NULL,'2025-11-12 11:23:08'),(15,2,'Nguyenexc Văn Thuần','vt1001','TEAMP123','vthuan.dev@gmail.com','0706871283',NULL,'can tho','INACTIVE',1,'a272ffce-da0f-434c-b304-81eefa9c0e16','2025-11-23 22:08:30'),(16,2,'Nguyễn Văn AN','test','$2a$10$SHY1HlsLEs.nAmd6bR1nke2VePGDY8nosBHAwv.oBTvAJcFsIv7mG','thuanhero1@gmail.com','0904521297',NULL,'ct','ACTIVE',1,NULL,'2025-11-23 22:17:05'),(17,2,'testtt','test2','$2a$10$Jb4Noe6WBsBDD.vWi3mKSu6doDCA6Bm3TlGvQ/V41Du/e./jFrhO6','thuanb2112012@student.ctu.edu.vn','0904545454',NULL,'ss','ACTIVE',1,'c4c39222-dc35-4d72-88f9-db2fe9d1559c','2025-11-23 22:34:42'),(18,2,'Nguyễn Văn Thuần','nguyenv','$2a$10$KYSvH3HQN7B9yDNOTBLrauaSO84ub.sGDZaDxNT72dtWdwJLMyJI.','nguyenvthuanctu@gmail.com','07068712223',NULL,'ct','ACTIVE',1,NULL,'2025-11-24 08:57:07'),(19,2,'nguyen van vx','nguyena','$2a$10$i8upQ1bNJkoqulJGyOQee.xvCUovSQ1DX8w9YyyEcQfntdDD3rk0i','chinh@shopyenquynh.store','09045256162',NULL,'đ','ACTIVE',0,'04ee8777-745a-45e2-8c3d-2f05e0e26fe0','2025-11-24 10:21:53');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1268,12 +1275,15 @@ CREATE TABLE `vehicle_category_pricing` (
   `seats` int DEFAULT NULL COMMENT 'Số ghế của danh mục xe',
   `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `baseFare` decimal(10,2) DEFAULT NULL,
-  `pricePerKm` decimal(10,2) DEFAULT NULL,
+  `pricePerKm` decimal(10,2) DEFAULT NULL COMMENT 'Giá mỗi km (VNĐ/km) - Xe 16: 30k, Xe 30: 40k, Xe 45: 50k',
   `highwayFee` decimal(10,2) DEFAULT NULL,
   `fixedCosts` decimal(10,2) DEFAULT NULL,
   `effectiveDate` date DEFAULT (curdate()),
   `status` enum('ACTIVE','INACTIVE') COLLATE utf8mb4_unicode_ci DEFAULT 'ACTIVE',
   `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `isPremium` tinyint(1) DEFAULT '0' COMMENT 'Đánh dấu xe hạng sang',
+  `premiumSurcharge` decimal(10,2) DEFAULT '1000000.00' COMMENT 'Phụ phí xe hạng sang (VNĐ)',
+  `sameDayFixedPrice` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`categoryId`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1284,7 +1294,7 @@ CREATE TABLE `vehicle_category_pricing` (
 
 LOCK TABLES `vehicle_category_pricing` WRITE;
 /*!40000 ALTER TABLE `vehicle_category_pricing` DISABLE KEYS */;
-INSERT INTO `vehicle_category_pricing` VALUES (1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',900000.00,15000.00,100000.00,0.00,NULL,'ACTIVE','2025-11-12 11:23:08'),(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',1100000.00,18000.00,120000.00,0.00,NULL,'ACTIVE','2025-11-12 11:23:08'),(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',1800000.00,22000.00,150000.00,0.00,'2025-11-12','ACTIVE','2025-11-12 11:23:08'),(4,'Xe 45 chỗ',45,'Hyundai Universe',2500000.00,28000.00,200000.00,0.00,'2025-11-12','ACTIVE','2025-11-12 11:23:08'),(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',3000000.00,30000.00,250000.00,0.00,'2025-11-12','ACTIVE','2025-11-12 11:23:08');
+INSERT INTO `vehicle_category_pricing` VALUES (1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',900000.00,15000.00,100000.00,0.00,NULL,'ACTIVE','2025-11-12 11:23:08',0,1000000.00,NULL),(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',1100000.00,30000.00,120000.00,0.00,NULL,'ACTIVE','2025-11-12 11:23:08',0,1000000.00,NULL),(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',1800000.00,40000.00,150000.00,0.00,'2025-11-12','ACTIVE','2025-11-12 11:23:08',0,1000000.00,NULL),(4,'Xe 45 chỗ',45,'Hyundai Universe',2500000.00,50000.00,200000.00,0.00,'2025-11-12','ACTIVE','2025-11-12 11:23:08',0,1000000.00,NULL),(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',3000000.00,30000.00,250000.00,0.00,'2025-11-12','ACTIVE','2025-11-12 11:23:08',0,1000000.00,NULL);
 /*!40000 ALTER TABLE `vehicle_category_pricing` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1392,4 +1402,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-24 19:59:40
+-- Dump completed on 2025-11-25 18:46:43

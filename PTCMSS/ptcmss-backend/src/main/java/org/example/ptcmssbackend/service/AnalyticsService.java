@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -58,14 +59,16 @@ public class AnalyticsService {
 
         Map<String, Object> tripStats = jdbcTemplate.queryForMap(tripSql, startDate, endDate);
 
-        // Query fleet utilization
+        // Query fleet utilization (count vehicles on ongoing trips)
         String fleetSql = "SELECT " +
-                "COUNT(DISTINCT CASE WHEN status = 'INUSE' THEN vehicleId END) as inUse, " +
-                "COUNT(DISTINCT CASE WHEN status = 'AVAILABLE' THEN vehicleId END) as available, " +
-                "COUNT(DISTINCT CASE WHEN status = 'MAINTENANCE' THEN vehicleId END) as maintenance, " +
-                "COUNT(DISTINCT vehicleId) as total " +
-                "FROM vehicles " +
-                "WHERE status IN ('AVAILABLE', 'INUSE', 'MAINTENANCE')";
+                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t.status = 'ONGOING' THEN v.vehicleId END) as inUse, " +
+                "COUNT(DISTINCT CASE WHEN v.status = 'AVAILABLE' THEN v.vehicleId END) as available, " +
+                "COUNT(DISTINCT CASE WHEN v.status = 'MAINTENANCE' THEN v.vehicleId END) as maintenance, " +
+                "COUNT(DISTINCT v.vehicleId) as total " +
+                "FROM vehicles v " +
+                "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
+                "LEFT JOIN trips t ON tv.tripId = t.tripId AND t.status = 'ONGOING' " +
+                "WHERE v.status != 'INACTIVE'";
 
         Map<String, Object> fleetStats = jdbcTemplate.queryForMap(fleetSql);
         Long inUse = (Long) fleetStats.get("inUse");
@@ -145,14 +148,16 @@ public class AnalyticsService {
                 "COUNT(DISTINCT t.tripId) as totalTrips, " +
                 "COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.tripId END) as completedTrips, " +
                 "COUNT(DISTINCT v.vehicleId) as totalVehicles, " +
-                "COUNT(DISTINCT CASE WHEN v.status = 'INUSE' THEN v.vehicleId END) as vehiclesInUse, " +
+                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t2.status = 'ONGOING' THEN v.vehicleId END) as vehiclesInUse, " +
                 "COUNT(DISTINCT d.driverId) as totalDrivers, " +
                 "COUNT(DISTINCT CASE WHEN d.status = 'ONTRIP' THEN d.driverId END) as driversOnTrip " +
                 "FROM branches b " +
                 "LEFT JOIN invoices i ON b.branchId = i.branchId AND i.status = 'ACTIVE' AND i.invoiceDate BETWEEN ? AND ? " +
                 "LEFT JOIN bookings bk ON b.branchId = bk.branchId AND bk.bookingDate BETWEEN ? AND ? " +
                 "LEFT JOIN trips t ON bk.bookingId = t.bookingId " +
-                "LEFT JOIN vehicles v ON b.branchId = v.branchId " +
+                "LEFT JOIN vehicles v ON b.branchId = v.branchId AND v.status != 'INACTIVE' " +
+                "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
+                "LEFT JOIN trips t2 ON tv.tripId = t2.tripId AND t2.status = 'ONGOING' " +
                 "LEFT JOIN drivers d ON b.branchId = d.branchId " +
                 "WHERE b.status = 'ACTIVE' " +
                 "GROUP BY b.branchId, b.branchName, b.location " +
@@ -298,21 +303,21 @@ public class AnalyticsService {
 
         Map<String, Object> tripStats = jdbcTemplate.queryForMap(tripSql, branchId, startDate, endDate);
 
-        // Query fleet utilization for branch (vehicles currently on trip)
+        // Query fleet utilization for branch (count vehicles on ongoing trips)
         String fleetSql = "SELECT " +
-                "COUNT(DISTINCT CASE WHEN v.status = 'INUSE' OR (tv.tripId IS NOT NULL AND t.status = 'ONGOING') THEN v.vehicleId END) as inUse, " +
-                "COUNT(DISTINCT CASE WHEN v.status = 'AVAILABLE' AND (tv.tripId IS NULL OR t.status != 'ONGOING') THEN v.vehicleId END) as available, " +
+                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t.status = 'ONGOING' THEN v.vehicleId END) as inUse, " +
+                "COUNT(DISTINCT CASE WHEN v.status = 'AVAILABLE' THEN v.vehicleId END) as available, " +
                 "COUNT(DISTINCT CASE WHEN v.status = 'MAINTENANCE' THEN v.vehicleId END) as maintenance, " +
                 "COUNT(DISTINCT v.vehicleId) as total " +
                 "FROM vehicles v " +
                 "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
-                "LEFT JOIN trips t ON tv.tripId = t.tripId " +
-                "WHERE v.branchId = ? AND v.status IN ('AVAILABLE', 'INUSE', 'MAINTENANCE')";
+                "LEFT JOIN trips t ON tv.tripId = t.tripId AND t.status = 'ONGOING' " +
+                "WHERE v.branchId = ? AND v.status != 'INACTIVE'";
 
         Map<String, Object> fleetStats = jdbcTemplate.queryForMap(fleetSql, branchId);
         Long inUse = (Long) fleetStats.get("inUse");
         Long total = (Long) fleetStats.get("total");
-        Double utilizationRate = total > 0 && total > 0 ? (inUse * 100.0 / total) : 0.0;
+        Double utilizationRate = total > 0 ? (inUse * 100.0 / total) : 0.0;
 
         // Query driver stats for branch
         String driverSql = "SELECT " +
@@ -407,24 +412,23 @@ public class AnalyticsService {
      */
     public Map<String, Object> getVehicleUtilization(Integer branchId) {
         String sql = "SELECT " +
-                "COUNT(DISTINCT CASE WHEN v.status = 'INUSE' THEN v.vehicleId END) as vehiclesInUse, " +
                 "COUNT(DISTINCT CASE WHEN v.status = 'AVAILABLE' THEN v.vehicleId END) as vehiclesAvailable, " +
                 "COUNT(DISTINCT CASE WHEN v.status = 'MAINTENANCE' THEN v.vehicleId END) as vehiclesMaintenance, " +
                 "COUNT(DISTINCT v.vehicleId) as totalVehicles, " +
                 "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t.status = 'ONGOING' THEN v.vehicleId END) as vehiclesOnTrip " +
                 "FROM vehicles v " +
                 "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
-                "LEFT JOIN trips t ON tv.tripId = t.tripId " +
+                "LEFT JOIN trips t ON tv.tripId = t.tripId AND t.status = 'ONGOING' " +
                 "WHERE v.branchId = ? AND v.status != 'INACTIVE'";
 
         Map<String, Object> stats = jdbcTemplate.queryForMap(sql, branchId);
         Long total = (Long) stats.get("totalVehicles");
-        Long inUse = (Long) stats.get("vehiclesInUse");
-        Double utilizationRate = total > 0 ? (inUse * 100.0 / total) : 0.0;
+        Long onTrip = (Long) stats.get("vehiclesOnTrip");
+        Double utilizationRate = total > 0 ? (onTrip * 100.0 / total) : 0.0;
 
         return Map.of(
                 "totalVehicles", stats.get("totalVehicles"),
-                "vehiclesInUse", stats.get("vehiclesInUse"),
+                "vehiclesInUse", onTrip,  // Use vehiclesOnTrip as vehiclesInUse
                 "vehiclesAvailable", stats.get("vehiclesAvailable"),
                 "vehiclesMaintenance", stats.get("vehiclesMaintenance"),
                 "vehiclesOnTrip", stats.get("vehiclesOnTrip"),
@@ -440,39 +444,56 @@ public class AnalyticsService {
         LocalDateTime startDate = dates.get("start");
         LocalDateTime endDate = dates.get("end");
         
-        // Convert LocalDateTime to Instant for database comparison
-        Instant startInstant = startDate.atZone(ZoneId.systemDefault()).toInstant();
-        Instant endInstant = endDate.atZone(ZoneId.systemDefault()).toInstant();
+        // Convert to Timestamp for JDBC compatibility
+        Timestamp tripStart = Timestamp.valueOf(startDate);
+        Timestamp tripEnd = Timestamp.valueOf(endDate);
+        Timestamp invoiceStart = Timestamp.valueOf(startDate);
+        Timestamp invoiceEnd = Timestamp.valueOf(endDate); 
 
-        String sql = "SELECT " +
-                "v.licensePlate, " +
-                "COALESCE(SUM(t.distance), 0) as totalKm, " +
-                "COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' AND (i.costType = 'FUEL' OR i.costType = 'MAINTENANCE' OR i.costType = 'TOLL') THEN i.amount ELSE 0 END), 0) as totalCost, " +
-                "CASE " +
-                "  WHEN COALESCE(SUM(t.distance), 0) > 0 THEN " +
-                "    COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' AND (i.costType = 'FUEL' OR i.costType = 'MAINTENANCE' OR i.costType = 'TOLL') THEN i.amount ELSE 0 END), 0) / COALESCE(SUM(t.distance), 1) " +
-                "  ELSE 0 " +
-                "END as costPerKm " +
-                "FROM vehicles v " +
-                "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
-                "LEFT JOIN trips t ON tv.tripId = t.tripId AND t.status = 'COMPLETED' " +
-                "  AND t.startTime >= ? AND t.startTime <= ? " +
-                "LEFT JOIN invoices i ON i.vehicleId = v.vehicleId " +
-                "  AND i.status = 'ACTIVE' AND i.type = 'EXPENSE' " +
-                "  AND (i.costType = 'FUEL' OR i.costType = 'MAINTENANCE' OR i.costType = 'TOLL') " +
-                "  AND i.invoiceDate >= ? AND i.invoiceDate <= ? " +
-                "WHERE v.branchId = ? AND v.status != 'INACTIVE' " +
-                "GROUP BY v.vehicleId, v.licensePlate " +
-                "HAVING totalKm > 0 " +
-                "ORDER BY costPerKm ASC, totalKm DESC " +
-                "LIMIT 10";
-
+        String sql = """
+                SELECT 
+                    v.licensePlate,
+                    COALESCE(trips.totalKm, 0) AS totalKm,
+                    COALESCE(costs.totalCost, 0) AS totalCost,
+                    CASE
+                        WHEN COALESCE(trips.totalKm, 0) > 0 THEN COALESCE(costs.totalCost, 0) / COALESCE(trips.totalKm, 1)
+                        ELSE 0
+                    END AS costPerKm
+                FROM vehicles v
+                LEFT JOIN (
+                    SELECT 
+                        tv.vehicleId,
+                        SUM(t.distance) AS totalKm
+                    FROM trip_vehicles tv
+                    INNER JOIN trips t ON tv.tripId = t.tripId
+                        AND t.status = 'COMPLETED'
+                        AND t.startTime BETWEEN ? AND ?
+                    GROUP BY tv.vehicleId
+                ) trips ON v.vehicleId = trips.vehicleId
+                LEFT JOIN (
+                    SELECT 
+                        e.vehicleId,
+                        SUM(e.amount) AS totalCost
+                    FROM expenses e
+                    WHERE e.vehicleId IS NOT NULL
+                      AND e.branchId = ?
+                      AND e.category IN ('FUEL', 'MAINTENANCE', 'TOLL')
+                      AND e.status IN ('APPROVED', 'PAID')
+                      AND e.expenseDate BETWEEN ? AND ?
+                    GROUP BY e.vehicleId
+                ) costs ON v.vehicleId = costs.vehicleId
+                WHERE v.branchId = ?
+                  AND v.status <> 'INACTIVE'
+                  AND COALESCE(trips.totalKm, 0) > 0
+                ORDER BY costPerKm ASC, totalKm DESC
+                LIMIT 10
+                """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
                 "licensePlate", rs.getString("licensePlate"),
                 "totalKm", rs.getBigDecimal("totalKm"),
                 "totalCost", rs.getBigDecimal("totalCost"),
                 "costPerKm", rs.getBigDecimal("costPerKm")
-        ), startInstant, endInstant, startDate, endDate, branchId);
+        ), tripStart, tripEnd, branchId, invoiceStart, invoiceEnd, branchId);
     }
 
     /**

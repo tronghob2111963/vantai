@@ -153,21 +153,9 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Bạn không có quyền chỉnh sửa tài khoản này.");
         }
 
-        // Validation: Không cho admin tự sửa role của mình
-        if (isEditingSelf) {
-            // User đang sửa chính mình
-            if (request.getRoleId() != null) {
-                Roles newRole = rolesRepository.findById(request.getRoleId())
-                        .orElseThrow(() -> new RuntimeException("Role not found"));
-                
-                // Kiểm tra nếu user hiện tại là ADMIN và đang cố sửa role của mình
-                if (isCurrentUserAdmin) {
-                    if (!newRole.getRoleName().equals("ADMIN")) {
-                        throw new RuntimeException("Admin không thể tự thay đổi vai trò của chính mình. Vui lòng liên hệ quản trị viên khác.");
-                    }
-                }
-            }
-        }
+        // Note: Cho phép admin tự thay đổi vai trò của mình
+        // Đã bỏ validation chặn admin tự sửa role
+        // Admin tổng có toàn quyền quản lý tài khoản của mình
         
         // Validation: Kiểm tra phone trùng với user khác (trừ chính user hiện tại)
         if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {

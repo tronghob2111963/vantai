@@ -52,7 +52,6 @@ const SIDEBAR_SECTIONS = [
       // { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
       { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
       { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN, ROLES.MANAGER] },
-      { label: "Quản lý nhân viên", to: "/admin/employees", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
     ],
   },
@@ -154,14 +153,11 @@ import CreateBranchPage from "./components/module 1/CreateBranchPage.jsx";
 import AdminBranchesPage from "./components/module 1/AdminBranchesPage.jsx";
 import AdminBranchDetailPage from "./components/module 1/AdminBranchDetailPage.jsx";
 import AdminUsersPage from "./components/module 1/AdminUsersPage.jsx";
+import CreateUserPage from "./components/module 1/CreateUserPage.jsx";
 import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
 import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
 import UpdateProfilePage from "./components/module 1/UpdateProfilePage.jsx";
 import LoginPage from "./components/module 1/LoginPage.jsx";
-import EmployeeManagementPage from "./components/module 1/EmployeeManagementPage.jsx";
-import CreateEmployeePage from "./components/module 1/CreateEmployeePage.jsx";
-import CreateEmployeeWithUserPage from "./components/module 1/CreateEmployeeWithUserPage.jsx";
-import EditEmployeePage from "./components/module 1/EditEmployeePage.jsx";
 import VerificationSuccessPage from "./components/module 1/VerificationSuccessPage.jsx";
 import VerificationErrorPage from "./components/module 1/VerificationErrorPage.jsx";
 
@@ -780,6 +776,14 @@ export default function AppLayout() {
             }
           />
           <Route
+            path="/admin/users/new"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+                <CreateUserPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/users/:userId"
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
@@ -795,38 +799,7 @@ export default function AppLayout() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin/employees"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-                <EmployeeManagementPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/employees/create"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-                <CreateEmployeePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/employees/create-with-user"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-                <CreateEmployeeWithUserPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/employees/edit/:id"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-                <EditEmployeePage />
-              </ProtectedRoute>
-            }
-          />
+
 
           {/* Tài xế - Only for actual drivers */}
           <Route
