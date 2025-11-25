@@ -21,6 +21,9 @@ import {
     Loader2,
     Building2,
     Navigation,
+    Plus,
+    Minus,
+    Search,
 } from "lucide-react";
 
 /**
@@ -140,6 +143,7 @@ export default function CreateOrderPage() {
     /* --- Phần 2: hình thức thuê --- */
     const [hireType, setHireType] =
         React.useState("ONE_WAY"); // ONE_WAY | ROUND_TRIP | DAILY
+    const [hireTypeId, setHireTypeId] = React.useState(""); // ID từ backend
 
     /* --- Phần 3: chuyến đi / yêu cầu xe --- */
     const [pickup, setPickup] = React.useState("");
@@ -148,9 +152,10 @@ export default function CreateOrderPage() {
     const [endTime, setEndTime] = React.useState("");
     const [categoryId, setCategoryId] = React.useState("");
     const [categories, setCategories] = React.useState([]);
+    const [selectedCategory, setSelectedCategory] = React.useState(null); // Lưu thông tin category được chọn (để lấy số ghế)
     const [paxCount, setPaxCount] = React.useState(1);
     const [vehicleCount, setVehicleCount] =
-        React.useState(1);
+        React.useState(1); // Mặc định = 1
 
     // branch mặc định theo user đăng nhập
     const [branchId] = React.useState("1");
@@ -203,14 +208,27 @@ export default function CreateOrderPage() {
     const [calculatingDistance, setCalculatingDistance] = React.useState(false);
     const [distanceError, setDistanceError] = React.useState("");
 
+    // Các field mới cho logic tính giá
+    const [isHoliday, setIsHoliday] = React.useState(false);
+    const [isWeekend, setIsWeekend] = React.useState(false);
+    const [additionalPickupPoints, setAdditionalPickupPoints] = React.useState(0);
+    const [additionalDropoffPoints, setAdditionalDropoffPoints] = React.useState(0);
+
     // load categories from backend
     React.useEffect(() => {
         (async () => {
             try {
                 const list = await listVehicleCategories();
                 if (Array.isArray(list) && list.length > 0) {
-                    setCategories(list.map(c => ({ id: String(c.id), name: c.categoryName })));
-                    setCategoryId(String(list[0].id));
+                    const mapped = list.map(c => ({ 
+                        id: String(c.id), 
+                        name: c.categoryName,
+                        seats: c.seats || 0 // Lưu số ghế
+                    }));
+                    setCategories(mapped);
+                    const firstCategory = mapped[0];
+                    setCategoryId(firstCategory.id);
+                    setSelectedCategory(firstCategory); // Set category đầu tiên
                 } else {
                     push("Không thể tải danh mục xe: Dữ liệu trống", "error");
                 }
@@ -220,6 +238,20 @@ export default function CreateOrderPage() {
             }
         })();
     }, []);
+    
+    // Update selectedCategory khi categoryId thay đổi
+    React.useEffect(() => {
+        if (categoryId && categories.length > 0) {
+            const found = categories.find(c => c.id === categoryId);
+            if (found) {
+                setSelectedCategory(found);
+                // Reset số khách nếu vượt quá số ghế
+                if (paxCount >= (found.seats || 0)) {
+                    setPaxCount(Math.max(1, (found.seats || 1) - 1));
+                }
+            }
+        }
+    }, [categoryId, categories]);
 
     // Auto-calculate distance when both pickup and dropoff are entered
     React.useEffect(() => {
@@ -253,17 +285,50 @@ export default function CreateOrderPage() {
         return () => clearTimeout(timeoutId);
     }, [pickup, dropoff]);
 
+    // Tự động detect cuối tuần từ startTime
+    React.useEffect(() => {
+        if (startTime) {
+            try {
+                const date = new Date(startTime);
+                const dayOfWeek = date.getDay(); // 0 = Chủ nhật, 6 = Thứ 7
+                setIsWeekend(dayOfWeek === 0 || dayOfWeek === 6);
+            } catch (e) {
+                setIsWeekend(false);
+            }
+        } else {
+            setIsWeekend(false);
+        }
+    }, [startTime]);
+
     // calculate via backend when possible
     React.useEffect(() => {
         const run = async () => {
             if (!categoryId || !distanceKm) return;
             setCalculatingPrice(true);
             try {
+                // Build query params với các tham số mới
+                const params = new URLSearchParams();
+                params.append("vehicleCategoryIds", String(categoryId));
+                params.append("quantities", String(vehicleCount || 1));
+                params.append("distance", String(distanceKm || 0));
+                params.append("useHighway", "false");
+                if (hireTypeId) params.append("hireTypeId", hireTypeId);
+                if (isHoliday) params.append("isHoliday", "true");
+                if (isWeekend) params.append("isWeekend", "true");
+                const totalAdditionalPoints = (additionalPickupPoints || 0) + (additionalDropoffPoints || 0);
+                if (totalAdditionalPoints > 0) params.append("additionalPoints", String(totalAdditionalPoints));
+
                 const price = await calculatePrice({
                     vehicleCategoryIds: [Number(categoryId)],
                     quantities: [Number(vehicleCount || 1)],
                     distance: Number(distanceKm || 0),
                     useHighway: false,
+                    hireTypeId: hireTypeId ? Number(hireTypeId) : undefined,
+                    isHoliday: isHoliday,
+                    isWeekend: isWeekend,
+                    additionalPoints: totalAdditionalPoints,
+                    startTime: startTime ? (startTime instanceof Date ? startTime.toISOString() : startTime) : undefined,
+                    endTime: endTime ? (endTime instanceof Date ? endTime.toISOString() : endTime) : undefined,
                 });
                 const base = Number(price || 0);
                 setEstPriceSys(base);
@@ -273,7 +338,7 @@ export default function CreateOrderPage() {
             }
         };
         run();
-    }, [categoryId, vehicleCount, distanceKm]);
+    }, [categoryId, vehicleCount, distanceKm, hireTypeId, isHoliday, isWeekend, additionalPickupPoints, additionalDropoffPoints, startTime, endTime]);
 
     /* --- submit states --- */
     const [loadingDraft, setLoadingDraft] =
@@ -282,11 +347,45 @@ export default function CreateOrderPage() {
         React.useState(false);
 
     /* --- auto fill khách khi nhập SĐT --- */
+    const [searchingCustomer, setSearchingCustomer] = React.useState(false);
     React.useEffect(() => {
-        if (phone && phone.includes("999")) {
-            setCustomerName("Nguyễn Văn Cũ");
-            setEmail("khachcu@example.com");
-        }
+        const timeoutId = setTimeout(async () => {
+            // Chỉ search nếu phone có ít nhất 10 số
+            if (!phone || phone.replace(/[^0-9]/g, "").length < 10) {
+                return;
+            }
+            
+            setSearchingCustomer(true);
+            try {
+                // Gọi API tìm customer by phone
+                const response = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8080"}/api/bookings/customers/phone/${encodeURIComponent(phone)}`, {
+                    headers: {
+                        "Authorization": `Bearer ${localStorage.getItem("access_token") || ""}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    // Parse ApiResponse structure: { success, message, data }
+                    const customer = result?.data || result;
+                    if (customer && customer.fullName) {
+                        setCustomerName(customer.fullName);
+                        if (customer.email) setEmail(customer.email);
+                        push("Đã tìm thấy khách hàng trong hệ thống", "success");
+                    }
+                } else if (response.status === 404) {
+                    // Không tìm thấy - không làm gì, user sẽ nhập thủ công
+                }
+            } catch (err) {
+                console.error("Search customer error:", err);
+                // Không hiển thị lỗi, chỉ log
+            } finally {
+                setSearchingCustomer(false);
+            }
+        }, 1000); // Debounce 1 giây
+        
+        return () => clearTimeout(timeoutId);
     }, [phone]);
 
     /* --- helpers nhỏ --- */
@@ -297,6 +396,32 @@ export default function CreateOrderPage() {
     };
     const onChangeVehicleCount = (v) => {
         setVehicleCount(Number(numOnly(v)) || 0);
+    };
+
+    const decrementPax = () => {
+        setPaxCount((prev) => Math.max(1, prev - 1));
+    };
+
+    const incrementPax = () => {
+        if (selectedCategory && selectedCategory.seats) {
+            const maxPax = Math.max(1, selectedCategory.seats - 1);
+            setPaxCount((prev) => Math.min(maxPax, prev + 1));
+            return;
+        }
+        setPaxCount((prev) => prev + 1);
+    };
+
+    const decrementVehicleCount = () => {
+        setVehicleCount((prev) => Math.max(1, prev - 1));
+    };
+
+    const incrementVehicleCount = () => {
+        if (availabilityInfo && availabilityInfo.count) {
+            const maxVehicles = Math.max(1, availabilityInfo.count);
+            setVehicleCount((prev) => Math.min(maxVehicles, prev + 1));
+            return;
+        }
+        setVehicleCount((prev) => prev + 1);
     };
 
     /* --- payload preview / validation --- */
@@ -344,7 +469,12 @@ export default function CreateOrderPage() {
             const req = {
                 customer: { fullName: customerName, phone, email },
                 branchId: Number(branchId),
+                hireTypeId: hireTypeId ? Number(hireTypeId) : null,
                 useHighway: false,
+                isHoliday: isHoliday,
+                isWeekend: isWeekend,
+                additionalPickupPoints: additionalPickupPoints || 0,
+                additionalDropoffPoints: additionalDropoffPoints || 0,
                 trips: [
                     { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
                 ],
@@ -390,7 +520,12 @@ export default function CreateOrderPage() {
             const req = {
                 customer: { fullName: customerName, phone, email },
                 branchId: Number(branchId),
+                hireTypeId: hireTypeId ? Number(hireTypeId) : null,
                 useHighway: false,
+                isHoliday: isHoliday,
+                isWeekend: isWeekend,
+                additionalPickupPoints: additionalPickupPoints || 0,
+                additionalDropoffPoints: additionalDropoffPoints || 0,
                 trips: [
                     { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
                 ],
@@ -586,6 +721,79 @@ export default function CreateOrderPage() {
                                     <span>{opt.label}</span>
                                 </button>
                             ))}
+                        </div>
+
+                        {/* Các tùy chọn phụ phí */}
+                        <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                            <div className="text-[12px] text-slate-600 mb-2 font-medium">
+                                Tùy chọn phụ phí
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-4">
+                                {/* Ngày lễ */}
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isHoliday}
+                                        onChange={(e) => setIsHoliday(e.target.checked)}
+                                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <span className="text-[13px] text-slate-700">
+                                        Ngày lễ (+25%)
+                                    </span>
+                                </label>
+
+                                {/* Cuối tuần */}
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isWeekend}
+                                        onChange={(e) => setIsWeekend(e.target.checked)}
+                                        disabled={true}
+                                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                                    />
+                                    <span className="text-[13px] text-slate-700">
+                                        Cuối tuần (+20%)
+                                        {isWeekend && <span className="text-emerald-600 ml-1">(Tự động)</span>}
+                                    </span>
+                                </label>
+                            </div>
+
+                            {/* Điểm đón/trả thêm */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <div className="text-[12px] text-slate-600 mb-1">
+                                        Điểm đón thêm
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={additionalPickupPoints}
+                                        onChange={(e) => setAdditionalPickupPoints(Number(e.target.value) || 0)}
+                                        className={cls(inputCls, "tabular-nums")}
+                                        placeholder="0"
+                                    />
+                                    <div className="text-[11px] text-slate-500 mt-1">
+                                        Nhập số điểm đón phụ ngoài điểm chính (mỗi điểm = 1 lần ghé thêm).
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-[12px] text-slate-600 mb-1">
+                                        Điểm trả thêm
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={additionalDropoffPoints}
+                                        onChange={(e) => setAdditionalDropoffPoints(Number(e.target.value) || 0)}
+                                        className={cls(inputCls, "tabular-nums")}
+                                        placeholder="0"
+                                    />
+                                    <div className="text-[11px] text-slate-500 mt-1">
+                                        Nhập số địa điểm trả khách bổ sung để hệ thống tính phụ phí chính xác.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
@@ -872,27 +1080,58 @@ export default function CreateOrderPage() {
                                     <div className={labelCls}>
                                         <Users className="h-3.5 w-3.5 text-slate-400" />
                                         <span>
-                                            Số
-                                            khách
+                                            Số khách
                                         </span>
-                                    </div>
-                                    <input
-                                        value={
-                                            paxCount
-                                        }
-                                        onChange={(e) =>
-                                            onChangePax(
-                                                e
-                                                    .target
-                                                    .value
-                                            )
-                                        }
-                                        className={cls(
-                                            inputCls,
-                                            "tabular-nums"
+                                        {selectedCategory && selectedCategory.seats && (
+                                            <span className="text-[11px] text-slate-500 font-normal">
+                                                (Tối đa: {selectedCategory.seats - 1})
+                                            </span>
                                         )}
-                                        placeholder="0"
-                                    />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={decrementPax}
+                                            disabled={paxCount <= 1}
+                                            className={cls(
+                                                "px-2 py-2 rounded-l-md border border-slate-300 bg-white hover:bg-slate-50 transition-colors",
+                                                "disabled:opacity-50 disabled:cursor-not-allowed",
+                                                "focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20"
+                                            )}
+                                        >
+                                            <Minus className="h-4 w-4 text-slate-600" />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={selectedCategory ? (selectedCategory.seats - 1) : undefined}
+                                            value={paxCount}
+                                            onChange={(e) => onChangePax(e.target.value)}
+                                            className={cls(
+                                                inputCls,
+                                                "tabular-nums rounded-none border-x-0 text-center"
+                                            )}
+                                            placeholder="1"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={incrementPax}
+                                            disabled={selectedCategory && selectedCategory.seats && paxCount >= (selectedCategory.seats - 1)}
+                                            className={cls(
+                                                "px-2 py-2 rounded-r-md border border-slate-300 bg-white hover:bg-slate-50 transition-colors",
+                                                "disabled:opacity-50 disabled:cursor-not-allowed",
+                                                "focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20"
+                                            )}
+                                        >
+                                            <Plus className="h-4 w-4 text-slate-600" />
+                                        </button>
+                                    </div>
+                                    {selectedCategory && selectedCategory.seats && paxCount >= selectedCategory.seats && (
+                                        <div className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                                            <AlertTriangle className="h-3 w-3" />
+                                            Số khách phải nhỏ hơn số ghế ({selectedCategory.seats} chỗ)
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <div className={labelCls}>
@@ -900,24 +1139,56 @@ export default function CreateOrderPage() {
                                         <span>
                                             Số xe
                                         </span>
-                                    </div>
-                                    <input
-                                        value={
-                                            vehicleCount
-                                        }
-                                        onChange={(e) =>
-                                            onChangeVehicleCount(
-                                                e
-                                                    .target
-                                                    .value
-                                            )
-                                        }
-                                        className={cls(
-                                            inputCls,
-                                            "tabular-nums"
+                                        {availabilityInfo && availabilityInfo.count && (
+                                            <span className="text-[11px] text-slate-500 font-normal">
+                                                (Khả dụng: {availabilityInfo.count})
+                                            </span>
                                         )}
-                                        placeholder="1"
-                                    />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={decrementVehicleCount}
+                                            disabled={vehicleCount <= 1}
+                                            className={cls(
+                                                "px-2 py-2 rounded-l-md border border-slate-300 bg-white hover:bg-slate-50 transition-colors",
+                                                "disabled:opacity-50 disabled:cursor-not-allowed",
+                                                "focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20"
+                                            )}
+                                        >
+                                            <Minus className="h-4 w-4 text-slate-600" />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={availabilityInfo && availabilityInfo.count ? availabilityInfo.count : undefined}
+                                            value={vehicleCount}
+                                            onChange={(e) => onChangeVehicleCount(e.target.value)}
+                                            className={cls(
+                                                inputCls,
+                                                "tabular-nums rounded-none border-x-0 text-center"
+                                            )}
+                                            placeholder="1"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={incrementVehicleCount}
+                                            disabled={availabilityInfo && availabilityInfo.count && vehicleCount >= availabilityInfo.count}
+                                            className={cls(
+                                                "px-2 py-2 rounded-r-md border border-slate-300 bg-white hover:bg-slate-50 transition-colors",
+                                                "disabled:opacity-50 disabled:cursor-not-allowed",
+                                                "focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20"
+                                            )}
+                                        >
+                                            <Plus className="h-4 w-4 text-slate-600" />
+                                        </button>
+                                    </div>
+                                    {availabilityInfo && availabilityInfo.count && vehicleCount > availabilityInfo.count && (
+                                        <div className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                                            <AlertTriangle className="h-3 w-3" />
+                                            Số xe không được vượt quá số xe khả dụng ({availabilityInfo.count})
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

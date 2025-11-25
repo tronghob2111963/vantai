@@ -149,6 +149,18 @@ export async function getBranchVehicleUtilization(params = {}) {
 }
 
 /**
+ * Get vehicle efficiency (cost per km) for branch
+ * @param {Object} params - { branchId, period }
+ * @returns {Promise}
+ */
+export async function getBranchVehicleEfficiency(params = {}) {
+    const response = await axiosInstance.get("/api/v1/manager/analytics/vehicle-efficiency", {
+        params,
+    });
+    return response.data;
+}
+
+/**
  * Get expense breakdown by category
  * @param {Object} params - { branchId, startDate, endDate }
  * @returns {Promise}

@@ -23,6 +23,7 @@ import {
     getBranchRevenueTrend,
     getBranchDriverPerformance,
     getBranchVehicleUtilization,
+    getBranchVehicleEfficiency,
     getBranchExpenseBreakdown,
     getBranchPendingApprovals,
     getBranchAlerts,
@@ -371,6 +372,7 @@ export default function ManagerDashboardPro() {
     const [revenueTrend, setRevenueTrend] = React.useState([]);
     const [driverPerformance, setDriverPerformance] = React.useState([]);
     const [vehicleUtilization, setVehicleUtilization] = React.useState({});
+    const [vehicleEfficiency, setVehicleEfficiency] = React.useState([]);
     const [expenseBreakdown, setExpenseBreakdown] = React.useState([]);
     const [pendingApprovals, setPendingApprovals] = React.useState([]);
     const [alerts, setAlerts] = React.useState([]);
@@ -445,6 +447,7 @@ export default function ManagerDashboardPro() {
                 setRevenueTrend(revenueTrendResult.status === 'fulfilled' ? (revenueTrendResult.value || []) : []);
                 setDriverPerformance(driverPerformanceResult.status === 'fulfilled' ? (driverPerformanceResult.value || []) : []);
                 setVehicleUtilization(vehicleUtilizationResult.status === 'fulfilled' ? (vehicleUtilizationResult.value || {}) : {});
+                setVehicleEfficiency(vehicleEfficiencyResult.status === 'fulfilled' ? (vehicleEfficiencyResult.value || []) : []);
                 setExpenseBreakdown(expenseBreakdownResult.status === 'fulfilled' ? (expenseBreakdownResult.value || []) : []);
                 setPendingApprovals(pendingApprovalsResult.status === 'fulfilled' ? (pendingApprovalsResult.value || []) : []);
                 setAlerts(alertsResult.status === 'fulfilled' ? (alertsResult.value || []) : []);
@@ -459,6 +462,7 @@ export default function ManagerDashboardPro() {
                         'revenue-trend',
                         'driver-performance',
                         'vehicle-utilization',
+                        'vehicle-efficiency',
                         'expense-breakdown',
                         'pending-approvals',
                         'alerts'
@@ -497,6 +501,7 @@ export default function ManagerDashboardPro() {
                     getBranchRevenueTrend({ branchId: branchInfo.id }),
                     getBranchDriverPerformance({ branchId: branchInfo.id, limit: 5 }),
                     getBranchVehicleUtilization({ branchId: branchInfo.id }),
+                    getBranchVehicleEfficiency({ branchId: branchInfo.id, period }),
                     getBranchExpenseBreakdown({ branchId: branchInfo.id }),
                     getBranchPendingApprovals({ branchId: branchInfo.id }),
                     getBranchAlerts({ branchId: branchInfo.id, severity: "HIGH,CRITICAL" }),
@@ -508,6 +513,7 @@ export default function ManagerDashboardPro() {
                     revenueTrendResult,
                     driverPerformanceResult,
                     vehicleUtilizationResult,
+                    vehicleEfficiencyResult,
                     expenseBreakdownResult,
                     pendingApprovalsResult,
                     alertsResult,
@@ -523,6 +529,7 @@ export default function ManagerDashboardPro() {
                 setRevenueTrend(revenueTrendResult.status === 'fulfilled' ? (revenueTrendResult.value || []) : []);
                 setDriverPerformance(driverPerformanceResult.status === 'fulfilled' ? (driverPerformanceResult.value || []) : []);
                 setVehicleUtilization(vehicleUtilizationResult.status === 'fulfilled' ? (vehicleUtilizationResult.value || {}) : {});
+                setVehicleEfficiency(vehicleEfficiencyResult.status === 'fulfilled' ? (vehicleEfficiencyResult.value || []) : []);
                 setExpenseBreakdown(expenseBreakdownResult.status === 'fulfilled' ? (expenseBreakdownResult.value || []) : []);
                 setPendingApprovals(pendingApprovalsResult.status === 'fulfilled' ? (pendingApprovalsResult.value || []) : []);
                 setAlerts(alertsResult.status === 'fulfilled' ? (alertsResult.value || []) : []);
@@ -614,8 +621,12 @@ export default function ManagerDashboardPro() {
         km: d.totalKm || 0,
     }));
 
-    // Map vehicle efficiency (from expense breakdown if available)
-    const vehicleEfficiency = expenseBreakdown.length > 0 ? [] : [];
+    // Map vehicle efficiency from API
+    const vehicleEfficiencyRows = (vehicleEfficiency || []).map((v) => ({
+        licensePlate: v.licensePlate || "N/A",
+        costPerKm: Number(v.costPerKm || 0),
+        totalKm: Number(v.totalKm || 0),
+    }));
 
     // Tỷ lệ lợi nhuận (profit margin)
     const profitMargin = totalRevenue > 0 ? (Number(netProfit) / Number(totalRevenue)) * 100 : 0;
@@ -755,14 +766,14 @@ export default function ManagerDashboardPro() {
                     <TripsSummaryCard
                         completed={completedTrips}
                         cancelled={totalTrips - completedTrips - ongoingTrips - scheduledTrips}
-                        kmTotal={0}
+                        kmTotal={dashboardData?.totalKm ? Number(dashboardData.totalKm) : 0}
                     />
 
                     {/* cột giữa: tài xế */}
                     <DriverPerfTable rows={topDrivers} />
 
                     {/* cột phải: xe */}
-                    <VehiclePerfTable rows={vehicleEfficiency} />
+                    <VehiclePerfTable rows={vehicleEfficiencyRows} />
                 </div>
             )}
 

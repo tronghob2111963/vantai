@@ -5,6 +5,9 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.ConstraintViolationException;
+import org.example.ptcmssbackend.exception.ForBiddenException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -47,9 +50,13 @@ public class GlobalExceptionHandler {
 
         String message = e.getMessage();
         if (e instanceof MethodArgumentNotValidException) {
-            int start = message.lastIndexOf("[") + 1;
-            int end = message.lastIndexOf("]") - 1;
-            message = message.substring(start, end);
+            MethodArgumentNotValidException ex = (MethodArgumentNotValidException) e;
+            // Lấy tất cả validation errors và join lại
+            message = ex.getBindingResult()
+                    .getFieldErrors()
+                    .stream()
+                    .map(error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : error.getField() + " không hợp lệ")
+                    .collect(java.util.stream.Collectors.joining(", "));
             errorResponse.setError("Invalid Payload");
             errorResponse.setMessage(message);
         } else if (e instanceof MissingServletRequestParameterException) {
@@ -126,6 +133,62 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle RuntimeException (thường là business logic errors)
+     * Đặt trước Exception.class để catch trước
+     */
+    /**
+     * Handle RuntimeException (thường là business logic errors)
+     * Đặt trước Exception.class để catch trước, nhưng sau các specific handlers
+     */
+    @ExceptionHandler(RuntimeException.class)
+    @ResponseStatus(BAD_REQUEST)
+    public ErrorResponse handleRuntimeException(RuntimeException e, WebRequest request) {
+        // Bỏ qua các exceptions đã được handle ở trên (không thể check instanceof vì chúng không phải RuntimeException)
+        // Nhưng Spring sẽ tự động match với handler cụ thể hơn trước
+        
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setTimestamp(new Date());
+        errorResponse.setPath(request.getDescription(false).replace("uri=", ""));
+        errorResponse.setStatus(BAD_REQUEST.value());
+        errorResponse.setError("Bad Request");
+        errorResponse.setMessage(e.getMessage() != null ? e.getMessage() : "Đã xảy ra lỗi. Vui lòng thử lại sau.");
+        return errorResponse;
+    }
+
+    /**
+     * Handle DataIntegrityViolationException (database constraint violations)
+     * Xử lý lỗi duplicate key, unique constraint violations
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(BAD_REQUEST)
+    public ErrorResponse handleDataIntegrityViolationException(DataIntegrityViolationException e, WebRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setTimestamp(new Date());
+        errorResponse.setPath(request.getDescription(false).replace("uri=", ""));
+        errorResponse.setStatus(BAD_REQUEST.value());
+        errorResponse.setError("Data Integrity Violation");
+        
+        String message = e.getMessage();
+        String userFriendlyMessage = "Dữ liệu không hợp lệ hoặc đã tồn tại trong hệ thống.";
+        
+        // Parse error message để hiển thị thông báo rõ ràng hơn
+        if (message != null) {
+            if (message.contains("phone") || message.contains("Phone")) {
+                userFriendlyMessage = "Số điện thoại đã được sử dụng bởi người dùng khác. Vui lòng sử dụng số điện thoại khác.";
+            } else if (message.contains("email") || message.contains("Email")) {
+                userFriendlyMessage = "Email đã được sử dụng bởi người dùng khác. Vui lòng sử dụng email khác.";
+            } else if (message.contains("username") || message.contains("Username")) {
+                userFriendlyMessage = "Tên đăng nhập đã được sử dụng. Vui lòng chọn tên đăng nhập khác.";
+            } else if (message.contains("Duplicate entry") || message.contains("duplicate")) {
+                userFriendlyMessage = "Dữ liệu đã tồn tại trong hệ thống. Vui lòng kiểm tra lại thông tin.";
+            }
+        }
+        
+        errorResponse.setMessage(userFriendlyMessage);
+        return errorResponse;
+    }
+
+    /**
      * Handle exception when internal server error
      *
      * @param e
@@ -149,7 +212,7 @@ public class GlobalExceptionHandler {
         errorResponse.setPath(request.getDescription(false).replace("uri=", ""));
         errorResponse.setStatus(INTERNAL_SERVER_ERROR.value());
         errorResponse.setError(INTERNAL_SERVER_ERROR.getReasonPhrase());
-        errorResponse.setMessage(e.getMessage());
+        errorResponse.setMessage(e.getMessage() != null ? e.getMessage() : "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.");
 
         return errorResponse;
     }
@@ -181,6 +244,40 @@ public class GlobalExceptionHandler {
         errorResponse.setStatus(BAD_REQUEST.value());
         errorResponse.setError("Payment Error");
         errorResponse.setMessage(e.getMessage());
+        return errorResponse;
+    }
+
+    /**
+     * Handle AccessDeniedException (403 Forbidden)
+     * Khi user không có quyền truy cập
+     */
+    @ExceptionHandler({AccessDeniedException.class, ForBiddenException.class})
+    @ResponseStatus(FORBIDDEN)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "403", description = "Forbidden",
+                    content = {@Content(mediaType = APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "403 Response",
+                                    summary = "Handle exception when access is denied",
+                                    value = "{\"timestamp\": \"2023-10-19T06:07:35.321+00:00\", \"status\": 403, \"path\": \"/api/v1/...\", \"error\": \"Forbidden\", \"message\": \"Bạn không có quyền thực hiện thao tác này\"}"
+                            ))})
+    })
+    public ErrorResponse handleAccessDeniedException(Exception e, WebRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setTimestamp(new Date());
+        errorResponse.setPath(request.getDescription(false).replace("uri=", ""));
+        errorResponse.setStatus(FORBIDDEN.value());
+        errorResponse.setError("Forbidden");
+        
+        // Cải thiện message để user-friendly hơn
+        String message = e.getMessage();
+        if (message == null || message.isEmpty()) {
+            message = "Bạn không có quyền thực hiện thao tác này. Vui lòng liên hệ quản trị viên nếu bạn cần quyền truy cập.";
+        } else if (message.contains("Access is denied") || message.contains("access denied") || message.contains("Access denied")) {
+            message = "Bạn không có quyền thực hiện thao tác này. Chỉ Admin và Manager mới có thể tạo tài khoản mới. Vui lòng liên hệ quản trị viên nếu bạn cần quyền này.";
+        }
+        
+        errorResponse.setMessage(message);
         return errorResponse;
     }
 }

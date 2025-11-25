@@ -1,7 +1,8 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getUser, updateUser, listRoles } from "../../api/users";
-import { Save, ArrowLeft, XCircle, CheckCircle, User, Mail, Phone, MapPin, Shield, Info, AlertCircle } from "lucide-react";
+import { listBranches } from "../../api/branches";
+import { Save, ArrowLeft, XCircle, CheckCircle, User, Mail, Phone, MapPin, Shield, Info, AlertCircle, Building2 } from "lucide-react";
 
 export default function UserDetailPage() {
   const { userId } = useParams();
@@ -10,13 +11,22 @@ export default function UserDetailPage() {
   const [saving, setSaving] = React.useState(false);
   const [showSuccess, setShowSuccess] = React.useState(false);
   const [roles, setRoles] = React.useState([]);
+  const [branches, setBranches] = React.useState([]);
+  const [currentUserId, setCurrentUserId] = React.useState(null);
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = React.useState(false);
+  const [canEditTarget, setCanEditTarget] = React.useState(true);
+  const [targetRoleName, setTargetRoleName] = React.useState("");
 
+  // Thông tin cá nhân (view-only)
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [address, setAddress] = React.useState("");
+  
+  // Thông tin hệ thống (editable)
   const [roleId, setRoleId] = React.useState("");
   const [status, setStatus] = React.useState("ACTIVE");
+  const [branchId, setBranchId] = React.useState("");
   const [errors, setErrors] = React.useState({});
   const [generalError, setGeneralError] = React.useState("");
 
@@ -26,6 +36,16 @@ export default function UserDetailPage() {
     (async () => {
       setLoading(true);
       try {
+        // Lấy current user ID từ localStorage
+        const storedUserId = localStorage.getItem("userId");
+        const numericUserId = storedUserId ? Number(storedUserId) : null;
+        if (numericUserId) {
+          setCurrentUserId(numericUserId);
+        }
+        const currentUserRole = (localStorage.getItem("roleName") || "").toUpperCase();
+        const isAdminLocal = currentUserRole === "ADMIN";
+        setIsCurrentUserAdmin(isAdminLocal);
+        
         const response = await getUser(userId);
         const u = response?.data || response;
         setFullName(u.fullName || "");
@@ -34,6 +54,24 @@ export default function UserDetailPage() {
         setAddress(u.address || "");
         setStatus(u.status || "ACTIVE");
         setRoleId(u.roleId ? String(u.roleId) : "");
+        if (u.branchId != null) {
+          setBranchId(String(u.branchId));
+        } else {
+          setBranchId("");
+        }
+        const targetRole = String(u.roleName || "").toUpperCase();
+        setTargetRoleName(targetRole);
+
+        const editingSelf = numericUserId != null && numericUserId === Number(userId);
+        const basePermission = isAdminLocal || editingSelf;
+        const isTargetAdmin = targetRole === "ADMIN";
+        const finalPermission = basePermission && (!isTargetAdmin || isAdminLocal);
+        setCanEditTarget(Boolean(finalPermission));
+        if (!finalPermission) {
+          setGeneralError("Bạn không có quyền chỉnh sửa tài khoản này. Vui lòng liên hệ Admin.");
+        } else {
+          setGeneralError("");
+        }
       } catch (error) {
         setGeneralError("Không thể tải thông tin người dùng");
       } finally {
@@ -52,6 +90,24 @@ export default function UserDetailPage() {
     })();
   }, []);
 
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const rs = await listBranches();
+        const raw = rs?.data || rs;
+        if (Array.isArray(raw)) {
+          setBranches(raw);
+        } else if (Array.isArray(raw?.items)) {
+          setBranches(raw.items);
+        } else if (Array.isArray(raw?.data)) {
+          setBranches(raw.data);
+        } else {
+          setBranches([]);
+        }
+      } catch {}
+    })();
+  }, []);
+
   const validate = () => {
     const next = {};
     if (!fullName.trim()) next.fullName = "Vui lòng nhập họ tên";
@@ -64,21 +120,27 @@ export default function UserDetailPage() {
 
   const onSave = async () => {
     if (!validate()) return;
+    if (!canEditTarget) {
+      setGeneralError("Bạn không có quyền chỉnh sửa tài khoản này.");
+      return;
+    }
     setSaving(true);
     setGeneralError("");
     try {
       await updateUser(userId, {
-        fullName,
+        fullName, // Giữ nguyên để tương thích với backend
         email,
         phone,
         address,
         roleId: roleId ? Number(roleId) : undefined,
         status,
+        branchId: branchId ? Number(branchId) : undefined,
       });
       setShowSuccess(true);
       setTimeout(() => navigate(-1), 1500);
     } catch (e) {
-      setGeneralError(e?.response?.data?.message || e?.message || "Cập nhật thất bại");
+      const errorMessage = e?.response?.data?.message || e?.data?.message || e?.message || "Cập nhật thất bại";
+      setGeneralError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -128,7 +190,7 @@ export default function UserDetailPage() {
 
           <button
             onClick={onSave}
-            disabled={saving || loading}
+            disabled={saving || loading || !canEditTarget}
             className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all active:scale-[0.98]"
             style={{ backgroundColor: BRAND_COLOR }}
           >
@@ -154,7 +216,13 @@ export default function UserDetailPage() {
             <div className="flex-1">
               <div className="font-semibold text-red-800 text-sm mb-1">Lỗi</div>
               <div className="text-sm text-red-700">{generalError}</div>
-            </div>
+              </div>
+              {!canEditTarget && (
+                <div className="text-xs text-amber-600 flex items-center gap-1.5 mt-3">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>Chỉ tài khoản Admin mới được phép chỉnh sửa người dùng này.</span>
+                </div>
+              )}
           </div>
         )}
 
@@ -167,104 +235,48 @@ export default function UserDetailPage() {
               <h2 className="text-base font-bold text-slate-900">Thông tin cá nhân</h2>
             </div>
 
-            {/* Full Name */}
+            {/* Full Name - View Only */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <User className="h-4 w-4 text-slate-400" />
                 <span>Họ và tên</span>
-                <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                  errors.fullName 
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
-                    : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                }`}
-                value={fullName}
-                onChange={(e) => {
-                  setFullName(e.target.value);
-                  updateField("fullName");
-                }}
-                placeholder="Ví dụ: Nguyễn Văn A"
-              />
-              {errors.fullName && (
-                <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  <span>{errors.fullName}</span>
-                </div>
-              )}
+              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
+                {fullName || "—"}
+              </div>
             </div>
 
-            {/* Email */}
+            {/* Email - View Only */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <Mail className="h-4 w-4 text-slate-400" />
                 <span>Email</span>
               </label>
-              <input
-                type="email"
-                className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                  errors.email 
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
-                    : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                }`}
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  updateField("email");
-                }}
-                placeholder="example@company.com"
-              />
-              {errors.email && (
-                <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  <span>{errors.email}</span>
-                </div>
-              )}
+              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
+                {email || "—"}
+              </div>
             </div>
 
-            {/* Phone */}
+            {/* Phone - View Only */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <Phone className="h-4 w-4 text-slate-400" />
                 <span>Số điện thoại</span>
               </label>
-              <input
-                type="tel"
-                className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                  errors.phone 
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
-                    : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                }`}
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value.replace(/[^0-9]/g, ""));
-                  updateField("phone");
-                }}
-                placeholder="0900000000"
-              />
-              {errors.phone && (
-                <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  <span>{errors.phone}</span>
-                </div>
-              )}
+              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
+                {phone || "—"}
+              </div>
             </div>
 
-            {/* Address */}
+            {/* Address - View Only */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <MapPin className="h-4 w-4 text-slate-400" />
                 <span>Địa chỉ</span>
               </label>
-              <textarea
-                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 resize-none"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Địa chỉ nhà"
-                rows={2}
-              />
+              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600 min-h-[60px]">
+                {address || "—"}
+              </div>
             </div>
           </div>
 
@@ -285,11 +297,39 @@ export default function UserDetailPage() {
                 className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
                 value={roleId}
                 onChange={(e) => setRoleId(e.target.value)}
+                disabled={!canEditTarget || (currentUserId === Number(userId) && isCurrentUserAdmin)}
               >
-                <option value="">-- Giữ nguyên --</option>
+                <option value="">-- Chọn vai trò --</option>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.roleName || r.name}
+                  </option>
+                ))}
+              </select>
+              {currentUserId === Number(userId) && isCurrentUserAdmin && (
+                <div className="text-xs text-amber-600 mt-1.5 flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5" />
+                  <span>Admin không thể tự thay đổi vai trò của chính mình</span>
+                </div>
+              )}
+            </div>
+
+            {/* Branch */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Building2 className="h-4 w-4 text-slate-400" />
+                <span>Chi nhánh</span>
+              </label>
+              <select
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                disabled={!canEditTarget}
+              >
+                <option value="">Chọn chi nhánh</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.branchName || b.name}
                   </option>
                 ))}
               </select>
@@ -305,6 +345,7 @@ export default function UserDetailPage() {
                 className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
+                disabled={!canEditTarget}
               >
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="INACTIVE">INACTIVE</option>

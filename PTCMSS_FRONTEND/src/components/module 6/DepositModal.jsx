@@ -281,6 +281,7 @@ export default function DepositModal({
                 const paymentPayload = {
                     amount,
                     paymentMethod: method,
+                    confirmationStatus: "PENDING", // Mặc định PENDING, kế toán sẽ xác nhận
                     bankName: method === "BANK_TRANSFER" ? bankName : undefined,
                     bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
                     referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,

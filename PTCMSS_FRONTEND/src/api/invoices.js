@@ -84,7 +84,8 @@ export function recordPayment(invoiceId, body) {
   // Transform frontend format to backend RecordPaymentRequest
   const payload = {
     amount: body.amount,
-    paymentMethod: body.paymentMethod,
+    paymentMethod: body.paymentMethod || "CASH",
+    confirmationStatus: body.confirmationStatus || "PENDING", // Mặc định PENDING, kế toán sẽ xác nhận
     // Bank transfer info
     bankName: body.bankName,
     bankAccount: body.bankAccount,
@@ -100,6 +101,14 @@ export function recordPayment(invoiceId, body) {
     method: "POST",
     body: payload,
   }).then(res => res.data); // Backend returns ApiResponse wrapper
+}
+
+// Confirm payment (kế toán xác nhận)
+export function confirmPayment(paymentId, status) {
+  // status: "CONFIRMED" hoặc "REJECTED"
+  return apiFetch(`/api/invoices/payments/${paymentId}/confirm?status=${encodeURIComponent(status)}`, {
+    method: "PATCH",
+  }).then(res => res.data);
 }
 
 // Get payment history for invoice

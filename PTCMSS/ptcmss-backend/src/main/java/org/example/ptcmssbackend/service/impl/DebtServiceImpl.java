@@ -255,7 +255,7 @@ public class DebtServiceImpl implements DebtService {
         response.setBookingId(invoice.getBooking() != null ? invoice.getBooking().getId() : null);
         response.setTotalAmount(invoice.getAmount());
 
-        BigDecimal paidAmount = paymentHistoryRepository.sumByInvoiceId(invoice.getId());
+        BigDecimal paidAmount = paymentHistoryRepository.sumConfirmedByInvoiceId(invoice.getId());
         response.setPaidAmount(paidAmount != null ? paidAmount : BigDecimal.ZERO);
         response.setBalance(invoiceService.calculateBalance(invoice.getId()));
 

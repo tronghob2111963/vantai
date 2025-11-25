@@ -161,10 +161,13 @@ public class EmployeeController {
                     "Create employee with user successfully",
                     employeeMapper.toDTO(saved)
             );
+        } catch (RuntimeException e) {
+            // Re-throw RuntimeException để GlobalExceptionHandler xử lý
+            throw e;
         } catch (Exception e) {
             System.err.println("Error creating employee with user: " + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("Failed to create employee with user: " + e.getMessage());
+            throw new RuntimeException("Không thể tạo nhân viên: " + (e.getMessage() != null ? e.getMessage() : "Đã xảy ra lỗi không xác định"));
         }
     }
 

@@ -9,6 +9,7 @@ import org.example.ptcmssbackend.entity.*;
 import org.example.ptcmssbackend.enums.*;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.NotificationService;
+import org.example.ptcmssbackend.service.SystemSettingService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final ExpenseRequestRepository expenseRequestRepository;
     private final UsersRepository userRepository;
     private final TripDriverRepository tripDriverRepository;
+    private final SystemSettingService systemSettingService;
     
     private static final int EXPIRY_WARNING_DAYS = 30; // Cảnh báo trước 30 ngày
     private static final int CRITICAL_WARNING_DAYS = 7; // Cảnh báo khẩn cấp trước 7 ngày
@@ -84,6 +86,7 @@ public class NotificationServiceImpl implements NotificationService {
             generateVehicleInsuranceAlerts();
             generateDriverLicenseAlerts();
             generateDriverHealthCheckAlerts();
+            generateDrivingHoursAlerts();
             
             // Xóa alerts đã hết hạn
             alertsRepository.deleteExpiredAlerts(Instant.now());
@@ -231,8 +234,8 @@ public class NotificationServiceImpl implements NotificationService {
         for (Drivers driver : drivers) {
             if (driver.getHealthCheckDate() == null) continue;
             
-            // Giả sử khám sức khỏe định kỳ 1 năm/lần
-            LocalDate nextCheckDue = driver.getHealthCheckDate().plusYears(1);
+            // Khám sức khỏe định kỳ 6 tháng/lần (theo yêu cầu business)
+            LocalDate nextCheckDue = driver.getHealthCheckDate().plusMonths(6);
             
             if (nextCheckDue.isBefore(warningDate)) {
                 long daysLeft = ChronoUnit.DAYS.between(today, nextCheckDue);
@@ -556,5 +559,176 @@ public class NotificationServiceImpl implements NotificationService {
             return driver.getEmployee().getUser().getFullName();
         }
         return "Driver #" + driver.getId();
+    }
+    
+    /**
+     * Tạo cảnh báo về thời gian lái xe vượt quá giới hạn
+     * - 4 giờ liên tục
+     * - 10 giờ/ngày
+     * - 48 giờ/tuần
+     */
+    private void generateDrivingHoursAlerts() {
+        List<Drivers> drivers = driverRepository.findAll();
+        Instant now = Instant.now();
+        
+        // Lấy cấu hình từ SystemSettings
+        int maxContinuousHours = getSystemSettingInt("MAX_CONTINUOUS_DRIVING_HOURS", 4);
+        int maxHoursPerDay = getSystemSettingInt("MAX_DRIVING_HOURS_PER_DAY", 10);
+        int maxHoursPerWeek = getSystemSettingInt("MAX_DRIVING_HOURS_PER_WEEK", 48);
+        
+        for (Drivers driver : drivers) {
+            List<TripDrivers> tripDrivers = tripDriverRepository.findAllByDriverId(driver.getId());
+            if (tripDrivers.isEmpty()) continue;
+            
+            String driverName = extractDriverName(driver);
+            
+            // Check 4 giờ liên tục
+            checkContinuousDrivingHours(driver, tripDrivers, now, maxContinuousHours, driverName);
+            
+            // Check 10 giờ/ngày
+            checkDailyDrivingHours(driver, tripDrivers, now, maxHoursPerDay, driverName);
+            
+            // Check 48 giờ/tuần
+            checkWeeklyDrivingHours(driver, tripDrivers, now, maxHoursPerWeek, driverName);
+        }
+    }
+    
+    private void checkContinuousDrivingHours(Drivers driver, List<TripDrivers> tripDrivers, Instant now, 
+                                             int maxHours, String driverName) {
+        // Tìm các trip đang diễn ra hoặc sắp diễn ra
+        List<TripDrivers> activeTrips = tripDrivers.stream()
+                .filter(td -> {
+                    Trips trip = td.getTrip();
+                    if (trip.getStartTime() == null || trip.getEndTime() == null) return false;
+                    return (trip.getStatus() == TripStatus.ONGOING || trip.getStatus() == TripStatus.SCHEDULED)
+                            && trip.getStartTime().isBefore(now.plusSeconds(3600)) // Trong vòng 1h tới
+                            && trip.getEndTime().isAfter(now.minusSeconds(3600)); // Hoặc đang diễn ra
+                })
+                .sorted((td1, td2) -> {
+                    Instant s1 = td1.getTrip().getStartTime();
+                    Instant s2 = td2.getTrip().getStartTime();
+                    return s1 != null && s2 != null ? s1.compareTo(s2) : 0;
+                })
+                .collect(Collectors.toList());
+        
+        if (activeTrips.size() < 2) return; // Cần ít nhất 2 trip để check liên tục
+        
+        // Tính tổng thời gian lái liên tục
+        for (int i = 0; i < activeTrips.size() - 1; i++) {
+            TripDrivers current = activeTrips.get(i);
+            TripDrivers next = activeTrips.get(i + 1);
+            
+            Instant currentEnd = current.getTrip().getEndTime();
+            Instant nextStart = next.getTrip().getStartTime();
+            
+            if (currentEnd != null && nextStart != null) {
+                // Nếu 2 trip cách nhau < 1 giờ (nghỉ ngắn), tính là lái liên tục
+                long breakHours = java.time.Duration.between(currentEnd, nextStart).toHours();
+                if (breakHours < 1) {
+                    // Tính tổng thời gian lái từ trip đầu đến trip cuối
+                    Instant firstStart = current.getTrip().getStartTime();
+                    Instant lastEnd = next.getTrip().getEndTime();
+                    if (firstStart != null && lastEnd != null) {
+                        long continuousHours = java.time.Duration.between(firstStart, lastEnd).toHours();
+                        if (continuousHours > maxHours) {
+                            createOrUpdateAlert(
+                                    AlertType.DRIVING_HOURS_EXCEEDED,
+                                    AlertSeverity.HIGH,
+                                    "Vượt giới hạn giờ lái liên tục",
+                                    String.format("Tài xế %s đã lái liên tục %d giờ (vượt quá %d giờ)", 
+                                            driverName, continuousHours, maxHours),
+                                    "DRIVER",
+                                    driver.getId(),
+                                    driver.getBranch()
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private void checkDailyDrivingHours(Drivers driver, List<TripDrivers> tripDrivers, Instant now,
+                                       int maxHours, String driverName) {
+        LocalDate today = LocalDate.now();
+        
+        // Tính tổng giờ lái trong ngày
+        long totalHours = tripDrivers.stream()
+                .filter(td -> {
+                    Trips trip = td.getTrip();
+                    if (trip.getStartTime() == null) return false;
+                    LocalDate tripDate = trip.getStartTime().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                    return tripDate.equals(today) && trip.getStatus() != TripStatus.CANCELLED;
+                })
+                .mapToLong(td -> {
+                    Trips trip = td.getTrip();
+                    if (trip.getStartTime() == null || trip.getEndTime() == null) return 0;
+                    return java.time.Duration.between(trip.getStartTime(), trip.getEndTime()).toHours();
+                })
+                .sum();
+        
+        if (totalHours > maxHours) {
+            createOrUpdateAlert(
+                    AlertType.DRIVING_HOURS_EXCEEDED,
+                    AlertSeverity.HIGH,
+                    "Vượt giới hạn giờ lái trong ngày",
+                    String.format("Tài xế %s đã lái %d giờ trong ngày (vượt quá %d giờ/ngày)", 
+                            driverName, totalHours, maxHours),
+                    "DRIVER",
+                    driver.getId(),
+                    driver.getBranch()
+            );
+        }
+    }
+    
+    private void checkWeeklyDrivingHours(Drivers driver, List<TripDrivers> tripDrivers, Instant now,
+                                        int maxHours, String driverName) {
+        LocalDate today = LocalDate.now();
+        LocalDate weekStart = today.minusDays(today.getDayOfWeek().getValue() - 1); // Thứ 2
+        LocalDate weekEnd = weekStart.plusDays(6); // Chủ nhật
+        
+        // Tính tổng giờ lái trong tuần
+        long totalHours = tripDrivers.stream()
+                .filter(td -> {
+                    Trips trip = td.getTrip();
+                    if (trip.getStartTime() == null) return false;
+                    LocalDate tripDate = trip.getStartTime().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                    return !tripDate.isBefore(weekStart) && !tripDate.isAfter(weekEnd) 
+                            && trip.getStatus() != TripStatus.CANCELLED;
+                })
+                .mapToLong(td -> {
+                    Trips trip = td.getTrip();
+                    if (trip.getStartTime() == null || trip.getEndTime() == null) return 0;
+                    return java.time.Duration.between(trip.getStartTime(), trip.getEndTime()).toHours();
+                })
+                .sum();
+        
+        if (totalHours > maxHours) {
+            createOrUpdateAlert(
+                    AlertType.DRIVING_HOURS_EXCEEDED,
+                    AlertSeverity.HIGH,
+                    "Vượt giới hạn giờ lái trong tuần",
+                    String.format("Tài xế %s đã lái %d giờ trong tuần (vượt quá %d giờ/tuần)", 
+                            driverName, totalHours, maxHours),
+                    "DRIVER",
+                    driver.getId(),
+                    driver.getBranch()
+            );
+        }
+    }
+    
+    /**
+     * Helper method: Lấy giá trị int từ SystemSettings
+     */
+    private int getSystemSettingInt(String key, int defaultValue) {
+        try {
+            var setting = systemSettingService.getByKey(key);
+            if (setting != null && setting.getSettingValue() != null) {
+                return Integer.parseInt(setting.getSettingValue());
+            }
+        } catch (Exception e) {
+            log.warn("Cannot get system setting {}: {}", key, e.getMessage());
+        }
+        return defaultValue;
     }
 }

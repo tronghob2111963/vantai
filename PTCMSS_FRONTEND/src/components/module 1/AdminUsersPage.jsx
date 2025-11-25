@@ -110,6 +110,18 @@ export default function AdminUsersPage() {
 
   const [allUsers, setAllUsers] = React.useState([]);
 
+  const canEditUser = React.useCallback(
+    (user) => {
+      if (!user) return false;
+      const targetRole = String(user.roleName || "").trim().toUpperCase();
+      if (currentRole !== ROLES.ADMIN && targetRole === "ADMIN") {
+        return false;
+      }
+      return true;
+    },
+    [currentRole]
+  );
+
   const onRefresh = React.useCallback(async () => {
     if (isManagerView) {
       if (managerBranchLoading) return;
@@ -179,7 +191,13 @@ export default function AdminUsersPage() {
 
   const onToggle = async (id) => {
     try {
-      await toggleUserStatus(id);
+      try {
+        await toggleUserStatus(id);
+      } catch (err) {
+        const errorMessage = err?.data?.message || err?.response?.data?.message || err?.message || "Không thể thay đổi trạng thái";
+        alert(errorMessage);
+        return;
+      }
       await onRefresh();
     } catch { /* empty */ }
   };
@@ -362,23 +380,30 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => navigate(`/admin/users/${u.id}`)} 
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" /> 
-                          Chỉnh sửa
-                        </button>
-                        <button 
-                          onClick={() => onToggle(u.id)} 
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${
-                            u.status === "ACTIVE"
-                              ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                              : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                          }`}
-                        >
-                          {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-                        </button>
+                        {canEditUser(u) ? (
+                          <button 
+                            onClick={() => navigate(`/admin/users/${u.id}`)} 
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" /> 
+                            Chỉnh sửa
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Chỉ Admin được chỉnh sửa</span>
+                        )}
+                        {/* Ẩn button vô hiệu hóa nếu user là Admin và đang ACTIVE */}
+                        {!(u.roleName === "Admin" && u.status === "ACTIVE") && (
+                          <button 
+                            onClick={() => onToggle(u.id)} 
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${
+                              u.status === "ACTIVE"
+                                ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                          >
+                            {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

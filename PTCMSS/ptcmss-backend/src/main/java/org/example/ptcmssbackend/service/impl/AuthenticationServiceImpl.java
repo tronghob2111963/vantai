@@ -21,7 +21,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import static org.example.ptcmssbackend.common.TokenType.EMAIL_VERIFY_TOKEN;
 import static org.example.ptcmssbackend.common.TokenType.REFRESH_TOKEN;
 
 @Service
@@ -39,34 +38,48 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public TokenResponse getAccessToken(LoginRequest request) {
         log.info("[LOGIN] Authenticating user: {}", request.getUsername());
 
-        // Kiểm tra user có tồn tại không trước
+        // Tìm user: thử username trước, nếu không tìm thấy thì thử email
         Users user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> {
-                    log.error("[LOGIN] User not found: {}", request.getUsername());
-                    throw new InvalidDataException("Invalid username or password");
-                });
+                .orElse(null);
+        
+        // Nếu không tìm thấy bằng username, thử tìm bằng email
+        if (user == null) {
+            log.info("[LOGIN] User not found by username, trying email: {}", request.getUsername());
+            user = userRepository.findByEmail(request.getUsername())
+                    .orElse(null);
+        }
+        
+        // Nếu vẫn không tìm thấy, throw exception
+        if (user == null) {
+            log.error("[LOGIN] User not found by username or email: {}", request.getUsername());
+            throw new InvalidDataException("Thông tin đăng nhập không hợp lệ");
+        }
+        
+        // Lưu username thực tế để dùng cho authentication
+        String actualUsername = user.getUsername();
 
         // Kiểm tra user có enabled không
         if (!user.isEnabled()) {
-            log.error("[LOGIN] User is disabled: {} (status: {})", request.getUsername(), user.getStatus());
+            log.error("[LOGIN] User is disabled: {} (status: {})", actualUsername, user.getStatus());
             throw new AccessDeniedException("Account is disabled. Please contact administrator.");
         }
 
         try {
+            // Dùng username thực tế của user (không phải email) để authenticate
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getUsername(),
+                            actualUsername,
                             request.getPassword()
                     )
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.info("[LOGIN] Authentication successful for user: {}", request.getUsername());
+            log.info("[LOGIN] Authentication successful for user: {} (login with: {})", actualUsername, request.getUsername());
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
             log.error("[LOGIN] Bad credentials for user: {} - {}", request.getUsername(), e.getMessage());
-            throw new AccessDeniedException("Invalid username or password");
+            throw new AccessDeniedException("Thông tin đăng nhập không hợp lệ");
         } catch (Exception e) {
             log.error("[LOGIN] Error authenticating user: {} - {}", request.getUsername(), e.getMessage(), e);
-            throw new AccessDeniedException("Invalid username or password");
+            throw new AccessDeniedException("Thông tin đăng nhập không hợp lệ");
         }
 
         // User đã được load ở trên, không cần load lại
@@ -312,16 +325,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public String forgotPassword(String email) {
         log.info("[FORGOT_PASSWORD] Request password reset for email: {}", email);
 
-        // Tìm user theo email
-        Users user = userRepository.findByEmail(email)
-                .orElse(null);
-
-        // Luôn trả về message thành công để không tiết lộ thông tin user
-        // (Security best practice: không cho attacker biết email có tồn tại hay không)
-        if (user == null) {
-            log.warn("[FORGOT_PASSWORD] Email not found: {}", email);
-            return "Nếu email tồn tại trong hệ thống, bạn sẽ nhận được link đặt lại mật khẩu.";
+        String normalizedEmail = email == null ? null : email.trim().toLowerCase();
+        if (!org.springframework.util.StringUtils.hasText(normalizedEmail)) {
+            throw new InvalidDataException("Email không được để trống.");
         }
+
+        // Tìm user theo email
+        Users user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> {
+                    log.warn("[FORGOT_PASSWORD] Email not found: {}", normalizedEmail);
+                    return new InvalidDataException("Email không tồn tại trong hệ thống.");
+                });
 
         // Tạo password reset token
         String passwordResetToken = jwtService.generatePasswordResetToken(user.getUsername());
@@ -338,11 +352,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     baseUrl
             );
             log.info("[FORGOT_PASSWORD] Password reset email sent to: {}", email);
+            // Trả về message thành công với thông tin rõ ràng hơn
+            return String.format("Chúng tôi đã gửi link đặt lại mật khẩu đến email %s. Vui lòng kiểm tra hộp thư của bạn.", email);
         } catch (MessagingException | UnsupportedEncodingException e) {
-            log.error("[FORGOT_PASSWORD] Failed to send email: {}", e.getMessage());
+            log.error("[FORGOT_PASSWORD] Failed to send email: {}", e.getMessage(), e);
             throw new RuntimeException("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.");
         }
-
-        return "Nếu email tồn tại trong hệ thống, bạn sẽ nhận được link đặt lại mật khẩu.";
     }
 }

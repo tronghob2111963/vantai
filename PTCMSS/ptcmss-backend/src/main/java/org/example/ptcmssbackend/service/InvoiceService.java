@@ -48,5 +48,8 @@ public interface InvoiceService {
     // Utilities
     boolean isOverdue(Integer invoiceId);
     void checkAndUpdateOverdueInvoices();
+    
+    // Payment confirmation
+    PaymentHistoryResponse confirmPayment(Integer paymentId, String status);
 }
 

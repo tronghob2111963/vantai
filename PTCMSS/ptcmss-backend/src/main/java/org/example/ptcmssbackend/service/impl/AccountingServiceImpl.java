@@ -98,7 +98,7 @@ public class AccountingServiceImpl implements AccountingService {
 
         BigDecimal totalPaid = invoices.stream()
                 .filter(inv -> inv.getPaymentStatus() == PaymentStatus.PAID)
-                .map(inv -> paymentHistoryRepository.sumByInvoiceId(inv.getId()))
+                .map(inv -> paymentHistoryRepository.sumConfirmedByInvoiceId(inv.getId()))
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -250,7 +250,7 @@ public class AccountingServiceImpl implements AccountingService {
         );
 
         BigDecimal paidAmount = invoices.stream()
-                .map(inv -> paymentHistoryRepository.sumByInvoiceId(inv.getId()))
+                .map(inv -> paymentHistoryRepository.sumConfirmedByInvoiceId(inv.getId()))
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
