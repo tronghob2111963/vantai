@@ -366,6 +366,8 @@ export default function ManagerDashboardPro() {
     const [branchInfo, setBranchInfo] = React.useState(null);
     const [branchLoading, setBranchLoading] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+    const [allBranches, setAllBranches] = React.useState([]);
+    const [isAdmin, setIsAdmin] = React.useState(false);
 
     // Dashboard data
     const [dashboardData, setDashboardData] = React.useState(null);
@@ -378,8 +380,48 @@ export default function ManagerDashboardPro() {
     const [alerts, setAlerts] = React.useState([]);
     const [dataLoading, setDataLoading] = React.useState(false);
 
-    // Load branch info on mount
+    // Check if user is admin
     React.useEffect(() => {
+        const roleName = localStorage.getItem("roleName");
+        setIsAdmin(roleName === "Admin");
+    }, []);
+
+    // Load all branches for admin
+    React.useEffect(() => {
+        if (!isAdmin) return;
+        (async () => {
+            try {
+                const { listBranches } = await import("../../api/branches");
+                const branchData = await listBranches({ size: 100 });
+                let branchesList = [];
+                if (branchData?.items && Array.isArray(branchData.items)) {
+                    branchesList = branchData.items;
+                } else if (branchData?.data?.items && Array.isArray(branchData.data.items)) {
+                    branchesList = branchData.data.items;
+                } else if (branchData?.data?.content && Array.isArray(branchData.data.content)) {
+                    branchesList = branchData.data.content;
+                } else if (branchData?.content && Array.isArray(branchData.content)) {
+                    branchesList = branchData.content;
+                } else if (Array.isArray(branchData?.data)) {
+                    branchesList = branchData.data;
+                } else if (Array.isArray(branchData)) {
+                    branchesList = branchData;
+                }
+                setAllBranches(branchesList);
+                // Set first branch as default for admin
+                if (branchesList.length > 0 && !branchInfo) {
+                    setBranchInfo(branchesList[0]);
+                    setBranch(branchesList[0].branchName);
+                }
+            } catch (error) {
+                console.error("Failed to load branches:", error);
+            }
+        })();
+    }, [isAdmin, branchInfo]);
+
+    // Load branch info on mount for non-admin users
+    React.useEffect(() => {
+        if (isAdmin) return; // Admin selects branch manually
         const userId = getStoredUserId();
         if (!userId) return;
         let cancelled = false;
@@ -403,7 +445,7 @@ export default function ManagerDashboardPro() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [isAdmin]);
 
     // Load dashboard data when branchInfo or period changes
     React.useEffect(() => {
@@ -668,22 +710,45 @@ export default function ManagerDashboardPro() {
                         </select>
                     </div>
 
-                    {/* Branch info */}
-                    <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm min-w-[200px]">
-                        <Building2 className="h-4 w-4 text-slate-500" />
-                        <div className="flex flex-col leading-tight">
-                            <span className="text-sm font-medium text-slate-800">
-                                {branchLoading
-                                    ? "Đang xác định chi nhánh..."
-                                    : branch || "Chưa gán chi nhánh"}
-                            </span>
-                            {(dashboardData?.branchInfo?.location || branchInfo?.location) && (
-                                <span className="text-[11px] text-slate-500">
-                                    {dashboardData?.branchInfo?.location || branchInfo.location}
-                                </span>
-                            )}
+                    {/* Branch info - Admin can select, Manager sees their branch only */}
+                    {isAdmin ? (
+                        <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm min-w-[200px]">
+                            <Building2 className="h-4 w-4 text-slate-500" />
+                            <select
+                                value={branchInfo?.id || ""}
+                                onChange={(e) => {
+                                    const selectedId = Number(e.target.value);
+                                    const selectedBranch = allBranches.find(b => b.id === selectedId);
+                                    if (selectedBranch) {
+                                        setBranchInfo(selectedBranch);
+                                    }
+                                }}
+                                className="bg-transparent outline-none text-sm text-slate-900 flex-1"
+                            >
+                                {allBranches.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                        {b.branchName}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm min-w-[200px]">
+                            <Building2 className="h-4 w-4 text-slate-500" />
+                            <div className="flex flex-col leading-tight">
+                                <span className="text-sm font-medium text-slate-800">
+                                    {branchLoading
+                                        ? "Đang xác định chi nhánh..."
+                                        : branch || "Chưa gán chi nhánh"}
+                                </span>
+                                {(dashboardData?.branchInfo?.location || branchInfo?.location) && (
+                                    <span className="text-[11px] text-slate-500">
+                                        {dashboardData?.branchInfo?.location || branchInfo.location}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Refresh */}
                     <button
@@ -900,13 +965,13 @@ export default function ManagerDashboardPro() {
             )}
 
             {/* FOOTER HINT */}
-            <div className="text-[11px] text-slate-500 mt-6 text-center leading-relaxed">
+            {/* <div className="text-[11px] text-slate-500 mt-6 text-center leading-relaxed">
                 Dữ liệu từ Module 7 API{" "}
                 <code className="text-[11px] text-slate-800 bg-slate-100 border border-slate-300 rounded px-1 py-0.5">
                     /api/v1/manager/dashboard
                 </code>{" "}
                 được lọc theo chi nhánh của Manager.
-            </div>
+            </div> */}
         </div>
     );
 }

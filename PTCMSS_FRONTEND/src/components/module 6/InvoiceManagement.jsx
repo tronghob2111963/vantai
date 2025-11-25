@@ -1190,6 +1190,12 @@ export default function InvoiceManagement() {
         paid: 0,
     });
 
+    // payment history modal
+    const [paymentHistoryOpen, setPaymentHistoryOpen] = React.useState(false);
+    const [selectedInvoiceId, setSelectedInvoiceId] = React.useState(null);
+    const [paymentHistory, setPaymentHistory] = React.useState([]);
+    const [loadingHistory, setLoadingHistory] = React.useState(false);
+
     // chế độ công nợ
     const [
         debtMode,
@@ -1542,12 +1548,11 @@ export default function InvoiceManagement() {
         } catch (err) {
             console.error("Error loading payment history:", err);
             push("Lỗi khi tải lịch sử thanh toán", "error");
-            setPaymentHistory([]);
         } finally {
             setLoadingHistory(false);
         }
     };
-    
+
     // Xác nhận thanh toán
     const onConfirmPayment = async (paymentId, status) => {
         try {

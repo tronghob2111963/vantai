@@ -297,7 +297,7 @@ export default function UserDetailPage() {
                 className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
                 value={roleId}
                 onChange={(e) => setRoleId(e.target.value)}
-                disabled={!canEditTarget || (currentUserId === Number(userId) && isCurrentUserAdmin)}
+                disabled={!canEditTarget}
               >
                 <option value="">-- Chọn vai trò --</option>
                 {roles.map((r) => (
@@ -309,7 +309,7 @@ export default function UserDetailPage() {
               {currentUserId === Number(userId) && isCurrentUserAdmin && (
                 <div className="text-xs text-amber-600 mt-1.5 flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5" />
-                  <span>Admin không thể tự thay đổi vai trò của chính mình</span>
+                  <span>⚠️ Cẩn thận khi thay đổi vai trò của chính mình</span>
                 </div>
               )}
             </div>
