@@ -254,9 +254,13 @@ const mapBranchRecord = (raw) => {
 
 const extractBranchItems = (payload) => {
     if (!payload) return [];
+    // Try data.items first (current backend format)
+    if (payload.data?.items && Array.isArray(payload.data.items)) return payload.data.items;
+    // Then try other formats
     if (Array.isArray(payload.items)) return payload.items;
-    if (Array.isArray(payload.data)) return payload.data;
+    if (payload.data?.content && Array.isArray(payload.data.content)) return payload.data.content;
     if (Array.isArray(payload.content)) return payload.content;
+    if (Array.isArray(payload.data)) return payload.data;
     if (Array.isArray(payload)) return payload;
     return [];
 };
@@ -577,9 +581,8 @@ function TimeHeader({ zoom }) {
                         return (
                             <div
                                 key={idx}
-                                className={`absolute top-0 bottom-0 ${COLORS.GRID} ${
-                                    isHour ? "border-l" : ""
-                                }`}
+                                className={`absolute top-0 bottom-0 ${COLORS.GRID} ${isHour ? "border-l" : ""
+                                    }`}
                                 style={{ left }}
                             >
                                 {isHour && (
@@ -626,18 +629,18 @@ function UtilBadge({ percent }) {
 }
 
 function Row({
-                 kind,
-                 label,
-                 date,
-                 items = [],
-                 shift,
-                 zoom,
-                 onOpen,
-                 showLabels,
-                 showBusy,
-                 showMaint,
-                 minRest = 30,
-             }) {
+    kind,
+    label,
+    date,
+    items = [],
+    shift,
+    zoom,
+    onOpen,
+    showLabels,
+    showBusy,
+    showMaint,
+    minRest = 30,
+}) {
     const width = (DAY_END - DAY_START) * HOUR_WIDTH * zoom;
 
     const overlap = computeOverlapFlags(items);
@@ -680,9 +683,8 @@ function Row({
                     (_, i) => (
                         <div
                             key={i}
-                            className={`absolute top-0 bottom-0 ${COLORS.GRID} ${
-                                i % 2 === 0 ? "border-l" : ""
-                            }`}
+                            className={`absolute top-0 bottom-0 ${COLORS.GRID} ${i % 2 === 0 ? "border-l" : ""
+                                }`}
                             style={{
                                 left:
                                     (i * TICK_MINUTES) / 60 *
@@ -835,16 +837,16 @@ function Modal({ open, onClose, item }) {
 
 // ===== Dialog gán chuyến (stub M5.S3) =====
 function AssignDialog({
-                          open,
-                          order,
-                          suggestions,
-                          onClose,
-                          onConfirm,
-                          submitting = false,
-                          error = "",
-                          optionsLoading = false,
-                          optionsError = "",
-                      }) {
+    open,
+    order,
+    suggestions,
+    onClose,
+    onConfirm,
+    submitting = false,
+    error = "",
+    optionsLoading = false,
+    optionsError = "",
+}) {
     const [driverId, setDriverId] = React.useState("");
     const [vehicleId, setVehicleId] = React.useState("");
 
@@ -959,11 +961,10 @@ function AssignDialog({
                                 vehicleId,
                             });
                         }}
-                        className={`rounded-md px-3 py-2 text-[13px] font-medium shadow-sm ${
-                            canConfirm 
-                                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-                                : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                        }`}
+                        className={`rounded-md px-3 py-2 text-[13px] font-medium shadow-sm ${canConfirm
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                            }`}
                     >
                         {submitting ? "Đang gán..." : "Gán"}
                     </button>
@@ -1028,17 +1029,17 @@ export default function CoordinatorTimelinePro() {
                     if (!Number.isFinite(userIdNum) || userIdNum <= 0) {
                         throw new Error(`User ID không hợp lệ: ${userId}`);
                     }
-                    
+
                     console.log("[CoordinatorTimelinePro] Loading branch for userId:", userIdNum);
-                    
+
                     try {
                         const resp = await getBranchByUserId(userIdNum);
                         if (cancelled) return;
-                        
+
                         console.log("[CoordinatorTimelinePro] Branch response:", resp);
                         const option = mapBranchRecord(resp);
                         if (cancelled) return;
-                        
+
                         setBranches(option ? [option] : []);
                         setBranchId((prev) => prev || (option?.id || ""));
                         if (!option) {
@@ -1059,11 +1060,19 @@ export default function CoordinatorTimelinePro() {
                         }
                     }
                 } else {
+                    console.log("[CoordinatorTimelinePro] Loading all branches for Admin...");
                     const res = await listBranches({ page: 0, size: 100 });
                     if (cancelled) return;
-                    const options = extractBranchItems(res)
+                    console.log("[CoordinatorTimelinePro] Branches API response:", res);
+
+                    const rawItems = extractBranchItems(res);
+                    console.log("[CoordinatorTimelinePro] Extracted raw items:", rawItems);
+
+                    const options = rawItems
                         .map(mapBranchRecord)
                         .filter(Boolean);
+                    console.log("[CoordinatorTimelinePro] Mapped branch options:", options);
+
                     setBranches(options);
                     setBranchId((prev) => prev || (options[0]?.id || ""));
                     if (!options.length) {
@@ -1075,7 +1084,7 @@ export default function CoordinatorTimelinePro() {
                 console.error("[CoordinatorTimelinePro] Failed to load branches:", err);
                 setBranches([]);
                 setBranchId("");
-                
+
                 // Extract error message
                 let msg = "Không tải được danh sách chi nhánh.";
                 if (err?.data?.message) {
@@ -1085,14 +1094,14 @@ export default function CoordinatorTimelinePro() {
                 } else if (err?.message) {
                     msg = err.message;
                 }
-                
+
                 // Handle specific backend errors
                 if (err?.status === 404 || msg.includes("không thuộc") || msg.includes("không tìm thấy")) {
                     msg = "Không tìm thấy chi nhánh phụ trách. Vui lòng liên hệ quản trị viên để được gán chi nhánh.";
                 } else if (err?.status === 401 || err?.status === 403) {
                     msg = "Không có quyền truy cập. Vui lòng đăng nhập lại.";
                 }
-                
+
                 setBranchError(msg);
             } finally {
                 if (!cancelled) setBranchLoading(false);
@@ -1134,7 +1143,7 @@ export default function CoordinatorTimelinePro() {
                     date: d,
                 });
                 console.log("[CoordinatorTimelinePro] Dashboard payload:", payload);
-                
+
                 const pendingRows =
                     payload?.pendingTrips ??
                     payload?.pending_trips ??
@@ -1153,12 +1162,12 @@ export default function CoordinatorTimelinePro() {
                 setVehicles(normalizeVehicleSchedules(vehicleRows));
             } catch (err) {
                 console.error("[CoordinatorTimelinePro] Failed to load dashboard:", err);
-                
+
                 // Clear data on error
                 setPending([]);
                 setDrivers([]);
                 setVehicles([]);
-                
+
                 // Extract error message
                 let msg = "Không tải được dữ liệu dashboard.";
                 if (err?.data?.message) {
@@ -1168,14 +1177,14 @@ export default function CoordinatorTimelinePro() {
                 } else if (err?.message) {
                     msg = err.message;
                 }
-                
+
                 // Handle specific errors
                 if (err?.status === 401 || err?.status === 403) {
                     msg = "Không có quyền truy cập dashboard. Vui lòng đăng nhập lại.";
                 } else if (err?.status === 404) {
                     msg = "Không tìm thấy dữ liệu cho chi nhánh này.";
                 }
-                
+
                 setError(msg);
             } finally {
                 setLoading(false);
@@ -1215,8 +1224,8 @@ export default function CoordinatorTimelinePro() {
                 if (cancelled) return;
                 setAssignOptionsError(
                     err?.data?.message ||
-                        err?.message ||
-                        "Khong tai duoc danh sach tai xe/xe theo chi nhanh."
+                    err?.message ||
+                    "Khong tai duoc danh sach tai xe/xe theo chi nhanh."
                 );
             } finally {
                 if (!cancelled) setAssignOptionsLoading(false);
@@ -1328,11 +1337,11 @@ export default function CoordinatorTimelinePro() {
     };
 
     const handleConfirmAssign = async ({
-                                           bookingId,
-                                           tripId,
-                                           driverId,
-                                           vehicleId,
-                                       }) => {
+        bookingId,
+        tripId,
+        driverId,
+        vehicleId,
+    }) => {
         if (!assignOrder && !bookingId) return;
         const targetBooking = bookingId ?? assignOrder?.bookingId ?? assignOrder?.id;
         if (targetBooking == null) {
@@ -1418,9 +1427,8 @@ export default function CoordinatorTimelinePro() {
                                 </div>
                             ) : branches.length ? (
                                 <select
-                                    className={`bg-transparent outline-none text-[13px] text-slate-900 min-w-[140px] appearance-none pr-6 focus:ring-2 focus:ring-sky-500 rounded ${
-                                        isBranchScoped ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
-                                    }`}
+                                    className={`bg-transparent outline-none text-[13px] text-slate-900 min-w-[140px] appearance-none pr-6 focus:ring-2 focus:ring-sky-500 rounded ${isBranchScoped ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
+                                        }`}
                                     value={branchId}
                                     onChange={(e) => {
                                         const newBranchId = e.target.value;
@@ -1433,7 +1441,7 @@ export default function CoordinatorTimelinePro() {
                                     }}
                                     disabled={isBranchScoped}
                                     title={isBranchScoped ? "Manager/Coordinator chỉ xem được chi nhánh của mình" : "Chọn chi nhánh"}
-                                    style={{ 
+                                    style={{
                                         pointerEvents: isBranchScoped ? 'none' : 'auto'
                                     }}
                                 >
@@ -1464,7 +1472,7 @@ export default function CoordinatorTimelinePro() {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                 }}
-                                style={{ 
+                                style={{
                                     pointerEvents: 'auto',
                                     WebkitAppearance: 'none',
                                     MozAppearance: 'textfield'
@@ -1521,6 +1529,24 @@ export default function CoordinatorTimelinePro() {
                         >
                             Now{" "}
                             <MoveRight className="inline h-4 w-4 text-slate-600" />
+                        </button>
+
+                        {/* refresh */}
+                        <button
+                            onClick={() => {
+                                if (branchId) {
+                                    fetchData(branchId, date);
+                                }
+                            }}
+                            disabled={loading}
+                            className="rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 py-2 text-[13px] text-emerald-700 font-medium flex items-center gap-1 disabled:opacity-50"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                            ) : (
+                                <RefreshCw className="h-4 w-4 text-emerald-600" />
+                            )}
+                            Refresh
                         </button>
 
                         {/* export */}

@@ -3,6 +3,7 @@ import React from "react";
 import { listVehicleCategories } from "../../api/vehicleCategories";
 import { calculatePrice, createBooking, getBooking, pageBookings } from "../../api/bookings";
 import { calculateDistance } from "../../api/graphhopper";
+import { getBranchByUserId, listBranches } from "../../api/branches";
 import PlaceAutocomplete from "../common/PlaceAutocomplete";
 import {
     Phone,
@@ -256,8 +257,12 @@ export default function CreateOrderPage() {
     const [showPrefillDialog, setShowPrefillDialog] = React.useState(false);
     const [prefillLoading, setPrefillLoading] = React.useState(false);
 
-    // branch mặc định theo user đăng nhập
-    const [branchId] = React.useState("1");
+    // branch management
+    const [branchId, setBranchId] = React.useState("");
+    const [branchName, setBranchName] = React.useState("");
+    const [availableBranches, setAvailableBranches] = React.useState([]);
+    const [isAdmin, setIsAdmin] = React.useState(false);
+    const [loadingBranch, setLoadingBranch] = React.useState(true);
 
     // availability check
     const [availabilityInfo, setAvailabilityInfo] =
@@ -395,14 +400,101 @@ export default function CreateOrderPage() {
         }
     }, [phone]);
 
+    // Load branch based on user role
+    React.useEffect(() => {
+        (async () => {
+            try {
+                setLoadingBranch(true);
+                const userId = localStorage.getItem("userId");
+                const roleName = (localStorage.getItem("roleName") || "").toUpperCase();
+                const isAdminUser = roleName === "ADMIN";
+
+                console.log("🔍 Branch Loading Debug:", {
+                    userId,
+                    roleName,
+                    isAdminUser
+                });
+
+                setIsAdmin(isAdminUser);
+
+                if (isAdminUser) {
+                    // Admin: Load all branches for selection
+                    console.log("👑 Loading branches for Admin...");
+                    const branchesData = await listBranches({ page: 0, size: 100 });
+                    console.log("📦 Branches API Response:", branchesData);
+
+                    // Try multiple possible response structures
+                    let branches = branchesData?.data?.items ||
+                        branchesData?.items ||
+                        branchesData?.data?.content ||
+                        branchesData?.content ||
+                        (Array.isArray(branchesData?.data) ? branchesData.data : []) ||
+                        (Array.isArray(branchesData) ? branchesData : []);
+
+                    // Filter only ACTIVE branches
+                    branches = branches.filter(b => b && b.id && b.status === 'ACTIVE');
+
+                    // Normalize field names: id -> branchId for consistency
+                    const normalizedBranches = branches.map(b => ({
+                        branchId: b.id || b.branchId,
+                        branchName: b.branchName,
+                        location: b.location,
+                        status: b.status
+                    }));
+
+                    console.log("✅ Extracted branches:", normalizedBranches);
+                    setAvailableBranches(normalizedBranches);
+
+                    if (normalizedBranches.length > 0) {
+                        setBranchId(String(normalizedBranches[0].branchId));
+                        setBranchName(normalizedBranches[0].branchName);
+                        console.log("✅ Set default branch:", normalizedBranches[0]);
+                        push(`Đã tải ${normalizedBranches.length} chi nhánh`, "success");
+                    } else {
+                        console.warn("⚠️ No active branches found for Admin");
+                        push("Không tìm thấy chi nhánh ACTIVE nào trong hệ thống", "error");
+                    }
+                } else {
+                    // Manager/Other roles: Get branch by userId
+                    console.log("👤 Loading branch for Manager/User...");
+                    if (userId) {
+                        const branchData = await getBranchByUserId(Number(userId));
+                        console.log("📦 Branch by User Response:", branchData);
+
+                        if (branchData) {
+                            // Normalize: id -> branchId
+                            const normalizedBranchId = branchData.id || branchData.branchId;
+                            setBranchId(String(normalizedBranchId));
+                            setBranchName(branchData.branchName);
+                            console.log("✅ Set user branch:", { branchId: normalizedBranchId, branchName: branchData.branchName });
+                            push(`Chi nhánh: ${branchData.branchName}`, "success");
+                        } else {
+                            console.warn("⚠️ Branch data is null");
+                            push("Không tìm thấy chi nhánh của bạn", "error");
+                        }
+                    } else {
+                        console.warn("⚠️ No userId found in localStorage");
+                        push("Không tìm thấy thông tin người dùng", "error");
+                    }
+                }
+            } catch (err) {
+                console.error("❌ Failed to load branch:", err);
+                push("Không thể tải thông tin chi nhánh: " + (err.message || "Lỗi không xác định"), "error");
+            } finally {
+                setLoadingBranch(false);
+                console.log("✅ Branch loading completed");
+            }
+        })();
+    }, []);
+
     // load categories from backend
     React.useEffect(() => {
         (async () => {
             try {
                 const list = await listVehicleCategories();
                 if (Array.isArray(list) && list.length > 0) {
-                    const mapped = list.map(c => ({ 
-                        id: String(c.id), 
+                    const mapped = list.map(c => ({
+                        id: String(c.id),
                         name: c.categoryName,
                         seats: c.seats || 0 // Lưu số ghế
                     }));
@@ -419,7 +511,7 @@ export default function CreateOrderPage() {
             }
         })();
     }, []);
-    
+
     // Update selectedCategory khi categoryId thay đổi
     React.useEffect(() => {
         if (categoryId && categories.length > 0) {
@@ -491,20 +583,22 @@ export default function CreateOrderPage() {
     // calculate via backend when possible
     React.useEffect(() => {
         const run = async () => {
+            // Cần đủ thông tin cơ bản để tính giá
             if (!categoryId || !distanceKm) return;
+
+            // Nếu thiếu startTime/endTime, không tính giá (tránh lỗi 400)
+            if (!startTime || !endTime) {
+                console.log("⏸️ Skipping price calculation: missing time");
+                return;
+            }
+
             setCalculatingPrice(true);
             try {
-                // Build query params với các tham số mới
-                const params = new URLSearchParams();
-                params.append("vehicleCategoryIds", String(categoryId));
-                params.append("quantities", String(vehicleCount || 1));
-                params.append("distance", String(distanceKm || 0));
-                params.append("useHighway", "false");
-                if (hireTypeId) params.append("hireTypeId", hireTypeId);
-                if (isHoliday) params.append("isHoliday", "true");
-                if (isWeekend) params.append("isWeekend", "true");
+                // Convert datetime-local to ISO string
+                const startISO = toIsoZ(startTime);
+                const endISO = toIsoZ(endTime);
+
                 const totalAdditionalPoints = (additionalPickupPoints || 0) + (additionalDropoffPoints || 0);
-                if (totalAdditionalPoints > 0) params.append("additionalPoints", String(totalAdditionalPoints));
 
                 const price = await calculatePrice({
                     vehicleCategoryIds: [Number(categoryId)],
@@ -515,13 +609,16 @@ export default function CreateOrderPage() {
                     isHoliday: isHoliday,
                     isWeekend: isWeekend,
                     additionalPoints: totalAdditionalPoints,
-                    startTime: startTime ? (startTime instanceof Date ? startTime.toISOString() : startTime) : undefined,
-                    endTime: endTime ? (endTime instanceof Date ? endTime.toISOString() : endTime) : undefined,
+                    startTime: startISO,
+                    endTime: endISO,
                 });
                 const base = Number(price || 0);
                 setEstPriceSys(base);
                 setQuotedPrice((old) => (quotedPriceTouched ? old : base));
-            } catch {} finally {
+            } catch (err) {
+                console.error("❌ Calculate price error:", err);
+                // Không hiển thị toast error vì có thể là do user đang nhập dở
+            } finally {
                 setCalculatingPrice(false);
             }
         };
@@ -543,7 +640,7 @@ export default function CreateOrderPage() {
             if (!phone || normalizedPhone.length < 10) {
                 return;
             }
-            
+
             setSearchingCustomer(true);
             try {
                 // Gọi API tìm customer by phone
@@ -553,7 +650,7 @@ export default function CreateOrderPage() {
                         "Content-Type": "application/json"
                     }
                 });
-                
+
                 if (response.ok) {
                     const result = await response.json();
                     // Parse ApiResponse structure: { success, message, data }
@@ -574,7 +671,7 @@ export default function CreateOrderPage() {
                 setSearchingCustomer(false);
             }
         }, 1000); // Debounce 1 giây
-        
+
         return () => clearTimeout(timeoutId);
     }, [phone, loadRecentBookingSuggestion, push]);
 
@@ -641,21 +738,41 @@ export default function CreateOrderPage() {
         startTime &&
         endTime &&
         categoryId &&
+        branchId &&
         quotedPrice > 0;
 
     /* --- handlers --- */
     const saveDraft = async () => {
+        // Check if branch is still loading
+        if (loadingBranch) {
+            push("Đang tải thông tin chi nhánh, vui lòng đợi...", "info");
+            return;
+        }
+
         if (!isValidCore) {
             push(
-                "Thiếu dữ liệu bắt buộc (SĐT / Tên KH / Điểm đi / Điểm đến / Giá báo khách...)",
+                "Thiếu dữ liệu bắt buộc (SĐT / Tên KH / Điểm đi / Điểm đến / Chi nhánh / Giá báo khách...)",
                 "error"
             );
             return;
         }
+
+        if (!branchId || branchId === "" || branchId === "0") {
+            console.error("❌ BranchId is invalid:", branchId);
+            push("Không tìm thấy chi nhánh. Vui lòng tải lại trang hoặc liên hệ quản trị viên.", "error");
+            return;
+        }
+
         setLoadingDraft(true);
         try {
             const sStart = toIsoZ(startTime);
             const sEnd = toIsoZ(endTime);
+
+            if (!sStart || !sEnd) {
+                push("Thời gian không hợp lệ", "error");
+                return;
+            }
+
             const req = {
                 customer: { fullName: customerName, phone, email },
                 branchId: Number(branchId),
@@ -678,16 +795,25 @@ export default function CreateOrderPage() {
                 status: "PENDING",
                 distance: Number(distanceKm || 0),
             };
+
+            console.log("📤 Creating booking:", req);
             await createBooking(req);
             push("Đã lưu nháp đơn hàng", "success");
-        } catch {
-            push("Lưu nháp thất bại", "error");
+        } catch (err) {
+            console.error("❌ Save draft error:", err);
+            push("Lưu nháp thất bại: " + (err.message || "Lỗi không xác định"), "error");
         } finally {
             setLoadingDraft(false);
         }
     };
 
     const submitOrder = async () => {
+        // Check if branch is still loading
+        if (loadingBranch) {
+            push("Đang tải thông tin chi nhánh, vui lòng đợi...", "info");
+            return;
+        }
+
         if (!isValidCore) {
             push(
                 "Thiếu dữ liệu bắt buộc. Kiểm tra lại thông tin.",
@@ -695,6 +821,13 @@ export default function CreateOrderPage() {
             );
             return;
         }
+
+        if (!branchId || branchId === "" || branchId === "0") {
+            console.error("❌ BranchId is invalid:", branchId);
+            push("Không tìm thấy chi nhánh. Vui lòng tải lại trang hoặc liên hệ quản trị viên.", "error");
+            return;
+        }
+
         if (availabilityInfo && !availabilityInfo.ok) {
             push(
                 "Cảnh báo: Hệ thống báo hết xe trong khung giờ này.",
@@ -707,6 +840,12 @@ export default function CreateOrderPage() {
         try {
             const sStart = toIsoZ(startTime);
             const sEnd = toIsoZ(endTime);
+
+            if (!sStart || !sEnd) {
+                push("Thời gian không hợp lệ", "error");
+                return;
+            }
+
             const req = {
                 customer: { fullName: customerName, phone, email },
                 branchId: Number(branchId),
@@ -726,13 +865,16 @@ export default function CreateOrderPage() {
                 discountAmount: Number(discount || 0),
                 totalCost: Number(quotedPrice || 0),
                 depositAmount: 0,
-                status: "CONFIRMED",
+                status: "PENDING", // Changed from CONFIRMED to PENDING so Coordinator can assign driver/vehicle
                 distance: Number(distanceKm || 0),
             };
+
+            console.log("📤 Creating booking:", req);
             const created = await createBooking(req);
-            push(`Đã tạo đơn hàng #${created?.id || "?"}`, "success");
-        } catch {
-            push("Tạo đơn hàng thất bại", "error");
+            push(`Đã tạo đơn hàng #${created?.id || "?"}. Đơn đang chờ điều phối gán xe/tài xế.`, "success");
+        } catch (err) {
+            console.error("❌ Submit order error:", err);
+            push("Tạo đơn hàng thất bại: " + (err.message || "Lỗi không xác định"), "error");
         } finally {
             setLoadingSubmit(false);
         }
@@ -749,6 +891,19 @@ export default function CreateOrderPage() {
         <div className="min-h-screen bg-slate-50 text-slate-900 p-5">
             <Toasts toasts={toasts} />
 
+            {/* DEBUG PANEL - Remove this after testing */}
+            {process.env.NODE_ENV === 'development' && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
+                    <div className="font-bold mb-2">🔍 Debug Info:</div>
+                    <div>loadingBranch: {String(loadingBranch)}</div>
+                    <div>isAdmin: {String(isAdmin)}</div>
+                    <div>branchId: {branchId || 'empty'}</div>
+                    <div>branchName: {branchName || 'empty'}</div>
+                    <div>availableBranches: {availableBranches.length} items</div>
+                    <div>roleName: {localStorage.getItem("roleName") || 'not set'}</div>
+                </div>
+            )}
+
             {/* HEADER */}
             <div className="flex flex-col xl:flex-row xl:items-start gap-4 mb-6">
                 <div className="flex-1 flex flex-col gap-2">
@@ -758,13 +913,44 @@ export default function CreateOrderPage() {
                             <span>Tạo đơn hàng mới</span>
                         </div>
 
-                        <span className="rounded-md border border-slate-300 bg-slate-100 text-[11px] px-2 py-[2px] text-slate-600 font-medium flex items-center gap-1">
-                            <Building2 className="h-3.5 w-3.5 text-slate-500" />
-                            Chi nhánh:{" "}
-                            <span className="text-slate-900 font-semibold">
-                                {branchId}
+                        {/* Branch Display/Selection */}
+                        {loadingBranch ? (
+                            <span className="rounded-md border border-slate-300 bg-slate-100 text-[11px] px-2 py-[2px] text-slate-600 font-medium flex items-center gap-1">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+                                Đang tải chi nhánh...
                             </span>
-                        </span>
+                        ) : isAdmin ? (
+                            <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-slate-500" />
+                                <select
+                                    value={branchId}
+                                    onChange={(e) => {
+                                        const selectedBranch = availableBranches.find(
+                                            b => String(b.branchId) === e.target.value
+                                        );
+                                        setBranchId(e.target.value);
+                                        if (selectedBranch) {
+                                            setBranchName(selectedBranch.branchName);
+                                        }
+                                    }}
+                                    className="rounded-md border border-slate-300 bg-white text-[13px] px-3 py-1.5 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                                >
+                                    {availableBranches.map((branch) => (
+                                        <option key={branch.branchId} value={String(branch.branchId)}>
+                                            {branch.branchName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        ) : (
+                            <span className="rounded-md border border-slate-300 bg-slate-100 text-[11px] px-2 py-[2px] text-slate-600 font-medium flex items-center gap-1">
+                                <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                                Chi nhánh:{" "}
+                                <span className="text-slate-900 font-semibold">
+                                    {branchName || branchId}
+                                </span>
+                            </span>
+                        )}
                     </div>
 
                     <div className="text-[12px] text-slate-500 flex flex-wrap items-center gap-2 leading-relaxed">
@@ -777,7 +963,7 @@ export default function CreateOrderPage() {
                     {/* Lưu nháp */}
                     <button
                         onClick={saveDraft}
-                        disabled={loadingDraft}
+                        disabled={loadingDraft || loadingBranch || !branchId}
                         type="button"
                         className="rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-[13px] text-slate-700 px-4 py-2 flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -792,7 +978,7 @@ export default function CreateOrderPage() {
                     {/* Đặt đơn */}
                     <button
                         onClick={submitOrder}
-                        disabled={loadingSubmit}
+                        disabled={loadingSubmit || loadingBranch || !branchId}
                         type="button"
                         className="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -902,7 +1088,7 @@ export default function CreateOrderPage() {
                                     className={cls(
                                         "px-3 py-2 rounded-md border text-[13px] flex items-center gap-2 shadow-sm",
                                         hireType ===
-                                        opt.key
+                                            opt.key
                                             ? "ring-1 ring-emerald-200 bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : "border-slate-300 bg-white hover:bg-slate-50 text-slate-700"
                                     )}
@@ -918,7 +1104,7 @@ export default function CreateOrderPage() {
                             <div className="text-[12px] text-slate-600 mb-2 font-medium">
                                 Tùy chọn phụ phí
                             </div>
-                            
+
                             <div className="flex flex-wrap gap-4">
                                 {/* Ngày lễ */}
                                 <label className="flex items-center gap-2 cursor-pointer">
@@ -1428,7 +1614,7 @@ export default function CreateOrderPage() {
                     ) : null}
 
                     {availabilityInfo &&
-                    !availabilityInfo.ok ? (
+                        !availabilityInfo.ok ? (
                         <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[12px] p-3 flex items-start gap-2 leading-relaxed">
                             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                             <div>
