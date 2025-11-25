@@ -122,22 +122,36 @@ export default function UpdateProfilePage() {
   const onSave = async () => {
     if (!validate()) return;
     setSaving(true);
+    setGeneralError("");
+    setShowSuccess(false);
+    
     try {
       // Upload avatar if changed
       if (avatarFile && userId) {
-        await uploadAvatar(userId, avatarFile);
+        try {
+          await uploadAvatar(userId, avatarFile);
+        } catch (avatarErr) {
+          console.error("Avatar upload error:", avatarErr);
+          // Không block nếu upload avatar fail, chỉ log
+        }
       }
 
-      // Only update profile if roleId and status are available
-      if (roleId && status) {
-        await updateMyProfile({
+      // Update profile - luôn update nếu có userId
+      if (userId) {
+        const updateData = {
           fullName,
-          phone,
+          phone: phone || null,
           email: email || null,
-          address,
-          roleId,
-          status
-        });
+          address: address || null,
+        };
+        
+        // Chỉ thêm roleId và status nếu có
+        if (roleId) updateData.roleId = roleId;
+        if (status) updateData.status = status;
+        
+        await updateMyProfile(updateData);
+      } else {
+        throw new Error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
       }
 
       setGeneralError("");
@@ -157,7 +171,42 @@ export default function UpdateProfilePage() {
       setAvatarFile(null);
     } catch (err) {
       console.error("Update profile error:", err);
-      setGeneralError("Cập nhật hồ sơ thất bại: " + (err.message || ""));
+      
+      // Parse error message từ nhiều nguồn
+      let errorMessage = "Cập nhật hồ sơ thất bại";
+      
+      if (err?.data) {
+        // Error từ apiFetch (http.js)
+        if (err.data.message) {
+          errorMessage = err.data.message;
+        } else if (err.data.error) {
+          errorMessage = err.data.error;
+        } else if (typeof err.data === 'string') {
+          errorMessage = err.data;
+        }
+      } else if (err?.response?.data) {
+        // Error từ axios response
+        if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        } else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      // Cải thiện message cho user-friendly hơn
+      if (errorMessage.includes("Phone already exists") || errorMessage.includes("phone") && errorMessage.includes("exists")) {
+        errorMessage = "Số điện thoại đã được sử dụng bởi người dùng khác. Vui lòng sử dụng số điện thoại khác.";
+      } else if (errorMessage.includes("Email already exists") || errorMessage.includes("email") && errorMessage.includes("exists")) {
+        errorMessage = "Email đã được sử dụng bởi người dùng khác. Vui lòng sử dụng email khác.";
+      } else if (errorMessage.includes("duplicate") && errorMessage.includes("phone")) {
+        errorMessage = "Số điện thoại đã được sử dụng bởi người dùng khác. Vui lòng sử dụng số điện thoại khác.";
+      }
+      
+      setGeneralError(errorMessage);
     } finally {
       setSaving(false);
     }

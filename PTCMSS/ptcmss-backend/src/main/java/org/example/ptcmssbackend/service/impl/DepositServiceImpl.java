@@ -85,7 +85,7 @@ public class DepositServiceImpl implements DepositService {
                 .filter(inv -> Boolean.TRUE.equals(inv.getIsDeposit()))
                 .filter(inv -> inv.getType() == InvoiceType.INCOME)
                 .filter(inv -> inv.getPaymentStatus() == PaymentStatus.PAID)
-                .map(inv -> paymentHistoryRepository.sumByInvoiceId(inv.getId()))
+                .map(inv -> paymentHistoryRepository.sumConfirmedByInvoiceId(inv.getId()))
                 .filter(amount -> amount != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

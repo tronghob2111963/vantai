@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { listEmployees, updateEmployee, listEmployeesByBranch } from "../../api/employees";
 import { listBranches } from "../../api/branches";
 import { listRoles } from "../../api/users";
+import { getCurrentRole, ROLES } from "../../utils/session";
 import { Users, Plus, Search, Filter, Building2, UserCog, Edit, Ban, CheckCircle } from "lucide-react";
 
 export default function EmployeeManagementPage() {
     const navigate = useNavigate();
+    const currentRole = React.useMemo(() => getCurrentRole(), []);
+    const isAdmin = currentRole === ROLES.ADMIN;
 
     const [employees, setEmployees] = React.useState([]);
     const [branches, setBranches] = React.useState([]);
@@ -119,13 +122,15 @@ export default function EmployeeManagementPage() {
                     <Users className="text-sky-600" size={28} />
                     <h1 className="text-2xl font-bold text-slate-800">Quản lý nhân viên</h1>
                 </div>
-                <button
-                    onClick={() => navigate("/admin/employees/create-with-user")}
-                    className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg shadow-sm font-medium transition-all"
-                >
-                    <Plus size={18} />
-                    Tạo nhân viên mới
-                </button>
+                {isAdmin && (
+                    <button
+                        onClick={() => navigate("/admin/employees/create")}
+                        className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg shadow-sm font-medium transition-all"
+                    >
+                        <Plus size={18} />
+                        Tạo nhân viên mới
+                    </button>
+                )}
             </div>
 
             {/* Filters */}

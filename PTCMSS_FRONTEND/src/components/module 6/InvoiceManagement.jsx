@@ -11,6 +11,11 @@ import {
     ChevronRight,
     ChevronUp,
     ChevronDown,
+    History,
+    CheckCircle,
+    XCircle,
+    Clock,
+    X,
 } from "lucide-react";
 
 import DepositModal from "./DepositModal.jsx";
@@ -20,6 +25,8 @@ import {
     recordPayment,
     sendInvoice,
     generateInvoiceNumber,
+    getPaymentHistory,
+    confirmPayment,
 } from "../../api/invoices";
 import { listBookings } from "../../api/bookings";
 import { exportInvoiceListToExcel, exportInvoiceToPdf } from "../../api/exports";
@@ -507,6 +514,7 @@ function InvoiceTable({
     onRecordPayment,
     onSendInvoice,
     onExportPdf,
+    onViewPaymentHistory,
 }) {
     const [page, setPage] =
         React.useState(1);
@@ -771,6 +779,18 @@ function InvoiceTable({
                                                 </span>
                                             </button>
 
+                                            {/* Xem lịch sử thanh toán */}
+                                            {onViewPaymentHistory && (
+                                                <button
+                                                    onClick={() => onViewPaymentHistory(iv)}
+                                                    className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
+                                                    title="Xem lịch sử thanh toán"
+                                                >
+                                                    <History className="h-3.5 w-3.5 text-gray-500" />
+                                                    <span>Lịch sử</span>
+                                                </button>
+                                            )}
+                                            
                                             {/* Gửi HĐ qua email */}
                                             <button
                                                 onClick={() =>
@@ -1441,7 +1461,7 @@ export default function InvoiceManagement() {
                 return STATUS.PAID;
             const pastDue =
                 due_at &&
-                new Date(
+                new Date(    
                     due_at
                 ) <
                 new Date();
@@ -1508,6 +1528,40 @@ export default function InvoiceManagement() {
         } catch (err) {
             console.error("Error exporting PDF:", err);
             push("Lỗi khi xuất PDF: " + (err.message || "Unknown error"), "error");
+        }
+    };
+    
+    // Xem lịch sử thanh toán
+    const onViewPaymentHistory = async (iv) => {
+        setSelectedInvoiceId(iv.id);
+        setPaymentHistoryOpen(true);
+        setLoadingHistory(true);
+        try {
+            const history = await getPaymentHistory(iv.id);
+            setPaymentHistory(Array.isArray(history) ? history : (history?.data ? history.data : []));
+        } catch (err) {
+            console.error("Error loading payment history:", err);
+            push("Lỗi khi tải lịch sử thanh toán", "error");
+            setPaymentHistory([]);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+    
+    // Xác nhận thanh toán
+    const onConfirmPayment = async (paymentId, status) => {
+        try {
+            await confirmPayment(paymentId, status);
+            push(`Đã ${status === "CONFIRMED" ? "xác nhận" : "từ chối"} thanh toán`, "success");
+            // Reload payment history
+            if (selectedInvoiceId) {
+                const history = await getPaymentHistory(selectedInvoiceId);
+                setPaymentHistory(Array.isArray(history) ? history : (history?.data ? history.data : []));
+            }
+            loadInvoices(); // Reload invoices để cập nhật tổng thanh toán
+        } catch (err) {
+            console.error("Error confirming payment:", err);
+            push("Lỗi khi xác nhận thanh toán: " + (err?.data?.message || err?.message || "Unknown error"), "error");
         }
     };
 
@@ -1715,6 +1769,168 @@ export default function InvoiceManagement() {
                     }
                 }}
             />
+            
+            {/* Payment History Modal */}
+            {paymentHistoryOpen && (
+                <PaymentHistoryModal
+                    open={paymentHistoryOpen}
+                    invoiceId={selectedInvoiceId}
+                    paymentHistory={paymentHistory}
+                    loading={loadingHistory}
+                    onClose={() => {
+                        setPaymentHistoryOpen(false);
+                        setSelectedInvoiceId(null);
+                        setPaymentHistory([]);
+                    }}
+                    onConfirm={onConfirmPayment}
+                />
+            )}
+        </div>
+    );
+}
+
+/* ===== Payment History Modal ===== */
+function PaymentHistoryModal({ open, invoiceId, paymentHistory, loading, onClose, onConfirm }) {
+    if (!open) return null;
+    
+    const getStatusColor = (status) => {
+        switch (status) {
+            case "CONFIRMED":
+                return "bg-emerald-50 text-emerald-700 border-emerald-300";
+            case "REJECTED":
+                return "bg-rose-50 text-rose-700 border-rose-300";
+            case "PENDING":
+            default:
+                return "bg-amber-50 text-amber-700 border-amber-300";
+        }
+    };
+    
+    const getStatusLabel = (status) => {
+        switch (status) {
+            case "CONFIRMED":
+                return "Đã xác nhận";
+            case "REJECTED":
+                return "Đã từ chối";
+            case "PENDING":
+            default:
+                return "Chờ xác nhận";
+        }
+    };
+    
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case "CONFIRMED":
+                return <CheckCircle className="h-4 w-4" />;
+            case "REJECTED":
+                return <XCircle className="h-4 w-4" />;
+            case "PENDING":
+            default:
+                return <Clock className="h-4 w-4" />;
+        }
+    };
+    
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                    <div className="flex items-center gap-3">
+                        <History className="h-5 w-5" style={{ color: BRAND_COLOR }} />
+                        <h2 className="text-lg font-semibold text-gray-900">Lịch sử thanh toán</h2>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-4">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        </div>
+                    ) : paymentHistory.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                            Chưa có lịch sử thanh toán
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {paymentHistory.map((payment) => (
+                                <div
+                                    key={payment.paymentId}
+                                    className="rounded-lg border border-gray-200 bg-white p-4 space-y-3"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-lg font-bold text-gray-900 tabular-nums">
+                                                    {fmtVND(payment.amount || 0)} đ
+                                                </span>
+                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border ${getStatusColor(payment.confirmationStatus || "PENDING")}`}>
+                                                    {getStatusIcon(payment.confirmationStatus || "PENDING")}
+                                                    {getStatusLabel(payment.confirmationStatus || "PENDING")}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-gray-600 space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium">Phương thức:</span>
+                                                    <span>{payment.paymentMethod || "N/A"}</span>
+                                                </div>
+                                                {payment.paymentDate && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">Ngày:</span>
+                                                        <span>{new Date(payment.paymentDate).toLocaleString("vi-VN")}</span>
+                                                    </div>
+                                                )}
+                                                {payment.bankName && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">Ngân hàng:</span>
+                                                        <span>{payment.bankName}</span>
+                                                    </div>
+                                                )}
+                                                {payment.referenceNumber && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">Số tham chiếu:</span>
+                                                        <span>{payment.referenceNumber}</span>
+                                                    </div>
+                                                )}
+                                                {payment.note && (
+                                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                                        <span className="text-xs text-gray-500">{payment.note}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Action buttons - chỉ hiển thị nếu chưa xác nhận */}
+                                        {(payment.confirmationStatus === "PENDING" || !payment.confirmationStatus) && (
+                                            <div className="flex flex-col gap-2">
+                                                <button
+                                                    onClick={() => onConfirm(payment.paymentId, "CONFIRMED")}
+                                                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+                                                >
+                                                    <CheckCircle className="h-3.5 w-3.5" />
+                                                    Xác nhận
+                                                </button>
+                                                <button
+                                                    onClick={() => onConfirm(payment.paymentId, "REJECTED")}
+                                                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+                                                >
+                                                    <XCircle className="h-3.5 w-3.5" />
+                                                    Từ chối
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

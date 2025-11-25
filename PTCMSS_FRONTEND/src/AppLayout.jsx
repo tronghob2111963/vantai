@@ -24,9 +24,11 @@ import {
   getHomePathForRole,
   getStoredUsername,
   getStoredRoleLabel,
+  hasActiveSession,
 } from "./utils/session";
-import { WebSocketProvider } from "./contexts/WebSocketContext";
+import { WebSocketProvider, useWebSocket } from "./contexts/WebSocketContext";
 import NotificationToast from "./components/common/NotificationToast";
+import { useNotifications } from "./hooks/useNotifications";
 
 const SIDEBAR_SECTIONS = [
   {
@@ -520,6 +522,7 @@ function SidebarNav() {
 --------------------------------------------------- */
 function Topbar() {
   const navigate = useNavigate();
+  const { pushNotification } = useNotifications();
   const username = getStoredUsername() || "John Doe";
   const roleName = getStoredRoleLabel() || "Quản trị viên";
   const initials =
@@ -531,14 +534,20 @@ function Topbar() {
       .slice(0, 2)
       .join("")
       .toUpperCase() || "JD";
-  const onLogout = () => {
+  const onLogout = React.useCallback(async () => {
     try {
-      apiLogout();
-    } catch {
-      // do nothing
+      await apiLogout();
+    } catch (error) {
+      console.warn("Logout endpoint unavailable, ignoring:", error?.message);
+    } finally {
+      pushNotification({
+        title: "Đăng xuất thành công",
+        message: "Hẹn gặp lại bạn lần sau.",
+        type: "SUCCESS",
+      });
+      navigate("/login", { replace: true });
     }
-    window.location.href = "/login";
-  };
+  }, [navigate, pushNotification]);
   
   const handleProfileClick = () => {
     navigate("/me/profile");
@@ -595,11 +604,11 @@ function ShellLayout() {
     return <Navigate to="/login" replace />;
   }
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+    <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
       <SidebarNav />
       <div className="flex-1 flex flex-col min-w-0 ml-64">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="flex-1 overflow-y-auto min-h-0 p-5">
           {/* Ghi chú: Một số màn con vẫn theme dark. Có thể refactor sau. */}
           <Outlet />
         </main>
@@ -608,9 +617,40 @@ function ShellLayout() {
   );
 }
 
+function RedirectWithToast({ to, state, toast }) {
+  const { pushNotification } = useWebSocket();
+  React.useEffect(() => {
+    if (toast) {
+      pushNotification({
+        id: Date.now(),
+        title: toast.title || "Thông báo",
+        message: toast.message || "",
+        type: toast.type || "ERROR",
+      });
+    }
+  }, [pushNotification, toast]);
+  return <Navigate to={to} replace state={state} />;
+}
+
 function ProtectedRoute({ roles = ALL_ROLES, children }) {
   const role = useRole();
   const allowed = roles && roles.length ? roles : ALL_ROLES;
+  const location = useLocation();
+
+  if (!hasActiveSession()) {
+    return (
+      <RedirectWithToast
+        to="/login"
+        state={{ from: `${location.pathname}${location.search}` }}
+        toast={{
+          title: "Phiên đăng nhập đã hết hạn",
+          message: "Bạn không có quyền truy cập, vui lòng đăng nhập lại.",
+          type: "ERROR",
+        }}
+      />
+    );
+  }
+
   if (allowed.includes(role)) {
     return children;
   }
@@ -619,7 +659,39 @@ function ProtectedRoute({ roles = ALL_ROLES, children }) {
 
 function RoleRedirect() {
   const role = useRole();
+  const location = useLocation();
+  if (!hasActiveSession()) {
+    return (
+      <RedirectWithToast
+        to="/login"
+        state={{ from: `${location.pathname}${location.search}` }}
+        toast={{
+          title: "Vui lòng đăng nhập",
+          message: "Bạn cần đăng nhập để tiếp tục sử dụng hệ thống.",
+          type: "WARNING",
+        }}
+      />
+    );
+  }
   return <Navigate to={getHomePathForRole(role)} replace />;
+}
+
+function RequireAuth({ children }) {
+  const location = useLocation();
+  if (!hasActiveSession()) {
+    return (
+      <RedirectWithToast
+        to="/login"
+        state={{ from: `${location.pathname}${location.search}` }}
+        toast={{
+          title: "Phiên đăng nhập không hợp lệ",
+          message: "Bạn cần đăng nhập để truy cập trang này.",
+          type: "ERROR",
+        }}
+      />
+    );
+  }
+  return children;
 }
 
 /* ---------------------------------------------------
@@ -637,7 +709,7 @@ export default function AppLayout() {
         <Route path="/" element={<RoleRedirect />} />
 
         {/* Các route cần shell layout */}
-        <Route element={<ShellLayout />}>
+        <Route element={<RequireAuth><ShellLayout /></RequireAuth>}>
           <Route index element={<RoleRedirect />} />
 
           {/* Báo cáo & Phân tích */}

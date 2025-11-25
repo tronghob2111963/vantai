@@ -95,6 +95,21 @@ public class ManagerDashboardController {
     }
 
     /**
+     * Get vehicle efficiency (cost per km) for branch
+     * GET /api/v1/manager/analytics/vehicle-efficiency?branchId=1&period=THIS_MONTH
+     */
+    @GetMapping("/analytics/vehicle-efficiency")
+    @Operation(summary = "Get branch vehicle efficiency")
+    public ResponseEntity<List<Map<String, Object>>> getVehicleEfficiency(
+            @RequestParam Integer branchId,
+            @RequestParam(defaultValue = "THIS_MONTH") String period
+    ) {
+        log.info("GET /api/v1/manager/analytics/vehicle-efficiency - branchId: {}, period: {}", branchId, period);
+        List<Map<String, Object>> efficiency = analyticsService.getVehicleEfficiency(branchId, period);
+        return ResponseEntity.ok(efficiency);
+    }
+
+    /**
      * Get expense breakdown by category
      * GET /api/v1/manager/analytics/expense-breakdown?branchId=1
      */

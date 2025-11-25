@@ -165,8 +165,44 @@ export default function CreateEmployeeWithUserPage() {
             setTimeout(() => navigate("/admin/employees"), 1500);
         } catch (error) {
             console.error("Create error:", error);
-            const msg = error?.data?.message || error?.response?.data?.message || error?.message || "Tạo nhân viên thất bại";
-            setGeneralError(msg);
+            
+            // Parse error message từ nhiều nguồn khác nhau
+            let errorMessage = "Tạo nhân viên thất bại";
+            
+            if (error?.data) {
+                // Error từ apiFetch (http.js)
+                if (error.data.message) {
+                    errorMessage = error.data.message;
+                } else if (error.data.error) {
+                    errorMessage = error.data.error;
+                } else if (typeof error.data === 'string') {
+                    errorMessage = error.data;
+                }
+            } else if (error?.response?.data) {
+                // Error từ axios response
+                if (error.response.data.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error.response.data.error) {
+                    errorMessage = error.response.data.error;
+                } else if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data;
+                }
+            } else if (error?.message) {
+                errorMessage = error.message;
+            }
+            
+            // Cải thiện message cho user-friendly hơn
+            if (errorMessage.includes("Access is denied") || errorMessage.includes("Access denied") || errorMessage.includes("Forbidden")) {
+                errorMessage = "Bạn không có quyền tạo tài khoản. Chỉ Admin và Manager mới có thể tạo tài khoản mới. Vui lòng liên hệ quản trị viên nếu bạn cần quyền này.";
+            } else if (errorMessage.includes("username") && errorMessage.includes("exists")) {
+                errorMessage = "Tên đăng nhập đã tồn tại. Vui lòng chọn tên đăng nhập khác.";
+            } else if (errorMessage.includes("email") && errorMessage.includes("exists")) {
+                errorMessage = "Email đã được sử dụng. Vui lòng sử dụng email khác.";
+            } else if (errorMessage.includes("phone") && errorMessage.includes("exists")) {
+                errorMessage = "Số điện thoại đã được sử dụng. Vui lòng sử dụng số điện thoại khác.";
+            }
+            
+            setGeneralError(errorMessage);
         } finally {
             setSaving(false);
         }

@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.Auth.ForgotPasswordRequest;
@@ -13,9 +12,9 @@ import org.example.ptcmssbackend.dto.request.Auth.LoginRequest;
 import org.example.ptcmssbackend.dto.response.Auth.TokenResponse;
 import org.example.ptcmssbackend.service.AuthenticationService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
+import jakarta.validation.Valid;
 
 @Slf4j(topic = "AUTH_CONTROLLER")
 @RestController
@@ -41,7 +40,7 @@ public class AuthController {
             }
     )
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@Validated @RequestBody LoginRequest request) {
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
         log.info("[LOGIN] Request login for username: {}", request.getUsername());
         TokenResponse response = authService.getAccessToken(request);
         log.info("[LOGIN] Login successful for username: {}", request.getUsername());
@@ -96,9 +95,21 @@ public class AuthController {
             }
     )
     @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@Validated @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<org.example.ptcmssbackend.dto.response.common.ApiResponse<String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         log.info("[FORGOT_PASSWORD] Request received for email: {}", request.getEmail());
-        String message = authService.forgotPassword(request.getEmail());
-        return ResponseEntity.ok(message);
+        try {
+            String message = authService.forgotPassword(request.getEmail());
+            return ResponseEntity.ok(org.example.ptcmssbackend.dto.response.common.ApiResponse.<String>builder()
+                    .success(true)
+                    .message(message)
+                    .data("Email đã được gửi thành công")
+                    .build());
+        } catch (Exception e) {
+            log.error("[FORGOT_PASSWORD] Error: {}", e.getMessage(), e);
+            return ResponseEntity.ok(org.example.ptcmssbackend.dto.response.common.ApiResponse.<String>builder()
+                    .success(false)
+                    .message("Không thể gửi email. Vui lòng thử lại sau.")
+                    .build());
+        }
     }
 }
