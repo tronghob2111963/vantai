@@ -164,7 +164,6 @@ import VerificationErrorPage from "./components/module 1/VerificationErrorPage.j
 
 /* Module 2 – Tài xế */
 import DriverDashboard from "./components/module 2/DriverDashboard.jsx";
-import DriverNotificationsPage from "./components/module 2/DriverNotificationsPage.jsx";
 import DriverProfilePage from "./components/module 2/DriverProfilePage.jsx";
 import DriverSchedulePage from "./components/module 2/DriverSchedulePage.jsx";
 import DriverLeaveRequestPage from "./components/module 2/DriverLeaveRequestPage.jsx";
