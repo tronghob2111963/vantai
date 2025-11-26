@@ -280,35 +280,27 @@ export default function DepositModal({
             console.log("[DepositModal] amount:", amount, "method:", method, "date:", date);
 
             if (context?.type === "order") {
-                // Create deposit for booking
+                // Create deposit for booking - Backend expects CreateInvoiceRequest
                 const depositPayload = {
                     branchId: branchId ? parseInt(branchId) : undefined,
+                    bookingId: context.id,
                     customerId: customerId ? parseInt(customerId) : undefined,
+                    type: "INCOME",
+                    isDeposit: kind === "DEPOSIT",
                     amount,
                     paymentMethod: method,
-                    paymentDate: date,
-                    kind, // "DEPOSIT" | "PAYMENT"
+                    paymentTerms: "NET_7",
+                    dueDate: date,
                     note: note || undefined,
-                    bankName: method === "BANK_TRANSFER" ? bankName : undefined,
-                    bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
-                    referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
-                    cashierName: method === "CASH" ? undefined : undefined,
-                    receiptNumber: method === "CASH" ? undefined : undefined,
                     createdBy: userId ? parseInt(userId) : undefined,
                 };
                 console.log("[DepositModal] Deposit payload:", depositPayload);
                 await createDeposit(context.id, depositPayload);
             } else {
-                // Record payment for invoice
+                // Record payment for invoice - Backend expects RecordPaymentRequest
                 const paymentPayload = {
                     amount,
                     paymentMethod: method,
-                    confirmationStatus: "PENDING", // Mặc định PENDING, kế toán sẽ xác nhận
-                    bankName: method === "BANK_TRANSFER" ? bankName : undefined,
-                    bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
-                    referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
-                    cashierName: method === "CASH" ? undefined : undefined,
-                    receiptNumber: method === "CASH" ? undefined : undefined,
                     note: note || undefined,
                     createdBy: userId ? parseInt(userId) : undefined,
                 };
