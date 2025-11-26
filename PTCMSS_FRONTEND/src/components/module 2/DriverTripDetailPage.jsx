@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useParams } from "react-router-dom";
 import {
   Phone,
@@ -80,7 +80,7 @@ function Toasts({ toasts }) {
           key={t.id}
           className={cls(
             "rounded-lg px-3 py-2 text-sm border shadow bg-white",
-            t.kind === "success" && "bg-emerald-50 border-emerald-200 text-emerald-700",
+            t.kind === "success" && "bg-amber-50 border-amber-200 text-amber-700",
             t.kind === "error" && "bg-rose-50 border-rose-200 text-rose-700",
             t.kind === "info" && "bg-blue-50 border-blue-200 text-blue-700"
           )}
@@ -111,7 +111,7 @@ function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
           </button>
           <button
             onClick={onConfirm}
-            className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm"
+            className="rounded-lg bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white shadow-sm"
           >
             Xac nhan
           </button>
@@ -135,8 +135,8 @@ function StatusChip({ status }) {
     },
     COMPLETED: {
       label: "Hoan thanh",
-      cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
-      icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />,
+      cls: "bg-amber-50 text-amber-700 border-amber-200",
+      icon: <CheckCircle2 className="h-3.5 w-3.5 text-amber-500" />,
     },
   };
   const info = map[status] || map.NOT_STARTED;
@@ -165,7 +165,7 @@ function ProgressSteps({ status }) {
               <div
                 className={cls(
                   "h-6 w-6 flex items-center justify-center rounded-full text-[11px] font-semibold border shadow-sm",
-                  done ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-slate-300 text-slate-400"
+                  done ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-white border-slate-300 text-slate-400"
                 )}
               >
                 {idx + 1}
@@ -224,14 +224,14 @@ function RouteCard({ pickupLocation, dropoffLocation, pickupTime }) {
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         <div className="flex-1 flex gap-3">
           <div className="flex flex-col items-center">
-            <div className="h-3 w-3 rounded-full bg-emerald-500" />
+            <div className="h-3 w-3 rounded-full bg-amber-500" />
             <div className="flex-1 w-px bg-slate-300" />
             <div className="h-3 w-3 rounded-full bg-rose-500" />
           </div>
           <div className="space-y-6 text-sm text-slate-700">
             <div>
               <div className="text-[11px] text-slate-500 mb-1 flex items-center gap-1 font-medium">
-                <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                <MapPin className="h-3.5 w-3.5 text-amber-600" />
                 Điểm đón
               </div>
               <div className="font-semibold text-slate-900">{pickupLocation || "—"}</div>
@@ -387,7 +387,7 @@ export default function DriverTripDetailPage() {
             <div className="flex-1 flex flex-col gap-2">
               <div className="flex flex-wrap items-start gap-3">
                 <div className="text-2xl font-semibold text-slate-900 flex items-center gap-2 leading-tight">
-                  <Flag className="h-6 w-6 text-emerald-600" />
+                  <Flag className="h-6 w-6 text-amber-600" />
                   <span>Chi tiết chuyến</span>
                 </div>
                 <StatusChip status={trip.status} />
@@ -404,7 +404,7 @@ export default function DriverTripDetailPage() {
                 </div>
                 <div className="hidden sm:block text-slate-300">·</div>
                 <div className="flex items-center gap-1">
-                  <CarFront className="h-3.5 w-3.5 text-emerald-600" />
+                  <CarFront className="h-3.5 w-3.5 text-amber-600" />
                   <span className="text-slate-700">
                     {trip.vehicle_plate} {trip.vehicle_type ? `· ${trip.vehicle_type}` : ""}
                   </span>
@@ -424,7 +424,7 @@ export default function DriverTripDetailPage() {
                   onClick={requestStatusChange}
                   disabled={actionLoading || detailLoading}
                   className={cls(
-                    "rounded-xl text-white font-semibold text-sm px-4 py-2 shadow-[0_12px_24px_rgba(16,185,129,0.35)] transition-colors bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400",
+                    "rounded-xl text-white font-semibold text-sm px-4 py-2 shadow-[0_12px_24px_rgba(16,185,129,0.35)] transition-colors bg-gradient-to-r from-[#EDC531] to-amber-500 hover:from-amber-500 hover:to-emerald-400",
                     actionLoading || detailLoading ? "opacity-60 cursor-not-allowed" : ""
                   )}
                 >
@@ -438,8 +438,8 @@ export default function DriverTripDetailPage() {
                   )}
                 </button>
               ) : (
-                <div className="rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-medium px-4 py-2 flex items-center gap-2 justify-center shadow-sm">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-xs font-medium px-4 py-2 flex items-center gap-2 justify-center shadow-sm">
+                  <CheckCircle2 className="h-4 w-4 text-amber-600" />
                   Đã hoàn thành chuyến
                 </div>
               )}
@@ -447,7 +447,7 @@ export default function DriverTripDetailPage() {
                 onClick={() => setExpenseOpen(true)}
                 className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm text-slate-700 px-4 py-2 flex items-center justify-center gap-2 shadow-sm"
               >
-                <BadgeDollarSign className="h-4 w-4 text-emerald-600" />
+                <BadgeDollarSign className="h-4 w-4 text-amber-600" />
                 <span>Báo cáo chi phí</span>
               </button>
             </div>

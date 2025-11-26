@@ -763,21 +763,23 @@ function InvoiceTable({
                                     </td>
                                     <td className="px-3 py-2">
                                         <div className="flex flex-wrap gap-2">
-                                            {/* Ghi nhận thanh toán */}
-                                            <button
-                                                onClick={() =>
-                                                    onRecordPayment(
-                                                        iv
-                                                    )
-                                                }
-                                                className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
-                                            >
-                                                <BadgeDollarSign className="h-3.5 w-3.5 text-gray-500" />
-                                                <span>
-                                                    Ghi
-                                                    nhận
-                                                </span>
-                                            </button>
+                                            {/* Ghi nhận thanh toán - chỉ hiện khi chưa thanh toán đủ */}
+                                            {iv.status !== STATUS.PAID && (
+                                                <button
+                                                    onClick={() =>
+                                                        onRecordPayment(
+                                                            iv
+                                                        )
+                                                    }
+                                                    className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
+                                                >
+                                                    <BadgeDollarSign className="h-3.5 w-3.5 text-gray-500" />
+                                                    <span>
+                                                        Ghi
+                                                        nhận
+                                                    </span>
+                                                </button>
+                                            )}
 
                                             {/* Xem lịch sử thanh toán */}
                                             {onViewPaymentHistory && (
@@ -1729,49 +1731,22 @@ export default function InvoiceManagement() {
             )}
 
             <DepositModal
-                open={
-                    depositOpen
-                }
-                context={
-                    depositCtx
-                }
-                totals={
-                    depositTotals
-                }
+                open={depositOpen}
+                context={depositCtx}
+                totals={depositTotals}
                 defaultAmount={Math.max(
                     0,
-                    depositTotals.total -
-                    depositTotals.paid
+                    depositTotals.total - depositTotals.paid
                 )}
                 modeLabel="Thanh toán"
-                allowOverpay={
-                    false
-                }
-                onClose={() =>
-                    setDepositOpen(
-                        false
-                    )
-                }
-                onSubmitted={async ({ amount, payment_method, payment_date, bank, note }) => {
-                    try {
-                        const paymentRequest = {
-                            amount: Number(amount || 0),
-                            paymentMethod: payment_method || "CASH",
-                            paymentDate: payment_date || new Date().toISOString().slice(0, 10),
-                            bankName: bank?.name,
-                            bankAccount: bank?.account,
-                            referenceNumber: bank?.reference,
-                            note: note || "",
-                        };
-
-                        await recordPayment(depositCtx.id, paymentRequest);
-                        setDepositOpen(false);
-                        push("Đã ghi nhận thanh toán", "success");
-                        loadInvoices(); // Reload to get updated balance
-                    } catch (err) {
-                        console.error("Error recording payment:", err);
-                        push("Lỗi khi ghi nhận thanh toán: " + (err.message || "Unknown error"), "error");
-                    }
+                allowOverpay={false}
+                onClose={() => setDepositOpen(false)}
+                onSubmitted={() => {
+                    // DepositModal handles the API call internally
+                    // Just reload the list after successful submission
+                    setDepositOpen(false);
+                    push("Đã ghi nhận thanh toán", "success");
+                    loadInvoices(); // Reload to get updated balance
                 }}
             />
             

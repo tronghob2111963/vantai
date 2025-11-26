@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
     LayoutDashboard,
     DollarSign,
@@ -73,7 +73,7 @@ function Toasts({ toasts }) {
                     key={t.id}
                     className={cls(
                         "rounded-md px-3 py-2 text-sm shadow border",
-                        t.kind === "success" && "bg-emerald-50 border-emerald-300 text-emerald-700",
+                        t.kind === "success" && "bg-amber-50 border-amber-300 text-amber-700",
                         t.kind === "error" && "bg-rose-50 border-rose-300 text-rose-700",
                         t.kind === "info" && "bg-white border-slate-300 text-slate-700"
                     )}
@@ -324,7 +324,7 @@ export default function AdminDashboard() {
                         {/* REVENUE TREND */}
                         <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                             <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-sm text-slate-600 flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-emerald-600" />
+                                <TrendingUp className="h-4 w-4 text-amber-600" />
                                 <span className="font-medium text-slate-700">
                                     Xu hướng Doanh thu & Chi phí (12 tháng)
                                 </span>

@@ -1,4 +1,4 @@
-// ConsultantOrdersPage.jsx (LIGHT THEME)
+﻿// ConsultantOrdersPage.jsx (LIGHT THEME)
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { listVehicleCategories } from "../../api/vehicleCategories";
@@ -144,7 +144,7 @@ function OrderStatusPill({ status }) {
             "bg-sky-50 text-sky-700 ring-1 ring-sky-200";
     } else if (status === "COMPLETED") {
         colorCls =
-            "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+            "bg-amber-50 text-amber-700 ring-1 ring-emerald-200";
     } else if (status === "CANCELLED") {
         colorCls =
             "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
@@ -458,7 +458,7 @@ function OrdersTable({
                         {/* Lịch trình */}
                         <td className="px-3 py-2 text-[13px] text-slate-700 min-w-[180px]">
                             <div className="flex items-start gap-2 leading-snug">
-                                <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
                                 <div className="space-y-1">
                                     <div className="text-slate-900 font-medium">
                                         {o.pickup} → {o.dropoff}
@@ -489,8 +489,8 @@ function OrdersTable({
 
                         {/* Giá trị */}
                         <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums">
-                            <div className="flex items-start gap-1 text-emerald-600 font-semibold">
-                                <DollarSign className="h-3.5 w-3.5 text-emerald-600 mt-0.5" />
+                            <div className="flex items-start gap-1 text-amber-600 font-semibold">
+                                <DollarSign className="h-3.5 w-3.5 text-amber-600 mt-0.5" />
                                 <span>{fmtVND(o.quoted_price)}</span>
                             </div>
                             {o.discount_amount > 0 ? (
@@ -526,7 +526,7 @@ function OrdersTable({
                                     className={cls(
                                         "rounded-md border px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm",
                                         canEdit(o.status)
-                                            ? "border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"
+                                            ? "border-amber-300 text-amber-700 bg-white hover:bg-amber-50"
                                             : "border-slate-200 text-slate-400 bg-white cursor-not-allowed opacity-50"
                                     )}
                                 >
@@ -682,7 +682,7 @@ function OrderDetailModal({ open, order, onClose }) {
                     {/* block Lịch trình */}
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 flex flex-col gap-3">
                         <div className="text-[11px] uppercase tracking-wide text-slate-500 flex items-center gap-2 font-medium">
-                            <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                            <MapPin className="h-3.5 w-3.5 text-amber-600" />
                             Lịch trình
                         </div>
                         <div className="text-slate-900 font-medium">
@@ -708,7 +708,7 @@ function OrderDetailModal({ open, order, onClose }) {
                     {/* block Giá */}
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 flex flex-col gap-2">
                         <div className="text-[11px] uppercase tracking-wide text-slate-500 flex items-center gap-2 font-medium">
-                            <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                            <DollarSign className="h-3.5 w-3.5 text-amber-600" />
                             Thông tin báo giá
                         </div>
                         <div className="text-slate-900 text-[13px] font-semibold flex items-baseline gap-2">
@@ -1199,7 +1199,7 @@ function OrderFormModal({
                     {/* --- HÀNH TRÌNH --- */}
                     <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
                         <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium flex items-center gap-2">
-                            <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                            <MapPin className="h-3.5 w-3.5 text-amber-600" />
                             Hành trình & Thời gian
                         </div>
 
@@ -1407,7 +1407,7 @@ function OrderFormModal({
                     {/* --- GIÁ / GIẢM GIÁ --- */}
                     <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
                         <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium flex items-center gap-2">
-                            <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                            <DollarSign className="h-3.5 w-3.5 text-amber-600" />
                             Báo giá
                         </div>
 
@@ -1435,7 +1435,7 @@ function OrderFormModal({
                                         {loadingPrice ? (
                                             <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
                                         ) : (
-                                            <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                                            <DollarSign className="h-3.5 w-3.5 text-amber-600" />
                                         )}
                                         <span>Tính giá</span>
                                     </button>
@@ -1539,7 +1539,7 @@ function OrderFormModal({
                                 onClick={saveChanges}
                                 disabled={saving}
                                 type="button"
-                                className="rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="rounded-md bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving
                                     ? "Đang lưu..."
@@ -1562,7 +1562,7 @@ function OrderFormModal({
                                     onClick={submitPending}
                                     disabled={saving}
                                     type="button"
-                                    className="rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="rounded-md bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {saving
                                         ? "Đang gửi..."

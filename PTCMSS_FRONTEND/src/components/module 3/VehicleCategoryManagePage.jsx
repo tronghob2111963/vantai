@@ -1,4 +1,4 @@
-/** ------------- FULL FILE VehicleCategoryManagePage.jsx (UI PREMIUM + VALIDATE) -------------- */
+﻿/** ------------- FULL FILE VehicleCategoryManagePage.jsx (UI PREMIUM + VALIDATE) -------------- */
 import React from "react";
 import {
     listVehicleCategories,
@@ -60,7 +60,7 @@ function StatusPill({ status }) {
     const map = {
         ACTIVE: {
             label: "Đang hoạt động",
-            cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
+            cls: "bg-amber-50 text-amber-700 border-amber-200",
         },
         INACTIVE: {
             label: "Ngưng",

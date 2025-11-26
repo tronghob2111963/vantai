@@ -2,14 +2,14 @@
 import { useNavigate } from "react-router-dom";
 import { listUsers, listUsersByBranch, listRoles, toggleUserStatus } from "../../api/users";
 import { listEmployeesByRole } from "../../api/employees";
-import { RefreshCw, PlusCircle, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, Building2 } from "lucide-react";
+import { RefreshCw, PlusCircle, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
 
 function StatusBadge({ value }) {
   const map = {
-    ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-300",
+    ACTIVE: "bg-amber-50 text-amber-700 border-amber-300",
     INACTIVE: "bg-slate-100 text-slate-600 border-slate-300",
   };
   const label = value === "ACTIVE" ? "Hoạt động" : "Vô hiệu hóa";
@@ -25,16 +25,13 @@ export default function AdminUsersPage() {
   const navigate = useNavigate();
   const [users, setUsers] = React.useState([]);
   const [roles, setRoles] = React.useState([]);
-  const [branches, setBranches] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [keyword, setKeyword] = React.useState("");
   const [roleId, setRoleId] = React.useState("");
   const [status, setStatus] = React.useState("");
-  const [branchFilter, setBranchFilter] = React.useState("");
   const currentRole = React.useMemo(() => getCurrentRole(), []);
   const currentUserId = React.useMemo(() => getStoredUserId(), []);
   const isManagerView = currentRole === ROLES.MANAGER;
-  const isAdminView = currentRole === ROLES.ADMIN;
   const [managerBranchInfo, setManagerBranchInfo] = React.useState({ id: null, name: "" });
   const [managerBranchLoading, setManagerBranchLoading] = React.useState(isManagerView);
   const [managerBranchError, setManagerBranchError] = React.useState("");
@@ -113,18 +110,6 @@ export default function AdminUsersPage() {
 
   const [allUsers, setAllUsers] = React.useState([]);
 
-  const canEditUser = React.useCallback(
-    (user) => {
-      if (!user) return false;
-      const targetRole = String(user.roleName || "").trim().toUpperCase();
-      if (currentRole !== ROLES.ADMIN && targetRole === "ADMIN") {
-        return false;
-      }
-      return true;
-    },
-    [currentRole]
-  );
-
   const onRefresh = React.useCallback(async () => {
     if (isManagerView) {
       if (managerBranchLoading) return;
@@ -139,9 +124,6 @@ export default function AdminUsersPage() {
       let data;
       if (isManagerView) {
         data = await listUsersByBranch(branchFilterValue);
-      } else if (isAdminView && branchFilter) {
-        // ADMIN filter by branch
-        data = await listUsersByBranch(branchFilter);
       } else {
         // Load tất cả users, không filter ở API level
         data = await listUsers();
@@ -153,9 +135,7 @@ export default function AdminUsersPage() {
     }
   }, [
     branchFilterValue,
-    branchFilter,
     isManagerView,
-    isAdminView,
     managerBranchLoading,
   ]);
 
@@ -197,44 +177,9 @@ export default function AdminUsersPage() {
     })();
   }, []);
 
-  // Load branches for ADMIN only
-  React.useEffect(() => {
-    if (!isAdminView) return;
-    (async () => {
-      try {
-        const { listBranches } = await import("../../api/branches");
-        const branchData = await listBranches({ size: 100 });
-        let branchesList = [];
-        if (branchData?.items && Array.isArray(branchData.items)) {
-          branchesList = branchData.items;
-        } else if (branchData?.data?.items && Array.isArray(branchData.data.items)) {
-          branchesList = branchData.data.items;
-        } else if (branchData?.data?.content && Array.isArray(branchData.data.content)) {
-          branchesList = branchData.data.content;
-        } else if (branchData?.content && Array.isArray(branchData.content)) {
-          branchesList = branchData.content;
-        } else if (Array.isArray(branchData?.data)) {
-          branchesList = branchData.data;
-        } else if (Array.isArray(branchData)) {
-          branchesList = branchData;
-        }
-        setBranches(branchesList);
-      } catch (error) {
-        console.error("Failed to load branches:", error);
-        setBranches([]);
-      }
-    })();
-  }, [isAdminView]);
-
   const onToggle = async (id) => {
     try {
-      try {
-        await toggleUserStatus(id);
-      } catch (err) {
-        const errorMessage = err?.data?.message || err?.response?.data?.message || err?.message || "Không thể thay đổi trạng thái";
-        alert(errorMessage);
-        return;
-      }
+      await toggleUserStatus(id);
       await onRefresh();
     } catch { /* empty */ }
   };
@@ -262,14 +207,6 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <button 
-              onClick={() => navigate("/admin/users/new")}
-              disabled={isManagerView && (managerBranchLoading || !branchFilterValue)}
-              className="inline-flex items-center gap-2 rounded-lg border border-transparent bg-[#0079BC] hover:bg-[#0067a1] px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>Tạo tài khoản</span>
-            </button>
             <button 
               onClick={onRefresh} 
               disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))} 
@@ -312,20 +249,6 @@ export default function AdminUsersPage() {
                 className="flex-1 bg-transparent outline-none text-sm text-slate-900 placeholder:text-slate-400" 
               />
             </div>
-            
-            {isAdminView && (
-              <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
-                <Building2 className="h-4 w-4 text-slate-400" />
-                <select 
-                  value={branchFilter} 
-                  onChange={(e)=>setBranchFilter(e.target.value)} 
-                  className="bg-transparent outline-none text-sm text-slate-900 border-none cursor-pointer"
-                >
-                  <option value="">-- Tất cả chi nhánh --</option>
-                  {branches.map(b => (<option key={b.id} value={b.id}>{b.branchName}</option>))}
-                </select>
-              </div>
-            )}
             
             <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
               <Shield className="h-4 w-4 text-slate-400" />
@@ -439,30 +362,23 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {canEditUser(u) ? (
-                          <button 
-                            onClick={() => navigate(`/admin/users/${u.id}`)} 
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" /> 
-                            Chỉnh sửa
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">Chỉ Admin được chỉnh sửa</span>
-                        )}
-                        {/* Ẩn button vô hiệu hóa nếu user là Admin và đang ACTIVE */}
-                        {!(u.roleName === "Admin" && u.status === "ACTIVE") && (
-                          <button 
-                            onClick={() => onToggle(u.id)} 
-                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${
-                              u.status === "ACTIVE"
-                                ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            }`}
-                          >
-                            {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-                          </button>
-                        )}
+                        <button 
+                          onClick={() => navigate(`/admin/users/${u.id}`)} 
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" /> 
+                          Chỉnh sửa
+                        </button>
+                        <button 
+                          onClick={() => onToggle(u.id)} 
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${
+                            u.status === "ACTIVE"
+                              ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                              : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                          }`}
+                        >
+                          {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+                        </button>
                       </div>
                     </td>
                   </tr>
