@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Clock,
   Calendar,
@@ -10,11 +11,13 @@ import {
   Flag,
   Bell,
   AlertCircle,
+  ChevronRight,
 } from "lucide-react";
 import { getCookie } from "../../utils/cookies";
 import {
   getDriverProfileByUser,
   getDriverDashboard,
+  getDriverSchedule,
   startTrip as apiStartTrip,
   completeTrip as apiCompleteTrip,
 } from "../../api/drivers";
@@ -460,10 +463,12 @@ function StatsCard({ icon: Icon, label, value, sublabel }) {
 
 /* ---------------- Main page ---------------- */
 export default function DriverDashboard() {
+  const navigate = useNavigate();
   const { toasts, push } = useToasts();
 
   const [driver, setDriver] = React.useState(null);
   const [trip, setTrip] = React.useState(null);
+  const [upcomingTrips, setUpcomingTrips] = React.useState([]);
   const [pageLoading, setPageLoading] = React.useState(true);
   const [tripLoading, setTripLoading] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -501,6 +506,33 @@ export default function DriverDashboard() {
           : null;
       console.log("🔄 Mapped Trip:", mapped);
       setTrip(mapped);
+
+      // Load upcoming trips
+      try {
+        const schedule = await getDriverSchedule(driverId);
+        const upcoming = Array.isArray(schedule)
+          ? schedule
+              .filter((t) => {
+                // Filter for future trips only
+                const tripDate = new Date(t.startTime || t.start_time);
+                const now = new Date();
+                return tripDate > now && t.status === "SCHEDULED";
+              })
+              .slice(0, 5) // Show max 5 upcoming trips
+              .map((t) => ({
+                tripId: t.tripId || t.trip_id,
+                pickupAddress: t.startLocation || t.start_location || "—",
+                dropoffAddress: t.endLocation || t.end_location || "—",
+                pickupTime: t.startTime || t.start_time,
+                customerName: t.customerName || t.customer_name,
+                status: t.status || "SCHEDULED",
+              }))
+          : [];
+        setUpcomingTrips(upcoming);
+      } catch (err) {
+        console.warn("Could not load upcoming trips:", err);
+        setUpcomingTrips([]);
+      }
     } catch (err) {
       setTrip(null);
       setError(
@@ -610,11 +642,11 @@ export default function DriverDashboard() {
   };
 
   const requestLeave = () => {
-    push("Mở form xin nghỉ (M2.S4) - TODO nối DriverLeaveRequestPage.", "info");
+    navigate("/driver/leave-request");
   };
 
   const vehicleCheck = () => {
-    push("Đã gửi báo cáo tình trạng xe (demo).", "info");
+    navigate("/driver/report-incident");
   };
 
   const driverName = driver?.fullName || "Tài xế";
@@ -676,25 +708,7 @@ export default function DriverDashboard() {
           </div>
         </div>
 
-        <div className="ml-auto flex flex-col sm:flex-row sm:items-center gap-2 text-[11px]">
-          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm">
-            <div className="uppercase tracking-wide text-[10px] text-slate-400">
-              Trạng thái chuyến (UI)
-            </div>
-            <div className="font-mono text-slate-900 text-xs mt-0.5">
-              {phase}
-            </div>
-          </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm">
-            <div className="uppercase tracking-wide text-[10px] text-slate-400">
-              Trạng thái backend
-            </div>
-            <div className="font-mono text-slate-900 text-xs mt-0.5">
-              {trip?.status || "—"}
-            </div>
-          </div>
-        </div>
       </div>
 
       {error && (
@@ -737,7 +751,7 @@ export default function DriverDashboard() {
       </div>
 
       {/* GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 mb-6">
         <TripCard
           activeTrip={activeTrip}
           isCurrent={!!activeTrip}
@@ -754,6 +768,50 @@ export default function DriverDashboard() {
           <QuickActions onLeave={requestLeave} onVehicleCheck={vehicleCheck} />
         </div>
       </div>
+
+      {/* UPCOMING TRIPS */}
+      {upcomingTrips.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2 text-sm text-slate-800 font-medium bg-slate-50/80">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600 ring-1 ring-inset ring-sky-100 shadow-sm">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <div className="flex-1">Chuyến sắp tới</div>
+            <div className="text-[11px] text-slate-500">{upcomingTrips.length} chuyến</div>
+          </div>
+
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {upcomingTrips.map((upTrip) => (
+              <div
+                key={upTrip.tripId}
+                onClick={() => navigate(`/driver/trips/${upTrip.tripId}`)}
+                className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md hover:border-[#0079BC]/50 transition-all cursor-pointer"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 leading-tight truncate">
+                      {upTrip.pickupAddress} → {upTrip.dropoffAddress}
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  <span>{fmtHM(upTrip.pickupTime)} · {fmtDM(upTrip.pickupTime)}</span>
+                </div>
+
+                {upTrip.customerName && (
+                  <div className="flex items-center gap-2 text-xs text-slate-600 mt-1">
+                    <User className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="truncate">{upTrip.customerName}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
