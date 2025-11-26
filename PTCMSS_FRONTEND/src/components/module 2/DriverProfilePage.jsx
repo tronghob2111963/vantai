@@ -1,4 +1,4 @@
-// src/components/driver/DriverProfilePage.jsx
+﻿// src/components/driver/DriverProfilePage.jsx
 import React from "react";
 import {
   Phone,
@@ -65,7 +65,7 @@ function Toasts({ toasts }) {
           className={cls(
             "rounded-lg px-3 py-2 text-sm border shadow-lg bg-white",
             t.kind === "success" &&
-            "bg-emerald-50 border-emerald-200 text-emerald-700",
+            "bg-amber-50 border-amber-200 text-amber-700",
             t.kind === "error" &&
             "bg-rose-50 border-rose-200 text-rose-700",
             t.kind === "info" &&
@@ -233,7 +233,7 @@ export default function DriverProfilePage() {
       ? null
       : daysUntil(licenseExpiry);
 
-  let licenseColor = "border-emerald-200 bg-emerald-50 text-emerald-700";
+  let licenseColor = "border-amber-200 bg-amber-50 text-amber-700";
   let licenseText =
     leftDays != null ? `${leftDays} ngày nữa hết hạn` : "—";
   let LicenseIcon = Clock;
@@ -291,7 +291,7 @@ export default function DriverProfilePage() {
                     className={cls(
                       "absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] border border-white shadow-sm",
                       status === "ACTIVE"
-                        ? "bg-emerald-500 text-white"
+                        ? "bg-amber-500 text-white"
                         : "bg-slate-400 text-white"
                     )}
                   >
@@ -321,7 +321,7 @@ export default function DriverProfilePage() {
                 {/* Tổng chuyến */}
                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 shadow-sm">
                   <div className="text-xs text-slate-500 flex items-center gap-1">
-                    <Activity className="h-3.5 w-3.5 text-emerald-500" />
+                    <Activity className="h-3.5 w-3.5 text-amber-500" />
                     Tổng chuyến
                   </div>
                   <div className="mt-1 text-2xl font-semibold text-slate-900">
@@ -332,7 +332,7 @@ export default function DriverProfilePage() {
                 {/* Tổng km */}
                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 shadow-sm">
                   <div className="text-xs text-slate-500 flex items-center gap-1">
-                    <Car className="h-3.5 w-3.5 text-emerald-500" />
+                    <Car className="h-3.5 w-3.5 text-amber-500" />
                     Tổng km
                   </div>
                   <div className="mt-1 text-2xl font-semibold">
@@ -343,7 +343,7 @@ export default function DriverProfilePage() {
                 {/* GPLX */}
                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 shadow-sm">
                   <div className="text-xs text-slate-500 flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
                     GPLX
                   </div>
 
@@ -480,7 +480,7 @@ export default function DriverProfilePage() {
                   className={cls(
                     "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium shadow-sm transition-colors",
                     dirty && isValid && !saving
-                      ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                      ? "bg-[#EDC531] text-white hover:bg-amber-500"
                       : "bg-slate-200 text-slate-500 cursor-not-allowed"
                   )}
                   title={

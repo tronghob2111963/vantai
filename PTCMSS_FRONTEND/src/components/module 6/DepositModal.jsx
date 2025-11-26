@@ -5,7 +5,6 @@ import {
     CreditCard,
     X,
     Info,
-    Paperclip,
 } from "lucide-react";
 import { recordPayment } from "../../api/invoices";
 import { createDeposit } from "../../api/deposits";
@@ -82,10 +81,7 @@ export default function DepositModal({
     const [kind, setKind] = React.useState("PAYMENT"); // "PAYMENT" | "DEPOSIT"
     const [note, setNote] = React.useState("");
 
-    // bank info
-    const [bankName, setBankName] = React.useState("");
-    const [bankAccount, setBankAccount] = React.useState("");
-    const [bankRef, setBankRef] = React.useState("");
+    // Removed bank info - simplified payment confirmation
 
     // chứng từ mock
     const [files, setFiles] = React.useState([]);
@@ -112,10 +108,8 @@ export default function DepositModal({
         (method === "CASH" || method === "BANK_TRANSFER") &&
         isISODate(date);
 
-    const bankValid =
-        method === "BANK_TRANSFER"
-            ? String(bankAccount).trim().length > 0
-            : true;
+    // Bank account is optional but recommended for BANK_TRANSFER
+    const bankValid = true; // Remove strict validation, backend will handle
 
     const valid =
         baseValid && bankValid && (allowOverpay || !overpay);
@@ -145,9 +139,6 @@ export default function DepositModal({
             setDate(defaultDate || todayISO());
             setKind("PAYMENT");
             setNote("");
-            setBankName("");
-            setBankAccount("");
-            setBankRef("");
             setFiles([]);
             setError("");
         }
@@ -169,7 +160,7 @@ export default function DepositModal({
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, valid, amountStr, method, date, kind, note, bankName, bankAccount, bankRef, files, onClose]);
+    }, [open, valid, amountStr, method, date, kind, note, files, onClose]);
 
     // ----- HANDLERS -----
     const handleManualAmountChange = (e) => {
@@ -230,23 +221,6 @@ export default function DepositModal({
         setLoading(true);
         setError("");
 
-        const payload = {
-            amount,
-            payment_method: method,
-            payment_date: date,
-            kind, // "DEPOSIT" | "PAYMENT"
-            note: note || undefined,
-            bank:
-                method === "BANK_TRANSFER"
-                    ? {
-                        name: bankName || undefined,
-                        account: bankAccount || undefined,
-                        reference: bankRef || undefined,
-                    }
-                    : undefined,
-            attachments: files && files.length ? files : undefined,
-        };
-
         try {
             // Get user info from cookies
             const userId = getCookie("userId");
@@ -258,34 +232,27 @@ export default function DepositModal({
             console.log("[DepositModal] amount:", amount, "method:", method, "date:", date);
 
             if (context?.type === "order") {
-                // Create deposit for booking
+                // Create deposit for booking - Backend expects CreateInvoiceRequest
                 const depositPayload = {
                     branchId: branchId ? parseInt(branchId) : undefined,
+                    bookingId: context.id,
                     customerId: customerId ? parseInt(customerId) : undefined,
+                    type: "INCOME",
+                    isDeposit: kind === "DEPOSIT",
                     amount,
                     paymentMethod: method,
-                    paymentDate: date,
-                    kind, // "DEPOSIT" | "PAYMENT"
+                    paymentTerms: "NET_7",
+                    dueDate: date,
                     note: note || undefined,
-                    bankName: method === "BANK_TRANSFER" ? bankName : undefined,
-                    bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
-                    referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
-                    cashierName: method === "CASH" ? undefined : undefined,
-                    receiptNumber: method === "CASH" ? undefined : undefined,
                     createdBy: userId ? parseInt(userId) : undefined,
                 };
                 console.log("[DepositModal] Deposit payload:", depositPayload);
                 await createDeposit(context.id, depositPayload);
             } else {
-                // Record payment for invoice
+                // Record payment for invoice - Backend expects RecordPaymentRequest
                 const paymentPayload = {
                     amount,
                     paymentMethod: method,
-                    bankName: method === "BANK_TRANSFER" ? bankName : undefined,
-                    bankAccount: method === "BANK_TRANSFER" ? bankAccount : undefined,
-                    referenceNumber: method === "BANK_TRANSFER" ? bankRef : undefined,
-                    cashierName: method === "CASH" ? undefined : undefined,
-                    receiptNumber: method === "CASH" ? undefined : undefined,
                     note: note || undefined,
                     createdBy: userId ? parseInt(userId) : undefined,
                 };
@@ -294,15 +261,15 @@ export default function DepositModal({
             }
 
             if (typeof onSubmitted === "function") {
-                onSubmitted(payload, context);
+                onSubmitted({ amount, method, date, note }, context);
             }
 
             onClose && onClose();
         } catch (err) {
             console.error("Error submitting payment:", err);
-            console.error("Error status:", err.status);
-            console.error("Error data:", err.data);
-            const errorMsg = err.data?.message || err.message || "Unknown error";
+            console.error("Error response:", err.response);
+            console.error("Error data:", err.response?.data);
+            const errorMsg = err.response?.data?.message || err.message || "Unknown error";
             setError("Không thể ghi nhận thanh toán: " + errorMsg);
         } finally {
             setLoading(false);
@@ -322,7 +289,7 @@ export default function DepositModal({
             >
                 {/* Header */}
                 <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
-                    <div className="rounded-md bg-emerald-600 text-white p-1.5 shadow-[0_8px_24px_rgba(16,185,129,.4)]">
+                    <div className="rounded-md bg-[#EDC531] text-white p-1.5 shadow-[0_8px_24px_rgba(237,197,49,.4)]">
                         <BadgeDollarSign className="h-4 w-4" />
                     </div>
 
@@ -558,47 +525,6 @@ export default function DepositModal({
                         </div>
                     </div>
 
-                    {/* Thông tin ngân hàng nếu BANK_TRANSFER */}
-                    {method === "BANK_TRANSFER" ? (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                                <div className="text-[12px] text-slate-500 mb-1">
-                                    Ngân hàng
-                                </div>
-                                <input
-                                    value={bankName}
-                                    onChange={(e) => setBankName(e.target.value)}
-                                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 shadow-sm outline-none placeholder-slate-400"
-                                    placeholder="VD: Vietcombank"
-                                />
-                            </div>
-
-                            <div>
-                                <div className="text-[12px] text-slate-500 mb-1">
-                                    Số tài khoản (bắt buộc)
-                                </div>
-                                <input
-                                    value={bankAccount}
-                                    onChange={(e) => setBankAccount(e.target.value)}
-                                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 shadow-sm outline-none placeholder-slate-400"
-                                    placeholder="123456789"
-                                />
-                            </div>
-
-                            <div>
-                                <div className="text-[12px] text-slate-500 mb-1">
-                                    Mã tham chiếu
-                                </div>
-                                <input
-                                    value={bankRef}
-                                    onChange={(e) => setBankRef(e.target.value)}
-                                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 shadow-sm outline-none placeholder-slate-400"
-                                    placeholder="FT123..."
-                                />
-                            </div>
-                        </div>
-                    ) : null}
-
                     {/* Ngày thanh toán */}
                     <div>
                         <div className="text-[12px] text-slate-500 mb-1">
@@ -615,62 +541,26 @@ export default function DepositModal({
                         </div>
                     </div>
 
-                    {/* Ghi chú + chứng từ */}
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
-                        <div>
-                            <div className="text-[12px] text-slate-500 mb-1">
-                                Ghi chú
-                            </div>
-                            <textarea
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                rows={3}
-                                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 shadow-sm outline-none placeholder-slate-400"
-                                placeholder="Ví dụ: Cọc trước 50% theo thoả thuận"
-                            />
+                    {/* Ghi chú */}
+                    <div>
+                        <div className="text-[12px] text-slate-500 mb-1">
+                            Ghi chú
                         </div>
-
-                        <div>
-                            <div className="text-[12px] text-slate-500 mb-1">
-                                Chứng từ (tuỳ chọn)
-                            </div>
-                            <label className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12px] font-medium text-slate-700 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors">
-                                <Paperclip className="h-4 w-4 text-slate-600" />
-                                Chọn file
-                                <input
-                                    type="file"
-                                    multiple
-                                    className="hidden"
-                                    onChange={onFileChange}
-                                />
-                            </label>
-
-                            {files && files.length ? (
-                                <div className="mt-2 text-[12px] text-slate-600 space-y-1 max-h-24 overflow-y-auto">
-                                    {files.map((f, i) => (
-                                        <div key={i}>
-                                            {f.name}{" "}
-                                            <span className="text-slate-400">
-                                                ({Math.round(f.size / 1024)} KB)
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : null}
-                        </div>
+                        <textarea
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            rows={3}
+                            className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 shadow-sm outline-none placeholder-slate-400"
+                            placeholder="Ví dụ: Khách thanh toán tiền mặt / Đã nhận chuyển khoản"
+                        />
                     </div>
 
                     {/* Tips + error */}
                     <div className="flex items-start gap-2 text-[12px] text-slate-500 leading-relaxed">
                         <Info className="h-4 w-4 text-slate-400 mt-0.5" />
                         <div>
-                            Điền đầy đủ thông tin. Nếu chọn chuyển khoản, bắt buộc
-                            nhập{" "}
-                            <b className="text-slate-700">Số tài khoản</b>. Số
-                            tiền phải &gt; 0.
-                            {!allowOverpay
-                                ? " Không được vượt quá phần còn lại."
-                                : " Nếu vượt quá phần còn lại, hệ thống vẫn cho xác nhận (demo)."}
+                            Xác nhận đã nhận thanh toán từ khách hàng. Số tiền phải &gt; 0.
+                            {!allowOverpay && " Không được vượt quá phần còn lại."}
                         </div>
                     </div>
 

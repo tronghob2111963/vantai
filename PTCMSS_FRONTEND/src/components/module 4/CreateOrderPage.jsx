@@ -1,4 +1,4 @@
-// CreateOrderPage.jsx (LIGHT THEME)
+﻿// CreateOrderPage.jsx (LIGHT THEME)
 import React from "react";
 import { listVehicleCategories } from "../../api/vehicleCategories";
 import { calculatePrice, createBooking } from "../../api/bookings";
@@ -93,7 +93,7 @@ function Toasts({ toasts }) {
                     className={cls(
                         "rounded-md px-3 py-2 shadow-sm border bg-white text-slate-700",
                         t.kind === "success" &&
-                        "border-emerald-200 bg-emerald-50 text-emerald-700",
+                        "border-amber-200 bg-amber-50 text-amber-700",
                         t.kind === "error" &&
                         "border-rose-200 bg-rose-50 text-rose-700",
                         t.kind === "info" &&
@@ -116,7 +116,7 @@ function AvailabilityBadge({ info }) {
             className={cls(
                 "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium ring-1",
                 ok
-                    ? "ring-emerald-200 bg-emerald-50 text-emerald-700"
+                    ? "ring-emerald-200 bg-amber-50 text-amber-700"
                     : "ring-rose-200 bg-rose-50 text-rose-700"
             )}
         >
@@ -469,7 +469,7 @@ export default function CreateOrderPage() {
                         onClick={submitOrder}
                         disabled={loadingSubmit}
                         type="button"
-                        className="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="rounded-md bg-[#EDC531] hover:bg-amber-500 text-white font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loadingSubmit ? (
                             <Loader2 className="h-4 w-4 animate-spin text-white" />
@@ -558,7 +558,7 @@ export default function CreateOrderPage() {
                     {/* Phần 2: HÌNH THỨC THUÊ */}
                     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="flex items-center gap-2 text-slate-900 text-[14px] font-semibold mb-4">
-                            <CarFront className="h-4 w-4 text-emerald-600" />
+                            <CarFront className="h-4 w-4 text-amber-600" />
                             <span>Hình thức thuê xe</span>
                         </div>
 
@@ -578,7 +578,7 @@ export default function CreateOrderPage() {
                                         "px-3 py-2 rounded-md border text-[13px] flex items-center gap-2 shadow-sm",
                                         hireType ===
                                         opt.key
-                                            ? "ring-1 ring-emerald-200 bg-emerald-50 border-emerald-200 text-emerald-700"
+                                            ? "ring-1 ring-emerald-200 bg-amber-50 border-amber-200 text-amber-700"
                                             : "border-slate-300 bg-white hover:bg-slate-50 text-slate-700"
                                     )}
                                 >
@@ -642,7 +642,7 @@ export default function CreateOrderPage() {
                                     </div>
                                 )}
                                 {!calculatingDistance && !distanceError && distanceKm && (
-                                    <div className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
+                                    <div className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
                                         <Navigation className="h-3 w-3" />
                                         Đã tự động lựa chọn tuyến đường tốt nhất !
                                     </div>
@@ -736,7 +736,7 @@ export default function CreateOrderPage() {
                             {/* Điểm đi */}
                             <div>
                                 <div className={labelCls}>
-                                    <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                                    <MapPin className="h-3.5 w-3.5 text-amber-600" />
                                     <span>Điểm đi *</span>
                                 </div>
                                 <PlaceAutocomplete
@@ -818,7 +818,7 @@ export default function CreateOrderPage() {
                             {/* Loại xe */}
                             <div>
                                 <div className={labelCls}>
-                                    <CarFront className="h-3.5 w-3.5 text-emerald-600" />
+                                    <CarFront className="h-3.5 w-3.5 text-amber-600" />
                                     <span>
                                         Loại xe
                                         yêu cầu *

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
     CalendarDays,
     ZoomIn,
@@ -439,7 +439,7 @@ function QueuePanel({ orders, onAssign, query, onQuery, loading }) {
         <div className="h-full rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
             {/* header */}
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-                <ListChecks className="h-5 w-5 text-emerald-600" />
+                <ListChecks className="h-5 w-5 text-amber-600" />
                 <div className="font-semibold text-slate-900 text-sm">
                     Khung 1 – Queue (PENDING)
                 </div>
@@ -494,7 +494,7 @@ function QueuePanel({ orders, onAssign, query, onQuery, loading }) {
 
                                 <button
                                     onClick={() => onAssign?.(o)}
-                                    className="shrink-0 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-[13px] font-medium shadow-sm"
+                                    className="shrink-0 rounded-md bg-[#EDC531] hover:bg-amber-500 text-white px-3 py-1.5 text-[13px] font-medium shadow-sm"
                                 >
                                     Gán chuyến
                                 </button>
@@ -525,7 +525,7 @@ function Legend() {
     return (
         <div className="flex flex-wrap gap-4">
             <Item
-                boxClass="bg-emerald-50 border-emerald-300"
+                boxClass="bg-amber-50 border-amber-300"
                 label="Rảnh (nền)"
             />
             <Item
@@ -612,7 +612,7 @@ function UtilBadge({ percent }) {
         <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-500">
             <div className="w-20 h-2 bg-slate-200 rounded overflow-hidden">
                 <div
-                    className="h-full bg-emerald-500"
+                    className="h-full bg-amber-500"
                     style={{
                         width: `${Math.min(100, Math.max(0, percent))}%`,
                     }}
@@ -655,7 +655,7 @@ function Row({
             {/* left sticky label */}
             <div className="sticky left-0 z-10 w-80 shrink-0 bg-white/95 backdrop-blur px-4 py-2 text-[13px] text-slate-900 flex items-center gap-2 border-r border-slate-200">
                 {kind === "driver" ? (
-                    <UserRound className="h-4 w-4 text-emerald-600" />
+                    <UserRound className="h-4 w-4 text-amber-600" />
                 ) : (
                     <CarIcon className="h-4 w-4 text-sky-600" />
                 )}
@@ -824,7 +824,7 @@ function Modal({ open, onClose, item }) {
                     >
                         Đóng
                     </button>
-                    <button className="rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm transition-colors">
+                    <button className="rounded-md bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm transition-colors">
                         Mở chi tiết
                     </button>
                 </div>
@@ -961,7 +961,7 @@ function AssignDialog({
                         }}
                         className={`rounded-md px-3 py-2 text-[13px] font-medium shadow-sm ${
                             canConfirm 
-                                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                                ? "bg-[#EDC531] hover:bg-amber-500 text-white"
                                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
                         }`}
                     >
@@ -1690,7 +1690,7 @@ export default function CoordinatorTimelinePro() {
                                         {/* DRIVERS */}
                                         <div>
                                             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur px-4 py-2 text-[11px] text-slate-500 border-b border-slate-200 flex items-center gap-2 uppercase font-medium tracking-wide">
-                                                <UserRound className="h-4 w-4 text-emerald-600" />
+                                                <UserRound className="h-4 w-4 text-amber-600" />
                                                 <span>
                                                     TÀI XẾ ({_drivers.length})
                                                 </span>

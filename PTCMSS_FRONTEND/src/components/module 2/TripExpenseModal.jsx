@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
     Receipt,
     DollarSign,
@@ -193,7 +193,7 @@ export default function TripExpenseModal({
             >
                 {/* HEADER */}
                 <div className="px-5 py-4 border-b border-slate-200 flex items-start gap-3">
-                    <div className="flex-none rounded-xl bg-emerald-50 border border-emerald-200 p-2 text-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+                    <div className="flex-none rounded-xl bg-amber-50 border border-amber-200 p-2 text-amber-600 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
                         <Receipt className="h-5 w-5" />
                     </div>
 
@@ -228,7 +228,7 @@ export default function TripExpenseModal({
                             onChange={(e) => setCostType(e.target.value)}
                             className={cls(
                                 "w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none shadow-sm",
-                                "focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-900"
+                                "focus:ring-2 focus:ring-amber-500/30 focus:border-[#EDC531] text-slate-900"
                             )}
                         >
                             <option value="FUEL">{COST_TYPE_LABEL.FUEL}</option>
@@ -267,7 +267,7 @@ export default function TripExpenseModal({
                             placeholder="0"
                             className={cls(
                                 "w-full bg-white border border-slate-300 rounded-lg px-3 py-2 tabular-nums text-base outline-none shadow-sm",
-                                "focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-900 placeholder:text-slate-400"
+                                "focus:ring-2 focus:ring-amber-500/30 focus:border-[#EDC531] text-slate-900 placeholder:text-slate-400"
                             )}
                         />
                         <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
@@ -287,7 +287,7 @@ export default function TripExpenseModal({
                             placeholder="Ví dụ: Đổ dầu tại Km34, có hoá đơn VAT"
                             className={cls(
                                 "w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none resize-none shadow-sm",
-                                "focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-900 placeholder:text-slate-400"
+                                "focus:ring-2 focus:ring-amber-500/30 focus:border-[#EDC531] text-slate-900 placeholder:text-slate-400"
                             )}
                         />
                     </div>
@@ -309,7 +309,7 @@ export default function TripExpenseModal({
                                 "text-slate-700 bg-white hover:bg-slate-50 cursor-pointer shadow-sm"
                             )}
                         >
-                            <Upload className="h-4 w-4 text-emerald-600" />
+                            <Upload className="h-4 w-4 text-amber-600" />
                             <span>Tải ảnh / Chụp hoá đơn</span>
                             <input
                                 type="file"
@@ -399,7 +399,7 @@ export default function TripExpenseModal({
                             disabled={!valid || loading}
                             className={cls(
                                 "rounded-lg px-3 py-2 text-sm font-medium text-white shadow-sm",
-                                "bg-emerald-600 hover:bg-emerald-500",
+                                "bg-[#EDC531] hover:bg-amber-500",
                                 "disabled:opacity-50 disabled:cursor-not-allowed"
                             )}
                         >

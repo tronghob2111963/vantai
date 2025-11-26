@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate } from "react-router-dom";
 import { login as apiLogin, forgotPassword as apiForgotPassword } from "../../api/auth";
 import {
@@ -256,7 +256,7 @@ export default function LoginPage() {
 
                     {/* SECURITY INFO */}
                     <div className="flex items-center justify-center gap-2 text-xs text-slate-500 pt-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <CheckCircle2 className="h-4 w-4 text-amber-500" />
                         <span>Kết nối bảo mật · Mã hóa end-to-end</span>
                     </div>
 
@@ -293,12 +293,12 @@ export default function LoginPage() {
 
                         {forgotSuccess ? (
                             <div className="space-y-4">
-                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
                                     <div className="flex items-start gap-3">
-                                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-500 mt-0.5" />
+                                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-amber-500 mt-0.5" />
                                         <div>
                                             <p className="font-semibold">Email đã được gửi!</p>
-                                            <p className="mt-1.5 text-emerald-600">
+                                            <p className="mt-1.5 text-amber-600">
                                                 Chúng tôi đã gửi link đặt lại mật khẩu đến email <strong>{forgotEmail}</strong>.
                                                 Vui lòng kiểm tra hộp thư của bạn.
                                             </p>

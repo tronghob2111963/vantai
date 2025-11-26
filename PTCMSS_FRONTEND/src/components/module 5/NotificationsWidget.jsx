@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useLocation } from "react-router-dom";
 import {
     Bell,
@@ -361,7 +361,7 @@ export default function NotificationsWidget() {
                         {approval.details && approval.approvalType === "EXPENSE_REQUEST" && (
                             <div className="mt-1.5 text-[11px] text-slate-500 flex items-center gap-1.5">
                                 <DollarSign className="h-3 w-3" />
-                                {approval.details.requesterName} · <span className="font-semibold text-emerald-600">{approval.details.amount?.toLocaleString()} VNĐ</span>
+                                {approval.details.requesterName} · <span className="font-semibold text-amber-600">{approval.details.amount?.toLocaleString()} VNĐ</span>
                             </div>
                         )}
                     </div>
@@ -373,7 +373,7 @@ export default function NotificationsWidget() {
                             disabled={working}
                             onClick={() => handleApprove(approval.id)}
                             className={cls(
-                                "inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50 hover:shadow-md px-3 py-1.5 text-[12px] font-semibold transition-all duration-200",
+                                "inline-flex items-center gap-1.5 rounded-lg border-2 border-[#EDC531] bg-white text-amber-700 hover:bg-amber-50 hover:shadow-md px-3 py-1.5 text-[12px] font-semibold transition-all duration-200",
                                 working ? "opacity-60 cursor-not-allowed" : "hover:scale-105"
                             )}
                             title="Duyệt"
@@ -433,7 +433,7 @@ export default function NotificationsWidget() {
                         </span>
                     )}
                     {connected && (
-                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></span>
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-amber-500 border-2 border-white shadow-sm"></span>
                     )}
                 </button>
             )}
@@ -480,7 +480,7 @@ export default function NotificationsWidget() {
                                 className={cls(
                                     "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-all duration-200",
                                     connected
-                                        ? "bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border-2 border-emerald-300 shadow-sm"
+                                        ? "bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 border-2 border-amber-300 shadow-sm"
                                         : "bg-slate-100 text-slate-500 border-2 border-slate-300"
                                 )}
                                 title={connected ? "WebSocket đã kết nối" : "WebSocket chưa kết nối"}

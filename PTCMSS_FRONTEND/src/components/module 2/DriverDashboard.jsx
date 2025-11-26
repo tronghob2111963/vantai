@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Clock,
   Calendar,
@@ -84,7 +84,7 @@ function Toasts({ toasts }) {
           className={cls(
             "rounded-lg px-3 py-2 text-sm border shadow-lg bg-white",
             t.kind === "success" &&
-            "bg-emerald-50 border-emerald-200 text-emerald-700",
+            "bg-amber-50 border-amber-200 text-amber-700",
             t.kind === "error" &&
             "bg-rose-50 border-rose-200 text-rose-700",
             t.kind === "info" &&
@@ -110,7 +110,7 @@ function DriverAvatar({ name = "Tài xế" }) {
   return (
     <div className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 ring-1 ring-inset ring-sky-100 shadow-sm text-[12px] font-semibold leading-none">
       {initials || "TX"}
-      <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white ring-1 ring-white shadow-sm">
+      <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white ring-1 ring-white shadow-sm">
         ●
       </span>
     </div>
@@ -131,7 +131,7 @@ function PhasePill({ phase }) {
     IDLE: "bg-slate-100 text-slate-600 border-slate-300",
     READY: "bg-amber-50 text-amber-700 border-amber-300",
     ON_ROUTE: "bg-sky-50 text-sky-700 border-sky-300",
-    PICKED: "bg-emerald-50 text-emerald-700 border-emerald-300",
+    PICKED: "bg-amber-50 text-amber-700 border-amber-300",
     DONE: "bg-slate-100 text-slate-500 border-slate-300",
   };
 
@@ -159,7 +159,7 @@ function ActionButton({ active, color, icon, label, onClick, loading }) {
           ? color === "start"
             ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
             : color === "picked"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
               : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
           : "border-slate-200 bg-white text-slate-400 cursor-not-allowed"
       )}
@@ -218,7 +218,7 @@ function QuickActions({ onLeave, onVehicleCheck }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
       <div className="px-4 py-3 border-b border-slate-200 text-sm text-slate-800 font-medium flex items-center gap-2 bg-slate-50/80">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100 shadow-sm">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 ring-1 ring-inset ring-emerald-100 shadow-sm">
           <AlertCircle className="h-4 w-4" />
         </div>
         Hành động nhanh
@@ -245,7 +245,7 @@ function QuickActions({ onLeave, onVehicleCheck }) {
           className="group w-full rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-left px-4 py-3 flex flex-col gap-1 shadow-sm transition-colors"
         >
           <div className="flex items-center gap-2 text-slate-800 font-medium">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-50 border border-emerald-300 text-emerald-700 text-[10px] font-semibold shadow-sm">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 border border-amber-300 text-amber-700 text-[10px] font-semibold shadow-sm">
               ✓
             </span>
             Báo cáo tình trạng xe
@@ -308,7 +308,7 @@ function TripCard({
       <div className="flex flex-wrap items-start gap-4 mb-6">
         <div className="flex-1 min-w-[220px]">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
-            <span className="rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 px-2 py-0.5 shadow-sm">
+            <span className="rounded-md border border-amber-300 bg-amber-50 text-amber-700 px-2 py-0.5 shadow-sm">
               {isCurrent ? "Chuyến hiện tại" : "Chuyến sắp tới"}
             </span>
 
@@ -359,7 +359,7 @@ function TripCard({
         </div>
 
         <div className="flex items-start gap-2">
-          <User className="h-4 w-4 text-emerald-600 shrink-0" />
+          <User className="h-4 w-4 text-amber-600 shrink-0" />
           <div>
             <div className="text-slate-400 text-[11px] mb-1 uppercase tracking-wide">
               Khách hàng
@@ -371,7 +371,7 @@ function TripCard({
         </div>
 
         <div className="flex items-start gap-2">
-          <Phone className="h-4 w-4 text-emerald-600 shrink-0" />
+          <Phone className="h-4 w-4 text-amber-600 shrink-0" />
           <div>
             <div className="text-slate-400 text-[11px] mb-1 uppercase tracking-wide">
               Liên hệ
@@ -410,7 +410,7 @@ function TripCard({
             active={phase === "ON_ROUTE"}
             color="picked"
             icon={
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-700" />
             }
             label="Đã đón khách"
             onClick={onPicked}
@@ -637,8 +637,8 @@ export default function DriverDashboard() {
               {branchName}
             </div>
 
-            <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700 font-medium shadow-sm">
-              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-700 font-medium shadow-sm">
+              <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
               Sẵn sàng nhận chuyến
             </div>
           </div>

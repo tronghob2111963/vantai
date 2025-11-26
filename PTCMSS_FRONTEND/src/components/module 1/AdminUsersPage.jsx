@@ -9,7 +9,7 @@ const cls = (...a) => a.filter(Boolean).join(" ");
 
 function StatusBadge({ value }) {
   const map = {
-    ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-300",
+    ACTIVE: "bg-amber-50 text-amber-700 border-amber-300",
     INACTIVE: "bg-slate-100 text-slate-600 border-slate-300",
   };
   const label = value === "ACTIVE" ? "Hoạt động" : "Vô hiệu hóa";
@@ -374,7 +374,7 @@ export default function AdminUsersPage() {
                           className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${
                             u.status === "ACTIVE"
                               ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                              : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
                           }`}
                         >
                           {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}

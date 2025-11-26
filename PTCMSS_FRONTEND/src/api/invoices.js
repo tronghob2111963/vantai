@@ -99,26 +99,24 @@ export function recordPayment(invoiceId, body) {
   return apiFetch(`/api/invoices/${invoiceId}/payments`, {
     method: "POST",
     body: payload,
-  }).then(res => res.data); // Backend returns ApiResponse wrapper
+  }); // apiFetch already unwraps ApiResponse
 }
 
 // Get payment history for invoice
 export function getPaymentHistory(invoiceId) {
-  return apiFetch(`/api/invoices/${invoiceId}/payments`)
-    .then(res => res.data);
+  return apiFetch(`/api/invoices/${invoiceId}/payments`);
 }
 
 // Get invoice balance
 export function getInvoiceBalance(invoiceId) {
-  return apiFetch(`/api/invoices/${invoiceId}/balance`)
-    .then(res => res.data);
+  return apiFetch(`/api/invoices/${invoiceId}/balance`);
 }
 
 // Mark invoice as paid
 export function markInvoiceAsPaid(invoiceId) {
   return apiFetch(`/api/invoices/${invoiceId}/mark-paid`, {
     method: "POST",
-  }).then(res => res.data);
+  });
 }
 
 // Generate invoice number
