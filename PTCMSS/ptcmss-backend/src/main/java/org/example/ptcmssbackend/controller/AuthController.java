@@ -112,4 +112,33 @@ public class AuthController {
                     .build());
         }
     }
+
+    // ---------------- SET PASSWORD ----------------
+    @Operation(
+            summary = "Thiết lập mật khẩu",
+            description = "Người dùng thiết lập mật khẩu sau khi xác thực email hoặc đặt lại mật khẩu.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Thiết lập mật khẩu thành công"),
+                    @ApiResponse(responseCode = "400", description = "Token không hợp lệ hoặc mật khẩu không khớp")
+            }
+    )
+    @PostMapping("/set-password")
+    public ResponseEntity<org.example.ptcmssbackend.dto.response.common.ApiResponse<String>> setPassword(
+            @Valid @RequestBody org.example.ptcmssbackend.dto.request.Auth.SetPasswordRequest request) {
+        log.info("[SET_PASSWORD] Request received");
+        try {
+            String message = authService.setPassword(request);
+            return ResponseEntity.ok(org.example.ptcmssbackend.dto.response.common.ApiResponse.<String>builder()
+                    .success(true)
+                    .message(message)
+                    .data("Mật khẩu đã được thiết lập thành công")
+                    .build());
+        } catch (Exception e) {
+            log.error("[SET_PASSWORD] Error: {}", e.getMessage(), e);
+            return ResponseEntity.ok(org.example.ptcmssbackend.dto.response.common.ApiResponse.<String>builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .build());
+        }
+    }
 }

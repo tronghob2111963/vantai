@@ -277,16 +277,16 @@ const MOCK_ORDERS = [
 /* FILTER BAR                                                */
 /* --------------------------------------------------------- */
 function FilterBar({
-                       statusFilter,
-                       setStatusFilter,
-                       dateFilter,
-                       setDateFilter,
-                       searchText,
-                       setSearchText,
-                       onClickCreate,
-                       onRefresh,
-                       loadingRefresh,
-                   }) {
+    statusFilter,
+    setStatusFilter,
+    dateFilter,
+    setDateFilter,
+    searchText,
+    setSearchText,
+    onClickCreate,
+    onRefresh,
+    loadingRefresh,
+}) {
     return (
         <div className="flex flex-col lg:flex-row lg:flex-wrap gap-3">
             {/* CTA tạo đơn hàng mới */}
@@ -368,19 +368,19 @@ function FilterBar({
 /* --------------------------------------------------------- */
 
 function OrdersTable({
-                         items,
-                         page,
-                         setPage,
-                         pageSize,
-                         setPageSize,
-                         totalPages,
-                         sortKey,
-                         setSortKey,
-                         sortDir,
-                         setSortDir,
-                         onViewDetail,
-                         onEdit,
-                     }) {
+    items,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalPages,
+    sortKey,
+    setSortKey,
+    sortDir,
+    setSortDir,
+    onViewDetail,
+    onEdit,
+}) {
     const headerCell = (key, label) => (
         <th
             className="px-3 py-2 font-medium cursor-pointer select-none text-slate-500 text-[12px]"
@@ -416,138 +416,138 @@ function OrdersTable({
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
                 <thead className="text-xs border-b border-slate-200 bg-slate-100/70">
-                <tr>
-                    {headerCell("code", "Mã đơn")}
-                    {headerCell("customer_name", "Khách hàng")}
-                    {headerCell("pickup", "Lịch trình")}
-                    {headerCell("pickup_time", "Ngày đi")}
-                    {headerCell("quoted_price", "Giá trị")}
-                    {headerCell("status", "Trạng thái")}
-                    <th className="px-3 py-2 font-medium text-slate-500 text-[12px]">
-                        Hành động
-                    </th>
-                </tr>
+                    <tr>
+                        {headerCell("code", "Mã đơn")}
+                        {headerCell("customer_name", "Khách hàng")}
+                        {headerCell("pickup", "Lịch trình")}
+                        {headerCell("pickup_time", "Ngày đi")}
+                        {headerCell("quoted_price", "Giá trị")}
+                        {headerCell("status", "Trạng thái")}
+                        <th className="px-3 py-2 font-medium text-slate-500 text-[12px]">
+                            Hành động
+                        </th>
+                    </tr>
                 </thead>
 
                 <tbody>
-                {current.map((o) => (
-                    <tr
-                        key={o.id}
-                        className="border-b border-slate-200 hover:bg-slate-50"
-                    >
-                        {/* Mã đơn */}
-                        <td className="px-3 py-2 text-[13px] font-semibold text-slate-900 whitespace-nowrap">
-                            {o.code}
-                        </td>
-
-                        {/* Khách hàng */}
-                        <td className="px-3 py-2 text-[13px] text-slate-700 whitespace-nowrap">
-                            <div className="flex items-start gap-2">
-                                <User className="h-3.5 w-3.5 text-sky-600 shrink-0 mt-0.5" />
-                                <div>
-                                    <div className="font-medium text-slate-900 leading-tight">
-                                        {o.customer_name}
-                                    </div>
-                                    <div className="text-[11px] text-slate-500 leading-tight break-all">
-                                        {o.customer_phone}
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-
-                        {/* Lịch trình */}
-                        <td className="px-3 py-2 text-[13px] text-slate-700 min-w-[180px]">
-                            <div className="flex items-start gap-2 leading-snug">
-                                <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
-                                <div className="space-y-1">
-                                    <div className="text-slate-900 font-medium">
-                                        {o.pickup} → {o.dropoff}
-                                    </div>
-                                    <div className="text-[11px] text-slate-500">
-                                        {o.vehicle_category} ·{" "}
-                                        {o.vehicle_count} xe
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-
-                        {/* Ngày đi */}
-                        <td className="px-3 py-2 text-[13px] text-slate-700 whitespace-nowrap">
-                            <div className="leading-tight">
-                                <div className="text-slate-900 font-medium tabular-nums">
-                                    {fmtDateOnly(o.pickup_time)}
-                                </div>
-                                <div className="text-[11px] text-slate-500 tabular-nums">
-                                    {fmtDateTime(o.pickup_time).slice(-5)}{" "}
-                                    ~{" "}
-                                    {fmtDateTime(
-                                        o.dropoff_eta
-                                    ).slice(-5)}
-                                </div>
-                            </div>
-                        </td>
-
-                        {/* Giá trị */}
-                        <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums">
-                            <div className="flex items-start gap-1 text-amber-600 font-semibold">
-                                <DollarSign className="h-3.5 w-3.5 text-amber-600 mt-0.5" />
-                                <span>{fmtVND(o.quoted_price)}</span>
-                            </div>
-                            {o.discount_amount > 0 ? (
-                                <div className="text-[11px] text-slate-500 leading-tight">
-                                    Giảm: {fmtVND(o.discount_amount)}
-                                </div>
-                            ) : null}
-                        </td>
-
-                        {/* Trạng thái */}
-                        <td className="px-3 py-2 text-[13px] whitespace-nowrap">
-                            <OrderStatusPill status={o.status} />
-                        </td>
-
-                        {/* Actions */}
-                        <td className="px-3 py-2 text-[13px] whitespace-nowrap">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <button
-                                    type="button"
-                                    onClick={() => onViewDetail(o)}
-                                    className="rounded-md border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm"
-                                >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    <span>Chi tiết</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled={!canEdit(o.status)}
-                                    onClick={() => {
-                                        if (canEdit(o.status)) onEdit(o);
-                                    }}
-                                    className={cls(
-                                        "rounded-md border px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm",
-                                        canEdit(o.status)
-                                            ? "border-amber-300 text-amber-700 bg-white hover:bg-amber-50"
-                                            : "border-slate-200 text-slate-400 bg-white cursor-not-allowed opacity-50"
-                                    )}
-                                >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    <span>Sửa</span>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                ))}
-
-                {current.length === 0 && (
-                    <tr>
-                        <td
-                            colSpan={7}
-                            className="px-3 py-6 text-center text-slate-500 text-[13px]"
+                    {current.map((o) => (
+                        <tr
+                            key={o.id}
+                            className="border-b border-slate-200 hover:bg-slate-50"
                         >
-                            Không có đơn hàng phù hợp.
-                        </td>
-                    </tr>
-                )}
+                            {/* Mã đơn */}
+                            <td className="px-3 py-2 text-[13px] font-semibold text-slate-900 whitespace-nowrap">
+                                {o.code}
+                            </td>
+
+                            {/* Khách hàng */}
+                            <td className="px-3 py-2 text-[13px] text-slate-700 whitespace-nowrap">
+                                <div className="flex items-start gap-2">
+                                    <User className="h-3.5 w-3.5 text-sky-600 shrink-0 mt-0.5" />
+                                    <div>
+                                        <div className="font-medium text-slate-900 leading-tight">
+                                            {o.customer_name}
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 leading-tight break-all">
+                                            {o.customer_phone}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            {/* Lịch trình */}
+                            <td className="px-3 py-2 text-[13px] text-slate-700 min-w-[180px]">
+                                <div className="flex items-start gap-2 leading-snug">
+                                    <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                    <div className="space-y-1">
+                                        <div className="text-slate-900 font-medium">
+                                            {o.pickup} → {o.dropoff}
+                                        </div>
+                                        <div className="text-[11px] text-slate-500">
+                                            {o.vehicle_category} ·{" "}
+                                            {o.vehicle_count} xe
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            {/* Ngày đi */}
+                            <td className="px-3 py-2 text-[13px] text-slate-700 whitespace-nowrap">
+                                <div className="leading-tight">
+                                    <div className="text-slate-900 font-medium tabular-nums">
+                                        {fmtDateOnly(o.pickup_time)}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 tabular-nums">
+                                        {fmtDateTime(o.pickup_time).slice(-5)}{" "}
+                                        ~{" "}
+                                        {fmtDateTime(
+                                            o.dropoff_eta
+                                        ).slice(-5)}
+                                    </div>
+                                </div>
+                            </td>
+
+                            {/* Giá trị */}
+                            <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums">
+                                <div className="flex items-start gap-1 text-amber-600 font-semibold">
+                                    <DollarSign className="h-3.5 w-3.5 text-amber-600 mt-0.5" />
+                                    <span>{fmtVND(o.quoted_price)}</span>
+                                </div>
+                                {o.discount_amount > 0 ? (
+                                    <div className="text-[11px] text-slate-500 leading-tight">
+                                        Giảm: {fmtVND(o.discount_amount)}
+                                    </div>
+                                ) : null}
+                            </td>
+
+                            {/* Trạng thái */}
+                            <td className="px-3 py-2 text-[13px] whitespace-nowrap">
+                                <OrderStatusPill status={o.status} />
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-3 py-2 text-[13px] whitespace-nowrap">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => onViewDetail(o)}
+                                        className="rounded-md border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm"
+                                    >
+                                        <Eye className="h-3.5 w-3.5" />
+                                        <span>Chi tiết</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        disabled={!canEdit(o.status)}
+                                        onClick={() => {
+                                            if (canEdit(o.status)) onEdit(o);
+                                        }}
+                                        className={cls(
+                                            "rounded-md border px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm",
+                                            canEdit(o.status)
+                                                ? "border-amber-300 text-amber-700 bg-white hover:bg-amber-50"
+                                                : "border-slate-200 text-slate-400 bg-white cursor-not-allowed opacity-50"
+                                        )}
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                        <span>Sửa</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+
+                    {current.length === 0 && (
+                        <tr>
+                            <td
+                                colSpan={7}
+                                className="px-3 py-6 text-center text-slate-500 text-[13px]"
+                            >
+                                Không có đơn hàng phù hợp.
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
 
@@ -732,7 +732,7 @@ function OrderDetailModal({ open, order, onClose }) {
                         </div>
 
                         {order.status === ORDER_STATUS.CANCELLED ||
-                        order.status === ORDER_STATUS.DRAFT ? (
+                            order.status === ORDER_STATUS.DRAFT ? (
                             <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 max-w-fit flex items-start gap-2">
                                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
                                 <span>
@@ -777,12 +777,12 @@ function OrderDetailModal({ open, order, onClose }) {
  *   - mode: "create" | "edit"
  */
 function OrderFormModal({
-                            open,
-                            mode,
-                            initialOrder,
-                            onClose,
-                            onSave,
-                        }) {
+    open,
+    mode,
+    initialOrder,
+    onClose,
+    onSave,
+}) {
     const isEdit = mode === "edit";
 
     // ------- form state
@@ -838,7 +838,7 @@ function OrderFormModal({
                 if (!mounted || !Array.isArray(list)) return;
                 setCategories(list);
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => { if (mounted) setLoadingCats(false); });
 
         // Load branches
@@ -850,7 +850,7 @@ function OrderFormModal({
                 setBranches(list);
                 if (!branchId && list.length) setBranchId(String(list[0].branchId ?? list[0].id));
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => { if (mounted) setLoadingBranches(false); });
 
         if (isEdit && initialOrder) {
@@ -1038,6 +1038,26 @@ function OrderFormModal({
             );
             return;
         }
+
+        // Validate time
+        if (pickupTime && dropoffEta) {
+            const startDate = new Date(pickupTime);
+            const endDate = new Date(dropoffEta);
+            const now = new Date();
+
+            // Check if start time is in the past
+            if (startDate < now) {
+                setError("Thời gian đón phải lớn hơn hoặc bằng thời gian hiện tại");
+                return;
+            }
+
+            // Check if end time is after start time
+            if (endDate <= startDate) {
+                setError("Thời gian kết thúc phải sau thời gian đón");
+                return;
+            }
+        }
+
         setSaving(true);
         setError("");
         await new Promise((r) => setTimeout(r, 400));
@@ -1054,6 +1074,26 @@ function OrderFormModal({
             );
             return;
         }
+
+        // Validate time
+        if (pickupTime && dropoffEta) {
+            const startDate = new Date(pickupTime);
+            const endDate = new Date(dropoffEta);
+            const now = new Date();
+
+            // Check if start time is in the past
+            if (startDate < now) {
+                setError("Thời gian đón phải lớn hơn hoặc bằng thời gian hiện tại");
+                return;
+            }
+
+            // Check if end time is after start time
+            if (endDate <= startDate) {
+                setError("Thời gian kết thúc phải sau thời gian đón");
+                return;
+            }
+        }
+
         setSaving(true);
         setError("");
         await new Promise((r) => setTimeout(r, 400));
@@ -1070,6 +1110,26 @@ function OrderFormModal({
             );
             return;
         }
+
+        // Validate time
+        if (pickupTime && dropoffEta) {
+            const startDate = new Date(pickupTime);
+            const endDate = new Date(dropoffEta);
+            const now = new Date();
+
+            // Check if start time is in the past
+            if (startDate < now) {
+                setError("Thời gian đón phải lớn hơn hoặc bằng thời gian hiện tại");
+                return;
+            }
+
+            // Check if end time is after start time
+            if (endDate <= startDate) {
+                setError("Thời gian kết thúc phải sau thời gian đón");
+                return;
+            }
+        }
+
         setSaving(true);
         setError("");
         await new Promise((r) => setTimeout(r, 400));
@@ -1602,7 +1662,7 @@ export default function ConsultantOrdersPage() {
                 const res = await listBranches({ page: 0, size: 1 });
                 const list = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
                 if (list.length) setDefaultBranchId(list[0].branchId ?? list[0].id ?? null);
-            } catch {}
+            } catch { }
         })();
     }, []);
 
@@ -1613,7 +1673,7 @@ export default function ConsultantOrdersPage() {
             try {
                 const response = await listBookings({});
                 if (!mounted) return;
-                
+
                 // Handle different response formats
                 let list = [];
                 if (Array.isArray(response)) {
@@ -1627,20 +1687,20 @@ export default function ConsultantOrdersPage() {
                 } else if (Array.isArray(response?.items)) {
                     list = response.items;
                 }
-                
+
                 console.log("Loaded bookings:", list);
-                
+
                 const mapped = list.map(b => {
                     // Extract branchId from multiple sources
-                    const branchId = b.branchId 
+                    const branchId = b.branchId
                         || (b.branch && (b.branch.id || b.branch.branchId))
                         || null;
-                    
+
                     // Extract customerId from multiple sources
-                    const customerId = b.customerId 
+                    const customerId = b.customerId
                         || (b.customer && (b.customer.id || b.customer.customerId))
                         || null;
-                    
+
                     return {
                         id: b.id || b.bookingId,
                         code: b.bookingCode || b.code || (b.id ? `ORD-${b.id}` : `ORD-${b.bookingId || "?"}`),
@@ -1684,7 +1744,7 @@ export default function ConsultantOrdersPage() {
             (async () => {
                 try {
                     const response = await listBookings({});
-                    
+
                     // Handle different response formats
                     let list = [];
                     if (Array.isArray(response)) {
@@ -1698,15 +1758,15 @@ export default function ConsultantOrdersPage() {
                     } else if (Array.isArray(response?.items)) {
                         list = response.items;
                     }
-                    
+
                     const mapped = list.map(b => {
-                        const branchId = b.branchId 
+                        const branchId = b.branchId
                             || (b.branch && (b.branch.id || b.branch.branchId))
                             || null;
-                        const customerId = b.customerId 
+                        const customerId = b.customerId
                             || (b.customer && (b.customer.id || b.customer.customerId))
                             || null;
-                        
+
                         return {
                             id: b.id || b.bookingId,
                             code: b.bookingCode || b.code || (b.id ? `ORD-${b.id}` : `ORD-${b.bookingId || "?"}`),

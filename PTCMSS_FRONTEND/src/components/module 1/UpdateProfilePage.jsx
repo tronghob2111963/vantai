@@ -112,7 +112,6 @@ export default function UpdateProfilePage() {
 
   const validate = () => {
     const next = {};
-    if (!fullName.trim()) next.fullName = "Vui lòng nhập họ tên";
     if (phone && !/^[0-9]{10}$/.test(phone)) next.phone = "Số điện thoại phải gồm 10 chữ số";
     setErrors(next);
     setGeneralError("");
@@ -124,7 +123,7 @@ export default function UpdateProfilePage() {
     setSaving(true);
     setGeneralError("");
     setShowSuccess(false);
-    
+
     try {
       // Upload avatar if changed
       if (avatarFile && userId) {
@@ -136,19 +135,13 @@ export default function UpdateProfilePage() {
         }
       }
 
-      // Update profile - luôn update nếu có userId
+      // Update profile - chỉ gửi phone và address (theo UpdateProfileRequest)
       if (userId) {
         const updateData = {
-          fullName,
           phone: phone || null,
-          email: email || null,
           address: address || null,
         };
-        
-        // Chỉ thêm roleId và status nếu có
-        if (roleId) updateData.roleId = roleId;
-        if (status) updateData.status = status;
-        
+
         await updateMyProfile(updateData);
       } else {
         throw new Error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
@@ -171,10 +164,10 @@ export default function UpdateProfilePage() {
       setAvatarFile(null);
     } catch (err) {
       console.error("Update profile error:", err);
-      
+
       // Parse error message từ nhiều nguồn
       let errorMessage = "Cập nhật hồ sơ thất bại";
-      
+
       if (err?.data) {
         // Error từ apiFetch (http.js)
         if (err.data.message) {
@@ -196,7 +189,7 @@ export default function UpdateProfilePage() {
       } else if (err?.message) {
         errorMessage = err.message;
       }
-      
+
       // Cải thiện message cho user-friendly hơn
       if (errorMessage.includes("Phone already exists") || errorMessage.includes("phone") && errorMessage.includes("exists")) {
         errorMessage = "Số điện thoại đã được sử dụng bởi người dùng khác. Vui lòng sử dụng số điện thoại khác.";
@@ -205,14 +198,14 @@ export default function UpdateProfilePage() {
       } else if (errorMessage.includes("duplicate") && errorMessage.includes("phone")) {
         errorMessage = "Số điện thoại đã được sử dụng bởi người dùng khác. Vui lòng sử dụng số điện thoại khác.";
       }
-      
+
       setGeneralError(errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
-  const BRAND_COLOR = "#0079BC";
+  const BRAND_COLOR = "#EDC531";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 text-slate-900 p-5">
@@ -249,13 +242,13 @@ export default function UpdateProfilePage() {
               <span>Đang tải...</span>
             </div>
           )}
-          <button 
-            onClick={onSave} 
-            disabled={saving || loading} 
+          <button
+            onClick={onSave}
+            disabled={saving || loading}
             className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all active:scale-[0.98]"
             style={{ backgroundColor: BRAND_COLOR }}
           >
-            <Save className="h-4 w-4" /> 
+            <Save className="h-4 w-4" />
             <span>{saving ? "Đang lưu..." : "Lưu thay đổi"}</span>
           </button>
         </div>
@@ -280,7 +273,7 @@ export default function UpdateProfilePage() {
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-slate-900 mb-3">Ảnh đại diện</h3>
               <label className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:border-[#0079BC]/50 cursor-pointer transition-all active:scale-[0.98]">
-                <Upload className="h-4 w-4" style={{ color: BRAND_COLOR }} /> 
+                <Upload className="h-4 w-4" style={{ color: BRAND_COLOR }} />
                 <span>Chọn ảnh</span>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => onPickAvatar(e.target.files?.[0])} />
               </label>
@@ -299,20 +292,14 @@ export default function UpdateProfilePage() {
             <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mb-2">
                 <User className="h-3.5 w-3.5 text-slate-400" />
-                <span>Họ và tên *</span>
+                <span>Họ và tên</span>
+                <span className="text-slate-400 text-[10px]">(không thể sửa)</span>
               </label>
               <input
                 value={fullName}
-                onChange={(e) => { setFullName(e.target.value); setErrors((p) => ({ ...p, fullName: undefined })); }}
-                className={`w-full border rounded-lg px-3.5 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 ${
-                  errors.fullName ? "border-rose-300 focus:border-rose-400" : "border-slate-300 focus:border-[#0079BC]/50"
-                }`}
-                placeholder="Nhập họ và tên"
+                disabled
+                className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-600 cursor-not-allowed"
               />
-              {errors.fullName && <div className="text-xs text-rose-600 mt-1.5 flex items-center gap-1">
-                <XCircle className="h-3 w-3" />
-                <span>{errors.fullName}</span>
-              </div>}
             </div>
             <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mb-2">
@@ -322,9 +309,8 @@ export default function UpdateProfilePage() {
               <input
                 value={phone}
                 onChange={(e) => { setPhone(e.target.value.replace(/[^0-9]/g, "")); setErrors((p) => ({ ...p, phone: undefined })); }}
-                className={`w-full border rounded-lg px-3.5 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 ${
-                  errors.phone ? "border-rose-300 focus:border-rose-400" : "border-slate-300 focus:border-[#0079BC]/50"
-                }`}
+                className={`w-full border rounded-lg px-3.5 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 ${errors.phone ? "border-rose-300 focus:border-rose-400" : "border-slate-300 focus:border-[#0079BC]/50"
+                  }`}
                 placeholder="0901234567"
               />
               {errors.phone && <div className="text-xs text-rose-600 mt-1.5 flex items-center gap-1">
@@ -348,10 +334,10 @@ export default function UpdateProfilePage() {
                 <span>Email</span>
                 <span className="text-slate-400 text-[10px]">(không thể sửa)</span>
               </label>
-              <input 
-                value={email} 
-                disabled 
-                className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-500 cursor-not-allowed" 
+              <input
+                value={email}
+                disabled
+                className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
               />
             </div>
             <div>
@@ -359,10 +345,10 @@ export default function UpdateProfilePage() {
                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
                 <span>Địa chỉ</span>
               </label>
-              <input 
-                value={address} 
-                onChange={(e) => setAddress(e.target.value)} 
-                className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 focus:border-[#0079BC]/50" 
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 focus:border-[#0079BC]/50"
                 placeholder="Nhập địa chỉ"
               />
             </div>
@@ -375,17 +361,17 @@ export default function UpdateProfilePage() {
             <Shield className="h-4 w-4" style={{ color: BRAND_COLOR }} />
             <span>Thông tin tài khoản</span>
           </h3>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mb-2">
                 <Shield className="h-3.5 w-3.5 text-slate-400" />
                 <span>Vai trò</span>
               </label>
               <div className="relative">
-                <input 
-                  value={roleName || ""} 
-                  disabled 
-                  className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-600 cursor-not-allowed" 
+                <input
+                  value={roleName || ""}
+                  disabled
+                  className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-600 cursor-not-allowed"
                 />
                 {roleName && (
                   <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -397,12 +383,11 @@ export default function UpdateProfilePage() {
                 <span>Trạng thái</span>
               </label>
               <div className="relative">
-                <input 
-                  value={status || ""} 
-                  disabled 
-                  className={`w-full border rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-600 cursor-not-allowed ${
-                    status === "ACTIVE" ? "border-green-200" : "border-slate-300"
-                  }`}
+                <input
+                  value={status || ""}
+                  disabled
+                  className={`w-full border rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-600 cursor-not-allowed ${status === "ACTIVE" ? "border-green-200" : "border-slate-300"
+                    }`}
                 />
                 {status === "ACTIVE" && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -412,16 +397,7 @@ export default function UpdateProfilePage() {
                 )}
               </div>
             </div>
-            <div>
-              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 mb-2">
-                <span>ID người dùng</span>
-              </label>
-              <input 
-                value={userId || ""} 
-                disabled 
-                className="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm bg-slate-50 text-slate-500 cursor-not-allowed font-mono" 
-              />
-            </div>
+
           </div>
         </div>
       </div>

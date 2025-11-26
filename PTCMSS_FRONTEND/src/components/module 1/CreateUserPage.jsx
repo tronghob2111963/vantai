@@ -2,11 +2,11 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, UserPlus, User, Mail, Phone, MapPin, Shield, Building2, Info, AlertCircle, Loader2 } from "lucide-react";
 import { createUser, listRoles } from "../../api/users";
-import { listBranches } from "../../api/branches";
+import { getAllBranchesForSelection } from "../../api/branches";
 import { listEmployeesByRole } from "../../api/employees";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 
-const BRAND_COLOR = "#0079BC";
+const BRAND_COLOR = "#EDC531";
 
 const ROLE_PRIORITY = {
   [ROLES.ADMIN]: 100,
@@ -66,12 +66,12 @@ export default function CreateUserPage() {
         const list = Array.isArray(rs?.data)
           ? rs.data
           : Array.isArray(rs?.items)
-          ? rs.items
-          : Array.isArray(rs?.content)
-          ? rs.content
-          : Array.isArray(rs)
-          ? rs
-          : [];
+            ? rs.items
+            : Array.isArray(rs?.content)
+              ? rs.content
+              : Array.isArray(rs)
+                ? rs
+                : [];
         if (!mounted) return;
         setRoles(list);
       } catch (error) {
@@ -89,22 +89,17 @@ export default function CreateUserPage() {
     let mounted = true;
     (async () => {
       try {
-        const rs = await listBranches({ size: 200 });
-        const list = Array.isArray(rs?.items)
-          ? rs.items
-          : Array.isArray(rs?.data?.items)
-          ? rs.data.items
-          : Array.isArray(rs?.data?.content)
-          ? rs.data.content
-          : Array.isArray(rs?.content)
-          ? rs.content
-          : Array.isArray(rs?.data)
+        const rs = await getAllBranchesForSelection();
+        console.log("Branches API response:", rs);
+        const list = Array.isArray(rs?.data)
           ? rs.data
           : Array.isArray(rs)
-          ? rs
-          : [];
+            ? rs
+            : [];
+        console.log("Branches list:", list);
         if (mounted) setBranches(list);
       } catch (error) {
+        console.error("Failed to load branches", error);
         if (mounted) setBranches([]);
       }
     })();
@@ -291,8 +286,8 @@ export default function CreateUserPage() {
               {managerBranchLoading
                 ? "Đang xác định chi nhánh phụ trách..."
                 : managerBranchInfo.id
-                ? `Manager chỉ được tạo tài khoản thuộc chi nhánh ${managerBranchInfo.name || "#" + managerBranchInfo.id}.`
-                : managerBranchError || "Không xác định được chi nhánh của bạn. Liên hệ Admin trước khi tạo tài khoản."}
+                  ? `Manager chỉ được tạo tài khoản thuộc chi nhánh ${managerBranchInfo.name || "#" + managerBranchInfo.id}.`
+                  : managerBranchError || "Không xác định được chi nhánh của bạn. Liên hệ Admin trước khi tạo tài khoản."}
             </div>
           </div>
         )}
@@ -354,11 +349,10 @@ export default function CreateUserPage() {
                   value={form[field]}
                   onChange={(e) => updateField(field, e.target.value)}
                   placeholder={placeholder}
-                  className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                    errors[field]
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-200"
-                      : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                  }`}
+                  className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${errors[field]
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-200"
+                    : "border-slate-300 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20"
+                    }`}
                 />
                 {errors[field] && (
                   <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
@@ -379,8 +373,38 @@ export default function CreateUserPage() {
                 onChange={(e) => updateField("address", e.target.value)}
                 rows={3}
                 placeholder="Số nhà, đường, phường/xã..."
-                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 resize-none"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20 resize-none"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Building2 className="h-4 w-4 text-slate-400" />
+                <span>Chi nhánh</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.branchId}
+                onChange={(e) => updateField("branchId", e.target.value)}
+                disabled={isManager}
+                className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${errors.branchId
+                  ? "border-red-400 focus:border-red-500 focus:ring-red-200"
+                  : "border-slate-300 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20"
+                  } ${isManager ? "bg-slate-50 text-slate-500 cursor-not-allowed" : ""}`}
+              >
+                <option value="">-- Chọn chi nhánh --</option>
+                {branchOptions.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.branchName || branch.name || `Chi nhánh #${branch.id}`}
+                  </option>
+                ))}
+              </select>
+              {errors.branchId && (
+                <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>{errors.branchId}</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -393,11 +417,10 @@ export default function CreateUserPage() {
                 <select
                   value={form.roleId}
                   onChange={(e) => updateField("roleId", e.target.value)}
-                  className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                    errors.roleId
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-200"
-                      : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                  }`}
+                  className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${errors.roleId
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-200"
+                    : "border-slate-300 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20"
+                    }`}
                 >
                   <option value="">-- Chọn vai trò --</option>
                   {filteredRoles.map((role) => (
@@ -414,36 +437,6 @@ export default function CreateUserPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <Building2 className="h-4 w-4 text-slate-400" />
-                  <span>Chi nhánh</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.branchId}
-                  onChange={(e) => updateField("branchId", e.target.value)}
-                  disabled={isManager}
-                  className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                    errors.branchId
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-200"
-                      : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                  } ${isManager ? "bg-slate-50 text-slate-500 cursor-not-allowed" : ""}`}
-                >
-                  <option value="">-- Chọn chi nhánh --</option>
-                  {branchOptions.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.branchName || branch.name || `Chi nhánh #${branch.id}`}
-                    </option>
-                  ))}
-                </select>
-                {errors.branchId && (
-                  <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    <span>{errors.branchId}</span>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 

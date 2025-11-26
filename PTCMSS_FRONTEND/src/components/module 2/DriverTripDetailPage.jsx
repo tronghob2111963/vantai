@@ -338,8 +338,32 @@ export default function DriverTripDetailPage() {
 
   const stepInfo = trip ? getNextStepInfo(trip.status) : null;
 
+  // Check if trip is today
+  const isTripToday = React.useMemo(() => {
+    if (!trip?.pickup_time) return false;
+    const tripDate = new Date(trip.pickup_time);
+    const today = new Date();
+    return (
+      tripDate.getDate() === today.getDate() &&
+      tripDate.getMonth() === today.getMonth() &&
+      tripDate.getFullYear() === today.getFullYear()
+    );
+  }, [trip?.pickup_time]);
+
+  // Check if trip is in the future
+  const isTripFuture = React.useMemo(() => {
+    if (!trip?.pickup_time) return false;
+    const tripDate = new Date(trip.pickup_time);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    tripDate.setHours(0, 0, 0, 0);
+    return tripDate > today;
+  }, [trip?.pickup_time]);
+
+  const canUpdateStatus = isTripToday && !isTripFuture;
+
   const requestStatusChange = () => {
-    if (!stepInfo || actionLoading || detailLoading) return;
+    if (!stepInfo || actionLoading || detailLoading || !canUpdateStatus) return;
     setNextStatus(stepInfo.to);
     setNextLabel(stepInfo.btnText);
     setConfirmOpen(true);
@@ -419,7 +443,13 @@ export default function DriverTripDetailPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-[240px]">
-              {stepInfo ? (
+              {!canUpdateStatus && isTripFuture && (
+                <div className="rounded-xl border border-slate-300 bg-slate-50 text-slate-600 text-xs font-medium px-4 py-2 flex items-center gap-2 justify-center shadow-sm">
+                  <AlertTriangle className="h-4 w-4 text-slate-500" />
+                  Chuyến chưa tới ngày
+                </div>
+              )}
+              {stepInfo && canUpdateStatus ? (
                 <button
                   onClick={requestStatusChange}
                   disabled={actionLoading || detailLoading}
@@ -437,19 +467,30 @@ export default function DriverTripDetailPage() {
                     stepInfo.btnText
                   )}
                 </button>
-              ) : (
-                <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-xs font-medium px-4 py-2 flex items-center gap-2 justify-center shadow-sm">
-                  <CheckCircle2 className="h-4 w-4 text-amber-600" />
-                  Đã hoàn thành chuyến
-                </div>
+              ) : trip?.status === "COMPLETED" ? (
+                <>
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-xs font-medium px-4 py-2 flex items-center gap-2 justify-center shadow-sm">
+                    <CheckCircle2 className="h-4 w-4 text-amber-600" />
+                    Đã hoàn thành chuyến
+                  </div>
+                  <button
+                    onClick={() => setExpenseOpen(true)}
+                    className="rounded-xl border border-[#0079BC] bg-[#0079BC] hover:bg-[#0079BC]/90 text-white text-sm font-semibold px-4 py-2 flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <BadgeDollarSign className="h-4 w-4" />
+                    <span>Yêu cầu thanh toán</span>
+                  </button>
+                </>
+              ) : null}
+              {canUpdateStatus && (
+                <button
+                  onClick={() => setExpenseOpen(true)}
+                  className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm text-slate-700 px-4 py-2 flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <BadgeDollarSign className="h-4 w-4 text-amber-600" />
+                  <span>Báo cáo chi phí</span>
+                </button>
               )}
-              <button
-                onClick={() => setExpenseOpen(true)}
-                className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm text-slate-700 px-4 py-2 flex items-center justify-center gap-2 shadow-sm"
-              >
-                <BadgeDollarSign className="h-4 w-4 text-amber-600" />
-                <span>Báo cáo chi phí</span>
-              </button>
             </div>
           </div>
           <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-900/5">
