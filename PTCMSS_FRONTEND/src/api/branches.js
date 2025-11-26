@@ -9,14 +9,14 @@ import { apiFetch } from './http';
  */
 export const listBranches = async (params = {}) => {
   const queryParams = new URLSearchParams();
-  
+
   if (params.page !== undefined) queryParams.append('page', params.page);
   if (params.size !== undefined) queryParams.append('size', params.size);
   if (params.status) queryParams.append('status', params.status);
-  
+
   const queryString = queryParams.toString();
   const url = `/api/branches${queryString ? `?${queryString}` : ''}`;
-  
+
   return apiFetch(url);
 };
 
@@ -75,4 +75,13 @@ export const deleteBranch = async (branchId) => {
   return apiFetch(`/api/branches/${branchId}`, {
     method: 'DELETE',
   });
+};
+
+/**
+ * Get all branches for selection (dropdown/select)
+ * Returns all ACTIVE branches without pagination
+ * @returns {Promise<Array>} List of active branches
+ */
+export const getAllBranchesForSelection = async () => {
+  return apiFetch('/api/branches/all');
 };

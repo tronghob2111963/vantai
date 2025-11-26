@@ -763,6 +763,25 @@ export default function CreateOrderPage() {
             return;
         }
 
+        // Validate time
+        if (startTime && endTime) {
+            const startDate = new Date(startTime);
+            const endDate = new Date(endTime);
+            const now = new Date();
+
+            // Check if start time is in the past
+            if (startDate < now) {
+                push("Thời gian đón phải lớn hơn hoặc bằng thời gian hiện tại", "error");
+                return;
+            }
+
+            // Check if end time is after start time
+            if (endDate <= startDate) {
+                push("Thời gian kết thúc phải sau thời gian đón", "error");
+                return;
+            }
+        }
+
         setLoadingDraft(true);
         try {
             const sStart = toIsoZ(startTime);
@@ -826,6 +845,25 @@ export default function CreateOrderPage() {
             console.error("❌ BranchId is invalid:", branchId);
             push("Không tìm thấy chi nhánh. Vui lòng tải lại trang hoặc liên hệ quản trị viên.", "error");
             return;
+        }
+
+        // Validate time
+        if (startTime && endTime) {
+            const startDate = new Date(startTime);
+            const endDate = new Date(endTime);
+            const now = new Date();
+
+            // Check if start time is in the past
+            if (startDate < now) {
+                push("Thời gian đón phải lớn hơn hoặc bằng thời gian hiện tại", "error");
+                return;
+            }
+
+            // Check if end time is after start time
+            if (endDate <= startDate) {
+                push("Thời gian kết thúc phải sau thời gian đón", "error");
+                return;
+            }
         }
 
         if (availabilityInfo && !availabilityInfo.ok) {

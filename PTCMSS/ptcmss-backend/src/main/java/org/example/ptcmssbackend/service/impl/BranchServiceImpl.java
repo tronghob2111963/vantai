@@ -439,6 +439,23 @@ public class BranchServiceImpl implements BranchService {
         return percentage.doubleValue();
     }
     
+    @Override
+    public List<BranchResponse> getAllBranchesForSelection() {
+        log.info("Getting all branches for selection");
+        
+        // Lấy tất cả chi nhánh đang ACTIVE
+        List<Branches> branches = branchesRepository.findByStatus(BranchStatus.ACTIVE);
+        
+        return branches.stream()
+                .map(branch -> BranchResponse.builder()
+                        .id(branch.getId())
+                        .branchName(branch.getBranchName())
+                        .Address(branch.getLocation())
+                        .status(branch.getStatus().name())
+                        .build())
+                .toList();
+    }
+    
     // Helper class for vehicle statistics
     private static class VehicleStats {
         String licensePlate;

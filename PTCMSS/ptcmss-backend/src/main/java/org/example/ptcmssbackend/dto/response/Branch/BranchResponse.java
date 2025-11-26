@@ -17,5 +17,7 @@ public class BranchResponse {
     private String managerName;
     private String status;
     private Integer employeeCount;
+    private String Address;
+    private String phone;
 }
 

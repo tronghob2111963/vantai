@@ -129,6 +129,29 @@ public class BranchController {
         }
     }
 
+    // ======================= GET ALL FOR SELECTION =======================
+    @Operation(
+            summary = "Lấy danh sách tất cả chi nhánh (không phân trang)",
+            description = "API trả về danh sách tất cả chi nhánh đang hoạt động để hiển thị trong dropdown/select. " +
+                    "Dùng cho Admin chọn chi nhánh khi tạo Manager hoặc các form khác."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BranchResponse.class)))
+    })
+    @GetMapping("/all")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public ResponseData<?> getAllBranchesForSelection() {
+        try {
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Get all branches for selection successfully",
+                    branchService.getAllBranchesForSelection());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Operation(
             summary = "Lấy dashboard statistics cho Manager theo chi nhánh",
             description = "API trả về các chỉ số dashboard cho Manager: " +

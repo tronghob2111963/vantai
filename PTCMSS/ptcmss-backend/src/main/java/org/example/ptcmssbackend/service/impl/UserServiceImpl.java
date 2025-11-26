@@ -136,26 +136,7 @@ public class UserServiceImpl implements UserService {
         Users user = usersRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
-        // Lấy current user từ SecurityContext
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Users currentUser = null;
-        if (authentication != null && authentication.getPrincipal() instanceof Users) {
-            currentUser = (Users) authentication.getPrincipal();
-        }
-
-        boolean isCurrentUserAdmin = currentUser != null
-                && currentUser.getRole() != null
-                && "ADMIN".equalsIgnoreCase(currentUser.getRole().getRoleName());
-        boolean isEditingSelf = currentUser != null && currentUser.getId().equals(id);
-
-        // Chỉ cho phép Admin hoặc chính chủ sửa thông tin
-        if (!isCurrentUserAdmin && !isEditingSelf) {
-            throw new RuntimeException("Bạn không có quyền chỉnh sửa tài khoản này.");
-        }
-
-        // Note: Cho phép admin tự thay đổi vai trò của mình
-        // Đã bỏ validation chặn admin tự sửa role
-        // Admin tổng có toàn quyền quản lý tài khoản của mình
+        // Chỉ Admin mới được gọi method này (đã check ở Controller)
         
         // Validation: Kiểm tra phone trùng với user khác (trừ chính user hiện tại)
         if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
@@ -175,10 +156,7 @@ public class UserServiceImpl implements UserService {
             }
         }
         
-        // Cập nhật thông tin cá nhân (chỉ cho phép khi không phải admin sửa chính mình, hoặc admin khác sửa)
-        // Note: Thông tin cá nhân nên được quản lý ở profile page, không phải ở đây
-        // Nhưng để tương thích với frontend hiện tại, vẫn cho phép cập nhật
-        
+        // Admin có thể cập nhật tất cả thông tin
         user.setFullName(request.getFullName());
         if (request.getEmail() != null) {
             user.setEmail(request.getEmail().trim());
@@ -225,6 +203,43 @@ public class UserServiceImpl implements UserService {
                 throw new RuntimeException("Email đã được sử dụng bởi người dùng khác. Vui lòng sử dụng email khác.");
             } else {
                 throw new RuntimeException("Dữ liệu không hợp lệ hoặc đã tồn tại trong hệ thống: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
+            }
+        }
+        
+        return user.getId();
+    }
+
+    @Override
+    @Transactional
+    public Integer updateProfile(Integer id, org.example.ptcmssbackend.dto.request.User.UpdateProfileRequest request) {
+        Users user = usersRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Chỉ cho phép user tự cập nhật profile của mình (đã check ở Controller)
+        
+        // Validation: Kiểm tra phone trùng với user khác (trừ chính user hiện tại)
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            String phone = request.getPhone().trim();
+            Optional<Users> existingUserWithPhone = usersRepository.findByPhone(phone);
+            if (existingUserWithPhone.isPresent() && !existingUserWithPhone.get().getId().equals(id)) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng bởi người dùng khác. Vui lòng sử dụng số điện thoại khác.");
+            }
+            user.setPhone(phone);
+        }
+        
+        // Cập nhật address
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress().trim());
+        }
+        
+        try {
+            usersRepository.save(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("phone") || errorMsg.contains("Phone"))) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng bởi người dùng khác. Vui lòng sử dụng số điện thoại khác.");
+            } else {
+                throw new RuntimeException("Dữ liệu không hợp lệ: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
             }
         }
         

@@ -62,11 +62,11 @@ const SIDEBAR_SECTIONS = [
     roles: [ROLES.DRIVER], // Only actual drivers can access driver dashboard
     items: [
       { label: "Bảng điều khiển tài xế", to: "/driver/dashboard" },
-      { label: "Thông báo", to: "/driver/notifications" },
       { label: "Lịch làm việc", to: "/driver/schedule" },
+      { label: "Danh sách chuyến", to: "/driver/trips-list" },
       { label: "Xin nghỉ phép", to: "/driver/leave-request" },
+      { label: "Danh sách yêu cầu", to: "/driver/requests" },
       { label: "Hồ sơ tài xế", to: "/driver/profile" },
-      { label: "Chi tiết chuyến", to: "/driver/trips" },
     ],
   },
   {
@@ -105,12 +105,13 @@ const SIDEBAR_SECTIONS = [
     roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR],
     items: [
       { label: "Bảng điều phối", to: "/dispatch" },
-      { label: "Đơn chưa gán chuyến", to: "/dispatch/pending" },
+      { label: "Danh sách đơn", to: "/coordinator/orders", roles: [ROLES.COORDINATOR] },
+      { label: "Đơn chưa gán chuyến", to: "/dispatch/pending", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR] },
+      { label: "Danh sách tài xế", to: "/coordinator/drivers", roles: [ROLES.COORDINATOR] },
+      { label: "Danh sách xe", to: "/coordinator/vehicles", roles: [ROLES.COORDINATOR] },
       { label: "Cảnh báo & Chờ duyệt", to: "/dispatch/notifications-dashboard" },
-      { label: "Phiếu tạm ứng tài xế", to: "/dispatch/expense-request" },
-      // { label: "Gán tài xế (demo)", to: "/dispatch/AssignDriverDialog" },
-      // { label: "Thông báo điều phối", to: "/dispatch/notifications" }, // Đã xóa - trùng với "Cảnh báo & Chờ duyệt"
-      { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Tạo yêu cầu thanh toán", to: "/dispatch/expense-request" },
+      { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR] },
     ],
   },
   {
@@ -169,6 +170,8 @@ import DriverSchedulePage from "./components/module 2/DriverSchedulePage.jsx";
 import DriverLeaveRequestPage from "./components/module 2/DriverLeaveRequestPage.jsx";
 import DriverReportIncidentPage from "./components/module 2/DriverReportIncidentPage.jsx";
 import DriverTripDetailPage from "./components/module 2/DriverTripDetailPage.jsx";
+import DriverTripsListPage from "./components/module 2/DriverTripsListPage.jsx";
+import DriverRequestsPage from "./components/module 2/DriverRequestsPage.jsx";
 
 /* Module 3 – Phương tiện */
 import VehicleCategoryPage from "./components/module 3/VehicleCategoryPage.jsx";
@@ -192,6 +195,9 @@ import PendingTripsPage from "./components/module 5/PendingTripsPage.jsx";
 import NotificationsDashboard from "./components/module 5/NotificationsDashboard.jsx";
 import RatingManagementPage from "./components/module 5/RatingManagementPage.jsx";
 import DriverRatingsPage from "./components/module 5/DriverRatingsPage.jsx";
+import CoordinatorOrderListPage from "./components/module 5/CoordinatorOrderListPage.jsx";
+import CoordinatorDriverListPage from "./components/module 5/CoordinatorDriverListPage.jsx";
+import CoordinatorVehicleListPage from "./components/module 5/CoordinatorVehicleListPage.jsx";
 
 /* DemoAssign – mở AssignDriverDialog */
 import DemoAssign from "./DemoAssign.jsx";
@@ -223,7 +229,7 @@ function SidebarSection({
   location,
 }) {
   const open = activeSection === sectionId;
-  
+
   // Kiểm tra xem có item nào trong section này đang active không
   const hasActiveItem = items.some(item => location.pathname.startsWith(item.to));
   // Section đang active nếu có item active hoặc section đang mở
@@ -248,33 +254,29 @@ function SidebarSection({
       <button
         type="button"
         onClick={handleToggle}
-        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out cursor-pointer active:scale-[0.98] ${
-          isCurrentSection 
-            ? "bg-gradient-to-r from-sky-50 to-blue-50 shadow-sm shadow-sky-100/50" 
-            : "hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 hover:shadow-sm hover:shadow-sky-100/50"
-        }`}
+        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out cursor-pointer active:scale-[0.98] ${isCurrentSection
+          ? "bg-gradient-to-r from-sky-50 to-blue-50 shadow-sm shadow-sky-100/50"
+          : "hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 hover:shadow-sm hover:shadow-sky-100/50"
+          }`}
       >
         <span className="flex items-center gap-2.5">
-          {React.createElement(icon, { 
-            className: `h-4 w-4 transition-all duration-200 ${
-              open 
-                ? "text-[#0079BC] scale-110" 
-                : "text-sky-600 group-hover:text-[#0079BC] group-hover:scale-110"
-            }` 
+          {React.createElement(icon, {
+            className: `h-4 w-4 transition-all duration-200 ${open
+              ? "text-[#0079BC] scale-110"
+              : "text-sky-600 group-hover:text-[#0079BC] group-hover:scale-110"
+              }`
           })}
-          <span className={`font-medium leading-none transition-colors duration-200 ${
-            open 
-              ? "text-slate-900" 
-              : "text-slate-800 group-hover:text-slate-900"
-          }`}>
+          <span className={`font-medium leading-none transition-colors duration-200 ${open
+            ? "text-slate-900"
+            : "text-slate-800 group-hover:text-slate-900"
+            }`}>
             {label}
           </span>
         </span>
         <div className="transition-transform duration-200 ease-in-out">
           {open ? (
-            <ChevronDown className={`h-4 w-4 transition-all duration-200 ${
-              isCurrentSection ? "text-[#0079BC] rotate-0" : "text-slate-400"
-            }`} />
+            <ChevronDown className={`h-4 w-4 transition-all duration-200 ${isCurrentSection ? "text-[#0079BC] rotate-0" : "text-slate-400"
+              }`} />
           ) : (
             <ChevronRight className={`h-4 w-4 transition-all duration-200 text-slate-400 group-hover:text-[#0079BC] group-hover:translate-x-0.5`} />
           )}
@@ -307,9 +309,8 @@ function SidebarSection({
                 }}
               >
                 <span className="truncate">{item.label}</span>
-                <ChevronRight className={`h-3.5 w-3.5 transition-all duration-200 ${
-                  "opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 group-hover/item:text-[#0079BC]"
-                }`} />
+                <ChevronRight className={`h-3.5 w-3.5 transition-all duration-200 ${"opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 group-hover/item:text-[#0079BC]"
+                  }`} />
               </NavLink>
             </li>
           ))}
@@ -338,7 +339,7 @@ function SidebarNav() {
   // Tự động mở section tương ứng với route hiện tại
   React.useEffect(() => {
     const pathname = location.pathname;
-    
+
     // Tự động mở section "analytics" khi vào dashboard
     if (pathname.startsWith("/analytics/")) {
       const analyticsSection = sections.find(s => s.sectionId === "analytics");
@@ -347,7 +348,7 @@ function SidebarNav() {
         return;
       }
     }
-    
+
     // Tự động mở section "admin" khi vào admin pages
     if (pathname.startsWith("/admin/")) {
       const adminSection = sections.find(s => s.sectionId === "admin");
@@ -356,7 +357,7 @@ function SidebarNav() {
         return;
       }
     }
-    
+
     // Tự động mở section "vehicles" khi vào vehicle pages
     if (pathname.startsWith("/vehicles/")) {
       const vehiclesSection = sections.find(s => s.sectionId === "vehicles");
@@ -365,7 +366,7 @@ function SidebarNav() {
         return;
       }
     }
-    
+
     // Tự động mở section "bookings" khi vào booking pages
     if (pathname.startsWith("/bookings/") || pathname.startsWith("/quotes/")) {
       const bookingsSection = sections.find(s => s.sectionId === "bookings");
@@ -374,7 +375,7 @@ function SidebarNav() {
         return;
       }
     }
-    
+
     // Tự động mở section "dispatch" khi vào dispatch pages
     if (pathname.startsWith("/dispatch/")) {
       const dispatchSection = sections.find(s => s.sectionId === "dispatch");
@@ -383,7 +384,7 @@ function SidebarNav() {
         return;
       }
     }
-    
+
     // Tự động mở section "accounting" khi vào accounting pages
     if (pathname.startsWith("/accounting/")) {
       const accountingSection = sections.find(s => s.sectionId === "accounting");
@@ -407,18 +408,18 @@ function SidebarNav() {
   // Filter sections and items based on search query
   const filteredSections = React.useMemo(() => {
     if (!searchQuery.trim()) return sections;
-    
+
     const query = searchQuery.toLowerCase().trim();
     return sections.map(section => {
-      const matchedItems = section.items.filter(item => 
+      const matchedItems = section.items.filter(item =>
         item.label.toLowerCase().includes(query) ||
         section.label.toLowerCase().includes(query)
       );
-      
+
       if (matchedItems.length === 0 && !section.label.toLowerCase().includes(query)) {
         return null;
       }
-      
+
       return {
         ...section,
         items: matchedItems.length > 0 ? matchedItems : section.items
@@ -544,7 +545,7 @@ function Topbar() {
       navigate("/login", { replace: true });
     }
   }, [navigate, pushNotification]);
-  
+
   const handleProfileClick = () => {
     navigate("/me/profile");
   };
@@ -572,10 +573,10 @@ function Topbar() {
             <span className="text-slate-500 text-[10px]">{roleName}</span>
           </div>
         </button>
-        
+
         {/* logout button */}
-        <button 
-          onClick={onLogout} 
+        <button
+          onClick={onLogout}
           className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-all active:scale-[0.98]"
         >
           Đăng xuất
@@ -811,14 +812,6 @@ export default function AppLayout() {
             }
           />
           <Route
-            path="/driver/notifications"
-            element={
-              <ProtectedRoute roles={[ROLES.DRIVER]}>
-                <DriverNotificationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/driver/profile"
             element={
               <ProtectedRoute roles={[ROLES.DRIVER]}>
@@ -835,6 +828,14 @@ export default function AppLayout() {
             }
           />
           <Route
+            path="/driver/trips-list"
+            element={
+              <ProtectedRoute roles={[ROLES.DRIVER]}>
+                <DriverTripsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/driver/leave-request"
             element={
               <ProtectedRoute roles={[ROLES.DRIVER]}>
@@ -843,18 +844,18 @@ export default function AppLayout() {
             }
           />
           <Route
-            path="/driver/report-incident"
+            path="/driver/requests"
             element={
               <ProtectedRoute roles={[ROLES.DRIVER]}>
-                <DriverReportIncidentPage />
+                <DriverRequestsPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/driver/trips"
+            path="/driver/report-incident"
             element={
               <ProtectedRoute roles={[ROLES.DRIVER]}>
-                <DriverTripDetailPage />
+                <DriverReportIncidentPage />
               </ProtectedRoute>
             }
           />
@@ -989,27 +990,9 @@ export default function AppLayout() {
             }
           />
           <Route
-            path="/dispatch/AssignDriverDialog"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-                <DemoAssign />
-              </ProtectedRoute>
-            }
-          />
-          {/* Route đã xóa - trùng với /dispatch/notifications-dashboard
-          <Route
-            path="/dispatch/notifications"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
-                <NotificationsWidget />
-              </ProtectedRoute>
-            }
-          />
-          */}
-          <Route
             path="/dispatch/ratings"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
                 <RatingManagementPage />
               </ProtectedRoute>
             }
@@ -1017,8 +1000,34 @@ export default function AppLayout() {
           <Route
             path="/drivers/:driverId/ratings"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
                 <DriverRatingsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Coordinator specific routes */}
+          <Route
+            path="/coordinator/orders"
+            element={
+              <ProtectedRoute roles={[ROLES.COORDINATOR]}>
+                <CoordinatorOrderListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coordinator/drivers"
+            element={
+              <ProtectedRoute roles={[ROLES.COORDINATOR]}>
+                <CoordinatorDriverListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coordinator/vehicles"
+            element={
+              <ProtectedRoute roles={[ROLES.COORDINATOR]}>
+                <CoordinatorVehicleListPage />
               </ProtectedRoute>
             }
           />

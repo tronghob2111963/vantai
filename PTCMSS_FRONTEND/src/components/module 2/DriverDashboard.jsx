@@ -438,6 +438,26 @@ function TripCard({
   );
 }
 
+/* ---------------- Stats Card ---------------- */
+function StatsCard({ icon: Icon, label, value, sublabel }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center">
+          <Icon className="h-5 w-5 text-[#0079BC]" />
+        </div>
+        <div className="flex-1">
+          <div className="text-xs text-slate-500">{label}</div>
+          <div className="text-2xl font-semibold text-slate-900">{value}</div>
+          {sublabel && (
+            <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Main page ---------------- */
 export default function DriverDashboard() {
   const { toasts, push } = useToasts();
@@ -448,6 +468,12 @@ export default function DriverDashboard() {
   const [tripLoading, setTripLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [phase, setPhase] = React.useState("IDLE");
+  const [stats, setStats] = React.useState({
+    tripsToday: 0,
+    tripsThisMonth: 0,
+    daysOffUsed: 0,
+    daysOffAllowed: 2,
+  });
 
   const fetchDashboard = React.useCallback(async (driverId) => {
     if (!driverId) return;
@@ -616,6 +642,12 @@ export default function DriverDashboard() {
     },
   ];
 
+  // Get current month name
+  const currentMonthName = new Date().toLocaleDateString("vi-VN", {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-6">
       <Toasts toasts={toasts} />
@@ -676,6 +708,33 @@ export default function DriverDashboard() {
           Đang tải dữ liệu bảng điều khiển...
         </div>
       )}
+
+      {/* STATS ROW */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatsCard
+          icon={Clock}
+          label="Số chuyến hôm nay"
+          value={stats.tripsToday}
+        />
+        <StatsCard
+          icon={Calendar}
+          label="Số chuyến trong tháng"
+          value={stats.tripsThisMonth}
+          sublabel={currentMonthName}
+        />
+        <StatsCard
+          icon={Calendar}
+          label="Ngày nghỉ đã dùng"
+          value={`${stats.daysOffUsed}/${stats.daysOffAllowed}`}
+          sublabel="Trong tháng này"
+        />
+        <StatsCard
+          icon={AlertCircle}
+          label="Ngày nghỉ còn lại"
+          value={stats.daysOffAllowed - stats.daysOffUsed}
+          sublabel="Có thể xin nghỉ"
+        />
+      </div>
 
       {/* GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
