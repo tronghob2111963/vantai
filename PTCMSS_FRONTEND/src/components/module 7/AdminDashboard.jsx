@@ -103,6 +103,8 @@ export default function AdminDashboard() {
         netProfit: 0,
         totalTrips: 0,
         fleetUtilization: 0,
+        vehiclesInUse: 0,
+        totalVehicles: 0,
     });
 
     const [revenueTrend, setRevenueTrend] = React.useState([]);
@@ -159,6 +161,8 @@ export default function AdminDashboard() {
                 netProfit: dashboardData?.netProfit || 0,
                 totalTrips: dashboardData?.totalTrips || 0,
                 fleetUtilization: dashboardData?.fleetUtilization || 0,
+                vehiclesInUse: dashboardData?.vehiclesInUse || 0,
+                totalVehicles: dashboardData?.totalVehicles || 0,
             });
 
             // Charts
@@ -315,6 +319,7 @@ export default function AdminDashboard() {
                             format="percentage"
                             icon={Car}
                             color="yellow"
+                            subtitle={`${kpis.vehiclesInUse || 0}/${kpis.totalVehicles || 0} xe đang sử dụng`}
                             loading={loading}
                         />
                     </div>
@@ -368,87 +373,64 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* BRANCH COMPARISON & FLEET */}
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
-                        {/* BRANCH COMPARISON */}
-                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-sm text-slate-600 flex items-center gap-2">
-                                <Building2 className="h-4 w-4 text-sky-600" />
-                                <span className="font-medium text-slate-700">
-                                    So Sánh Hiệu Suất Chi Nhánh
-                                </span>
-                            </div>
-                            <div className="p-4">
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={branchComparison}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                        <XAxis
-                                            dataKey="branchName"
-                                            stroke="#64748b"
-                                            style={{ fontSize: "12px" }}
-                                        />
-                                        <YAxis
-                                            stroke="#64748b"
-                                            style={{ fontSize: "12px" }}
-                                            tickFormatter={(v) => fmtVND(v)}
-                                        />
-                                        <Tooltip
-                                            formatter={(value) => `${fmtVND(value)} đ`}
-                                            contentStyle={{
-                                                backgroundColor: "white",
-                                                border: "1px solid #e2e8f0",
-                                                borderRadius: "8px",
-                                            }}
-                                        />
-                                        <Legend wrapperStyle={{ fontSize: "12px" }} />
-                                        <Bar dataKey="revenue" name="Doanh thu" fill="#10b981" />
-                                        <Bar dataKey="expense" name="Chi phí" fill="#ef4444" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
+                    {/* BRANCH COMPARISON */}
+                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-5">
+                        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-sm text-slate-600 flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-sky-600" />
+                            <span className="font-medium text-slate-700">
+                                So Sánh Hiệu Suất Chi Nhánh
+                            </span>
                         </div>
-
-                        {/* FLEET UTILIZATION */}
-                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-sm text-slate-600 flex items-center gap-2">
-                                <Car className="h-4 w-4 text-amber-600" />
-                                <span className="font-medium text-slate-700">
-                                    Tỷ Lệ Sử Dụng Xe Theo Chi Nhánh
-                                </span>
-                            </div>
-                            <div className="p-4">
-                                {fleetData && fleetData.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
-                                            <Pie
-                                                data={fleetData}
-                                                dataKey="vehiclesInUse"
-                                                nameKey="branchName"
-                                                cx="50%"
-                                                cy="50%"
-                                                outerRadius={100}
-                                                fill="#8884d8"
-                                                label={(entry) => `${entry.branchName}: ${entry.vehiclesInUse}`}
-                                            >
-                                                {fleetData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip
-                                                formatter={(value) => `${value} xe`}
-                                                contentStyle={{
-                                                    backgroundColor: "white",
-                                                    border: "1px solid #e2e8f0",
-                                                    borderRadius: "8px",
-                                                }}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="h-[300px] flex items-center justify-center text-slate-500 text-sm">
-                                        Không có dữ liệu
-                                    </div>
-                                )}
+                        <div className="p-4">
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={branchComparison} margin={{ left: 20, right: 10, top: 10, bottom: 10 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis
+                                        dataKey="branchName"
+                                        stroke="#64748b"
+                                        style={{ fontSize: "12px" }}
+                                        tick={(props) => {
+                                            const { x, y, payload } = props;
+                                            const branch = branchComparison.find(b => b.branchName === payload.value);
+                                            const utilRate = branch?.vehicleUtilizationRate || 0;
+                                            const vehiclesText = branch ? `${branch.vehiclesInUse}/${branch.totalVehicles}` : '';
+                                            return (
+                                                <g transform={`translate(${x},${y})`}>
+                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#64748b" fontSize="12px">
+                                                        {payload.value}
+                                                    </text>
+                                                    <text x={0} y={0} dy={32} textAnchor="middle" fill="#f59e0b" fontSize="11px" fontWeight="600">
+                                                        {utilRate.toFixed(1)}% ({vehiclesText})
+                                                    </text>
+                                                </g>
+                                            );
+                                        }}
+                                        height={60}
+                                    />
+                                    <YAxis
+                                        stroke="#64748b"
+                                        style={{ fontSize: "12px" }}
+                                        tickFormatter={(v) => fmtVND(v)}
+                                        width={80}
+                                    />
+                                    <Tooltip
+                                        formatter={(value) => `${fmtVND(value)} đ`}
+                                        contentStyle={{
+                                            backgroundColor: "white",
+                                            border: "1px solid #e2e8f0",
+                                            borderRadius: "8px",
+                                        }}
+                                    />
+                                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                                    <Bar dataKey="revenue" name="Doanh thu" fill="#10b981" />
+                                    <Bar dataKey="expense" name="Chi phí" fill="#ef4444" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                            <div className="mt-3 pt-3 border-t border-slate-200 flex items-start gap-2 text-xs text-slate-500">
+                                <Car className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-medium text-amber-600">Tỷ lệ sử dụng xe:</span> Phần trăm và số lượng xe đang được gán vào chuyến (SCHEDULED/ASSIGNED/ONGOING) so với tổng số xe của chi nhánh
+                                </div>
                             </div>
                         </div>
                     </div>

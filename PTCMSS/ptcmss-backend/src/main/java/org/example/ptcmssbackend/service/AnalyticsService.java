@@ -59,9 +59,9 @@ public class AnalyticsService {
 
                 Map<String, Object> tripStats = jdbcTemplate.queryForMap(tripSql, startDate, endDate);
 
-                // Query fleet utilization (count vehicles on ongoing trips)
+                // Query fleet utilization (count vehicles assigned to active/scheduled trips)
                 String fleetSql = "SELECT " +
-                                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t.status = 'ONGOING' THEN v.vehicleId END) as inUse, "
+                                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t.status IN ('SCHEDULED', 'ASSIGNED', 'ONGOING') THEN v.vehicleId END) as inUse, "
                                 +
                                 "COUNT(DISTINCT CASE WHEN v.status = 'AVAILABLE' THEN v.vehicleId END) as available, " +
                                 "COUNT(DISTINCT CASE WHEN v.status = 'MAINTENANCE' THEN v.vehicleId END) as maintenance, "
@@ -69,7 +69,7 @@ public class AnalyticsService {
                                 "COUNT(DISTINCT v.vehicleId) as total " +
                                 "FROM vehicles v " +
                                 "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
-                                "LEFT JOIN trips t ON tv.tripId = t.tripId AND t.status = 'ONGOING' " +
+                                "LEFT JOIN trips t ON tv.tripId = t.tripId " +
                                 "WHERE v.status != 'INACTIVE'";
 
                 Map<String, Object> fleetStats = jdbcTemplate.queryForMap(fleetSql);
@@ -152,7 +152,7 @@ public class AnalyticsService {
                                 "COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.tripId END) as completedTrips, "
                                 +
                                 "COUNT(DISTINCT v.vehicleId) as totalVehicles, " +
-                                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t2.status = 'ONGOING' THEN v.vehicleId END) as vehiclesInUse, "
+                                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t2.status IN ('SCHEDULED', 'ASSIGNED', 'ONGOING') THEN v.vehicleId END) as vehiclesInUse, "
                                 +
                                 "COUNT(DISTINCT d.driverId) as totalDrivers, " +
                                 "COUNT(DISTINCT CASE WHEN d.status = 'ONTRIP' THEN d.driverId END) as driversOnTrip " +
@@ -164,7 +164,7 @@ public class AnalyticsService {
                                 "LEFT JOIN trips t ON bk.bookingId = t.bookingId " +
                                 "LEFT JOIN vehicles v ON b.branchId = v.branchId AND v.status != 'INACTIVE' " +
                                 "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
-                                "LEFT JOIN trips t2 ON tv.tripId = t2.tripId AND t2.status = 'ONGOING' " +
+                                "LEFT JOIN trips t2 ON tv.tripId = t2.tripId " +
                                 "LEFT JOIN drivers d ON b.branchId = d.branchId " +
                                 "WHERE b.status = 'ACTIVE' " +
                                 "GROUP BY b.branchId, b.branchName, b.location " +
@@ -311,9 +311,9 @@ public class AnalyticsService {
 
                 Map<String, Object> tripStats = jdbcTemplate.queryForMap(tripSql, branchId, startDate, endDate);
 
-                // Query fleet utilization for branch (count vehicles on ongoing trips)
+                // Query fleet utilization for branch (count vehicles assigned to active/scheduled trips)
                 String fleetSql = "SELECT " +
-                                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t.status = 'ONGOING' THEN v.vehicleId END) as inUse, "
+                                "COUNT(DISTINCT CASE WHEN tv.tripId IS NOT NULL AND t.status IN ('SCHEDULED', 'ASSIGNED', 'ONGOING') THEN v.vehicleId END) as inUse, "
                                 +
                                 "COUNT(DISTINCT CASE WHEN v.status = 'AVAILABLE' THEN v.vehicleId END) as available, " +
                                 "COUNT(DISTINCT CASE WHEN v.status = 'MAINTENANCE' THEN v.vehicleId END) as maintenance, "
@@ -321,7 +321,7 @@ public class AnalyticsService {
                                 "COUNT(DISTINCT v.vehicleId) as total " +
                                 "FROM vehicles v " +
                                 "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
-                                "LEFT JOIN trips t ON tv.tripId = t.tripId AND t.status = 'ONGOING' " +
+                                "LEFT JOIN trips t ON tv.tripId = t.tripId " +
                                 "WHERE v.branchId = ? AND v.status != 'INACTIVE'";
 
                 Map<String, Object> fleetStats = jdbcTemplate.queryForMap(fleetSql, branchId);
