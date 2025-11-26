@@ -2,8 +2,9 @@
 import { useNavigate } from "react-router-dom";
 import { listUsers, listUsersByBranch, listRoles, toggleUserStatus } from "../../api/users";
 import { listEmployeesByRole } from "../../api/employees";
-import { RefreshCw, PlusCircle, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield } from "lucide-react";
+import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
+import Pagination from "../common/Pagination";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
 
@@ -29,6 +30,8 @@ export default function AdminUsersPage() {
   const [keyword, setKeyword] = React.useState("");
   const [roleId, setRoleId] = React.useState("");
   const [status, setStatus] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
   const currentRole = React.useMemo(() => getCurrentRole(), []);
   const currentUserId = React.useMemo(() => getStoredUserId(), []);
   const isManagerView = currentRole === ROLES.MANAGER;
@@ -155,7 +158,14 @@ export default function AdminUsersPage() {
   React.useEffect(() => {
     const filtered = applyFilters(allUsers);
     setUsers(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [allUsers, applyFilters]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(users.length / pageSize);
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const currentUsers = users.slice(startIdx, endIdx);
 
   React.useEffect(() => {
     (async () => {
@@ -322,7 +332,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {users.length === 0 ? (
+                {currentUsers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
@@ -334,7 +344,7 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                   </tr>
-                ) : users.map(u => (
+                ) : currentUsers.map(u => (
                   <tr key={u.id} className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-colors group">
                     <td className="px-6 py-4">
                       <div className="font-semibold text-slate-900">{u.fullName}</div>
@@ -386,6 +396,23 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {users.length > 0 && (
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                pageSize={pageSize}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                totalItems={users.length}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

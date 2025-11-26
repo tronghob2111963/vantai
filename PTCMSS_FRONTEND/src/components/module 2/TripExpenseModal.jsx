@@ -188,11 +188,11 @@ export default function TripExpenseModal({
             onClick={onClose}
         >
             <div
-                className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-xl shadow-slate-900/10"
+                className="w-full max-w-lg max-h-[90vh] rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-xl shadow-slate-900/10 flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* HEADER */}
-                <div className="px-5 py-4 border-b border-slate-200 flex items-start gap-3">
+                <div className="px-5 py-4 border-b border-slate-200 flex items-start gap-3 flex-shrink-0">
                     <div className="flex-none rounded-xl bg-amber-50 border border-amber-200 p-2 text-amber-600 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
                         <Receipt className="h-5 w-5" />
                     </div>
@@ -217,7 +217,7 @@ export default function TripExpenseModal({
                 </div>
 
                 {/* BODY */}
-                <div className="p-5 space-y-5 text-sm text-slate-700">
+                <div className="p-5 space-y-5 text-sm text-slate-700 overflow-y-auto flex-1">
                     {/* Loại chi phí */}
                     <div>
                         <div className="text-[12px] text-slate-600 mb-1 font-medium">
@@ -377,7 +377,7 @@ export default function TripExpenseModal({
                 </div>
 
                 {/* FOOTER */}
-                <div className="px-5 py-4 border-t border-slate-200 flex flex-wrap items-center gap-3 justify-between bg-slate-50 rounded-b-2xl">
+                <div className="px-5 py-4 border-t border-slate-200 flex flex-wrap items-center gap-3 justify-between bg-slate-50 rounded-b-2xl flex-shrink-0">
                     {/* <div className="text-[11px] text-slate-500 leading-snug break-all">
                         Endpoint dự kiến:
                         <br />

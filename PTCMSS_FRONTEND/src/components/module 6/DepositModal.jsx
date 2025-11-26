@@ -332,11 +332,11 @@ export default function DepositModal({
             onClick={onClose}
         >
             <div
-                className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-xl"
+                className="w-full max-w-lg max-h-[90vh] rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-xl flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+                <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2 flex-shrink-0">
                     <div className="rounded-md bg-emerald-600 text-white p-1.5 shadow-[0_8px_24px_rgba(16,185,129,.4)]">
                         <BadgeDollarSign className="h-4 w-4" />
                     </div>
@@ -357,7 +357,7 @@ export default function DepositModal({
                 </div>
 
                 {/* Body */}
-                <div className="p-4 space-y-4 text-sm text-slate-700 leading-relaxed">
+                <div className="p-4 space-y-4 text-sm text-slate-700 leading-relaxed overflow-y-auto flex-1">
                     {context?.title ? (
                         <div className="text-[13px] text-slate-600">
                             <span className="text-slate-400">Thông tin: </span>
@@ -697,7 +697,7 @@ export default function DepositModal({
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center gap-3 justify-between">
+                <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center gap-3 justify-between flex-shrink-0">
                     <div className="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-0">
                         {context?.type === "order"
                             ? "Tạo deposit cho booking"
