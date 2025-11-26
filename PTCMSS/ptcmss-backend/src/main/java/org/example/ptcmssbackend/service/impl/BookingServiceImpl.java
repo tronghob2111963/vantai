@@ -1016,19 +1016,45 @@ public class BookingServiceImpl implements BookingService {
         Bookings booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
 
-        Invoices inv = new Invoices();
-        inv.setBooking(booking);
-        inv.setBranch(booking.getBranch());
-        inv.setCustomer(booking.getCustomer());
-        inv.setType(org.example.ptcmssbackend.enums.InvoiceType.INCOME);
-        inv.setIsDeposit(Boolean.TRUE.equals(request.getDeposit()));
-        inv.setAmount(request.getAmount());
-        inv.setPaymentMethod(request.getPaymentMethod());
-        inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
-        inv.setStatus(org.example.ptcmssbackend.enums.InvoiceStatus.ACTIVE);
-        inv.setNote(request.getNote());
-        if (employeeId != null) {
-            inv.setCreatedBy(employeeRepository.findById(employeeId).orElse(null));
+        // Tìm invoice UNPAID với cùng số tiền và isDeposit để cập nhật thay vì tạo mới
+        List<Invoices> existingInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(bookingId);
+        Invoices matchingUnpaidInvoice = existingInvoices.stream()
+                .filter(inv -> inv.getPaymentStatus() == org.example.ptcmssbackend.enums.PaymentStatus.UNPAID
+                        && inv.getAmount() != null 
+                        && inv.getAmount().compareTo(request.getAmount()) == 0
+                        && inv.getIsDeposit() != null 
+                        && inv.getIsDeposit().equals(Boolean.TRUE.equals(request.getDeposit())))
+                .findFirst()
+                .orElse(null);
+
+        Invoices inv;
+        if (matchingUnpaidInvoice != null) {
+            // Cập nhật invoice UNPAID thành PAID
+            inv = matchingUnpaidInvoice;
+            inv.setPaymentMethod(request.getPaymentMethod());
+            inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
+            if (request.getNote() != null && !request.getNote().isEmpty()) {
+                inv.setNote(request.getNote());
+            }
+            if (employeeId != null) {
+                inv.setCreatedBy(employeeRepository.findById(employeeId).orElse(null));
+            }
+        } else {
+            // Tạo invoice mới nếu không tìm thấy invoice UNPAID phù hợp
+            inv = new Invoices();
+            inv.setBooking(booking);
+            inv.setBranch(booking.getBranch());
+            inv.setCustomer(booking.getCustomer());
+            inv.setType(org.example.ptcmssbackend.enums.InvoiceType.INCOME);
+            inv.setIsDeposit(Boolean.TRUE.equals(request.getDeposit()));
+            inv.setAmount(request.getAmount());
+            inv.setPaymentMethod(request.getPaymentMethod());
+            inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
+            inv.setStatus(org.example.ptcmssbackend.enums.InvoiceStatus.ACTIVE);
+            inv.setNote(request.getNote());
+            if (employeeId != null) {
+                inv.setCreatedBy(employeeRepository.findById(employeeId).orElse(null));
+            }
         }
         invoiceRepository.save(inv);
 

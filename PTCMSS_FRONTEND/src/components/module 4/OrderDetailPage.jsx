@@ -969,20 +969,16 @@ export default function OrderDetailPage() {
         setQrModalOpen(true);
     };
 
-    // callback khi ghi nhận thanh toán thành công (modal gọi onSubmitted)
+    // callback khi ghi nhận thanh toán thành công (DepositModal đã xử lý API call)
     const handleDepositSubmitted = async (payload, ctx) => {
+        // DepositModal đã gọi createDeposit/recordPayment bên trong
+        // Chỉ cần refresh data và hiển thị thông báo
         try {
-            await addBookingPayment(order.id, {
-                amount: payload.amount,
-                paymentMethod: payload.payment_method,
-                note: payload.note,
-                deposit: payload.kind === 'DEPOSIT' || true,
-            });
             await fetchOrder();
             await fetchPayments();
             push(`Đã ghi nhận thanh toán +${Number(payload.amount || 0).toLocaleString('vi-VN')}đ cho đơn ${order.id}`, 'success');
         } catch (e) {
-            push('Ghi nhận thanh toán thất bại', 'error');
+            push('Không thể tải lại dữ liệu', 'error');
         }
     };
 
