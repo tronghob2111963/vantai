@@ -964,7 +964,7 @@ export default function CreateOrderPage() {
             <Toasts toasts={toasts} />
 
             {/* DEBUG PANEL - Remove this after testing */}
-            {process.env.NODE_ENV === 'development' && (
+            {/* {process.env.NODE_ENV === 'development' && (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
                     <div className="font-bold mb-2">🔍 Debug Info:</div>
                     <div>loadingBranch: {String(loadingBranch)}</div>
@@ -974,7 +974,7 @@ export default function CreateOrderPage() {
                     <div>availableBranches: {availableBranches.length} items</div>
                     <div>roleName: {localStorage.getItem("roleName") || 'not set'}</div>
                 </div>
-            )}
+            )} */}
 
             {/* HEADER */}
             <div className="flex flex-col xl:flex-row xl:items-start gap-4 mb-6">

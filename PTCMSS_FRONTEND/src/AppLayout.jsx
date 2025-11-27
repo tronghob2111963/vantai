@@ -546,6 +546,55 @@ function Topbar() {
       .slice(0, 2)
       .join("")
       .toUpperCase() || "JD";
+  
+  const [avatarUrl, setAvatarUrl] = React.useState(null);
+
+  // Load avatar on mount
+  React.useEffect(() => {
+    let mounted = true;
+    let blobUrl = null;
+
+    const loadAvatar = async () => {
+      try {
+        const { getMyProfile } = await import("./api/users");
+        const profile = await getMyProfile();
+        
+        const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
+        const imgPath = profile?.avatar || profile?.avatarUrl || profile?.imgUrl;
+        
+        if (imgPath && mounted) {
+          const fullUrl = /^https?:\/\//i.test(imgPath) 
+            ? imgPath 
+            : `${apiBase}${imgPath.startsWith("/") ? "" : "/"}${imgPath}`;
+          
+          // Fetch with auth
+          const token = localStorage.getItem("access_token") || "";
+          const resp = await fetch(fullUrl, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            credentials: "include",
+          });
+          
+          if (resp.ok && mounted) {
+            const blob = await resp.blob();
+            blobUrl = URL.createObjectURL(blob);
+            setAvatarUrl(blobUrl);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load avatar:", error);
+      }
+    };
+
+    loadAvatar();
+
+    return () => {
+      mounted = false;
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, []);
+  
   const onLogout = React.useCallback(async () => {
     try {
       await apiLogout();
@@ -580,9 +629,18 @@ function Topbar() {
           onClick={handleProfileClick}
           className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:shadow-md hover:border-[#0079BC]/50 transition-all cursor-pointer active:scale-[0.98]"
         >
-          <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm" style={{ backgroundColor: '#0079BC' }}>
-            {initials}
-          </div>
+          {avatarUrl ? (
+            <img 
+              src={avatarUrl} 
+              alt={username}
+              className="h-9 w-9 rounded-full object-cover shadow-sm"
+              onError={() => setAvatarUrl(null)}
+            />
+          ) : (
+            <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-sm" style={{ backgroundColor: '#0079BC' }}>
+              {initials}
+            </div>
+          )}
           <div className="hidden sm:flex flex-col leading-tight text-left">
             <span className="text-slate-900 text-xs font-semibold">{username}</span>
             <span className="text-slate-500 text-[10px]">{roleName}</span>
