@@ -659,7 +659,6 @@ export default function CreateOrderPage() {
                         setCustomerName(customer.fullName);
                         if (customer.email) setEmail(customer.email);
                         push("Đã tìm thấy khách hàng trong hệ thống", "success");
-                        await loadRecentBookingSuggestion(normalizedPhone);
                     }
                 } else if (response.status === 404) {
                     // Không tìm thấy - không làm gì, user sẽ nhập thủ công
