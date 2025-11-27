@@ -21,6 +21,7 @@ import {
   startTrip as apiStartTrip,
   completeTrip as apiCompleteTrip,
 } from "../../api/drivers";
+import { useWebSocket } from "../../contexts/WebSocketContext";
 
 /**
  * DriverDashboard – M2.S1 (LIGHT THEME VERSION, CONNECTED TO API)
@@ -474,6 +475,9 @@ function StatsCard({ icon: Icon, label, value, sublabel }) {
 export default function DriverDashboard() {
   const navigate = useNavigate();
   const { toasts, push } = useToasts();
+  
+  // Get WebSocket notifications for real-time updates
+  const { notifications: wsNotifications } = useWebSocket();
 
   const [driver, setDriver] = React.useState(null);
   const [trip, setTrip] = React.useState(null);
@@ -704,14 +708,24 @@ export default function DriverDashboard() {
     );
   }, [trip?.pickupTime]);
 
-  // demo notifications – sau này có thể lấy từ API khác
-  const notifications = [
-    {
-      id: 1,
-      type: "info",
-      text: "Điều phối sẽ thông báo cho bạn khi có chuyến mới.",
-    },
-  ];
+  // Format WebSocket notifications for display
+  const notifications = React.useMemo(() => {
+    const formatted = (wsNotifications || []).slice(0, 5).map(n => ({
+      id: n.id,
+      type: n.type === "SUCCESS" ? "success" : n.type === "ERROR" ? "error" : "info",
+      text: n.message || n.title || "Thông báo mới",
+    }));
+    
+    // If no notifications, show default message
+    if (formatted.length === 0) {
+      return [{
+        id: "default",
+        type: "info",
+        text: "Điều phối sẽ thông báo cho bạn khi có chuyến mới.",
+      }];
+    }
+    return formatted;
+  }, [wsNotifications]);
 
   // Get current month name
   const currentMonthName = new Date().toLocaleDateString("vi-VN", {

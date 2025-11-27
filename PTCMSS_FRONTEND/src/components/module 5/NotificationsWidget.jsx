@@ -53,7 +53,7 @@ export default function NotificationsWidget() {
     const isAdmin = role === ROLES.ADMIN;
 
     // WebSocket real-time notifications
-    const { connected, notifications: wsNotifications, unreadCount } = useNotifications();
+    const { connected, notifications: wsNotifications, unreadCount, markAsRead, clearNotification } = useNotifications();
 
     // Load branches for admin
     React.useEffect(() => {
@@ -104,6 +104,8 @@ export default function NotificationsWidget() {
         // }
     }, [userId, isAdmin, branchLoaded]);
 
+    const loadingRef = React.useRef(false);
+    
     const fetchAll = React.useCallback(async () => {
         // Skip for DRIVER role - they don't have access to notifications dashboard
         if (role === ROLES.DRIVER) {
@@ -113,12 +115,13 @@ export default function NotificationsWidget() {
             return;
         }
 
-        // Prevent multiple simultaneous calls
-        if (loading) {
+        // Prevent multiple simultaneous calls using ref (avoid re-render loop)
+        if (loadingRef.current) {
             console.log('[NotificationsWidget] Already loading, skipping...');
             return;
         }
 
+        loadingRef.current = true;
         setLoading(true);
         setError("");
         try {
@@ -131,9 +134,10 @@ export default function NotificationsWidget() {
             setError("Không lấy được dữ liệu thông báo");
             setDashboard(null);
         } finally {
+            loadingRef.current = false;
             setLoading(false);
         }
-    }, [branchId, loading, role]);
+    }, [branchId, role]);
 
     // Fetch when dropdown opens OR when in page mode
     React.useEffect(() => {
@@ -150,9 +154,12 @@ export default function NotificationsWidget() {
         }
     }, [isPageMode]);
 
-    // Auto-refresh when receiving WebSocket notifications
+    // Auto-refresh when receiving NEW WebSocket notifications (not on initial load)
+    const prevNotifCountRef = React.useRef(0);
     React.useEffect(() => {
-        if (wsNotifications.length > 0 && showDropdown) {
+        // Only trigger if we have MORE notifications than before (new one arrived)
+        // This prevents triggering on initial load from DB
+        if (wsNotifications.length > prevNotifCountRef.current && showDropdown) {
             const latest = wsNotifications[0];
             if (
                 latest.type === 'BOOKING_UPDATE' ||
@@ -164,8 +171,9 @@ export default function NotificationsWidget() {
                 fetchAll();
             }
         }
+        prevNotifCountRef.current = wsNotifications.length;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [wsNotifications, showDropdown]);
+    }, [wsNotifications.length, showDropdown]);
 
     // Close dropdown when clicking outside
     React.useEffect(() => {
@@ -422,7 +430,12 @@ export default function NotificationsWidget() {
 
     // Calculate unread count (alerts not acknowledged + pending approvals)
     const unreadAlerts = alerts.filter(a => !a.isAcknowledged).length;
-    const badgeCount = unreadAlerts + pending.length;
+    
+    // For DRIVER role, use WebSocket unreadCount (personal notifications)
+    // For other roles, use alerts + pending count (dashboard notifications)
+    const badgeCount = role === ROLES.DRIVER 
+        ? unreadCount  // WebSocket notifications for driver
+        : (unreadAlerts + pending.length);
 
     return (
         <div className={isPageMode ? "min-h-screen" : "relative"}>
@@ -628,21 +641,61 @@ export default function NotificationsWidget() {
                                 )}
 
                                 {wsNotifications.map((notif) => (
-                                    <div key={notif.id} className="flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                        <div className="mt-0.5 p-2 rounded-lg bg-sky-50 shadow-sm">
-                                            <Bell className="h-4 w-4 text-sky-600" />
+                                    <div 
+                                        key={notif.id} 
+                                        className={cls(
+                                            "flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 transition-colors cursor-pointer group",
+                                            notif.read 
+                                                ? "bg-slate-50/50 hover:bg-slate-100/50" 
+                                                : "bg-white hover:bg-sky-50/50"
+                                        )}
+                                        onClick={() => {
+                                            if (!notif.read) {
+                                                markAsRead(notif.id);
+                                            }
+                                        }}
+                                    >
+                                        <div className={cls(
+                                            "mt-0.5 p-2 rounded-lg shadow-sm",
+                                            notif.read ? "bg-slate-100" : "bg-sky-50"
+                                        )}>
+                                            <Bell className={cls(
+                                                "h-4 w-4",
+                                                notif.read ? "text-slate-400" : "text-sky-600"
+                                            )} />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-semibold text-slate-900 mb-1">
+                                            <div className={cls(
+                                                "text-sm mb-1",
+                                                notif.read 
+                                                    ? "font-medium text-slate-600" 
+                                                    : "font-semibold text-slate-900"
+                                            )}>
                                                 {notif.title}
+                                                {!notif.read && (
+                                                    <span className="ml-2 inline-block h-2 w-2 rounded-full bg-sky-500"></span>
+                                                )}
                                             </div>
-                                            <div className="text-xs text-slate-600 leading-relaxed">
+                                            <div className={cls(
+                                                "text-xs leading-relaxed",
+                                                notif.read ? "text-slate-500" : "text-slate-600"
+                                            )}>
                                                 {notif.message}
                                             </div>
                                             <div className="text-[10px] text-slate-400 mt-1">
                                                 {new Date(notif.timestamp).toLocaleString('vi-VN')}
                                             </div>
                                         </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                clearNotification(notif.id);
+                                            }}
+                                            className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                            title="Xóa thông báo"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
                                     </div>
                                 ))}
                             </div>

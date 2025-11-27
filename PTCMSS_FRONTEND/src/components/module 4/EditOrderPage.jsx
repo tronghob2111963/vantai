@@ -79,13 +79,13 @@ function StatusPill({ status }) {
 /* ---------------- Toast mini (light style) ---------------- */
 function useToasts() {
     const [toasts, setToasts] = React.useState([]);
-    const pushToast = (msg, kind = "info", ttl = 2600) => {
+    const pushToast = React.useCallback((msg, kind = "info", ttl = 2600) => {
         const id = Math.random().toString(36).slice(2);
         setToasts((arr) => [...arr, { id, msg, kind }]);
         setTimeout(() => {
             setToasts((arr) => arr.filter((t) => t.id !== id));
         }, ttl);
-    };
+    }, []);
     return { toasts, pushToast };
 }
 

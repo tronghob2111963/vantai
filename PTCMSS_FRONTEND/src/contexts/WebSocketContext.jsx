@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { getCurrentRole, ROLES } from '../utils/session';
 
 const WebSocketContext = createContext(null);
 
@@ -76,8 +77,9 @@ export const WebSocketProvider = ({ children }) => {
                 type: n.type || 'SUCCESS',
                 timestamp: n.createdAt,
                 read: n.isRead === true || n.isRead === 1,
+                showToast: false, // DB notifications: only show in bell, no toast popup
               }));
-            console.log('[WebSocket] Adding', newNotifs.length, 'new notifications');
+            console.log('[WebSocket] Adding', newNotifs.length, 'new notifications (no toast)');
             return [...newNotifs, ...prev];
           });
         } else {
@@ -107,24 +109,66 @@ export const WebSocketProvider = ({ children }) => {
         console.log('[WebSocket] Connected');
         setConnected(true);
 
-        // Subscribe to global notifications (includes all types)
-        const sub1 = client.subscribe('/topic/notifications', (message) => {
-          const notification = JSON.parse(message.body);
-          console.log('[WebSocket] Received notification:', notification);
-          
-          // Check if notification already exists to prevent duplicates
-          setNotifications((prev) => {
-            const exists = prev.some(n => 
-              n.id === notification.id || 
-              (n.timestamp === notification.timestamp && n.message === notification.message)
-            );
-            if (exists) {
-              console.log('[WebSocket] Duplicate notification ignored');
-              return prev;
-            }
-            return [notification, ...prev];
+        // Get current user role to determine which channels to subscribe
+        const currentRole = getCurrentRole();
+        const isDriver = currentRole === ROLES.DRIVER;
+        console.log('[WebSocket] Current role:', currentRole, 'isDriver:', isDriver);
+
+        // Subscribe to global notifications ONLY for admin/manager/coordinator roles
+        // Driver should NOT receive global notifications (they are for admin dashboard)
+        let sub1 = null;
+        if (!isDriver) {
+          sub1 = client.subscribe('/topic/notifications', (message) => {
+            const notification = JSON.parse(message.body);
+            console.log('[WebSocket] Received GLOBAL notification:', notification);
+            
+            // Check if notification already exists to prevent duplicates
+            setNotifications((prev) => {
+              const exists = prev.some(n => 
+                n.id === notification.id || 
+                (n.timestamp === notification.timestamp && n.message === notification.message)
+              );
+              if (exists) {
+                console.log('[WebSocket] Duplicate notification ignored');
+                return prev;
+              }
+              // Add showToast: true for realtime notifications (show popup toast)
+              return [{ ...notification, showToast: true }, ...prev];
+            });
           });
-        });
+        } else {
+          console.log('[WebSocket] Driver role - skipping global notifications channel');
+        }
+
+        // Auto-subscribe to user-specific notifications (for ALL roles including driver)
+        let userId = localStorage.getItem('userId');
+        if (!userId) {
+          const cookieMatch = document.cookie.match(/userId=(\d+)/);
+          userId = cookieMatch ? cookieMatch[1] : null;
+        }
+        
+        let userSub = null;
+        if (userId) {
+          console.log('[WebSocket] Subscribing to user notifications for userId:', userId, 'role:', currentRole);
+          userSub = client.subscribe(`/topic/notifications/${userId}`, (message) => {
+            const notification = JSON.parse(message.body);
+            console.log('[WebSocket] Received USER notification for userId', userId, ':', notification);
+            setNotifications((prev) => {
+              const exists = prev.some(n => 
+                n.id === notification.id || 
+                (n.timestamp === notification.timestamp && n.message === notification.message)
+              );
+              if (exists) {
+                console.log('[WebSocket] Duplicate user notification ignored');
+                return prev;
+              }
+              // Add showToast: true for realtime notifications (show popup toast)
+              return [{ ...notification, showToast: true }, ...prev];
+            });
+          });
+        } else {
+          console.log('[WebSocket] WARNING: No userId found, cannot subscribe to user-specific notifications');
+        }
 
         // Subscribe to booking updates (separate channel for real-time updates)
         const sub2 = client.subscribe('/topic/bookings', (message) => {
@@ -149,7 +193,8 @@ export const WebSocketProvider = ({ children }) => {
                 type: 'BOOKING_UPDATE',
                 timestamp: update.timestamp,
                 read: false,
-                data: update
+                data: update,
+                showToast: true, // Realtime notification - show popup toast
               },
               ...prev
             ];
@@ -168,7 +213,8 @@ export const WebSocketProvider = ({ children }) => {
               type: 'PAYMENT_UPDATE',
               timestamp: update.timestamp,
               read: false,
-              data: update
+              data: update,
+              showToast: true, // Realtime notification - show popup toast
             },
             ...prev
           ]);
@@ -186,13 +232,16 @@ export const WebSocketProvider = ({ children }) => {
               type: 'DISPATCH_UPDATE',
               timestamp: update.timestamp,
               read: false,
-              data: update
+              data: update,
+              showToast: true, // Realtime notification - show popup toast
             },
             ...prev
           ]);
         });
 
-        subscriptionsRef.current = [sub1, sub2, sub3, sub4];
+        // Store subscriptions (filter out null values for driver role)
+        subscriptionsRef.current = [sub1, sub2, sub3, sub4].filter(Boolean);
+        if (userSub) subscriptionsRef.current.push(userSub);
       },
       onDisconnect: () => {
         console.log('[WebSocket] Disconnected');
@@ -222,8 +271,22 @@ export const WebSocketProvider = ({ children }) => {
     );
   };
 
-  const clearNotification = (notificationId) => {
+  const clearNotification = async (notificationId) => {
+    // Remove from local state first (optimistic update)
     setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    
+    // If notification is from DB (id starts with "db-"), also delete from database
+    if (typeof notificationId === 'string' && notificationId.startsWith('db-')) {
+      try {
+        const realId = notificationId.replace('db-', '');
+        const { deleteNotification } = await import('../api/notifications');
+        await deleteNotification(realId);
+        console.log('[WebSocket] Deleted notification from DB:', realId);
+      } catch (err) {
+        console.error('[WebSocket] Failed to delete notification from DB:', err);
+        // Don't restore - user already dismissed it locally
+      }
+    }
   };
 
   const clearAllNotifications = () => {

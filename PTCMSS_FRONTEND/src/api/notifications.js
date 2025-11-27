@@ -116,3 +116,17 @@ export function rejectApprovalRequest(historyId, { userId, note } = {}) {
   });
 }
 
+/**
+ * Delete notification
+ * DELETE /api/notifications/{notificationId}?userId={userId}
+ */
+export function deleteNotification(notificationId, userId) {
+  const resolvedUserId = userId ?? getStoredUserId();
+  if (!resolvedUserId) {
+    throw new Error("USER_ID_REQUIRED");
+  }
+  return apiFetch(`/api/notifications/${notificationId}?userId=${resolvedUserId}`, {
+    method: "DELETE",
+  });
+}
+

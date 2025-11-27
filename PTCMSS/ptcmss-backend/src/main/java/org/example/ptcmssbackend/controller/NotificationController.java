@@ -248,4 +248,22 @@ public class NotificationController {
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }
+
+    @Operation(
+            summary = "Xóa notification",
+            description = "Xóa một notification của user khỏi database"
+    )
+    @DeleteMapping("/{notificationId}")
+    public ResponseData<String> deleteNotification(
+            @PathVariable Integer notificationId,
+            @RequestParam Integer userId) {
+        try {
+            log.info("[Notification] Delete notification {} for user {}", notificationId, userId);
+            notificationService.deleteNotification(notificationId, userId);
+            return new ResponseData<>(HttpStatus.OK.value(), "Notification deleted", null);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to delete notification {}", notificationId, e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
 }
