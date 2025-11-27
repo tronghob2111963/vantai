@@ -39,6 +39,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final TripDriverRepository tripDriverRepository;
     private final SystemSettingService systemSettingService;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final NotificationRepository notificationRepository;
     
     private static final int EXPIRY_WARNING_DAYS = 30; // Cảnh báo trước 30 ngày
     private static final int CRITICAL_WARNING_DAYS = 7; // Cảnh báo khẩn cấp trước 7 ngày
@@ -373,11 +374,14 @@ public class NotificationServiceImpl implements NotificationService {
         history.setProcessedAt(Instant.now());
         
         approvalHistoryRepository.save(history);
+        log.info("[Notification] History saved, now updating related entity");
         
         // Cập nhật entity liên quan
         updateRelatedEntity(history, true);
+        log.info("[Notification] Related entity updated, now notifying requester");
 
         notifyRequester(history, true);
+        log.info("[Notification] notifyRequester completed");
         
         return mapToApprovalItemResponse(history);
     }
@@ -405,25 +409,68 @@ public class NotificationServiceImpl implements NotificationService {
         
         // Cập nhật entity liên quan
         updateRelatedEntity(history, false);
+        log.info("[Notification] Related entity updated (rejected), now notifying requester");
 
         notifyRequester(history, false);
+        log.info("[Notification] notifyRequester completed (rejected)");
         
         return mapToApprovalItemResponse(history);
     }
 
     private void notifyRequester(ApprovalHistory history, boolean approved) {
+        log.info("[Notification] notifyRequester called - approved={}, historyId={}", approved, history.getId());
+        
         Users requester = history.getRequestedBy();
         if (requester == null || requester.getId() == null) {
+            log.warn("[Notification] Cannot notify - requester is null");
             return;
         }
-        String title = approved ? "Yêu cầu đã được duyệt" : "Yêu cầu bị từ chối";
-        String detail = history.getApprovalType() == ApprovalType.EXPENSE_REQUEST
-                ? "Yêu cầu chi phí #" + history.getRelatedEntityId()
-                : "Yêu cầu #" + history.getRelatedEntityId();
+        
+        log.info("[Notification] Notifying user {} for approval {}", requester.getId(), history.getId());
+        
+        // Build notification content based on approval type
+        String typeLabel;
+        switch (history.getApprovalType()) {
+            case DRIVER_DAY_OFF:
+                typeLabel = "Nghỉ phép";
+                break;
+            case EXPENSE_REQUEST:
+                typeLabel = "Chi phí";
+                break;
+            case DISCOUNT_REQUEST:
+                typeLabel = "Giảm giá";
+                break;
+            default:
+                typeLabel = "Yêu cầu";
+        }
+        
+        String title = approved 
+                ? "Yêu cầu " + typeLabel + " đã được duyệt" 
+                : "Yêu cầu " + typeLabel + " bị từ chối";
         String message = approved
-                ? detail + " đã được duyệt."
-                : detail + " bị từ chối" + (history.getApprovalNote() != null ? ": " + history.getApprovalNote() : ".");
+                ? "Yêu cầu " + typeLabel.toLowerCase() + " #" + history.getRelatedEntityId() + " của bạn đã được duyệt."
+                : "Yêu cầu " + typeLabel.toLowerCase() + " #" + history.getRelatedEntityId() + " của bạn bị từ chối" 
+                  + (history.getApprovalNote() != null ? ": " + history.getApprovalNote() : ".");
         String type = approved ? "SUCCESS" : "ERROR";
+        
+        // 1. Lưu notification vào database
+        try {
+            log.info("[Notification] Creating notification entity for user {}", requester.getId());
+            Notifications notification = new Notifications();
+            notification.setUser(requester);
+            notification.setTitle(title);
+            notification.setMessage(message);
+            notification.setIsRead(false);
+            log.info("[Notification] Saving notification to DB...");
+            Notifications saved = notificationRepository.save(notification);
+            log.info("[Notification] SUCCESS! Saved notification ID={} to DB for user {}: {}", 
+                    saved.getId(), requester.getId(), title);
+        } catch (Exception e) {
+            log.error("[Notification] FAILED to save notification to DB: {} - {}", 
+                    e.getClass().getSimpleName(), e.getMessage(), e);
+        }
+        
+        // 2. Gửi realtime qua WebSocket
         webSocketNotificationService.sendUserNotification(requester.getId(), title, message, type);
     }
     
@@ -751,5 +798,35 @@ public class NotificationServiceImpl implements NotificationService {
             log.warn("Cannot get system setting {}: {}", key, e.getMessage());
         }
         return defaultValue;
+    }
+    
+    @Override
+    public Map<String, Object> getUserNotifications(Integer userId, int page, int limit) {
+        log.info("[Notification] Get notifications for user {} (page={}, limit={})", userId, page, limit);
+        
+        org.springframework.data.domain.Pageable pageable = 
+                org.springframework.data.domain.PageRequest.of(page - 1, limit);
+        
+        var notifPage = notificationRepository.findByUser_IdOrderByCreatedAtDesc(userId, pageable);
+        
+        List<Map<String, Object>> data = notifPage.getContent().stream()
+                .map(n -> {
+                    Map<String, Object> item = new java.util.HashMap<>();
+                    item.put("id", n.getId());
+                    item.put("title", n.getTitle());
+                    item.put("message", n.getMessage());
+                    item.put("isRead", n.getIsRead());
+                    item.put("createdAt", n.getCreatedAt());
+                    return item;
+                })
+                .collect(Collectors.toList());
+        
+        return Map.of(
+                "data", data,
+                "total", notifPage.getTotalElements(),
+                "page", page,
+                "limit", limit,
+                "totalPages", notifPage.getTotalPages()
+        );
     }
 }

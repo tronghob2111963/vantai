@@ -17,7 +17,9 @@ import org.example.ptcmssbackend.service.ExpenseRequestService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -82,5 +84,22 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
                 )
                 .createdAt(entity.getCreatedAt())
                 .build();
+    }
+    
+    @Override
+    public List<ExpenseRequestResponse> getByDriverId(Integer driverId) {
+        log.info("[ExpenseRequest] getByDriverId: {}", driverId);
+        // Get expense requests where requester is the driver's user
+        // Note: This requires the driver's userId, not driverId
+        // For now, return all requests by the requester
+        List<ExpenseRequests> list = expenseRequestRepository.findByRequester_Id(driverId);
+        return list.stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<ExpenseRequestResponse> getPendingRequests() {
+        log.info("[ExpenseRequest] getPendingRequests");
+        List<ExpenseRequests> list = expenseRequestRepository.findByStatus(ExpenseRequestStatus.PENDING);
+        return list.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 }

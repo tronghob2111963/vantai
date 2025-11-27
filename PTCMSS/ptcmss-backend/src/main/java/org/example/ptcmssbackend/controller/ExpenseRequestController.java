@@ -9,7 +9,10 @@ import org.example.ptcmssbackend.dto.response.expense.ExpenseRequestResponse;
 import org.example.ptcmssbackend.service.ExpenseRequestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -19,12 +22,41 @@ public class ExpenseRequestController {
 
     private final ExpenseRequestService expenseRequestService;
 
+    /**
+     * Tạo yêu cầu thanh toán - Chỉ Tư vấn viên, Tài xế, Điều phối viên được tạo
+     * Kế toán chỉ duyệt, không tạo yêu cầu
+     */
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','DRIVER','COORDINATOR')")
     public ResponseEntity<ResponseData<ExpenseRequestResponse>> createExpenseRequest(
             @Valid @RequestBody CreateExpenseRequest request
     ) {
         log.info("[ExpenseRequest] create payload {}", request);
         ExpenseRequestResponse response = expenseRequestService.createExpenseRequest(request);
         return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Create expense request successfully", response));
+    }
+    
+    /**
+     * Lấy danh sách yêu cầu thanh toán theo driver ID
+     */
+    @GetMapping("/driver/{driverId}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','COORDINATOR','DRIVER')")
+    public ResponseEntity<ResponseData<List<ExpenseRequestResponse>>> getByDriverId(
+            @PathVariable Integer driverId
+    ) {
+        log.info("[ExpenseRequest] get by driver {}", driverId);
+        List<ExpenseRequestResponse> list = expenseRequestService.getByDriverId(driverId);
+        return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Success", list));
+    }
+    
+    /**
+     * Lấy danh sách yêu cầu chờ duyệt - Kế toán và Manager duyệt
+     */
+    @GetMapping("/pending")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ResponseData<List<ExpenseRequestResponse>>> getPending() {
+        log.info("[ExpenseRequest] get pending requests");
+        List<ExpenseRequestResponse> list = expenseRequestService.getPendingRequests();
+        return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Success", list));
     }
 }

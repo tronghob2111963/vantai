@@ -554,7 +554,7 @@ function Topbar() {
 
     const loadAvatar = async () => {
       try {
-        const { getMyProfile } = await import("./api/users");
+        const { getMyProfile } = await import("./api/profile");
         const profile = await getMyProfile();
         
         const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");

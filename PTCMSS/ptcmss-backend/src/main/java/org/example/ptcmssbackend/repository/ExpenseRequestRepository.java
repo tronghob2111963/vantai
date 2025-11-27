@@ -12,4 +12,7 @@ public interface ExpenseRequestRepository extends JpaRepository<ExpenseRequests,
     
     // Tìm tất cả expense requests theo status
     List<ExpenseRequests> findByStatus(ExpenseRequestStatus status);
+    
+    // Tìm expense requests theo requester user ID
+    List<ExpenseRequests> findByRequester_Id(Integer requesterId);
 }
