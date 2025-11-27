@@ -108,7 +108,7 @@ export function confirmPayment(paymentId, status) {
   // status: "CONFIRMED" hoặc "REJECTED"
   return apiFetch(`/api/invoices/payments/${paymentId}/confirm?status=${encodeURIComponent(status)}`, {
     method: "PATCH",
-  }).then(res => res.data);
+  });
 }
 
 // Get payment history for invoice

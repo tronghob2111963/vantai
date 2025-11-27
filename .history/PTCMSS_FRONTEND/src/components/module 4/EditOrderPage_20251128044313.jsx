@@ -1720,7 +1720,7 @@ export default function EditOrderPage() {
 
             {/* FOOTNOTE */}
             <div className="text-[11px] text-slate-500 mt-8 leading-relaxed">
-                {/* <div className="text-slate-700 font-mono text-[11px]">
+                <div className="text-slate-700 font-mono text-[11px]">
                     PUT /api/orders/{MOCK_ORDER.id}
                 </div>
                 <div>
@@ -1729,8 +1729,8 @@ export default function EditOrderPage() {
                         {ORDER_STATUS_LABEL[status] ||
                             status}
                     </span>
-                </div> */}
-                {/* <div className="text-[12px] text-slate-600">
+                </div>
+                <div className="text-[12px] text-slate-600">
                     Nếu trạng thái là{" "}
                     <span className="text-amber-600 font-semibold">
                         ASSIGNED
@@ -1741,7 +1741,7 @@ export default function EditOrderPage() {
                     </span>
                     , chỉnh sửa phải thông qua điều
                     phối viên.
-                </div> */}
+                </div>
             </div>
         </div>
     );

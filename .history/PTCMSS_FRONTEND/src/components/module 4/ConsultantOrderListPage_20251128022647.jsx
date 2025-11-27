@@ -151,10 +151,8 @@ const ORDER_STATUS_STYLE = {
 };
 
 function OrderStatusPill({ status }) {
-    // Normalize status: IN_PROGRESS -> INPROGRESS, etc.
-    const normalizedStatus = status ? status.replace(/_/g, '').toUpperCase() : 'DRAFT';
-    const label = ORDER_STATUS_LABEL[normalizedStatus] || ORDER_STATUS_LABEL[status] || status;
-    const style = ORDER_STATUS_STYLE[normalizedStatus] || ORDER_STATUS_STYLE[status] || ORDER_STATUS_STYLE.DRAFT;
+    const label = ORDER_STATUS_LABEL[status] || status;
+    const style = ORDER_STATUS_STYLE[status] || ORDER_STATUS_STYLE.DRAFT;
     return (
         <span
             className={cls(
@@ -419,14 +417,11 @@ function OrdersTable({
     const current = items.slice(start, start + pageSize);
 
     // Cho phép sửa khi chuyến chưa khởi hành (DRAFT, PENDING, CONFIRMED, ASSIGNED)
-    const canEdit = (status) => {
-        const normalized = status ? status.replace(/_/g, '').toUpperCase() : '';
-        return normalized === 'DRAFT' || 
-               normalized === 'PENDING' || 
-               normalized === 'CONFIRMED' ||
-               normalized === 'ASSIGNED' ||
-               normalized === 'QUOTATIONSENT';
-    };
+    const canEdit = (status) =>
+        status === ORDER_STATUS.DRAFT || 
+        status === ORDER_STATUS.PENDING || 
+        status === ORDER_STATUS.CONFIRMED ||
+        status === ORDER_STATUS.ASSIGNED;
 
     return (
         <div className="overflow-x-auto">
@@ -512,16 +507,9 @@ function OrdersTable({
                                 {fmtVND((o.estimated_cost || o.quoted_price || 0) + (o.discount_amount || 0))}
                             </td>
 
-                            {/* Đã thu (paid amount) */}
-                            <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums">
-                                <div className="text-emerald-700 font-semibold">
-                                    {fmtVND(o.paid_amount || 0)}
-                                </div>
-                                {o.deposit_amount > 0 && (
-                                    <div className="text-[11px] text-slate-500">
-                                        Cọc: {fmtVND(o.deposit_amount)}
-                                    </div>
-                                )}
+                            {/* Đã thu (deposit amount) */}
+                            <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums text-emerald-700 font-semibold">
+                                {fmtVND(o.deposit_amount || 0)}
                             </td>
 
                             {/* Tổng tiền (renamed from Giá trị) */}
@@ -1761,7 +1749,6 @@ export default function ConsultantOrdersPage() {
                         pax_count: b.passengerCount || b.paxCount || 0,
                         estimated_cost: b.estimatedCost || b.estimated_cost || 0,
                         deposit_amount: b.depositAmount || b.deposit_amount || b.deposit || 0,
-                        paid_amount: b.paidAmount || b.paid_amount || 0,
                         quoted_price: b.totalCost || b.totalPrice || b.total || 0,
                         discount_amount: b.discountAmount || b.discount || 0,
                         notes: b.notes || b.note || "",
@@ -1830,7 +1817,6 @@ export default function ConsultantOrdersPage() {
                             pax_count: b.passengerCount || b.paxCount || 0,
                             estimated_cost: b.estimatedCost || b.estimated_cost || 0,
                             deposit_amount: b.depositAmount || b.deposit_amount || b.deposit || 0,
-                            paid_amount: b.paidAmount || b.paid_amount || 0,
                             quoted_price: b.totalCost || b.totalPrice || b.total || 0,
                             discount_amount: b.discountAmount || b.discount || 0,
                             notes: b.notes || b.note || "",
@@ -1874,10 +1860,7 @@ export default function ConsultantOrdersPage() {
         const q = searchText.trim().toLowerCase();
 
         const afterFilter = orders.filter((o) => {
-            // Normalize status for comparison
-            const normalizedOrderStatus = o.status ? o.status.replace(/_/g, '').toUpperCase() : '';
-            const normalizedFilter = statusFilter ? statusFilter.replace(/_/g, '').toUpperCase() : '';
-            if (normalizedFilter && normalizedOrderStatus !== normalizedFilter)
+            if (statusFilter && o.status !== statusFilter)
                 return false;
             if (
                 dateFilter &&
@@ -2173,7 +2156,11 @@ export default function ConsultantOrdersPage() {
                     showActions={!isManager}
                 />
 
-         
+                {/* <div className="px-4 py-2 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50">
+                    Design-only: Dữ liệu đang mock. Lọc
+                    theo chi nhánh + phân trang thực sẽ do
+                    API trả về.
+                </div> */}
             </div>
 
             {/* MODAL CHI TIẾT */}

@@ -102,4 +102,57 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
         List<ExpenseRequests> list = expenseRequestRepository.findByStatus(ExpenseRequestStatus.PENDING);
         return list.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public ExpenseRequestResponse approveRequest(Integer id, String note) {
+        log.info("[ExpenseRequest] approveRequest: {} with note: {}", id, note);
+        ExpenseRequests entity = expenseRequestRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Expense request not found: " + id));
+        
+        entity.setStatus(ExpenseRequestStatus.APPROVED);
+        if (note != null && !note.isEmpty()) {
+            entity.setNote((entity.getNote() != null ? entity.getNote() + " | " : "") + "Duyệt: " + note);
+        }
+        
+        ExpenseRequests saved = expenseRequestRepository.save(entity);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ExpenseRequestResponse rejectRequest(Integer id, String note) {
+        log.info("[ExpenseRequest] rejectRequest: {} with note: {}", id, note);
+        ExpenseRequests entity = expenseRequestRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Expense request not found: " + id));
+        
+        entity.setStatus(ExpenseRequestStatus.REJECTED);
+        if (note != null && !note.isEmpty()) {
+            entity.setNote((entity.getNote() != null ? entity.getNote() + " | " : "") + "Từ chối: " + note);
+        }
+        
+        ExpenseRequests saved = expenseRequestRepository.save(entity);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    public List<ExpenseRequestResponse> getAllRequests(String status, Integer branchId) {
+        log.info("[ExpenseRequest] getAllRequests - status: {}, branchId: {}", status, branchId);
+        
+        List<ExpenseRequests> list;
+        
+        if (status != null && branchId != null) {
+            ExpenseRequestStatus statusEnum = ExpenseRequestStatus.valueOf(status.toUpperCase());
+            list = expenseRequestRepository.findByStatusAndBranch_Id(statusEnum, branchId);
+        } else if (status != null) {
+            ExpenseRequestStatus statusEnum = ExpenseRequestStatus.valueOf(status.toUpperCase());
+            list = expenseRequestRepository.findByStatus(statusEnum);
+        } else if (branchId != null) {
+            list = expenseRequestRepository.findByBranch_Id(branchId);
+        } else {
+            list = expenseRequestRepository.findAll();
+        }
+        
+        return list.stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
 }

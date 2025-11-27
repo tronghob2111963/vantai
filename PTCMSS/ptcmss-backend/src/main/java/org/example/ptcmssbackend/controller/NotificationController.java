@@ -31,7 +31,7 @@ public class NotificationController {
             summary = "Lấy dashboard notifications & approvals",
             description = "Trả về tổng quan cảnh báo và yêu cầu chờ duyệt"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @GetMapping("/dashboard")
     public ResponseData<NotificationDashboardResponse> getDashboard(
             @RequestParam(required = false) Integer branchId) {
@@ -48,7 +48,7 @@ public class NotificationController {
             summary = "Lấy danh sách cảnh báo",
             description = "Lấy tất cả cảnh báo chưa xác nhận"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @GetMapping("/alerts")
     public ResponseData<List<AlertResponse>> getAlerts(
             @RequestParam(required = false) Integer branchId) {
@@ -65,7 +65,7 @@ public class NotificationController {
             summary = "Xác nhận đã biết cảnh báo",
             description = "Đánh dấu cảnh báo là đã xem/xử lý"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @PostMapping("/alerts/{alertId}/acknowledge")
     public ResponseData<AlertResponse> acknowledgeAlert(
             @PathVariable Integer alertId,
@@ -245,6 +245,24 @@ public class NotificationController {
             return new ResponseData<>(HttpStatus.OK.value(), "Sync triggered successfully", null);
         } catch (Exception e) {
             log.error("[Notification] Failed to sync approvals", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+
+    @Operation(
+            summary = "Xóa notification",
+            description = "Xóa một notification của user khỏi database"
+    )
+    @DeleteMapping("/{notificationId}")
+    public ResponseData<String> deleteNotification(
+            @PathVariable Integer notificationId,
+            @RequestParam Integer userId) {
+        try {
+            log.info("[Notification] Delete notification {} for user {}", notificationId, userId);
+            notificationService.deleteNotification(notificationId, userId);
+            return new ResponseData<>(HttpStatus.OK.value(), "Notification deleted", null);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to delete notification {}", notificationId, e);
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }

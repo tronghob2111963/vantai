@@ -6,6 +6,7 @@ import {
     RefreshCw,
     Clock,
 } from "lucide-react";
+import { useWebSocket } from "../../contexts/WebSocketContext";
 
 /**
  * DriverNotificationsPage – Light theme version
@@ -235,14 +236,42 @@ function PaginationBar({ page, totalPages, pageSize, setPage, setPageSize }) {
 // === MAIN PAGE ===
 export default function DriverNotificationsPage() {
     const { toasts, push } = useToasts();
+    
+    // Get WebSocket notifications for real-time updates
+    const { notifications: wsNotifications } = useWebSocket();
 
     const [loading, setLoading] = React.useState(false);
-    const [notifs, setNotifs] = React.useState([]);
+    const [apiNotifs, setApiNotifs] = React.useState([]);
     const [error, setError] = React.useState(null);
 
     // paging state
     const [page, setPage] = React.useState(1);
     const [pageSize, setPageSize] = React.useState(10);
+
+    // Merge API notifications with WebSocket notifications
+    const notifs = React.useMemo(() => {
+        // Transform WebSocket notifications to match expected format
+        const wsFormatted = (wsNotifications || []).map(n => ({
+            id: n.id,
+            title: n.title,
+            message: n.message || n.title,
+            type: n.type || "INFO",
+            unread: n.read === false || !n.read,
+            created_at: n.timestamp || n.createdAt,
+        }));
+        
+        // Merge and deduplicate
+        const allNotifs = [...wsFormatted, ...apiNotifs];
+        const seen = new Set();
+        return allNotifs.filter(n => {
+            // Use message + created_at as unique key
+            const key = `${n.message}-${n.created_at}`;
+            if (seen.has(key) || seen.has(n.id)) return false;
+            seen.add(key);
+            seen.add(n.id);
+            return true;
+        });
+    }, [wsNotifications, apiNotifs]);
 
     // sort newest first
     const sorted = React.useMemo(() => {
@@ -272,7 +301,7 @@ export default function DriverNotificationsPage() {
 
     // mark single notification as read
     const markRead = (id) => {
-        setNotifs((arr) =>
+        setApiNotifs((arr) =>
             arr.map((n) =>
                 n.id === id ? { ...n, unread: false } : n
             )
@@ -283,7 +312,7 @@ export default function DriverNotificationsPage() {
 
     // mark all
     const markAllRead = () => {
-        setNotifs((arr) =>
+        setApiNotifs((arr) =>
             arr.map((n) => ({ ...n, unread: false }))
         );
         push(
@@ -334,13 +363,13 @@ export default function DriverNotificationsPage() {
             }));
             
             console.log("[DriverNotifications] Transformed data:", data);
-            setNotifs(data);
+            setApiNotifs(data);
         } catch (err) {
             console.error("Failed to load notifications:", err);
             const errorMsg = err.message || "Lỗi không xác định";
             setError("Không thể tải thông báo: " + errorMsg);
             push("Không thể tải thông báo: " + errorMsg, "error");
-            setNotifs([]);
+            setApiNotifs([]);
         } finally {
             setLoading(false);
         }

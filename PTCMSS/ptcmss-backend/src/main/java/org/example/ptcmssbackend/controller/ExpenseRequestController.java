@@ -59,4 +59,46 @@ public class ExpenseRequestController {
         List<ExpenseRequestResponse> list = expenseRequestService.getPendingRequests();
         return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Success", list));
     }
+
+    /**
+     * Duyệt yêu cầu thanh toán - Kế toán xác nhận
+     */
+    @PatchMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ResponseData<ExpenseRequestResponse>> approveExpenseRequest(
+            @PathVariable Integer id,
+            @RequestParam(required = false) String note
+    ) {
+        log.info("[ExpenseRequest] approve request {} with note: {}", id, note);
+        ExpenseRequestResponse response = expenseRequestService.approveRequest(id, note);
+        return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Expense request approved", response));
+    }
+
+    /**
+     * Từ chối yêu cầu thanh toán
+     */
+    @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ResponseData<ExpenseRequestResponse>> rejectExpenseRequest(
+            @PathVariable Integer id,
+            @RequestParam(required = false) String note
+    ) {
+        log.info("[ExpenseRequest] reject request {} with note: {}", id, note);
+        ExpenseRequestResponse response = expenseRequestService.rejectRequest(id, note);
+        return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Expense request rejected", response));
+    }
+
+    /**
+     * Lấy tất cả yêu cầu thanh toán (có filter)
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ResponseData<List<ExpenseRequestResponse>>> getAllExpenseRequests(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer branchId
+    ) {
+        log.info("[ExpenseRequest] get all requests - status: {}, branchId: {}", status, branchId);
+        List<ExpenseRequestResponse> list = expenseRequestService.getAllRequests(status, branchId);
+        return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Success", list));
+    }
 }

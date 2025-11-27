@@ -40,13 +40,13 @@ const cls = (...a) => a.filter(Boolean).join(" ");
 /* -------------------------------- */
 function useToasts() {
     const [toasts, setToasts] = React.useState([]);
-    const push = (msg, kind = "info", ttl = 2400) => {
+    const push = React.useCallback((msg, kind = "info", ttl = 2400) => {
         const id = Math.random().toString(36).slice(2);
         setToasts((arr) => [...arr, { id, msg, kind }]);
         setTimeout(() => {
             setToasts((arr) => arr.filter((t) => t.id !== id));
         }, ttl);
-    };
+    }, []);
     return { toasts, push };
 }
 

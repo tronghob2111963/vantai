@@ -829,4 +829,20 @@ public class NotificationServiceImpl implements NotificationService {
                 "totalPages", notifPage.getTotalPages()
         );
     }
+    
+    @Override
+    public void deleteNotification(Integer notificationId, Integer userId) {
+        log.info("[Notification] Delete notification {} for user {}", notificationId, userId);
+        
+        Notifications notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found: " + notificationId));
+        
+        // Verify ownership
+        if (!notification.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Notification does not belong to user: " + userId);
+        }
+        
+        notificationRepository.delete(notification);
+        log.info("[Notification] Deleted notification {} for user {}", notificationId, userId);
+    }
 }

@@ -26,4 +26,7 @@ public interface NotificationService {
     
     // User notifications
     Map<String, Object> getUserNotifications(Integer userId, int page, int limit);
+    
+    // Delete notification
+    void deleteNotification(Integer notificationId, Integer userId);
 }
