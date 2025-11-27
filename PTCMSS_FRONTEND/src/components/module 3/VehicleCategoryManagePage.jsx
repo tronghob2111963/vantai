@@ -846,6 +846,7 @@ Quản lý danh mục xe
                             <tr>
                                 <th className="px-4 py-2 text-left">Tên danh mục</th>
                                 <th className="px-4 py-2 text-left">Số ghế</th>
+                                <th className="px-4 py-2 text-center">Số xe</th>
                                 <th className="px-4 py-2 text-right">Phí mở cửa</th>
                                 <th className="px-4 py-2 text-right">Giá cố định/ngày</th>
                                 <th className="px-4 py-2 text-right">Giá theo km</th>
@@ -871,6 +872,13 @@ Quản lý danh mục xe
 
                                     <td className="px-4 py-3 align-top">
                                         {cat.seats} ghế
+                                    </td>
+
+                                    <td className="px-4 py-3 align-top text-center">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-medium">
+                                            <CarFront className="h-3 w-3" />
+                                            {cat.vehicles_count ?? 0}
+                                        </span>
                                     </td>
 
                                     <td className="px-4 py-3 align-top text-right tabular-nums">
@@ -916,7 +924,7 @@ Quản lý danh mục xe
                             {categories.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={5}
+                                        colSpan={8}
                                         className="px-4 py-10 text-center text-slate-400"
                                     >
                                         Chưa có danh mục nào.
