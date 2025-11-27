@@ -499,9 +499,19 @@ export default function DriverDashboard() {
       console.log("📞 Customer Phone:", dash?.customerPhone);
       console.log("🗺️ Distance:", dash?.distance);
 
-      const mapped =
-        dash && dash.tripId
-          ? {
+      let mapped = null;
+      if (dash && dash.tripId) {
+        // Check if trip is today
+        const tripDate = new Date(dash.startTime);
+        const today = new Date();
+        const isToday =
+          tripDate.getDate() === today.getDate() &&
+          tripDate.getMonth() === today.getMonth() &&
+          tripDate.getFullYear() === today.getFullYear();
+
+        // Only show trip if it's today
+        if (isToday) {
+          mapped = {
             tripId: dash.tripId,
             pickupAddress: dash.startLocation,
             dropoffAddress: dash.endLocation ?? dash.EndLocation,
@@ -511,8 +521,11 @@ export default function DriverDashboard() {
             customerName: dash.customerName,
             customerPhone: dash.customerPhone,
             distance: dash.distance,
-          }
-          : null;
+          };
+        } else {
+          console.log("⏭️ Trip is not today, skipping:", dash.startTime);
+        }
+      }
       console.log("🔄 Mapped Trip:", mapped);
       setTrip(mapped);
 

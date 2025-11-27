@@ -53,7 +53,7 @@ const SIDEBAR_SECTIONS = [
       // { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
       { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
       { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN] },
-      // { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
+      { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
     ],
   },
   {
