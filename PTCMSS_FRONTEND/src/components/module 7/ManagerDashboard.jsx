@@ -133,9 +133,9 @@ function KpiBlock({
 }
 
 /* -------------------- TripsSummary Card (light) -------------------- */
-function TripsSummaryCard({ completed, cancelled, kmTotal }) {
-    const cancelRate =
-        (cancelled / Math.max(1, completed + cancelled)) * 100;
+function TripsSummaryCard({ completed, inProgress, cancelled }) {
+    const total = completed + inProgress + cancelled;
+    const cancelRate = (cancelled / Math.max(1, total)) * 100;
 
     return (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 flex flex-col gap-3">
@@ -151,11 +151,25 @@ function TripsSummaryCard({ completed, cancelled, kmTotal }) {
                 {/* Hoàn thành */}
                 <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 flex flex-col items-start">
                     <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                         <span>Hoàn thành</span>
                     </div>
                     <div className="text-lg font-semibold text-slate-900 leading-none">
                         {fmtInt(completed)}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-1">
+                        chuyến
+                    </div>
+                </div>
+
+                {/* Đang thực hiện */}
+                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 flex flex-col items-start">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                        <Car className="h-3.5 w-3.5 text-sky-600" />
+                        <span>Đang thực hiện</span>
+                    </div>
+                    <div className="text-lg font-semibold text-slate-900 leading-none">
+                        {fmtInt(inProgress)}
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">
                         chuyến
@@ -173,20 +187,6 @@ function TripsSummaryCard({ completed, cancelled, kmTotal }) {
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">
                         {cancelRate.toFixed(1)}% huỷ
-                    </div>
-                </div>
-
-                {/* Km chạy */}
-                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 flex flex-col items-start">
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                        <Car className="h-3.5 w-3.5 text-sky-600" />
-                        <span>KM chạy</span>
-                    </div>
-                    <div className="text-lg font-semibold text-slate-900 leading-none">
-                        {fmtInt(kmTotal)}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
-                        km / kỳ
                     </div>
                 </div>
             </div>
@@ -641,8 +641,8 @@ export default function ManagerDashboardPro() {
                     {/* cột trái: hiệu suất chuyến */}
                     <TripsSummaryCard
                         completed={completedTrips}
+                        inProgress={ongoingTrips}
                         cancelled={totalTrips - completedTrips - ongoingTrips - scheduledTrips}
-                        kmTotal={dashboardData?.totalKm ? Number(dashboardData.totalKm) : 0}
                     />
 
                     {/* cột giữa: tài xế */}

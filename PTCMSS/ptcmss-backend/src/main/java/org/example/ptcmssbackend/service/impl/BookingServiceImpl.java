@@ -235,8 +235,9 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("Cannot update booking with status: " + booking.getStatus());
         }
         
-        // Validation: Chỉ cho phép sửa đổi trước khi khởi hành
-        validateCanCancelOrModify(booking, "sửa đổi");
+        // Validation: Kiểm tra loại thay đổi và thời gian cho phép
+        boolean isMajorChange = isMajorModification(booking, request);
+        validateModificationTime(booking, isMajorChange);
 
         BookingStatus oldStatus = booking.getStatus();
         
@@ -853,14 +854,160 @@ public class BookingServiceImpl implements BookingService {
     }
     
     /**
-     * Validation: Kiểm tra xem có thể hủy/sửa đổi booking không
-     * Chỉ cho phép trước khi khởi hành
+     * Kiểm tra xem request có phải là thay đổi lớn không
+     * Thay đổi lớn: điểm đón/trả, hành trình, số ngày, loại xe
+     * Thay đổi nhỏ: thông tin khách hàng, ghi chú, trạng thái
+     */
+    private boolean isMajorModification(Bookings booking, UpdateBookingRequest request) {
+        // Thay đổi trips (điểm đón, điểm trả, thời gian) = thay đổi lớn
+        if (request.getTrips() != null && !request.getTrips().isEmpty()) {
+            List<Trips> existingTrips = tripRepository.findByBooking_Id(booking.getId());
+            
+            // Số lượng trips khác nhau
+            if (existingTrips.size() != request.getTrips().size()) {
+                log.info("[Booking] Major change detected: trip count changed");
+                return true;
+            }
+            
+            // Check từng trip xem có thay đổi điểm đón/trả không
+            for (int i = 0; i < request.getTrips().size(); i++) {
+                TripRequest tripReq = request.getTrips().get(i);
+                if (i < existingTrips.size()) {
+                    Trips existingTrip = existingTrips.get(i);
+                    
+                    // Check điểm đón
+                    if (tripReq.getStartLocation() != null && 
+                        !tripReq.getStartLocation().equals(existingTrip.getStartLocation())) {
+                        log.info("[Booking] Major change detected: pickup location changed");
+                        return true;
+                    }
+                    
+                    // Check điểm trả
+                    if (tripReq.getEndLocation() != null && 
+                        !tripReq.getEndLocation().equals(existingTrip.getEndLocation())) {
+                        log.info("[Booking] Major change detected: dropoff location changed");
+                        return true;
+                    }
+                    
+                    // Check ngày/giờ khởi hành thay đổi > 2 giờ
+                    if (tripReq.getStartTime() != null && existingTrip.getStartTime() != null) {
+                        long hoursDiff = Math.abs(java.time.Duration.between(
+                                tripReq.getStartTime(), existingTrip.getStartTime()).toHours());
+                        if (hoursDiff > 2) {
+                            log.info("[Booking] Major change detected: start time changed by {} hours", hoursDiff);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Thay đổi loại xe = thay đổi lớn
+        if (request.getVehicles() != null && !request.getVehicles().isEmpty()) {
+            List<BookingVehicleDetails> existingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+            
+            // Số lượng loại xe khác nhau
+            if (existingVehicles.size() != request.getVehicles().size()) {
+                log.info("[Booking] Major change detected: vehicle count changed");
+                return true;
+            }
+            
+            // Check từng loại xe
+            for (int i = 0; i < request.getVehicles().size(); i++) {
+                VehicleDetailRequest vReq = request.getVehicles().get(i);
+                if (i < existingVehicles.size()) {
+                    BookingVehicleDetails existingV = existingVehicles.get(i);
+                    
+                    // Loại xe khác
+                    if (!vReq.getVehicleCategoryId().equals(existingV.getVehicleCategory().getId())) {
+                        log.info("[Booking] Major change detected: vehicle category changed");
+                        return true;
+                    }
+                    
+                    // Số lượng xe khác
+                    if (!vReq.getQuantity().equals(existingV.getQuantity())) {
+                        log.info("[Booking] Major change detected: vehicle quantity changed");
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // Không có thay đổi lớn
+        return false;
+    }
+    
+    /**
+     * Validation thời gian cho phép sửa đổi
+     * - Thay đổi nhỏ: >= 24h trước khởi hành
+     * - Thay đổi lớn: >= 72h trước khởi hành
+     */
+    private void validateModificationTime(Bookings booking, boolean isMajorChange) {
+        List<Trips> trips = tripRepository.findByBooking_Id(booking.getId());
+        if (trips == null || trips.isEmpty()) {
+            return; // Chưa có trip, cho phép sửa
+        }
+        
+        Instant earliestStartTime = trips.stream()
+                .map(Trips::getStartTime)
+                .filter(java.util.Objects::nonNull)
+                .min(Instant::compareTo)
+                .orElse(null);
+        
+        if (earliestStartTime == null) {
+            return;
+        }
+        
+        Instant now = Instant.now();
+        
+        // Check đã khởi hành chưa
+        if (now.isAfter(earliestStartTime)) {
+            throw new RuntimeException("Không thể sửa đổi đơn hàng sau khi đã khởi hành");
+        }
+        
+        // Check có trip đang diễn ra không
+        boolean hasInProgressTrip = trips.stream()
+                .anyMatch(t -> t.getStatus() == TripStatus.ONGOING);
+        if (hasInProgressTrip) {
+            throw new RuntimeException("Không thể sửa đổi đơn hàng khi có chuyến đang diễn ra");
+        }
+        
+        long hoursUntilStart = java.time.Duration.between(now, earliestStartTime).toHours();
+        
+        if (isMajorChange) {
+            // Thay đổi lớn: >= 72h
+            int minHours = getSystemSettingInt("BOOKING_MAJOR_MODIFICATION_MIN_HOURS", 72);
+            if (hoursUntilStart < minHours) {
+                throw new RuntimeException(
+                        String.format("Thay đổi lớn (điểm đón/trả, hành trình, loại xe) phải thực hiện trước %d giờ khởi hành. " +
+                                "Còn %d giờ trước khi khởi hành.", minHours, hoursUntilStart)
+                );
+            }
+        } else {
+            // Thay đổi nhỏ: >= 24h
+            int minHours = getSystemSettingInt("BOOKING_MINOR_MODIFICATION_MIN_HOURS", 24);
+            if (hoursUntilStart < minHours) {
+                throw new RuntimeException(
+                        String.format("Sửa đổi đơn hàng phải thực hiện trước %d giờ khởi hành. " +
+                                "Còn %d giờ trước khi khởi hành.", minHours, hoursUntilStart)
+                );
+            }
+        }
+        
+        log.info("[Booking] Modification allowed: isMajorChange={}, hoursUntilStart={}", isMajorChange, hoursUntilStart);
+    }
+    
+    /**
+     * Validation: Kiểm tra xem có thể hủy booking không
+     * - Chỉ cho phép trước khi khởi hành
+     * - Hủy: được phép nhưng có phạt cọc theo quy định
+     * (Dùng cho delete/cancel, không dùng cho update)
      */
     private void validateCanCancelOrModify(Bookings booking, String action) {
         // Lấy thời gian khởi hành từ trips
         List<Trips> trips = tripRepository.findByBooking_Id(booking.getId());
         if (trips == null || trips.isEmpty()) {
-            // Không có trip, cho phép hủy/sửa đổi
+            // Không có trip, cho phép hủy
             return;
         }
         
@@ -1283,6 +1430,13 @@ public class BookingServiceImpl implements BookingService {
                 .min(Instant::compareTo)
                 .orElse(null);
         
+        // Tính paidAmount từ invoices
+        BigDecimal paidAmount = invoiceRepository.calculatePaidAmountByBookingId(
+                booking.getId(),
+                InvoiceType.INCOME,
+                PaymentStatus.PAID);
+        if (paidAmount == null) paidAmount = BigDecimal.ZERO;
+        
         return BookingListResponse.builder()
                 .id(booking.getId())
                 .customerName(booking.getCustomer().getFullName())
@@ -1290,6 +1444,8 @@ public class BookingServiceImpl implements BookingService {
                 .routeSummary(routeSummary)
                 .startDate(startDate)
                 .totalCost(booking.getTotalCost())
+                .depositAmount(booking.getDepositAmount())
+                .paidAmount(paidAmount)
                 .status(booking.getStatus() != null ? booking.getStatus().name() : null)
                 .createdAt(booking.getCreatedAt())
                 .consultantId(booking.getConsultant() != null ? booking.getConsultant().getEmployeeId() : null)

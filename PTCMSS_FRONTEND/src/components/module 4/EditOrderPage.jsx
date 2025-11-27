@@ -16,7 +16,6 @@ import {
     DollarSign,
     AlertTriangle,
     Save,
-    Send,
     Loader2,
     Navigation,
 } from "lucide-react";
@@ -193,8 +192,22 @@ export default function EditOrderPage() {
         React.useState(false);
 
     /* --- quyền sửa --- */
-    const canEdit =
-        status === "DRAFT" || status === "PENDING";
+    // Check: status phải là DRAFT/PENDING/CONFIRMED/ASSIGNED và còn >= 12h trước chuyến
+    const canEdit = React.useMemo(() => {
+        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT"];
+        if (!editableStatuses.includes(status)) return false;
+        
+        // Check thời gian: phải còn >= 12h trước chuyến
+        if (startTime) {
+            const tripStart = new Date(startTime);
+            const now = new Date();
+            const hoursUntilTrip = (tripStart - now) / (1000 * 60 * 60);
+            if (hoursUntilTrip < 12) {
+                return false; // Còn < 12h, không cho sửa
+            }
+        }
+        return true;
+    }, [status, startTime]);
 
     // helper ISO
     const toIsoZ = (s) => {
@@ -262,8 +275,30 @@ export default function EditOrderPage() {
                 setCustomerEmail(b.customer?.email || "");
                 setPickup(t.startLocation || "");
                 setDropoff(t.endLocation || "");
-                setStartTime((t.startTime || "").toString().replace("Z", ""));
-                setEndTime((t.endTime || "").toString().replace("Z", ""));
+                // Convert UTC to local datetime-local format (YYYY-MM-DDTHH:mm)
+                if (t.startTime) {
+                    const d = new Date(t.startTime);
+                    if (!Number.isNaN(d.getTime())) {
+                        // Format as local datetime-local: YYYY-MM-DDTHH:mm
+                        const localStr = d.getFullYear() + '-' +
+                            String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                            String(d.getDate()).padStart(2, '0') + 'T' +
+                            String(d.getHours()).padStart(2, '0') + ':' +
+                            String(d.getMinutes()).padStart(2, '0');
+                        setStartTime(localStr);
+                    }
+                }
+                if (t.endTime) {
+                    const d2 = new Date(t.endTime);
+                    if (!Number.isNaN(d2.getTime())) {
+                        const localStr2 = d2.getFullYear() + '-' +
+                            String(d2.getMonth() + 1).padStart(2, '0') + '-' +
+                            String(d2.getDate()).padStart(2, '0') + 'T' +
+                            String(d2.getHours()).padStart(2, '0') + ':' +
+                            String(d2.getMinutes()).padStart(2, '0');
+                        setEndTime(localStr2);
+                    }
+                }
                 setDistanceKm(String(t.distance || ""));
                 const qty = Array.isArray(b.vehicles) ? b.vehicles.reduce((s, v) => s + (v.quantity || 0), 0) : 1;
                 const catId = Array.isArray(b.vehicles) && b.vehicles.length ? String(b.vehicles[0].vehicleCategoryId) : "";
@@ -421,24 +456,23 @@ export default function EditOrderPage() {
             status: "DRAFT",
         };
 
+        // Lưu nháp: giữ nguyên status hiện tại (hoặc PENDING nếu chưa có)
         const req = {
             customer: { fullName: customerName, phone: customerPhone, email: customerEmail },
             branchId: Number(branchId || 0) || undefined,
-            trips: [{ startLocation: pickup, endLocation: dropoff, startTime: toIsoZ(startTime), endTime: toIsoZ(endTime) }],
+            trips: [{ startLocation: pickup, endLocation: dropoff, startTime: toIsoZ(startTime), endTime: toIsoZ(endTime), distance: distanceKm ? Number(distanceKm) : undefined }],
             vehicles: [{ vehicleCategoryId: Number(categoryId || 0), quantity: Number(vehiclesNeeded || 1) }],
             estimatedCost: Number(systemPrice || 0),
             discountAmount: cleanDiscount,
             totalCost: Number(finalPrice || 0),
-            status: 'PENDING',
+            // Không thay đổi status khi lưu nháp
         };
         try {
             await updateBooking(orderId, req);
-            setStatus('PENDING');
-            pushToast('Đã lưu nháp đơn hàng.', 'success');
-            // quay về danh sách và yêu cầu refresh
-            navigate('/orders', { state: { refresh: true, toast: 'Đã lưu nháp đơn hàng.' } });
-        } catch {
-            pushToast('Lưu nháp thất bại', 'error');
+            pushToast('Đã lưu thay đổi.', 'success');
+            navigate('/orders', { state: { refresh: true, toast: 'Đã lưu thay đổi.' } });
+        } catch (err) {
+            pushToast('Lưu thất bại: ' + (err.response?.data?.message || err.message || 'Lỗi không xác định'), 'error');
         }
 
         setSubmittingDraft(false);
@@ -502,7 +536,7 @@ export default function EditOrderPage() {
         const req2 = {
             customer: { fullName: customerName, phone: customerPhone, email: customerEmail },
             branchId: Number(branchId || 0) || undefined,
-            trips: [{ startLocation: pickup, endLocation: dropoff, startTime: toIsoZ(startTime), endTime: toIsoZ(endTime) }],
+            trips: [{ startLocation: pickup, endLocation: dropoff, startTime: toIsoZ(startTime), endTime: toIsoZ(endTime), distance: distanceKm ? Number(distanceKm) : undefined }],
             vehicles: [{ vehicleCategoryId: Number(categoryId || 0), quantity: Number(vehiclesNeeded || 1) }],
             estimatedCost: Number(systemPrice || 0),
             discountAmount: cleanDiscount,
@@ -512,11 +546,10 @@ export default function EditOrderPage() {
         try {
             await updateBooking(orderId, req2);
             setStatus('PENDING');
-            pushToast('Đã cập nhật đơn hàng & chuyển trạng thái PENDING.', 'success');
-            // quay về danh sách và yêu cầu refresh
+            pushToast('Đã cập nhật đơn hàng.', 'success');
             navigate('/orders', { state: { refresh: true, toast: 'Đã cập nhật đơn hàng.' } });
-        } catch {
-            pushToast('Cập nhật đơn thất bại', 'error');
+        } catch (err) {
+            pushToast('Cập nhật đơn thất bại: ' + (err.response?.data?.message || err.message || 'Lỗi không xác định'), 'error');
         }
 
         setSubmittingUpdate(false);
@@ -559,17 +592,37 @@ export default function EditOrderPage() {
         : { disabled: true, readOnly: true };
 
     /* ---------------- locked banner ---------------- */
-    const lockedBanner = !canEdit ? (
+    const lockedReason = React.useMemo(() => {
+        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT"];
+        if (!editableStatuses.includes(status)) {
+            return `Đơn hàng ở trạng thái ${ORDER_STATUS_LABEL[status] || status}. Không thể chỉnh sửa.`;
+        }
+        if (startTime) {
+            // startTime đã được convert sang local format (YYYY-MM-DDTHH:mm)
+            const tripStart = new Date(startTime);
+            const now = new Date();
+            const diffMs = tripStart.getTime() - now.getTime();
+            const hoursUntilTrip = diffMs / (1000 * 60 * 60);
+            
+            if (hoursUntilTrip < 12) {
+                const absHours = Math.abs(hoursUntilTrip);
+                const hours = Math.floor(absHours);
+                const minutes = Math.floor((absHours - hours) * 60);
+                
+                if (hoursUntilTrip < 0) {
+                    return `Chuyến đi đã diễn ra ${hours} giờ ${minutes} phút trước. Không thể chỉnh sửa.`;
+                }
+                return `Chỉ còn ${hours} giờ ${minutes} phút trước chuyến đi. Cần >= 12 giờ để chỉnh sửa.`;
+            }
+        }
+        return null;
+    }, [status, startTime]);
+
+    const lockedBanner = !canEdit && lockedReason ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[12px] flex items-start gap-2 px-3 py-2">
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
             <div className="leading-relaxed">
-                Đơn hàng ở trạng thái{" "}
-                <span className="font-semibold">
-                    {ORDER_STATUS_LABEL[status] ||
-                        status}
-                </span>
-                . Thay đổi nội dung phải thông qua
-                Điều phối viên.
+                {lockedReason}
             </div>
         </div>
     ) : null;
@@ -610,12 +663,12 @@ export default function EditOrderPage() {
                 </div>
 
                 <div className="flex flex-col gap-2 w-full max-w-[250px]">
-                    {/* Cập nhật đơn (PENDING) */}
+                    {/* Lưu thay đổi */}
                     <button
                         disabled={
-                            !canEdit || submittingUpdate
+                            !canEdit || submittingDraft
                         }
-                        onClick={onSubmitOrder}
+                        onClick={onSaveDraft}
                         className={cls(
                             "rounded-md font-medium text-[13px] px-4 py-2 flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed",
                             canEdit
@@ -623,29 +676,10 @@ export default function EditOrderPage() {
                                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
                         )}
                     >
-                        <Send className="h-4 w-4" />
-                        {submittingUpdate
-                            ? "Đang cập nhật..."
-                            : "Cập nhật đơn (PENDING)"}
-                    </button>
-
-                    {/* Lưu nháp */}
-                    <button
-                        disabled={
-                            !canEdit || submittingDraft
-                        }
-                        onClick={onSaveDraft}
-                        className={cls(
-                            "rounded-md border text-[13px] px-4 py-2 flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed",
-                            canEdit
-                                ? "border-slate-300 bg-white hover:bg-slate-50 text-slate-700"
-                                : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                        )}
-                    >
-                        <Save className="h-4 w-4 text-slate-500" />
+                        <Save className="h-4 w-4" />
                         {submittingDraft
                             ? "Đang lưu..."
-                            : "Lưu nháp"}
+                            : "Lưu thay đổi"}
                     </button>
                 </div>
             </div>
