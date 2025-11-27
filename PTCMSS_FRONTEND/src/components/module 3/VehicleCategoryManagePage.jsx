@@ -148,7 +148,11 @@ function StatusPill({ status }) {
 /* ---------------------- Modal Create Category ------------------------ */
 function VehicleCategoryCreateModal({ open, onClose, onCreated }) {
     const [name, setName] = React.useState("");
-const [seats, setSeats] = React.useState("");
+    const [seats, setSeats] = React.useState("");
+    const [baseFee, setBaseFee] = React.useState("");
+    const [sameDayFixedPrice, setSameDayFixedPrice] = React.useState("");
+    const [pricePerKm, setPricePerKm] = React.useState("");
+    const [status, setStatus] = React.useState("ACTIVE");
     const [loading, setLoading] = React.useState(false);
     const [touchedName, setTouchedName] = React.useState(false);
     const [touchedSeats, setTouchedSeats] = React.useState(false);
@@ -158,6 +162,10 @@ const [seats, setSeats] = React.useState("");
         if (open) {
             setName("");
             setSeats("");
+            setBaseFee("");
+            setSameDayFixedPrice("");
+            setPricePerKm("");
+            setStatus("ACTIVE");
             setTouchedName(false);
             setTouchedSeats(false);
         }
@@ -167,6 +175,9 @@ const [seats, setSeats] = React.useState("");
 
     const cleanDigits = (s) => s.replace(/[^0-9]/g, "");
     const seatsNum = Number(cleanDigits(seats));
+    const baseFeeNum = baseFee ? Number(cleanDigits(baseFee)) : null;
+    const sameDayFixedPriceNum = sameDayFixedPrice ? Number(cleanDigits(sameDayFixedPrice)) : null;
+    const pricePerKmNum = pricePerKm ? Number(cleanDigits(pricePerKm)) : null;
 
     const nameError = name.trim().length === 0;
     const seatsError = isNaN(seatsNum) || seatsNum <= 0;
@@ -180,7 +191,10 @@ const [seats, setSeats] = React.useState("");
             id: Date.now(),
             name: name.trim(),
             seats: seatsNum,
-            status: "ACTIVE",
+            baseFee: baseFeeNum,
+            sameDayFixedPrice: sameDayFixedPriceNum,
+            pricePerKm: pricePerKmNum,
+            status: status,
             vehicles_count: 0,
         };
 
@@ -223,58 +237,122 @@ const [seats, setSeats] = React.useState("");
                 </div>
 
                 {/* body */}
-                <div className="px-5 py-4 space-y-5 text-[13px]">
-                    {/* Name */}
-                    <div>
-                        <div className="text-[12px] text-slate-600 mb-1">
-                            Tên danh mục <span className="text-red-500">*</span>
+                <div className="px-5 py-4 space-y-4 text-[13px] max-h-[60vh] overflow-y-auto">
+                    {/* Name & Seats - 2 columns */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* Name */}
+                        <div>
+                            <div className="text-[12px] text-slate-600 mb-1">
+                                Tên danh mục <span className="text-red-500">*</span>
+                            </div>
+                            <input
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                onBlur={() => setTouchedName(true)}
+                                className={cls(
+                                    "w-full rounded-md border px-3 py-2 text-[13px]",
+                                    touchedName && nameError
+                                        ? "border-red-400 bg-red-50"
+                                        : "border-slate-300 bg-white",
+                                    "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                )}
+                                placeholder="Xe 7 chỗ"
+                            />
+                            {touchedName && nameError && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Tên danh mục không được để trống.
+                                </div>
+                            )}
                         </div>
 
-                        <input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            onBlur={() => setTouchedName(true)}
-                            className={cls(
-                                "w-full rounded-md border px-3 py-2 text-[13px]",
-                                touchedName && nameError
-                                    ? "border-red-400 bg-red-50"
-: "border-slate-300 bg-white",
-                                "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
-                            )}
-                        />
-                        {touchedName && nameError && (
-                            <div className="text-[11px] text-red-500 mt-1">
-                                Tên danh mục không được để trống.
+                        {/* Seats */}
+                        <div>
+                            <div className="text-[12px] text-slate-600 mb-1">
+                                Số ghế <span className="text-red-500">*</span>
                             </div>
-                        )}
+                            <input
+                                value={seats}
+                                onChange={(e) => setSeats(cleanDigits(e.target.value))}
+                                onBlur={() => setTouchedSeats(true)}
+                                inputMode="numeric"
+                                className={cls(
+                                    "w-full rounded-md border px-3 py-2 text-[13px] tabular-nums",
+                                    touchedSeats && seatsError
+                                        ? "border-red-400 bg-red-50"
+                                        : "border-slate-300 bg-white",
+                                    "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                )}
+                                placeholder="7"
+                            />
+                            {touchedSeats && seatsError && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Số ghế phải là số {'>'} 0.
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Seats */}
-                    <div>
-                        <div className="text-[12px] text-slate-600 mb-1">
-                            Số ghế <span className="text-red-500">*</span>
+                    {/* Pricing fields - 2 columns */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* Phí mở cửa */}
+                        <div>
+                            <div className="text-[12px] text-slate-600 mb-1">
+                                Phí mở cửa (VNĐ)
+                            </div>
+                            <input
+                                value={baseFee}
+                                onChange={(e) => setBaseFee(cleanDigits(e.target.value))}
+                                inputMode="numeric"
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                placeholder="50000"
+                            />
                         </div>
 
-                        <input
-                            value={seats}
-                            onChange={(e) => setSeats(cleanDigits(e.target.value))}
-                            onBlur={() => setTouchedSeats(true)}
-                            inputMode="numeric"
-                            className={cls(
-                                "w-full rounded-md border px-3 py-2 text-[13px] tabular-nums",
-                                touchedSeats && seatsError
-                                    ? "border-red-400 bg-red-50"
-                                    : "border-slate-300 bg-white",
-                                "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
-                            )}
-                            placeholder="7"
-                        />
-
-                        {touchedSeats && seatsError && (
-                            <div className="text-[11px] text-red-500 mt-1">
-                                Số ghế phải là số {'>'} 0.
+                        {/* Giá theo km */}
+                        <div>
+                            <div className="text-[12px] text-slate-600 mb-1">
+                                Giá theo km (VNĐ)
                             </div>
-                        )}
+                            <input
+                                value={pricePerKm}
+                                onChange={(e) => setPricePerKm(cleanDigits(e.target.value))}
+                                inputMode="numeric"
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                placeholder="15000"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Giá cố định/ngày & Status - 2 columns */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* Giá cố định/ngày */}
+                        <div>
+                            <div className="text-[12px] text-slate-600 mb-1">
+                                Giá cố định/ngày (VNĐ)
+                            </div>
+                            <input
+                                value={sameDayFixedPrice}
+                                onChange={(e) => setSameDayFixedPrice(cleanDigits(e.target.value))}
+                                inputMode="numeric"
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                placeholder="1500000"
+                            />
+                        </div>
+
+                        {/* Status */}
+                        <div>
+                            <div className="text-[12px] text-slate-600 mb-1">
+                                Trạng thái
+                            </div>
+                            <select
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value)}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                            >
+                                <option value="ACTIVE">Đang hoạt động</option>
+                                <option value="INACTIVE">Ngưng hoạt động</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
