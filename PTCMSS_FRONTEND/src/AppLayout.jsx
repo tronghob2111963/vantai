@@ -53,6 +53,7 @@ const SIDEBAR_SECTIONS = [
       // { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
       { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
       { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN] },
+      { label: "Danh sách khách hàng", to: "/admin/customers", roles: [ROLES.ADMIN] },
       // { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
     ],
   },
@@ -166,6 +167,7 @@ import CreateBranchPage from "./components/module 1/CreateBranchPage.jsx";
 import AdminBranchesPage from "./components/module 1/AdminBranchesPage.jsx";
 import AdminBranchDetailPage from "./components/module 1/AdminBranchDetailPage.jsx";
 import AdminUsersPage from "./components/module 1/AdminUsersPage.jsx";
+import CustomerListPage from "./components/module 1/CustomerListPage.jsx";
 import CreateUserPage from "./components/module 1/CreateUserPage.jsx";
 import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
 import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
@@ -881,6 +883,14 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
                 <UserDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/customers"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN]}>
+                <CustomerListPage />
               </ProtectedRoute>
             }
           />
