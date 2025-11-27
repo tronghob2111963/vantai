@@ -53,9 +53,21 @@ public class BranchServiceImpl implements BranchService {
 
     @Override
     public BranchResponse createBranch(CreateBranchRequest request) {
+        // Validate branch name doesn't contain "chi nhánh" or "Chi nhánh"
+        String branchName = request.getBranchName().trim();
+        if (branchName.toLowerCase().contains("chi nhánh")) {
+            throw new RuntimeException("Tên chi nhánh không được chứa cụm từ 'chi nhánh'");
+        }
+        
+        // Check for duplicate branch name
+        if (branchesRepository.existsByBranchNameIgnoreCase(branchName)) {
+            throw new RuntimeException("Tên chi nhánh đã tồn tại trong hệ thống");
+        }
+        
         Branches branch = new Branches();
-        branch.setBranchName(request.getBranchName());
+        branch.setBranchName(branchName);
         branch.setLocation(request.getLocation());
+        
         if (request.getManagerId() != null) {
             Employees manager = employeeRepository.findByUserId(request.getManagerId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy employee tương ứng với userId: " + request.getManagerId()));
@@ -63,6 +75,13 @@ public class BranchServiceImpl implements BranchService {
         }
         branch.setStatus(BranchStatus.ACTIVE);
         branchesRepository.save(branch);
+        
+        // Get manager phone from User entity
+        String managerPhone = null;
+        if (branch.getManager() != null && branch.getManager().getUser() != null) {
+            managerPhone = branch.getManager().getUser().getPhone();
+        }
+        
         return BranchResponse.builder()
                 .id(branch.getId())
                 .branchName(branch.getBranchName())
@@ -70,6 +89,7 @@ public class BranchServiceImpl implements BranchService {
                 .managerName(branch.getManager() != null && branch.getManager().getUser() != null 
                         ? branch.getManager().getUser().getFullName() : null)
                 .location(branch.getLocation())
+                .phone(managerPhone)
                 .status(branch.getStatus().name())
                 .employeeCount(0)
                 .build();
@@ -79,9 +99,32 @@ public class BranchServiceImpl implements BranchService {
     public Integer updateBranch(Integer id, UpdateBranchRequest request) {
         Branches branch = branchesRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
-        branch.setBranchName(request.getBranchName());
-        branch.setLocation(request.getLocation());
-        branch.setStatus(request.getStatus());
+        
+        // Validate branch name if it's being updated
+        if (request.getBranchName() != null) {
+            String branchName = request.getBranchName().trim();
+            
+            // Check if name contains "chi nhánh"
+            if (branchName.toLowerCase().contains("chi nhánh")) {
+                throw new RuntimeException("Tên chi nhánh không được chứa cụm từ 'chi nhánh'");
+            }
+            
+            // Check for duplicate branch name (excluding current branch)
+            if (branchesRepository.existsByBranchNameIgnoreCaseAndIdNot(branchName, id)) {
+                throw new RuntimeException("Tên chi nhánh đã tồn tại trong hệ thống");
+            }
+            
+            branch.setBranchName(branchName);
+        }
+        
+        if (request.getLocation() != null) {
+            branch.setLocation(request.getLocation());
+        }
+        
+        if (request.getStatus() != null) {
+            branch.setStatus(request.getStatus());
+        }
+        
         if (request.getManagerId() != null) {
             Employees manager = employeeRepository.findByUserId(request.getManagerId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy employee tương ứng với userId: " + request.getManagerId()));
@@ -126,6 +169,13 @@ public class BranchServiceImpl implements BranchService {
     public BranchResponse getBranchById(Integer id) {
         Branches branch = branchesRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
+        
+        // Get manager phone from User entity
+        String managerPhone = null;
+        if (branch.getManager() != null && branch.getManager().getUser() != null) {
+            managerPhone = branch.getManager().getUser().getPhone();
+        }
+        
         return BranchResponse.builder()
                 .id(branch.getId())
                 .branchName(branch.getBranchName())
@@ -133,6 +183,7 @@ public class BranchServiceImpl implements BranchService {
                 .managerName(branch.getManager() != null && branch.getManager().getUser() != null 
                         ? branch.getManager().getUser().getFullName() : null)
                 .location(branch.getLocation())
+                .phone(managerPhone)
                 .status(branch.getStatus().name())
                 .employeeCount((int) employeeRepository.countActiveByBranchId(branch.getId(), EmployeeStatus.INACTIVE))
                 .build();
@@ -159,10 +210,17 @@ public class BranchServiceImpl implements BranchService {
             throw new RuntimeException("Employee chưa được gán chi nhánh");
         }
 
+        // Get manager phone from User entity
+        String managerPhone = null;
+        if (branch.getManager() != null && branch.getManager().getUser() != null) {
+            managerPhone = branch.getManager().getUser().getPhone();
+        }
+        
         return BranchResponse.builder()
                 .id(branch.getId())
                 .branchName(branch.getBranchName())
                 .location(branch.getLocation())
+                .phone(managerPhone)
                 .status(branch.getStatus().name())
                 .managerId(
                         branch.getManager() != null ?
@@ -188,16 +246,25 @@ public class BranchServiceImpl implements BranchService {
         }
 
         List<BranchResponse> branchResponse = branches.stream()
-                .map(branch -> BranchResponse.builder()
-                        .id(branch.getId())
-                        .branchName(branch.getBranchName())
-                        .managerId(branch.getManager() != null ? branch.getManager().getEmployeeId() : null)
-                        .managerName(branch.getManager() != null && branch.getManager().getUser() != null
-                                ? branch.getManager().getUser().getFullName() : null)
-                        .location(branch.getLocation())
-                        .status(branch.getStatus().name())
-                        .employeeCount(employeeCounts.getOrDefault(branch.getId(), 0))
-                        .build())
+                .map(branch -> {
+                    // Get manager phone from User entity
+                    String managerPhone = null;
+                    if (branch.getManager() != null && branch.getManager().getUser() != null) {
+                        managerPhone = branch.getManager().getUser().getPhone();
+                    }
+                    
+                    return BranchResponse.builder()
+                            .id(branch.getId())
+                            .branchName(branch.getBranchName())
+                            .managerId(branch.getManager() != null ? branch.getManager().getEmployeeId() : null)
+                            .managerName(branch.getManager() != null && branch.getManager().getUser() != null
+                                    ? branch.getManager().getUser().getFullName() : null)
+                            .location(branch.getLocation())
+                            .phone(managerPhone)
+                            .status(branch.getStatus().name())
+                            .employeeCount(employeeCounts.getOrDefault(branch.getId(), 0))
+                            .build();
+                })
                 .toList();
         return PageResponse.<List<BranchResponse>>builder()
                 .items(branchResponse)
