@@ -159,6 +159,7 @@ import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
 import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
 import UpdateProfilePage from "./components/module 1/UpdateProfilePage.jsx";
 import LoginPage from "./components/module 1/LoginPage.jsx";
+import SetPasswordPage from "./components/module 1/SetPasswordPage.jsx";
 import VerificationSuccessPage from "./components/module 1/VerificationSuccessPage.jsx";
 import VerificationErrorPage from "./components/module 1/VerificationErrorPage.jsx";
 
@@ -700,6 +701,7 @@ export default function AppLayout() {
       <Routes>
         {/* Trang đăng nhập không dùng shell */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
         <Route path="/verification-success" element={<VerificationSuccessPage />} />
         <Route path="/verification-error" element={<VerificationErrorPage />} />
         <Route path="/" element={<RoleRedirect />} />

@@ -276,6 +276,7 @@ function TripCard({
   onFinish,
   loading,
   backendStatus,
+  isTripToday = true, // Default to true for backward compatibility
 }) {
   if (!activeTrip) {
     return (
@@ -400,40 +401,48 @@ function TripCard({
 
       {/* actions */}
       {isCurrent ? (
-        <div className="flex flex-wrap gap-3 pt-5 border-t border-slate-200">
-          <ActionButton
-            active={phase === "READY"}
-            color="start"
-            icon={<PlayCircle className="h-4 w-4 shrink-0 text-sky-700" />}
-            label="Bắt đầu chuyến"
-            onClick={onStart}
-            loading={loading}
-          />
-          <ActionButton
-            active={phase === "ON_ROUTE"}
-            color="picked"
-            icon={
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-700" />
-            }
-            label="Đã đón khách"
-            onClick={onPicked}
-            loading={false}
-          />
-          <ActionButton
-            active={phase === "PICKED"}
-            color="finish"
-            icon={<Flag className="h-4 w-4 shrink-0 text-amber-700" />}
-            label="Hoàn thành chuyến"
-            onClick={onFinish}
-            loading={loading}
-          />
+        <div className="flex flex-col gap-3 pt-5 border-t border-slate-200">
+          {!isTripToday && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 px-3 py-2 text-xs flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              <span>Chỉ có thể cập nhật trạng thái chuyến trong ngày diễn ra</span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <ActionButton
+              active={phase === "READY" && isTripToday}
+              color="start"
+              icon={<PlayCircle className="h-4 w-4 shrink-0 text-sky-700" />}
+              label="Bắt đầu chuyến"
+              onClick={onStart}
+              loading={loading}
+            />
+            <ActionButton
+              active={phase === "ON_ROUTE" && isTripToday}
+              color="picked"
+              icon={
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-700" />
+              }
+              label="Đã đón khách"
+              onClick={onPicked}
+              loading={false}
+            />
+            <ActionButton
+              active={phase === "PICKED" && isTripToday}
+              color="finish"
+              icon={<Flag className="h-4 w-4 shrink-0 text-amber-700" />}
+              label="Hoàn thành chuyến"
+              onClick={onFinish}
+              loading={loading}
+            />
 
-          <div className="text-[11px] text-slate-500 font-mono ml-auto self-center">
-            ID: <span className="text-slate-700">{t.trip_id}</span>
+            <div className="text-[11px] text-slate-500 font-mono ml-auto self-center">
+              ID: <span className="text-slate-700">{t.trip_id}</span>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-2 pt-5 border-t border-slate-200 text-xs text-slate-500 leading-relaxed">
+        <div className="flex flex-wrap items-center gap-2 pt-5 border-slate-200 text-xs text-slate-500 leading-relaxed">
           Chuyến này chưa bắt đầu · Bạn sẽ được nhắc khi đến giờ đón.
         </div>
       )}
@@ -665,6 +674,18 @@ export default function DriverDashboard() {
     }
     : null;
 
+  // Check if trip is today
+  const isTripToday = React.useMemo(() => {
+    if (!trip?.pickupTime) return false;
+    const tripDate = new Date(trip.pickupTime);
+    const today = new Date();
+    return (
+      tripDate.getDate() === today.getDate() &&
+      tripDate.getMonth() === today.getMonth() &&
+      tripDate.getFullYear() === today.getFullYear()
+    );
+  }, [trip?.pickupTime]);
+
   // demo notifications – sau này có thể lấy từ API khác
   const notifications = [
     {
@@ -761,6 +782,7 @@ export default function DriverDashboard() {
           onFinish={handleComplete}
           loading={tripLoading}
           backendStatus={trip?.status}
+          isTripToday={isTripToday}
         />
 
         <div className="flex flex-col gap-6">

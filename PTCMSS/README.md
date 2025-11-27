@@ -77,7 +77,6 @@ Hệ thống sử dụng **29 tables chính** được tổ chức theo modules:
 | `users` | Thông tin người dùng (login, email, phone) |
 | `roles` | Vai trò hệ thống (Admin, Manager, Consultant, Driver, Accountant) |
 | `employees` | Nhân viên (liên kết user với branch và role) |
-| `token` | JWT tokens (access & refresh) |
 
 ### Module 2: Driver Management
 | Table | Mô tả |
@@ -108,7 +107,6 @@ Hệ thống sử dụng **29 tables chính** được tổ chức theo modules:
 | `trip_vehicles` | Gán xe cho chuyến đi |
 | `trip_assignment_history` | Lịch sử gán/hủy gán |
 | `trip_incidents` | Sự cố trong chuyến đi |
-| `trip_route_cache` | Cache thông tin route từ SerpAPI |
 
 ### Module 6: Financial Management
 | Table | Mô tả |
@@ -116,7 +114,6 @@ Hệ thống sử dụng **29 tables chính** được tổ chức theo modules:
 | `invoices` | Hóa đơn thu/chi |
 | `invoice_items` | Chi tiết dòng hóa đơn |
 | `payment_history` | Lịch sử thanh toán |
-| `accounts_receivable` | Công nợ phải thu |
 | `debt_reminder_history` | Lịch sử nhắc nợ |
 | `expense_requests` | Yêu cầu chi phí |
 
