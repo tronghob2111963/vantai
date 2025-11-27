@@ -522,12 +522,17 @@ export default function DriverDashboard() {
         const upcoming = Array.isArray(schedule)
           ? schedule
               .filter((t) => {
-                // Filter for future trips only
+                // Filter for today's trips only
                 const tripDate = new Date(t.startTime || t.start_time);
-                const now = new Date();
-                return tripDate > now && t.status === "SCHEDULED";
+                const today = new Date();
+                return (
+                  tripDate.getDate() === today.getDate() &&
+                  tripDate.getMonth() === today.getMonth() &&
+                  tripDate.getFullYear() === today.getFullYear() &&
+                  t.status === "SCHEDULED"
+                );
               })
-              .slice(0, 5) // Show max 5 upcoming trips
+              .slice(0, 10) // Show max 10 today's trips
               .map((t) => ({
                 tripId: t.tripId || t.trip_id,
                 pickupAddress: t.startLocation || t.start_location || "—",
@@ -745,7 +750,7 @@ export default function DriverDashboard() {
       )}
 
       {/* STATS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <StatsCard
           icon={Clock}
           label="Số chuyến hôm nay"
@@ -759,15 +764,9 @@ export default function DriverDashboard() {
         />
         <StatsCard
           icon={Calendar}
-          label="Ngày nghỉ đã dùng"
+          label="Số buổi nghỉ trong tháng"
           value={`${stats.daysOffUsed}/${stats.daysOffAllowed}`}
-          sublabel="Trong tháng này"
-        />
-        <StatsCard
-          icon={AlertCircle}
-          label="Ngày nghỉ còn lại"
-          value={stats.daysOffAllowed - stats.daysOffUsed}
-          sublabel="Có thể xin nghỉ"
+          sublabel="Đã nghỉ / Cho phép"
         />
       </div>
 
@@ -798,7 +797,7 @@ export default function DriverDashboard() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600 ring-1 ring-inset ring-sky-100 shadow-sm">
               <Calendar className="h-4 w-4" />
             </div>
-            <div className="flex-1">Chuyến sắp tới</div>
+            <div className="flex-1">Chuyến hôm nay</div>
             <div className="text-[11px] text-slate-500">{upcomingTrips.length} chuyến</div>
           </div>
 

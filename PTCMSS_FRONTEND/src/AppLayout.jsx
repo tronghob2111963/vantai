@@ -15,6 +15,7 @@ import {
   Search,
   Shield,
   LayoutDashboard,
+  Briefcase,
 } from "lucide-react";
 import { logout as apiLogout } from "./api/auth";
 import {
@@ -35,23 +36,23 @@ const SIDEBAR_SECTIONS = [
     sectionId: "analytics",
     icon: BarChart3,
     label: "Báo cáo & Phân tích",
-    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    roles: [ROLES.ADMIN],
     items: [
       { label: "Dashboard Công ty", to: "/analytics/admin", roles: [ROLES.ADMIN] },
-      { label: "Dashboard Chi nhánh", to: "/analytics/manager", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Dashboard Chi nhánh", to: "/analytics/manager", roles: [ROLES.ADMIN] },
     ],
   },
   {
     sectionId: "admin",
     icon: Settings,
     label: "Quản trị hệ thống",
-    roles: [ROLES.ADMIN, ROLES.MANAGER],
+    roles: [ROLES.ADMIN],
     items: [
       { label: "Cấu hình hệ thống", to: "/admin/settings", roles: [ROLES.ADMIN] },
-      { label: "Danh sách chi nhánh", to: "/admin/branches", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Danh sách chi nhánh", to: "/admin/branches", roles: [ROLES.ADMIN] },
       // { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
       { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
-      { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN, ROLES.MANAGER] },
+      { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN] },
       { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
     ],
   },
@@ -88,42 +89,56 @@ const SIDEBAR_SECTIONS = [
     label: "Báo giá & Đơn hàng",
     roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
     items: [
-      { label: "Bảng CSKH / Báo giá", to: "/orders/dashboard", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
+      { label: "Bảng điều khiển tư vấn viên", to: "/orders/dashboard", roles: [ROLES.ADMIN, ROLES.CONSULTANT] },
       {
         label: "Danh sách đơn hàng",
         to: "/orders",
-        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
+        roles: [ROLES.ADMIN, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
       },
-      { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT] },
-      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR] },
+      { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.CONSULTANT] },
+      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
     ],
   },
   {
     sectionId: "dispatch",
     icon: CalendarClock,
     label: "Điều phối / Lịch chạy",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR],
+    roles: [ROLES.ADMIN, ROLES.COORDINATOR],
     items: [
-      { label: "Bảng điều phối", to: "/dispatch" },
+      { label: "Bảng điều phối", to: "/dispatch", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
       { label: "Danh sách đơn", to: "/coordinator/orders", roles: [ROLES.COORDINATOR] },
-      { label: "Đơn chưa gán chuyến", to: "/dispatch/pending", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR] },
       { label: "Danh sách tài xế", to: "/coordinator/drivers", roles: [ROLES.COORDINATOR] },
       { label: "Danh sách xe", to: "/coordinator/vehicles", roles: [ROLES.COORDINATOR] },
-      { label: "Cảnh báo & Chờ duyệt", to: "/dispatch/notifications-dashboard" },
-      { label: "Tạo yêu cầu thanh toán", to: "/dispatch/expense-request" },
-      { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR] },
+      { label: "Cảnh báo chờ duyệt", to: "/dispatch/notifications-dashboard", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
+      { label: "Tạo yêu cầu thanh toán", to: "/dispatch/expense-request", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
+      { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
     ],
   },
   {
     sectionId: "accounting",
     icon: DollarSign,
     label: "Kế toán & Thanh toán",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT],
+    roles: [ROLES.ADMIN, ROLES.ACCOUNTANT],
     items: [
-      { label: "Tổng quan kế toán", to: "/accounting", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
-      { label: "Hóa đơn / Thanh toán", to: "/accounting/invoices", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
-      { label: "Báo cáo chi phí", to: "/accounting/expenses", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
-      { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT] },
+      { label: "Tổng quan kế toán", to: "/accounting", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
+      { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
+      { label: "Báo cáo chi phí", to: "/accounting/expenses", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
+      { label: "Danh sách hóa đơn", to: "/accounting/invoices", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
+      { label: "Danh sách đơn hàng", to: "/orders", roles: [ROLES.ACCOUNTANT] },
+      { label: "Danh sách nhân viên", to: "/admin/users", roles: [ROLES.ACCOUNTANT] },
+    ],
+  },
+  {
+    sectionId: "manager",
+    icon: Briefcase,
+    label: "Quản lý chi nhánh",
+    roles: [ROLES.MANAGER],
+    items: [
+      { label: "Tổng quan chi nhánh", to: "/analytics/manager" },
+      { label: "Báo cáo chi phí", to: "/accounting/expenses" },
+      { label: "Danh sách đơn hàng", to: "/orders" },
+      { label: "Danh sách nhân viên", to: "/admin/users" },
+      { label: "Danh sách xe", to: "/vehicles" },
     ],
   },
 ];
@@ -933,7 +948,7 @@ export default function AppLayout() {
           <Route
             path="/orders/new"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.CONSULTANT]}>
                 <CreateOrderPage />
               </ProtectedRoute>
             }
@@ -951,7 +966,7 @@ export default function AppLayout() {
           <Route
             path="/orders/:orderId/edit"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.CONSULTANT, ROLES.COORDINATOR]}>
                 <EditOrderPage />
               </ProtectedRoute>
             }
@@ -961,7 +976,7 @@ export default function AppLayout() {
           <Route
             path="/dispatch"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
                 <CoordinatorTimelinePro />
               </ProtectedRoute>
             }
@@ -969,7 +984,7 @@ export default function AppLayout() {
           <Route
             path="/dispatch/pending"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
                 <PendingTripsPage />
               </ProtectedRoute>
             }
@@ -977,7 +992,7 @@ export default function AppLayout() {
           <Route
             path="/dispatch/notifications-dashboard"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
                 <NotificationsDashboard />
               </ProtectedRoute>
             }
@@ -985,7 +1000,7 @@ export default function AppLayout() {
           <Route
             path="/dispatch/expense-request"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
                 <ExpenseRequestForm />
               </ProtectedRoute>
             }
@@ -993,7 +1008,7 @@ export default function AppLayout() {
           <Route
             path="/dispatch/ratings"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
                 <RatingManagementPage />
               </ProtectedRoute>
             }
@@ -1001,7 +1016,7 @@ export default function AppLayout() {
           <Route
             path="/drivers/:driverId/ratings"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
                 <DriverRatingsPage />
               </ProtectedRoute>
             }
@@ -1037,7 +1052,7 @@ export default function AppLayout() {
           <Route
             path="/accounting"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT]}>
                 <AccountantDashboard />
               </ProtectedRoute>
             }
@@ -1061,7 +1076,7 @@ export default function AppLayout() {
           <Route
             path="/accounting/revenue-report"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT]}>
                 <ReportRevenuePage />
               </ProtectedRoute>
             }

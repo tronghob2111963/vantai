@@ -10,6 +10,7 @@ import org.example.ptcmssbackend.enums.*;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.NotificationService;
 import org.example.ptcmssbackend.service.SystemSettingService;
+import org.example.ptcmssbackend.service.WebSocketNotificationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +19,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,6 +38,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final UsersRepository userRepository;
     private final TripDriverRepository tripDriverRepository;
     private final SystemSettingService systemSettingService;
+    private final WebSocketNotificationService webSocketNotificationService;
     
     private static final int EXPIRY_WARNING_DAYS = 30; // Cảnh báo trước 30 ngày
     private static final int CRITICAL_WARNING_DAYS = 7; // Cảnh báo khẩn cấp trước 7 ngày
@@ -375,6 +376,8 @@ public class NotificationServiceImpl implements NotificationService {
         
         // Cập nhật entity liên quan
         updateRelatedEntity(history, true);
+
+        notifyRequester(history, true);
         
         return mapToApprovalItemResponse(history);
     }
@@ -402,8 +405,26 @@ public class NotificationServiceImpl implements NotificationService {
         
         // Cập nhật entity liên quan
         updateRelatedEntity(history, false);
+
+        notifyRequester(history, false);
         
         return mapToApprovalItemResponse(history);
+    }
+
+    private void notifyRequester(ApprovalHistory history, boolean approved) {
+        Users requester = history.getRequestedBy();
+        if (requester == null || requester.getId() == null) {
+            return;
+        }
+        String title = approved ? "Yêu cầu đã được duyệt" : "Yêu cầu bị từ chối";
+        String detail = history.getApprovalType() == ApprovalType.EXPENSE_REQUEST
+                ? "Yêu cầu chi phí #" + history.getRelatedEntityId()
+                : "Yêu cầu #" + history.getRelatedEntityId();
+        String message = approved
+                ? detail + " đã được duyệt."
+                : detail + " bị từ chối" + (history.getApprovalNote() != null ? ": " + history.getApprovalNote() : ".");
+        String type = approved ? "SUCCESS" : "ERROR";
+        webSocketNotificationService.sendUserNotification(requester.getId(), title, message, type);
     }
     
     private void updateRelatedEntity(ApprovalHistory history, boolean approved) {

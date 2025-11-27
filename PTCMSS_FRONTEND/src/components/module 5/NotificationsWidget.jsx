@@ -599,6 +599,23 @@ export default function NotificationsWidget() {
                                     title="Thông báo của bạn"
                                     count={wsNotifications.length}
                                 />
+                                
+                                {/* Connection Status for Driver */}
+                                <div className="px-4 py-2 mb-2">
+                                    <div className="flex items-center gap-2 text-xs">
+                                        {connected ? (
+                                            <>
+                                                <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                                <span className="text-green-600">Đã kết nối</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                                                <span className="text-red-600">Mất kết nối</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
 
                                 {wsNotifications.length === 0 && (
                                     <div className="flex flex-col items-center justify-center px-4 py-12 text-center">

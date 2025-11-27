@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { listUsers, listUsersByBranch, listRoles, toggleUserStatus } from "../../api/users";
 import { listEmployeesByRole } from "../../api/employees";
-import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield } from "lucide-react";
+import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, UserPlus } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
 
@@ -93,6 +93,16 @@ export default function AdminUsersPage() {
     (records) => {
       const source = Array.isArray(records) ? records : [];
       return source.filter((u) => {
+        // For Manager role, filter out users with role >= Manager (only show subordinates)
+        if (isManagerView) {
+          const userRoleName = String(u.roleName || "").trim().toLowerCase();
+          // Define role hierarchy: Admin > Manager > Consultant > Driver > Accountant
+          const managerOrHigherRoles = ["admin", "manager", "quản lý", "quản trị viên"];
+          if (managerOrHigherRoles.includes(userRoleName)) {
+            return false; // Hide Manager and Admin roles from Manager view
+          }
+        }
+
         if (normalizedKeyword) {
           const haystack = `${u.fullName || ""} ${u.email || ""} ${u.phone || ""}`.toLowerCase();
           if (!haystack.includes(normalizedKeyword)) return false;
@@ -108,7 +118,7 @@ export default function AdminUsersPage() {
         return true;
       });
     },
-    [normalizedKeyword, selectedRoleName, normalizedStatus]
+    [normalizedKeyword, selectedRoleName, normalizedStatus, isManagerView]
   );
 
   const [allUsers, setAllUsers] = React.useState([]);
@@ -210,19 +220,31 @@ export default function AdminUsersPage() {
                 Quản trị hệ thống
               </div>
               <h1 className="text-xl font-bold text-slate-900 leading-tight">
-                Quản lý người dùng
+                {isManagerView ? "Danh sách nhân viên" : "Quản lý người dùng"}
               </h1>
-              <p className="text-xs text-slate-500 mt-1">Quản lý tài khoản và phân quyền người dùng</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {isManagerView ? "Quản lý nhân viên trong chi nhánh" : "Quản lý tài khoản và phân quyền người dùng"}
+              </p>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <button 
-              onClick={onRefresh} 
-              disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))} 
+            {isManagerView && (
+              <button
+                onClick={() => navigate('/admin/users/new')}
+                className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                style={{ backgroundColor: BRAND_COLOR }}
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Thêm nhân viên</span>
+              </button>
+            )}
+            <button
+              onClick={onRefresh}
+              disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50 transition-all active:scale-[0.98]"
             >
-              <RefreshCw className={cls("h-4 w-4", loading && "animate-spin")} /> 
+              <RefreshCw className={cls("h-4 w-4", loading && "animate-spin")} />
               <span>Làm mới</span>
             </button>
           </div>

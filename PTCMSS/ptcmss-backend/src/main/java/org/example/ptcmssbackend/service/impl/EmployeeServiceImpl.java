@@ -232,4 +232,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         return savedEmployee;
     }
 
+    @Override
+    public Employees findByUserId(Integer userId) {
+        return employeeRepository.findByUserId(userId).orElse(null);
+    }
 }

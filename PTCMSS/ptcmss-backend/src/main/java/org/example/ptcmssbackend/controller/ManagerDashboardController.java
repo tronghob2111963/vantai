@@ -67,16 +67,17 @@ public class ManagerDashboardController {
 
     /**
      * Get driver performance for branch
-     * GET /api/v1/manager/analytics/driver-performance?branchId=1&limit=5
+     * GET /api/v1/manager/analytics/driver-performance?branchId=1&limit=5&period=THIS_MONTH
      */
     @GetMapping("/analytics/driver-performance")
     @Operation(summary = "Get top driver performance")
     public ResponseEntity<List<Map<String, Object>>> getDriverPerformance(
             @RequestParam Integer branchId,
-            @RequestParam(required = false, defaultValue = "5") Integer limit
+            @RequestParam(required = false, defaultValue = "5") Integer limit,
+            @RequestParam(required = false, defaultValue = "THIS_MONTH") String period
     ) {
-        log.info("GET /api/v1/manager/analytics/driver-performance - branchId: {}, limit: {}", branchId, limit);
-        List<Map<String, Object>> performance = analyticsService.getDriverPerformance(branchId, limit);
+        log.info("GET /api/v1/manager/analytics/driver-performance - branchId: {}, limit: {}, period: {}", branchId, limit, period);
+        List<Map<String, Object>> performance = analyticsService.getDriverPerformance(branchId, limit, period);
         return ResponseEntity.ok(performance);
     }
 

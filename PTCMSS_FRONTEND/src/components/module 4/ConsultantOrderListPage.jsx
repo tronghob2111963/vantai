@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { listVehicleCategories } from "../../api/vehicleCategories";
 import { listBookings, createBooking } from "../../api/bookings";
 import { listBranches } from "../../api/branches";
+import { getEmployeeByUserId } from "../../api/employees";
+import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import {
     ClipboardList,
     PlusCircle,
@@ -118,6 +120,9 @@ function Toasts({ toasts }) {
 const ORDER_STATUS = {
     DRAFT: "DRAFT",
     PENDING: "PENDING",
+    QUOTATION_SENT: "QUOTATION_SENT",
+    CONFIRMED: "CONFIRMED",
+    INPROGRESS: "INPROGRESS",
     ASSIGNED: "ASSIGNED",
     COMPLETED: "COMPLETED",
     CANCELLED: "CANCELLED",
@@ -126,41 +131,36 @@ const ORDER_STATUS = {
 const ORDER_STATUS_LABEL = {
     DRAFT: "Nháp",
     PENDING: "Chờ xử lý",
+    QUOTATION_SENT: "Đã gửi báo giá",
+    CONFIRMED: "Khách đã xác nhận",
+    INPROGRESS: "Đang thực hiện",
     ASSIGNED: "Đã phân xe",
     COMPLETED: "Hoàn thành",
     CANCELLED: "Đã huỷ",
 };
 
-function OrderStatusPill({ status }) {
-    let colorCls = "";
-    if (status === "DRAFT") {
-        colorCls =
-            "bg-slate-100 text-slate-700 ring-1 ring-slate-300";
-    } else if (status === "PENDING") {
-        colorCls =
-            "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
-    } else if (status === "ASSIGNED") {
-        colorCls =
-            "bg-sky-50 text-sky-700 ring-1 ring-sky-200";
-    } else if (status === "COMPLETED") {
-        colorCls =
-            "bg-amber-50 text-amber-700 ring-1 ring-emerald-200";
-    } else if (status === "CANCELLED") {
-        colorCls =
-            "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
-    } else {
-        colorCls =
-            "bg-slate-100 text-slate-700 ring-1 ring-slate-300";
-    }
+const ORDER_STATUS_STYLE = {
+    DRAFT: "bg-slate-100 text-slate-700 ring-1 ring-slate-300",
+    PENDING: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+    QUOTATION_SENT: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200",
+    CONFIRMED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+    INPROGRESS: "bg-sky-50 text-sky-700 ring-1 ring-sky-200",
+    ASSIGNED: "bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200",
+    COMPLETED: "bg-lime-50 text-lime-700 ring-1 ring-lime-200",
+    CANCELLED: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
+};
 
+function OrderStatusPill({ status }) {
+    const label = ORDER_STATUS_LABEL[status] || status;
+    const style = ORDER_STATUS_STYLE[status] || ORDER_STATUS_STYLE.DRAFT;
     return (
         <span
             className={cls(
-                "inline-flex items-center rounded-md px-2 py-[2px] text-[11px] font-medium whitespace-nowrap",
-                colorCls
+                "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium",
+                style
             )}
         >
-            {ORDER_STATUS_LABEL[status] || status}
+            {label}
         </span>
     );
 }
@@ -286,20 +286,23 @@ function FilterBar({
     onClickCreate,
     onRefresh,
     loadingRefresh,
+    showCreateButton = true, // Add prop to control button visibility
 }) {
     return (
         <div className="flex flex-col lg:flex-row lg:flex-wrap gap-3">
-            {/* CTA tạo đơn hàng mới */}
-            <div className="flex items-center gap-2">
-                <button
-                    className="rounded-md bg-sky-600 hover:bg-sky-500 text-white font-medium text-[13px] px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 flex items-center gap-2"
-                    onClick={onClickCreate}
-                    type="button"
-                >
-                    <PlusCircle className="h-4 w-4" />
-                    <span>Tạo đơn hàng mới</span>
-                </button>
-            </div>
+            {/* CTA tạo đơn hàng mới - Hidden for Manager */}
+            {showCreateButton && (
+                <div className="flex items-center gap-2">
+                    <button
+                        className="rounded-md bg-sky-600 hover:bg-sky-500 text-white font-medium text-[13px] px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 flex items-center gap-2"
+                        onClick={onClickCreate}
+                        type="button"
+                    >
+                        <PlusCircle className="h-4 w-4" />
+                        <span>Tạo đơn hàng mới</span>
+                    </button>
+                </div>
+            )}
 
             {/* grow */}
             <div className="flex-1" />
@@ -380,6 +383,7 @@ function OrdersTable({
     setSortDir,
     onViewDetail,
     onEdit,
+    showActions = true, // Add prop to control actions column visibility
 }) {
     const headerCell = (key, label) => (
         <th
@@ -421,11 +425,15 @@ function OrdersTable({
                         {headerCell("customer_name", "Khách hàng")}
                         {headerCell("pickup", "Lịch trình")}
                         {headerCell("pickup_time", "Ngày đi")}
-                        {headerCell("quoted_price", "Giá trị")}
+                        {headerCell("estimated_cost", "Chi phí tạm tính")}
+                        {headerCell("deposit_amount", "Đã thu")}
+                        {headerCell("quoted_price", "Tổng tiền")}
                         {headerCell("status", "Trạng thái")}
-                        <th className="px-3 py-2 font-medium text-slate-500 text-[12px]">
-                            Hành động
-                        </th>
+                        {showActions && (
+                            <th className="px-3 py-2 font-medium text-slate-500 text-[12px]">
+                                Hành động
+                            </th>
+                        )}
                     </tr>
                 </thead>
 
@@ -487,7 +495,17 @@ function OrdersTable({
                                 </div>
                             </td>
 
-                            {/* Giá trị */}
+                            {/* Chi phí tạm tính (estimatedCost) */}
+                            <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums text-slate-700">
+                                {fmtVND((o.estimated_cost || o.quoted_price || 0) + (o.discount_amount || 0))}
+                            </td>
+
+                            {/* Đã thu (deposit amount) */}
+                            <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums text-emerald-700 font-semibold">
+                                {fmtVND(o.deposit_amount || 0)}
+                            </td>
+
+                            {/* Tổng tiền (renamed from Giá trị) */}
                             <td className="px-3 py-2 text-[13px] whitespace-nowrap tabular-nums">
                                 <div className="flex items-start gap-1 text-amber-600 font-semibold">
                                     <DollarSign className="h-3.5 w-3.5 text-amber-600 mt-0.5" />
@@ -500,48 +518,50 @@ function OrdersTable({
                                 ) : null}
                             </td>
 
-                            {/* Trạng thái */}
+                            {/* Trạng thái - Vietnamese labels */}
                             <td className="px-3 py-2 text-[13px] whitespace-nowrap">
                                 <OrderStatusPill status={o.status} />
                             </td>
 
-                            {/* Actions */}
-                            <td className="px-3 py-2 text-[13px] whitespace-nowrap">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <button
-                                        type="button"
-                                        onClick={() => onViewDetail(o)}
-                                        className="rounded-md border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm"
-                                    >
-                                        <Eye className="h-3.5 w-3.5" />
-                                        <span>Chi tiết</span>
-                                    </button>
+                            {/* Actions - Hidden for Manager */}
+                            {showActions && (
+                                <td className="px-3 py-2 text-[13px] whitespace-nowrap">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <button
+                                            type="button"
+                                            onClick={() => onViewDetail(o)}
+                                            className="rounded-md border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm"
+                                        >
+                                            <Eye className="h-3.5 w-3.5" />
+                                            <span>Chi tiết</span>
+                                        </button>
 
-                                    <button
-                                        type="button"
-                                        disabled={!canEdit(o.status)}
-                                        onClick={() => {
-                                            if (canEdit(o.status)) onEdit(o);
-                                        }}
-                                        className={cls(
-                                            "rounded-md border px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm",
-                                            canEdit(o.status)
-                                                ? "border-amber-300 text-amber-700 bg-white hover:bg-amber-50"
-                                                : "border-slate-200 text-slate-400 bg-white cursor-not-allowed opacity-50"
-                                        )}
-                                    >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                        <span>Sửa</span>
-                                    </button>
-                                </div>
-                            </td>
+                                        <button
+                                            type="button"
+                                            disabled={!canEdit(o.status)}
+                                            onClick={() => {
+                                                if (canEdit(o.status)) onEdit(o);
+                                            }}
+                                            className={cls(
+                                                "rounded-md border px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm",
+                                                canEdit(o.status)
+                                                    ? "border-amber-300 text-amber-700 bg-white hover:bg-amber-50"
+                                                    : "border-slate-200 text-slate-400 bg-white cursor-not-allowed opacity-50"
+                                            )}
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                            <span>Sửa</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            )}
                         </tr>
                     ))}
 
                     {current.length === 0 && (
                         <tr>
                             <td
-                                colSpan={7}
+                                colSpan={showActions ? 9 : 8}
                                 className="px-3 py-6 text-center text-slate-500 text-[13px]"
                             >
                                 Không có đơn hàng phù hợp.
@@ -1645,6 +1665,10 @@ export default function ConsultantOrdersPage() {
     const location = useLocation();
     const navigate = useNavigate();
 
+    // Check current user role
+    const currentRole = React.useMemo(() => getCurrentRole(), []);
+    const isManager = currentRole === ROLES.MANAGER;
+
     // filters
     const [statusFilter, setStatusFilter] = React.useState("");
     const [dateFilter, setDateFilter] = React.useState("");
@@ -1716,6 +1740,8 @@ export default function ConsultantOrdersPage() {
                         vehicle_category_id: b.vehicleCategoryId || "",
                         vehicle_count: b.vehicleCount || b.quantity || 1,
                         pax_count: b.passengerCount || b.paxCount || 0,
+                        estimated_cost: b.estimatedCost || b.estimated_cost || 0,
+                        deposit_amount: b.depositAmount || b.deposit_amount || b.deposit || 0,
                         quoted_price: b.totalCost || b.totalPrice || b.total || 0,
                         discount_amount: b.discountAmount || b.discount || 0,
                         notes: b.notes || b.note || "",
@@ -1782,6 +1808,8 @@ export default function ConsultantOrdersPage() {
                             vehicle_category_id: b.vehicleCategoryId || "",
                             vehicle_count: b.vehicleCount || b.quantity || 1,
                             pax_count: b.passengerCount || b.paxCount || 0,
+                            estimated_cost: b.estimatedCost || b.estimated_cost || 0,
+                            deposit_amount: b.depositAmount || b.deposit_amount || b.deposit || 0,
                             quoted_price: b.totalCost || b.totalPrice || b.total || 0,
                             discount_amount: b.discountAmount || b.discount || 0,
                             notes: b.notes || b.note || "",
@@ -2077,6 +2105,7 @@ export default function ConsultantOrdersPage() {
                     onClickCreate={handleCreate}
                     onRefresh={handleRefresh}
                     loadingRefresh={loadingRefresh}
+                    showCreateButton={!isManager}
                 />
             </div>
 
@@ -2105,6 +2134,7 @@ export default function ConsultantOrdersPage() {
                     setSortDir={setSortDir}
                     onViewDetail={handleViewDetail}
                     onEdit={handleEdit}
+                    showActions={!isManager}
                 />
 
                 <div className="px-4 py-2 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50">

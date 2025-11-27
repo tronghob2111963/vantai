@@ -87,7 +87,7 @@ public class NotificationController {
             summary = "Lấy danh sách yêu cầu chờ duyệt",
             description = "Lấy tất cả yêu cầu pending (nghỉ phép, tạm ứng, giảm giá, etc.)"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @GetMapping("/approvals/pending")
     public ResponseData<List<ApprovalItemResponse>> getPendingApprovals(
             @RequestParam(required = false) Integer branchId) {
@@ -104,7 +104,7 @@ public class NotificationController {
             summary = "Lấy danh sách yêu cầu đã xử lý",
             description = "Lấy các yêu cầu đã được duyệt hoặc từ chối (APPROVED + REJECTED)"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @GetMapping("/approvals/processed")
     public ResponseData<List<ApprovalItemResponse>> getProcessedApprovals(
             @RequestParam(required = false) Integer branchId,
@@ -122,7 +122,7 @@ public class NotificationController {
             summary = "Phê duyệt yêu cầu",
             description = "Approve một yêu cầu (nghỉ phép, tạm ứng, etc.)"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     @PostMapping("/approvals/{historyId}/approve")
     public ResponseData<ApprovalItemResponse> approveRequest(
             @PathVariable Integer historyId,
@@ -147,7 +147,7 @@ public class NotificationController {
             summary = "Từ chối yêu cầu",
             description = "Reject một yêu cầu (nghỉ phép, tạm ứng, etc.)"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
     @PostMapping("/approvals/{historyId}/reject")
     public ResponseData<ApprovalItemResponse> rejectRequest(
             @PathVariable Integer historyId,

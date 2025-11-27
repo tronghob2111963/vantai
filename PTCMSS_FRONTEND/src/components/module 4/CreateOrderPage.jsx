@@ -780,6 +780,23 @@ export default function CreateOrderPage() {
                 push("Thời gian kết thúc phải sau thời gian đón", "error");
                 return;
             }
+
+            // Check minimum duration based on hire type
+            const durationHours = (endDate - startDate) / (1000 * 60 * 60);
+            let minDuration = 1; // Default 1 hour for ONE_WAY
+            
+            if (hireType === "ROUND_TRIP") {
+                minDuration = 2; // Minimum 2 hours for round trip
+            } else if (hireType === "DAILY") {
+                minDuration = 8; // Minimum 8 hours for daily hire
+            }
+            
+            if (durationHours < minDuration) {
+                const hireTypeLabel = hireType === "ONE_WAY" ? "một chiều" : 
+                                    hireType === "ROUND_TRIP" ? "hai chiều" : "theo ngày";
+                push(`Thời gian thuê ${hireTypeLabel} tối thiểu ${minDuration} giờ`, "error");
+                return;
+            }
         }
 
         setLoadingDraft(true);
@@ -862,6 +879,23 @@ export default function CreateOrderPage() {
             // Check if end time is after start time
             if (endDate <= startDate) {
                 push("Thời gian kết thúc phải sau thời gian đón", "error");
+                return;
+            }
+
+            // Check minimum duration based on hire type
+            const durationHours = (endDate - startDate) / (1000 * 60 * 60);
+            let minDuration = 1; // Default 1 hour for ONE_WAY
+            
+            if (hireType === "ROUND_TRIP") {
+                minDuration = 2; // Minimum 2 hours for round trip
+            } else if (hireType === "DAILY") {
+                minDuration = 8; // Minimum 8 hours for daily hire
+            }
+            
+            if (durationHours < minDuration) {
+                const hireTypeLabel = hireType === "ONE_WAY" ? "một chiều" : 
+                                    hireType === "ROUND_TRIP" ? "hai chiều" : "theo ngày";
+                push(`Thời gian thuê ${hireTypeLabel} tối thiểu ${minDuration} giờ`, "error");
                 return;
             }
         }
