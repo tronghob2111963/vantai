@@ -18,48 +18,6 @@ USE `ptcmss_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `accounts_receivable`
---
-
-DROP TABLE IF EXISTS `accounts_receivable`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `accounts_receivable` (
-  `arId` int NOT NULL AUTO_INCREMENT,
-  `customerId` int NOT NULL,
-  `bookingId` int DEFAULT NULL,
-  `invoiceId` int DEFAULT NULL,
-  `totalAmount` decimal(18,2) DEFAULT NULL,
-  `paidAmount` decimal(18,2) DEFAULT NULL,
-  `remainingAmount` decimal(18,2) GENERATED ALWAYS AS ((`totalAmount` - `paidAmount`)) STORED,
-  `dueDate` date DEFAULT NULL,
-  `lastPaymentDate` date DEFAULT NULL,
-  `status` enum('UNPAID','PARTIALLYPAID','PAID') COLLATE utf8mb4_unicode_ci DEFAULT 'UNPAID',
-  `note` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`arId`),
-  KEY `fk_ar_customer` (`customerId`),
-  KEY `fk_ar_booking` (`bookingId`),
-  KEY `fk_ar_invoice` (`invoiceId`),
-  KEY `IX_AR_Status_DueDate` (`status`,`dueDate`),
-  CONSTRAINT `fk_ar_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`),
-  CONSTRAINT `fk_ar_customer` FOREIGN KEY (`customerId`) REFERENCES `customers` (`customerId`),
-  CONSTRAINT `fk_ar_invoice` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `accounts_receivable`
---
-
-LOCK TABLES `accounts_receivable` WRITE;
-/*!40000 ALTER TABLE `accounts_receivable` DISABLE KEYS */;
-INSERT INTO `accounts_receivable` (`arId`, `customerId`, `bookingId`, `invoiceId`, `totalAmount`, `paidAmount`, `dueDate`, `lastPaymentDate`, `status`, `note`, `createdAt`, `updatedAt`) VALUES (1,2,1,2,3800000.00,3800000.00,'2025-10-25',NULL,'PAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(2,4,2,3,1200000.00,500000.00,'2025-10-28',NULL,'PARTIALLYPAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(3,1,3,4,25000000.00,25000000.00,'2025-11-01',NULL,'PAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(4,3,4,NULL,15000000.00,500000.00,'2025-11-10',NULL,'PARTIALLYPAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(5,5,5,5,1000000.00,1000000.00,'2025-10-29',NULL,'PAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08');
-/*!40000 ALTER TABLE `accounts_receivable` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `approval_history`
 --
 
@@ -481,29 +439,6 @@ INSERT INTO `employees` VALUES (1,1,1,1,'ACTIVE'),(2,2,1,2,'INACTIVE'),(3,3,2,2,
 UNLOCK TABLES;
 
 --
--- Table structure for table `expense_request_attachments`
---
-
-DROP TABLE IF EXISTS `expense_request_attachments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `expense_request_attachments` (
-  `expenseRequestId` int NOT NULL,
-  `fileUrl` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  KEY `FKgjxq6bf6u84jyf7k07w0vuldw` (`expenseRequestId`),
-  CONSTRAINT `FKgjxq6bf6u84jyf7k07w0vuldw` FOREIGN KEY (`expenseRequestId`) REFERENCES `expense_requests` (`expenseRequestId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `expense_request_attachments`
---
-
-LOCK TABLES `expense_request_attachments` WRITE;
-/*!40000 ALTER TABLE `expense_request_attachments` DISABLE KEYS */;
-/*!40000 ALTER TABLE `expense_request_attachments` ENABLE KEYS */;
-UNLOCK TABLES;
-
 --
 -- Table structure for table `expense_requests`
 --
@@ -919,35 +854,6 @@ INSERT INTO `system_settings` VALUES (1,'VAT_RATE','0.08','2025-01-01',NULL,'dec
 /*!40000 ALTER TABLE `system_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
---
--- Table structure for table `token`
---
-
-DROP TABLE IF EXISTS `token`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `token` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `access_token` text COLLATE utf8mb4_unicode_ci,
-  `refresh_token` text COLLATE utf8mb4_unicode_ci,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`),
-  KEY `IX_Token_Username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `token`
---
-
-LOCK TABLES `token` WRITE;
-/*!40000 ALTER TABLE `token` DISABLE KEYS */;
-INSERT INTO `token` VALUES (1,'admin','eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInVzZXJJZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInN1YiI6ImFkbWluIiwiaWF0IjoxNzYyOTIxNDIyLCJleHAiOjE3NjMxMzc0MjJ9.B6lgYql6AAW8nE_Yn7tjYBnfSAhPHC1aErXFljdknZI','eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInVzZXJJZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInN1YiI6ImFkbWluIiwiaWF0IjoxNzYyOTIxNDIyLCJleHAiOjE3NjMzNTM0MjJ9.xOJWEaSPAFCE2zQft41ycQLksI2dnurwElI1nR0BLBU');
-/*!40000 ALTER TABLE `token` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `trip_assignment_history`
 --
 
@@ -1043,44 +949,6 @@ CREATE TABLE `trip_incidents` (
 LOCK TABLES `trip_incidents` WRITE;
 /*!40000 ALTER TABLE `trip_incidents` DISABLE KEYS */;
 /*!40000 ALTER TABLE `trip_incidents` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `trip_route_cache`
---
-
-DROP TABLE IF EXISTS `trip_route_cache`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `trip_route_cache` (
-  `cacheId` int NOT NULL AUTO_INCREMENT,
-  `startLocation` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `endLocation` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `distance` decimal(10,2) NOT NULL COMMENT 'Distance in kilometers',
-  `duration` int NOT NULL COMMENT 'Duration in minutes',
-  `startLatitude` decimal(10,8) DEFAULT NULL,
-  `startLongitude` decimal(11,8) DEFAULT NULL,
-  `endLatitude` decimal(10,8) DEFAULT NULL,
-  `endLongitude` decimal(11,8) DEFAULT NULL,
-  `routeData` json DEFAULT NULL,
-  `trafficStatus` enum('LIGHT','MODERATE','HEAVY','UNKNOWN') COLLATE utf8mb4_unicode_ci DEFAULT 'UNKNOWN' COMMENT 'Traffic status when cached',
-  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `expiresAt` datetime NOT NULL DEFAULT ((now() + interval 7 day)),
-  `hitCount` int DEFAULT '0' COMMENT 'Number of times this cache was used',
-  `lastUsedAt` datetime DEFAULT NULL COMMENT 'Last time this cache was used',
-  PRIMARY KEY (`cacheId`),
-  KEY `IX_Cache_Locations` (`startLocation`(100),`endLocation`(100)),
-  KEY `IX_Cache_Expires` (`expiresAt`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Cache SerpAPI route calculations';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `trip_route_cache`
---
-
-LOCK TABLES `trip_route_cache` WRITE;
-/*!40000 ALTER TABLE `trip_route_cache` DISABLE KEYS */;
-/*!40000 ALTER TABLE `trip_route_cache` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1218,25 +1086,6 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `v_popularroutes`
---
-
-DROP TABLE IF EXISTS `v_popularroutes`;
-/*!50001 DROP VIEW IF EXISTS `v_popularroutes`*/;
-SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
-/*!50001 CREATE VIEW `v_popularroutes` AS SELECT 
- 1 AS `startLocation`,
- 1 AS `endLocation`,
- 1 AS `cacheEntryCount`,
- 1 AS `avgDistance`,
- 1 AS `avgDuration`,
- 1 AS `totalCacheHits`,
- 1 AS `lastUsed`,
- 1 AS `lastCached`*/;
-SET character_set_client = @saved_cs_client;
-
---
 -- Temporary view structure for view `v_tripdistanceanalytics`
 --
 
@@ -1364,17 +1213,6 @@ UNLOCK TABLES;
 /*!50001 DROP VIEW IF EXISTS `v_popularroutes`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
-/*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
-/*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_popularroutes` AS select `trc`.`startLocation` AS `startLocation`,`trc`.`endLocation` AS `endLocation`,count(0) AS `cacheEntryCount`,avg(`trc`.`distance`) AS `avgDistance`,avg(`trc`.`duration`) AS `avgDuration`,sum(`trc`.`hitCount`) AS `totalCacheHits`,max(`trc`.`lastUsedAt`) AS `lastUsed`,max(`trc`.`createdAt`) AS `lastCached` from `trip_route_cache` `trc` where (`trc`.`createdAt` >= (now() - interval 30 day)) group by `trc`.`startLocation`,`trc`.`endLocation` having (sum(`trc`.`hitCount`) > 0) order by `totalCacheHits` desc,`lastUsed` desc limit 100 */;
-/*!50001 SET character_set_client      = @saved_cs_client */;
-/*!50001 SET character_set_results     = @saved_cs_results */;
-/*!50001 SET collation_connection      = @saved_col_connection */;
-
 --
 -- Final view structure for view `v_tripdistanceanalytics`
 --

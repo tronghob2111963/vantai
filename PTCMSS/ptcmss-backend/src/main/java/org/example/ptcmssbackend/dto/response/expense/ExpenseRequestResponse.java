@@ -5,8 +5,6 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
-
 @Data
 @Builder
 public class ExpenseRequestResponse {
@@ -21,6 +19,5 @@ public class ExpenseRequestResponse {
     private String vehiclePlate;
     private Integer requesterUserId;
     private String requesterName;
-    private List<String> attachments;
     private Instant createdAt;
 }

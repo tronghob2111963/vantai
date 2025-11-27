@@ -9,7 +9,7 @@ import {
     FileText,
 } from "lucide-react";
 import { getCookie } from "../../utils/cookies";
-import { getDriverProfileByUser } from "../../api/drivers";
+import { getDriverProfileByUser, getDriverRequests } from "../../api/drivers";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
 
@@ -173,42 +173,28 @@ export default function DriverRequestsPage() {
                 const profile = await getDriverProfileByUser(uid);
                 if (!mounted) return;
 
-                // TODO: Gọi API lấy danh sách requests
-                // const list = await getDriverRequests(profile.driverId);
-
-                // Demo data
-                const demoRequests = [
-                    {
-                        id: 1,
+                // Get day-off requests (LEAVE type) from existing API
+                try {
+                    const { getDayOffHistory } = await import("../../api/drivers");
+                    const dayOffList = await getDayOffHistory(profile.driverId);
+                    
+                    // Transform day-off data to match request format
+                    const leaveRequests = (Array.isArray(dayOffList) ? dayOffList : []).map(item => ({
+                        id: item.dayOffId || item.id,
                         type: "LEAVE",
-                        status: "APPROVED",
-                        startDate: "2025-11-28",
-                        endDate: "2025-11-29",
-                        reason: "Việc gia đình",
-                        createdAt: "2025-11-20",
-                    },
-                    {
-                        id: 2,
-                        type: "PAYMENT",
-                        status: "PENDING",
-                        amount: 500000,
-                        tripId: 123,
-                        description: "Chi phí xăng và phí đường",
-                        createdAt: "2025-11-26",
-                    },
-                    {
-                        id: 3,
-                        type: "LEAVE",
-                        status: "REJECTED",
-                        startDate: "2025-12-01",
-                        endDate: "2025-12-02",
-                        reason: "Khám sức khỏe",
-                        rejectionReason: "Đã có chuyến được gán trong khoảng thời gian này",
-                        createdAt: "2025-11-25",
-                    },
-                ];
+                        status: item.status || "PENDING",
+                        createdAt: item.requestDate || item.createdAt,
+                        startDate: item.startDate,
+                        endDate: item.endDate,
+                        reason: item.reason,
+                        rejectionReason: item.rejectionReason,
+                    }));
 
-                setRequests(demoRequests);
+                    setRequests(leaveRequests);
+                } catch (requestErr) {
+                    console.warn("Could not load driver requests:", requestErr);
+                    setRequests([]);
+                }
             } catch (err) {
                 if (!mounted) return;
                 setError(

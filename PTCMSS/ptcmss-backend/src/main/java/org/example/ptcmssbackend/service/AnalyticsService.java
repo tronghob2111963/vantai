@@ -390,21 +390,25 @@ public class AnalyticsService {
         }
 
         /**
-         * Get driver performance for branch
+         * Get driver performance for branch (filtered by period)
          */
-        public List<Map<String, Object>> getDriverPerformance(Integer branchId, Integer limit) {
+        public List<Map<String, Object>> getDriverPerformance(Integer branchId, Integer limit, String period) {
+                Map<String, LocalDateTime> dates = getPeriodDates(period);
+                LocalDateTime startDate = dates.get("start");
+                LocalDateTime endDate = dates.get("end");
+
                 String sql = "SELECT " +
                                 "d.driverId, " +
                                 "u.fullName as driverName, " +
                                 "COUNT(DISTINCT t.tripId) as totalTrips, " +
                                 "COALESCE(SUM(t.distance), 0) as totalKm, " +
-                                "COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.tripId END) as completedTrips "
-                                +
+                                "COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.tripId END) as completedTrips " +
                                 "FROM drivers d " +
                                 "INNER JOIN employees e ON d.employeeId = e.employeeId " +
                                 "INNER JOIN users u ON e.userId = u.userId " +
                                 "LEFT JOIN trip_drivers td ON d.driverId = td.driverId " +
                                 "LEFT JOIN trips t ON td.tripId = t.tripId AND t.status = 'COMPLETED' " +
+                                "AND t.endTime BETWEEN ? AND ? " +
                                 "LEFT JOIN bookings bk ON t.bookingId = bk.bookingId " +
                                 "WHERE d.branchId = ? AND d.status != 'INACTIVE' " +
                                 "GROUP BY d.driverId, u.fullName " +
@@ -416,7 +420,7 @@ public class AnalyticsService {
                                 "driverName", rs.getString("driverName"),
                                 "totalTrips", rs.getLong("totalTrips"),
                                 "completedTrips", rs.getLong("completedTrips"),
-                                "totalKm", rs.getBigDecimal("totalKm")), branchId, limit);
+                                "totalKm", rs.getBigDecimal("totalKm")), startDate, endDate, branchId, limit);
         }
 
         /**

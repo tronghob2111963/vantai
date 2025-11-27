@@ -189,14 +189,14 @@ Tài liệu này phân tích so sánh các quy định business được cung c�
 - Báo cáo tình hình công nợ với giám đốc
 
 **Codebase hiện tại:**
-- ✅ Có bảng `accounts_receivable` (công nợ phải thu)
+- ⚠️ Không có bảng `accounts_receivable` nên công nợ không ghi nhận theo bản ghi riêng
 - ✅ Có bảng `debt_reminder_history` (lịch sử nhắc nợ)
 - ✅ Có role `ACCOUNTANT` (kế toán)
 - ✅ Có UI `DebtManagementPage` cho kế toán
 - ✅ Có chức năng nhắc nợ tự động
 - ✅ Có báo cáo công nợ
 
-**Đánh giá:** ✅ **ĐẦY ĐỦ**
+**Đánh giá:** ⚠️ **CHƯA CÓ** - Cần bổ sung bảng/entities chuyên biệt cho công nợ nếu muốn theo nghiệp vụ hiện tại.
 
 ---
 
@@ -207,11 +207,11 @@ Tài liệu này phân tích so sánh các quy định business được cung c�
 - Kế toán sử dụng để giải quyết công nợ
 
 **Codebase hiện tại:**
-- ✅ Có field `note`, `description` trong `accounts_receivable`
+- ⚠️ Không có bảng `accounts_receivable` nên không lưu `note/description` chuyên biệt
 - ⚠️ **THIẾU:** Field lưu trữ hợp đồng/thỏa thuận
 - ⚠️ **THIẾU:** Link đến file hợp đồng (nếu có)
 
-**Đánh giá:** ⚠️ **CHƯA ĐẦY ĐỦ** - Có thể cần thêm field lưu hợp đồng
+**Đánh giá:** ⚠️ **CHƯA ĐẦY ĐỦ** - Cần xây lại phần công nợ để đáp ứng yêu cầu.
 
 ---
 

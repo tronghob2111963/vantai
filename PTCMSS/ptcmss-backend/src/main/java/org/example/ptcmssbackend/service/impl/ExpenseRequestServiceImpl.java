@@ -14,13 +14,9 @@ import org.example.ptcmssbackend.repository.ExpenseRequestRepository;
 import org.example.ptcmssbackend.repository.UsersRepository;
 import org.example.ptcmssbackend.repository.VehicleRepository;
 import org.example.ptcmssbackend.service.ExpenseRequestService;
-import org.example.ptcmssbackend.service.LocalImageService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -32,11 +28,9 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
     private final BranchesRepository branchesRepository;
     private final VehicleRepository vehicleRepository;
     private final UsersRepository usersRepository;
-    private final LocalImageService localImageService;
-
     @Override
     @Transactional
-    public ExpenseRequestResponse createExpenseRequest(CreateExpenseRequest request, List<MultipartFile> attachments) {
+    public ExpenseRequestResponse createExpenseRequest(CreateExpenseRequest request) {
         Branches branch = branchesRepository.findById(request.getBranchId())
                 .orElseThrow(() -> new RuntimeException("Branch not found: " + request.getBranchId()));
 
@@ -60,16 +54,6 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
         entity.setAmount(request.getAmount());
         entity.setNote(request.getNote());
         entity.setStatus(ExpenseRequestStatus.PENDING);
-
-        List<String> attachmentUrls = new ArrayList<>();
-        if (attachments != null) {
-            for (MultipartFile file : attachments) {
-                if (file != null && !file.isEmpty()) {
-                    attachmentUrls.add(localImageService.saveImage(file));
-                }
-            }
-        }
-        entity.setAttachments(attachmentUrls);
 
         ExpenseRequests saved = expenseRequestRepository.save(entity);
         return mapToResponse(saved);
@@ -96,7 +80,6 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
                                 .map(Users::getFullName)
                                 .orElse(null)
                 )
-                .attachments(entity.getAttachments())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }

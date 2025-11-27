@@ -45,14 +45,6 @@ Nhân viên (liên kết user với branch)
 - status (ACTIVE, INACTIVE, ONLEAVE)
 ```
 
-#### `token`
-JWT tokens
-```sql
-- id (PK, AUTO_INCREMENT)
-- username (UNIQUE)
-- access_token, refresh_token
-```
-
 ---
 
 ### Module 2: Driver Management (3 tables)
@@ -231,19 +223,6 @@ Sự cố trong chuyến
 - createdAt
 ```
 
-#### `trip_route_cache`
-Cache route từ SerpAPI
-```sql
-- cacheId (PK, AUTO_INCREMENT)
-- startLocation, endLocation
-- startLatitude, startLongitude, endLatitude, endLongitude
-- distance, duration
-- routeData (JSON)
-- trafficStatus
-- createdAt, expiresAt
-- hitCount, lastUsedAt
-```
-
 ---
 
 ### Module 6: Financial Management (6 tables)
@@ -299,21 +278,6 @@ Lịch sử thanh toán
 - note
 - createdBy (FK -> employees)
 - createdAt
-```
-
-#### `accounts_receivable`
-Công nợ phải thu
-```sql
-- arId (PK, AUTO_INCREMENT)
-- customerId (FK -> customers)
-- bookingId (FK -> bookings)
-- invoiceId (FK -> invoices)
-- totalAmount, paidAmount
-- remainingAmount (calculated)
-- dueDate, lastPaymentDate
-- status (UNPAID, PARTIALLYPAID, PAID)
-- note
-- createdAt, updatedAt
 ```
 
 #### `debt_reminder_history`
@@ -439,19 +403,6 @@ SELECT
 FROM trips
 ```
 
-### `v_popularroutes`
-Tuyến đường phổ biến
-```sql
-SELECT 
-  startLocation, endLocation,
-  COUNT(*) as cacheEntryCount,
-  AVG(distance) as avgDistance,
-  SUM(hitCount) as totalCacheHits
-FROM trip_route_cache
-GROUP BY startLocation, endLocation
-ORDER BY totalCacheHits DESC
-```
-
 ---
 
 ## 🔗 Key Relationships
@@ -460,8 +411,6 @@ ORDER BY totalCacheHits DESC
 users ──┬── employees ──┬── drivers
         │               ├── branches (manager)
         │               └── consultants
-        │
-        └── token (1:1)
 
 bookings ──┬── trips ──┬── trip_drivers ── drivers
            │           ├── trip_vehicles ── vehicles
@@ -503,8 +452,8 @@ Các indexes quan trọng được tạo tự động:
 2. **Timestamps**: Hầu hết tables có `createdAt`, một số có `updatedAt`
 3. **Soft Delete**: Sử dụng `status` field thay vì xóa thật
 4. **Enums**: Nhiều fields sử dụng ENUM để đảm bảo data integrity
-5. **JSON Fields**: `routeData` trong trips và trip_route_cache
-6. **Calculated Fields**: `remainingAmount` trong accounts_receivable, `amount` trong invoice_items
+5. **JSON Fields**: `routeData` trong trips
+6. **Calculated Fields**: `amount` trong invoice_items
 7. **Charset**: utf8mb4_unicode_ci cho hỗ trợ tiếng Việt và emoji
 
 ---

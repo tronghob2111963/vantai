@@ -117,6 +117,22 @@ public class EmployeeController {
         );
     }
 
+    // ----------- API: Lấy nhân viên theo User ID -----------
+    @Operation(summary = "Lấy thông tin nhân viên theo User ID")
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseData<EmployeeResponse> getEmployeeByUserId(@PathVariable Integer userId) {
+        Employees employee = employeeService.findByUserId(userId);
+        if (employee == null) {
+            throw new RuntimeException("Employee not found for user id: " + userId);
+        }
+        return new ResponseData<>(
+                HttpStatus.OK.value(),
+                "Get employee by user id successfully",
+                employeeMapper.toDTO(employee)
+        );
+    }
+
     // ----------- API: Tạo nhân viên mới (với User ID có sẵn) -----------
     @Operation(
             summary = "Tạo mới nhân viên từ User có sẵn",
