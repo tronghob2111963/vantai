@@ -77,10 +77,7 @@ const SIDEBAR_SECTIONS = [
     roles: [ROLES.ADMIN, ROLES.MANAGER],
     items: [
       { label: "Danh sách xe", to: "/vehicles" },
-      // { label: "Tạo xe mới", to: "/vehicles/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Danh mục xe", to: "/vehicles/categories" },
-      { label: "Tạo danh mục", to: "/vehicles/categories/new", roles: [ROLES.ADMIN] },
-      // { label: "Chi tiết xe", to: "/vehicles/1" },
     ],
   },
   {
@@ -132,7 +129,7 @@ const SIDEBAR_SECTIONS = [
     sectionId: "manager",
     icon: Briefcase,
     label: "Quản lý chi nhánh",
-    roles: [ROLES.MANAGER],
+    roles: [ROLES.ADMIN, ROLES.MANAGER],
     items: [
       { label: "Tổng quan chi nhánh", to: "/analytics/manager" },
       { label: "Báo cáo chi phí", to: "/accounting/expenses" },
