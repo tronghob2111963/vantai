@@ -6,6 +6,8 @@ import org.example.ptcmssbackend.dto.response.notification.NotificationDashboard
 
 import java.util.List;
 
+import java.util.Map;
+
 public interface NotificationService {
     
     // Alerts
@@ -21,4 +23,7 @@ public interface NotificationService {
     
     // Dashboard
     NotificationDashboardResponse getDashboard(Integer branchId);
+    
+    // User notifications
+    Map<String, Object> getUserNotifications(Integer userId, int page, int limit);
 }

@@ -302,13 +302,39 @@ export default function DriverNotificationsPage() {
             const { getStoredUserId } = await import("../../utils/session");
             const userId = getStoredUserId();
             
+            console.log("[DriverNotifications] Loading for userId:", userId);
+            
             if (!userId) {
                 throw new Error("Bạn cần đăng nhập để xem thông báo");
             }
             
             const response = await getDriverNotifications({ userId, page, limit: pageSize });
-            const data = response?.data || response || [];
-            setNotifs(Array.isArray(data) ? data : []);
+            console.log("[DriverNotifications] API response:", response);
+            
+            // Response structure: { status, message, data: { data: [...], total, page, limit } }
+            let rawData = [];
+            if (response?.data?.data) {
+                rawData = response.data.data;
+            } else if (Array.isArray(response?.data)) {
+                rawData = response.data;
+            } else if (Array.isArray(response)) {
+                rawData = response;
+            }
+            
+            console.log("[DriverNotifications] Raw data:", rawData);
+            
+            // Transform to match component expected format
+            const data = (Array.isArray(rawData) ? rawData : []).map(n => ({
+                id: n.id,
+                title: n.title,
+                message: n.message || n.title,
+                type: n.type || "INFO",
+                unread: n.isRead === false || n.isRead === 0 || !n.isRead,
+                created_at: n.createdAt || n.created_at,
+            }));
+            
+            console.log("[DriverNotifications] Transformed data:", data);
+            setNotifs(data);
         } catch (err) {
             console.error("Failed to load notifications:", err);
             const errorMsg = err.message || "Lỗi không xác định";

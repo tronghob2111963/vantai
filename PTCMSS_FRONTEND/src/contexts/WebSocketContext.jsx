@@ -17,6 +17,81 @@ export const WebSocketProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const clientRef = useRef(null);
   const subscriptionsRef = useRef([]);
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
+  // Fetch initial notifications from database on mount
+  useEffect(() => {
+    if (initialLoaded) return;
+    
+    async function loadInitialNotifications() {
+      try {
+        // Try multiple ways to get userId
+        let userId = localStorage.getItem('userId');
+        if (!userId) {
+          const cookieMatch = document.cookie.match(/userId=(\d+)/);
+          userId = cookieMatch ? cookieMatch[1] : null;
+        }
+        if (!userId) {
+          // Try from session utils
+          try {
+            const { getStoredUserId } = await import('../utils/session');
+            userId = getStoredUserId();
+          } catch {}
+        }
+        
+        console.log('[WebSocket] Loading notifications for userId:', userId);
+        
+        if (!userId) {
+          console.warn('[WebSocket] No userId found, skipping notification load');
+          return;
+        }
+        
+        const { getDriverNotifications } = await import('../api/notifications');
+        const response = await getDriverNotifications({ userId: parseInt(userId), page: 1, limit: 20 });
+        console.log('[WebSocket] Full API response:', JSON.stringify(response, null, 2));
+        
+        // Response structure: { status, message, data: { data: [...], total, page, limit } }
+        let data = [];
+        if (response?.data?.data) {
+          data = response.data.data;
+        } else if (Array.isArray(response?.data)) {
+          data = response.data;
+        } else if (Array.isArray(response)) {
+          data = response;
+        }
+        
+        console.log('[WebSocket] Parsed notifications data:', data);
+        
+        if (Array.isArray(data) && data.length > 0) {
+          console.log('[WebSocket] Loaded', data.length, 'notifications from DB');
+          setNotifications(prev => {
+            // Merge with existing (avoid duplicates)
+            const existingIds = new Set(prev.map(n => n.id));
+            const newNotifs = data
+              .filter(n => !existingIds.has(n.id) && !existingIds.has(`db-${n.id}`))
+              .map(n => ({
+                id: `db-${n.id}`,
+                title: n.title,
+                message: n.message || n.title,
+                type: n.type || 'SUCCESS',
+                timestamp: n.createdAt,
+                read: n.isRead === true || n.isRead === 1,
+              }));
+            console.log('[WebSocket] Adding', newNotifs.length, 'new notifications');
+            return [...newNotifs, ...prev];
+          });
+        } else {
+          console.log('[WebSocket] No notifications found in response');
+        }
+      } catch (err) {
+        console.error('[WebSocket] Failed to load initial notifications:', err);
+      } finally {
+        setInitialLoaded(true);
+      }
+    }
+    
+    loadInitialNotifications();
+  }, [initialLoaded]);
 
   useEffect(() => {
     // Create STOMP client with SockJS

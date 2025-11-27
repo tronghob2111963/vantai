@@ -16,9 +16,11 @@ import org.example.ptcmssbackend.entity.DriverDayOff;
 import org.example.ptcmssbackend.entity.Drivers;
 import org.example.ptcmssbackend.entity.TripDrivers;
 import org.example.ptcmssbackend.entity.TripIncidents;
+import org.example.ptcmssbackend.enums.ApprovalType;
 import org.example.ptcmssbackend.enums.DriverDayOffStatus;
 import org.example.ptcmssbackend.enums.TripStatus;
 import org.example.ptcmssbackend.repository.*;
+import org.example.ptcmssbackend.service.ApprovalService;
 import org.example.ptcmssbackend.service.DriverService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ public class DriverServiceImpl implements DriverService {
     private final TripIncidentRepository tripIncidentRepository;
     private final BranchesRepository branchRepository;
     private final EmployeeRepository employeeRepository;
+    private final ApprovalService approvalService;
 
     @Override
     @Transactional(readOnly = true)
@@ -159,6 +162,23 @@ public class DriverServiceImpl implements DriverService {
         dayOff.setStatus(DriverDayOffStatus.PENDING);
 
         var saved = driverDayOffRepository.save(dayOff);
+        
+        // Tạo approval request để điều phối viên duyệt
+        try {
+            var user = driver.getEmployee().getUser();
+            var branch = driver.getBranch();
+            approvalService.createApprovalRequest(
+                    ApprovalType.DRIVER_DAY_OFF,
+                    saved.getId(),
+                    user,
+                    request.getReason(),
+                    branch
+            );
+            log.info("[DriverDayOff] Created approval request for day off {}", saved.getId());
+        } catch (Exception e) {
+            log.error("[DriverDayOff] Failed to create approval request: {}", e.getMessage());
+        }
+        
         return new DriverDayOffResponse(saved);
     }
 

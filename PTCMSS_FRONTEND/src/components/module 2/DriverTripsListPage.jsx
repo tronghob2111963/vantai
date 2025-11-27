@@ -84,7 +84,7 @@ export default function DriverTripsListPage() {
     const [error, setError] = React.useState("");
     const [searchQuery, setSearchQuery] = React.useState("");
     const [statusFilter, setStatusFilter] = React.useState("ALL");
-    const [timeFilter, setTimeFilter] = React.useState("ALL"); // ALL, THIS_WEEK, THIS_MONTH, THIS_QUARTER, LAST_MONTH
+    const [timeFilter, setTimeFilter] = React.useState("ALL"); // ALL, THIS_WEEK, NEXT_WEEK, THIS_MONTH, LAST_MONTH
     const [currentPage, setCurrentPage] = React.useState(1);
     const pageSize = 9; // 3x3 grid
 
@@ -161,11 +161,14 @@ export default function DriverTripsListPage() {
                         return tripDate.getMonth() === now.getMonth() && 
                                tripDate.getFullYear() === now.getFullYear();
                                
-                    case "THIS_QUARTER":
-                        const currentQuarter = Math.floor(now.getMonth() / 3);
-                        const tripQuarter = Math.floor(tripDate.getMonth() / 3);
-                        return tripQuarter === currentQuarter && 
-                               tripDate.getFullYear() === now.getFullYear();
+                    case "NEXT_WEEK":
+                        const startOfNextWeek = new Date(now);
+                        startOfNextWeek.setDate(now.getDate() + (7 - now.getDay()));
+                        startOfNextWeek.setHours(0, 0, 0, 0);
+                        const endOfNextWeek = new Date(startOfNextWeek);
+                        endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
+                        endOfNextWeek.setHours(23, 59, 59, 999);
+                        return tripDate >= startOfNextWeek && tripDate <= endOfNextWeek;
                                
                     case "LAST_MONTH":
                         const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -251,8 +254,8 @@ export default function DriverTripsListPage() {
                             >
                                 <option value="ALL">Tất cả thời gian</option>
                                 <option value="THIS_WEEK">Tuần này</option>
+                                <option value="NEXT_WEEK">Tuần tới</option>
                                 <option value="THIS_MONTH">Tháng này</option>
-                                <option value="THIS_QUARTER">Quý này</option>
                                 <option value="LAST_MONTH">Tháng trước</option>
                             </select>
                         </div>

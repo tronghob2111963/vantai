@@ -173,24 +173,51 @@ export default function DriverRequestsPage() {
                 const profile = await getDriverProfileByUser(uid);
                 if (!mounted) return;
 
-                // Get day-off requests (LEAVE type) from existing API
+                // Get day-off requests (LEAVE type) and expense requests (PAYMENT type)
                 try {
                     const { getDayOffHistory } = await import("../../api/drivers");
-                    const dayOffList = await getDayOffHistory(profile.driverId);
+                    const { getDriverExpenseRequests } = await import("../../api/expenses");
                     
-                    // Transform day-off data to match request format
-                    const leaveRequests = (Array.isArray(dayOffList) ? dayOffList : []).map(item => ({
-                        id: item.dayOffId || item.id,
-                        type: "LEAVE",
-                        status: item.status || "PENDING",
-                        createdAt: item.requestDate || item.createdAt,
-                        startDate: item.startDate,
-                        endDate: item.endDate,
-                        reason: item.reason,
-                        rejectionReason: item.rejectionReason,
-                    }));
+                    // Load day-off requests
+                    let leaveRequests = [];
+                    try {
+                        const dayOffList = await getDayOffHistory(profile.driverId);
+                        console.log("📅 Day-off list:", dayOffList);
+                        leaveRequests = (Array.isArray(dayOffList) ? dayOffList : []).map(item => ({
+                            id: `leave-${item.dayOffId || item.id}`,
+                            type: "LEAVE",
+                            status: item.status || "PENDING",
+                            createdAt: item.requestDate || item.createdAt,
+                            startDate: item.startDate,
+                            endDate: item.endDate,
+                            reason: item.reason,
+                            rejectionReason: item.rejectionReason || item.rejectReason,
+                        }));
+                    } catch (leaveErr) {
+                        console.warn("Could not load day-off requests:", leaveErr);
+                    }
+                    
+                    // Load expense requests
+                    let paymentRequests = [];
+                    try {
+                        const expenseList = await getDriverExpenseRequests(profile.driverId);
+                        console.log("💰 Expense list:", expenseList);
+                        const expenses = expenseList?.data || expenseList || [];
+                        paymentRequests = (Array.isArray(expenses) ? expenses : []).map(item => ({
+                            id: `payment-${item.id}`,
+                            type: "PAYMENT",
+                            status: item.status || "PENDING",
+                            createdAt: item.createdAt,
+                            amount: item.amount,
+                            tripId: item.tripId,
+                            description: item.description || item.reason,
+                            rejectionReason: item.rejectionReason || item.rejectReason,
+                        }));
+                    } catch (expenseErr) {
+                        console.warn("Could not load expense requests:", expenseErr);
+                    }
 
-                    setRequests(leaveRequests);
+                    setRequests([...leaveRequests, ...paymentRequests]);
                 } catch (requestErr) {
                     console.warn("Could not load driver requests:", requestErr);
                     setRequests([]);

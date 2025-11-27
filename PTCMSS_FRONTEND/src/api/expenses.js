@@ -6,3 +6,8 @@ export function createExpenseRequest(payload) {
     body: payload,
   });
 }
+
+// Get expense requests by driver ID
+export function getDriverExpenseRequests(driverId) {
+  return apiFetch(`/api/expense-requests/driver/${driverId}`);
+}
