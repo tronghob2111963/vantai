@@ -9,12 +9,13 @@ export function getVehicleCategory(id) {
 }
 
 // Map UI fields to backend request
+// Backend uses 'baseFare' not 'baseFee'
 function toReq(b) {
   return {
     categoryName: b.categoryName ?? b.name,
     seats: b.seats ?? null,
     description: b.description ?? "",
-    baseFee: b.baseFee ?? null,
+    baseFare: b.baseFee ?? b.baseFare ?? null,
     sameDayFixedPrice: b.sameDayFixedPrice ?? null,
     pricePerKm: b.pricePerKm ?? null,
     highwayFee: b.highwayFee ?? null,

@@ -173,27 +173,19 @@ export default function UpdateProfilePage() {
 
       setGeneralError("");
       setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
       
-      // If avatar was uploaded, reload the page to update header
-      if (avatarFile) {
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      } else {
-        setTimeout(() => setShowSuccess(false), 3000);
-        
-        // Reload profile to get updated data
-        const p = await getMyProfile();
-        setFullName(p?.fullName || "");
-        setPhone(p?.phone || "");
-        setEmail(p?.email || "");
-        setAddress(p?.address || "");
-        setRoleName(p?.roleName || "");
-        setRoleId(p?.roleId || null);
-        setStatus(p?.status || "");
-        setAvatarPreview(resolveImg(p?.imgUrl || p?.avatarUrl || p?.avatar));
-        setAvatarFile(null);
-      }
+      // Reload profile to get updated data
+      const p = await getMyProfile();
+      setFullName(p?.fullName || "");
+      setPhone(p?.phone || "");
+      setEmail(p?.email || "");
+      setAddress(p?.address || "");
+      setRoleName(p?.roleName || "");
+      setRoleId(p?.roleId || null);
+      setStatus(p?.status || "");
+      setAvatarPreview(resolveImg(p?.imgUrl || p?.avatarUrl || p?.avatar));
+      setAvatarFile(null);
     } catch (err) {
       console.error("Update profile error:", err);
 

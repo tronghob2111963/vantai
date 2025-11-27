@@ -29,7 +29,7 @@ import {
 const cls = (...a) => a.filter(Boolean).join(" ");
 const fmtVND = (n) => new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(n || 0)));
 
-// API helper for customers
+// API helper for customers - sử dụng API bookings để lấy danh sách khách hàng từ đơn hàng
 async function listCustomers({ branchId, startDate, endDate, page = 1, size = 10 } = {}) {
     const params = new URLSearchParams();
     if (branchId) params.append("branchId", String(branchId));
@@ -38,7 +38,47 @@ async function listCustomers({ branchId, startDate, endDate, page = 1, size = 10
     if (page != null) params.append("page", String(page));
     if (size != null) params.append("size", String(size));
     const qs = params.toString();
-    return apiFetch(`/api/customers${qs ? `?${qs}` : ""}`);
+    
+    // Sử dụng trực tiếp API bookings để lấy thông tin khách hàng
+    console.log("📞 Fetching customers from bookings...");
+    const bookings = await apiFetch(`/api/bookings?${qs}`);
+    console.log("📦 Bookings response:", bookings);
+    
+    const items = bookings?.data?.items || bookings?.items || bookings?.content || [];
+    console.log("📋 Booking items:", items);
+    
+    // Extract unique customers from bookings
+    const customerMap = new Map();
+    items.forEach(b => {
+        console.log("🔍 Processing booking:", b);
+        // Thử nhiều cách lấy thông tin khách hàng
+        const customer = b.customer || {};
+        const customerName = customer.fullName || customer.name || b.customerName || b.customer_name || "";
+        const customerEmail = customer.email || b.customerEmail || b.customer_email || "";
+        const customerPhone = customer.phone || customer.phoneNumber || b.customerPhone || b.customer_phone || "";
+        const customerNote = customer.note || b.note || "";
+        
+        // Dùng phone hoặc email làm key để loại trùng
+        const key = customerPhone || customerEmail || `${customerName}-${Math.random()}`;
+        
+        if (key && !customerMap.has(key)) {
+            customerMap.set(key, {
+                id: customer.id || b.customerId || b.id,
+                fullName: customerName,
+                email: customerEmail,
+                phone: customerPhone,
+                note: customerNote,
+            });
+        }
+    });
+    
+    const result = {
+        items: Array.from(customerMap.values()),
+        totalElements: customerMap.size,
+        totalPages: 1,
+    };
+    console.log("✅ Extracted customers:", result);
+    return result;
 }
 
 /* --------------------------------- Toast ----------------------------------- */
@@ -85,7 +125,7 @@ function StatusPill({ status }) {
     const map = {
         ACTIVE: {
             label: "Đang hoạt động",
-            cls: "bg-amber-50 text-amber-700 border-amber-200",
+            cls: "bg-green-50 text-green-700 border-green-200",
         },
         INACTIVE: {
             label: "Ngưng",
@@ -281,6 +321,8 @@ function VehicleCategoryEditModal({
 
     React.useEffect(() => {
         if (open && data) {
+            console.log("📝 Edit modal data:", data);
+            console.log("📝 baseFee value:", data.baseFee);
             setBaseFee(String(data.baseFee ?? ""));
             setSameDayFixedPrice(String(data.sameDayFixedPrice ?? ""));
             setPricePerKm(String(data.pricePerKm ?? ""));
@@ -680,19 +722,22 @@ export default function VehicleCategoryManagePage() {
     const [categories, setCategories] = React.useState([]);
 
     const mapCat = React.useCallback(
-        (c) => ({
-            id: c.id,
-            name: c.categoryName || c.name,
-            status: c.status || "ACTIVE",
-            seats: c.seats ?? null,
-            vehicles_count: c.vehiclesCount ?? c.vehicles_count ?? 0,
-            description: c.description || "",
-            baseFee: c.baseFee ?? null,
-            sameDayFixedPrice: c.sameDayFixedPrice ?? null,
-            pricePerKm: c.pricePerKm ?? null,
-            highwayFee: c.highwayFee ?? null,
-            fixedCosts: c.fixedCosts ?? null,
-        }),
+        (c) => {
+            console.log("📦 Raw category data from API:", c);
+            return {
+                id: c.id,
+                name: c.categoryName || c.name,
+                status: c.status || "ACTIVE",
+                seats: c.seats ?? null,
+                vehicles_count: c.vehiclesCount ?? c.vehicles_count ?? 0,
+                description: c.description || "",
+                baseFee: c.baseFare ?? c.baseFee ?? null,
+                sameDayFixedPrice: c.sameDayFixedPrice ?? null,
+                pricePerKm: c.pricePerKm ?? null,
+                highwayFee: c.highwayFee ?? null,
+                fixedCosts: c.fixedCosts ?? null,
+            };
+        },
         []
     );
 
