@@ -38,6 +38,8 @@ export default function AdminUsersPage() {
   const [managerBranchInfo, setManagerBranchInfo] = React.useState({ id: null, name: "" });
   const [managerBranchLoading, setManagerBranchLoading] = React.useState(isManagerView);
   const [managerBranchError, setManagerBranchError] = React.useState("");
+  const [branches, setBranches] = React.useState([]);
+  const [selectedBranchId, setSelectedBranchId] = React.useState("");
 
   React.useEffect(() => {
     if (!isManagerView) {
@@ -93,13 +95,18 @@ export default function AdminUsersPage() {
     (records) => {
       const source = Array.isArray(records) ? records : [];
       return source.filter((u) => {
+        // Hide Admin role from all views
+        const userRoleName = String(u.roleName || "").trim().toLowerCase();
+        if (userRoleName === "admin" || userRoleName === "quản trị viên") {
+          return false;
+        }
+
         // For Manager role, filter out users with role >= Manager (only show subordinates)
         if (isManagerView) {
-          const userRoleName = String(u.roleName || "").trim().toLowerCase();
           // Define role hierarchy: Admin > Manager > Consultant > Driver > Accountant
-          const managerOrHigherRoles = ["admin", "manager", "quản lý", "quản trị viên"];
+          const managerOrHigherRoles = ["manager", "quản lý"];
           if (managerOrHigherRoles.includes(userRoleName)) {
-            return false; // Hide Manager and Admin roles from Manager view
+            return false; // Hide Manager roles from Manager view
           }
         }
 
@@ -115,10 +122,17 @@ export default function AdminUsersPage() {
           const st = String(u.status || "").trim().toUpperCase();
           if (st !== normalizedStatus) return false;
         }
+        
+        // Admin branch filter
+        if (!isManagerView && selectedBranchId) {
+          const userBranchId = String(u.branchId || "");
+          if (userBranchId !== selectedBranchId) return false;
+        }
+        
         return true;
       });
     },
-    [normalizedKeyword, selectedRoleName, normalizedStatus, isManagerView]
+    [normalizedKeyword, selectedRoleName, normalizedStatus, isManagerView, selectedBranchId]
   );
 
   const [allUsers, setAllUsers] = React.useState([]);
@@ -197,6 +211,23 @@ export default function AdminUsersPage() {
     })();
   }, []);
 
+  // Load branches for Admin filter
+  React.useEffect(() => {
+    if (isManagerView) return; // Only load for Admin
+    
+    (async () => {
+      try {
+        const { listBranches } = await import("../../api/branches");
+        const data = await listBranches({ page: 0, size: 100 });
+        const arr = Array.isArray(data) ? data : data?.items || data?.content || [];
+        setBranches(arr);
+      } catch (error) {
+        console.error("Failed to load branches:", error);
+        setBranches([]);
+      }
+    })();
+  }, [isManagerView]);
+
   const onToggle = async (id) => {
     try {
       await toggleUserStatus(id);
@@ -229,16 +260,14 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            {isManagerView && (
-              <button
-                onClick={() => navigate('/admin/users/new')}
-                className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
-                style={{ backgroundColor: BRAND_COLOR }}
-              >
-                <UserPlus className="h-4 w-4" />
-                <span>Thêm nhân viên</span>
-              </button>
-            )}
+            <button
+              onClick={() => navigate('/admin/employees/create-with-user')}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+              style={{ backgroundColor: BRAND_COLOR }}
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Thêm nhân viên</span>
+            </button>
             <button
               onClick={onRefresh}
               disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))}
@@ -306,6 +335,24 @@ export default function AdminUsersPage() {
                 <option value="INACTIVE">INACTIVE</option>
               </select>
             </div>
+
+            {!isManagerView && (
+              <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
+                <Filter className="h-4 w-4 text-slate-400" />
+                <select 
+                  value={selectedBranchId} 
+                  onChange={(e)=>setSelectedBranchId(e.target.value)} 
+                  className="bg-transparent outline-none text-sm text-slate-900 border-none cursor-pointer"
+                >
+                  <option value="">-- Tất cả chi nhánh --</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.branchName || b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button 
               onClick={onRefresh} 
