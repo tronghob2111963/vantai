@@ -1328,35 +1328,84 @@ export default function AccountantDashboard() {
         })();
     }, [isAccountant]);
 
-    // Load dashboard data
+    // Load dashboard data with fallback
     const loadDashboard = React.useCallback(async () => {
         setLoading(true);
         setError(null);
+        
+        const defaultData = {
+            totalRevenue: 0,
+            totalExpense: 0,
+            netProfit: 0,
+            arBalance: 0,
+            apBalance: 0,
+            invoicesDueIn7Days: 0,
+            overdueInvoices: 0,
+            collectionRate: 0,
+            expenseToRevenueRatio: 0,
+            revenueChart: [],
+            expenseChart: [],
+            expenseByCategory: {},
+            pendingApprovals: [],
+            topCustomers: [],
+        };
+        
         try {
+            // Try main dashboard endpoint first
             const data = await getAccountingDashboard({
                 branchId: branchId || undefined,
                 period,
             });
-            setDashboardData(data || {
-                totalRevenue: 0,
-                totalExpense: 0,
-                netProfit: 0,
-                arBalance: 0,
-                apBalance: 0,
-                invoicesDueIn7Days: 0,
-                overdueInvoices: 0,
-                collectionRate: 0,
-                expenseToRevenueRatio: 0,
-                revenueChart: [],
-                expenseChart: [],
-                expenseByCategory: {},
-                pendingApprovals: [],
-                topCustomers: [],
-            });
+            
+            if (data && typeof data === 'object') {
+                setDashboardData({
+                    ...defaultData,
+                    ...data,
+                    // Ensure numeric values
+                    totalRevenue: Number(data.totalRevenue || 0),
+                    totalExpense: Number(data.totalExpense || 0),
+                    netProfit: Number(data.netProfit || data.totalRevenue - data.totalExpense || 0),
+                    arBalance: Number(data.arBalance || 0),
+                    apBalance: Number(data.apBalance || 0),
+                    collectionRate: Number(data.collectionRate || 0),
+                    expenseToRevenueRatio: Number(data.expenseToRevenueRatio || 0),
+                });
+            } else {
+                setDashboardData(defaultData);
+            }
         } catch (err) {
             console.error("Error loading dashboard:", err);
-            setError(err.message || "Không thể tải dữ liệu dashboard");
-            push("Lỗi khi tải dữ liệu dashboard", "error");
+            
+            // Try fallback: load individual stats
+            try {
+                const { getTotalRevenue, getTotalExpense, getARBalance } = await import("../../api/accounting");
+                const params = { branchId: branchId || undefined, period };
+                
+                const [revenueRes, expenseRes, arRes] = await Promise.allSettled([
+                    getTotalRevenue(params),
+                    getTotalExpense(params),
+                    getARBalance(params),
+                ]);
+                
+                const revenue = revenueRes.status === 'fulfilled' ? Number(revenueRes.value?.total || revenueRes.value || 0) : 0;
+                const expense = expenseRes.status === 'fulfilled' ? Number(expenseRes.value?.total || expenseRes.value || 0) : 0;
+                const ar = arRes.status === 'fulfilled' ? Number(arRes.value?.total || arRes.value || 0) : 0;
+                
+                setDashboardData({
+                    ...defaultData,
+                    totalRevenue: revenue,
+                    totalExpense: expense,
+                    netProfit: revenue - expense,
+                    arBalance: ar,
+                });
+                
+                push("Dữ liệu dashboard được tải từ nguồn phụ", "info");
+            } catch (fallbackErr) {
+                console.error("Fallback also failed:", fallbackErr);
+                setError("Không thể tải dữ liệu dashboard. API chưa sẵn sàng.");
+                setDashboardData(defaultData);
+                push("Lỗi khi tải dữ liệu dashboard", "error");
+            }
         } finally {
             setLoading(false);
             setInitialLoading(false);
@@ -1420,29 +1469,37 @@ export default function AccountantDashboard() {
     const approveOne = React.useCallback(
         async (historyId) => {
             try {
-                await approveApprovalRequest(historyId);
+                console.log("[AccountantDashboard] Approving request:", historyId);
+                await approveApprovalRequest(historyId, {});
                 push(`Đã duyệt yêu cầu #${historyId}`, "success");
+                // Reload both dashboard and queue
                 loadApprovalQueue();
+                loadDashboard();
             } catch (err) {
                 console.error("Approve request failed:", err);
-                push(err.message || "Không thể duyệt yêu cầu", "error");
+                const errorMsg = err?.response?.data?.message || err.message || "Không thể duyệt yêu cầu";
+                push(errorMsg, "error");
             }
         },
-        [loadApprovalQueue, push]
+        [loadApprovalQueue, loadDashboard, push]
     );
 
     const rejectOne = React.useCallback(
         async (historyId, reason) => {
             try {
+                console.log("[AccountantDashboard] Rejecting request:", historyId, reason);
                 await rejectApprovalRequest(historyId, { note: reason });
                 push(`Đã từ chối yêu cầu #${historyId}${reason ? " · " + reason : ""}`, "info");
+                // Reload both dashboard and queue
                 loadApprovalQueue();
+                loadDashboard();
             } catch (err) {
                 console.error("Reject request failed:", err);
-                push(err.message || "Không thể từ chối yêu cầu", "error");
+                const errorMsg = err?.response?.data?.message || err.message || "Không thể từ chối yêu cầu";
+                push(errorMsg, "error");
             }
         },
-        [loadApprovalQueue, push]
+        [loadApprovalQueue, loadDashboard, push]
     );
 
     // Transform chart data from API
@@ -1567,6 +1624,20 @@ export default function AccountantDashboard() {
                 </div>
             </div>
 
+            {/* Error message */}
+            {error && (
+                <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-center gap-2">
+                    <Info className="h-4 w-4 text-rose-500" />
+                    <span>{error}</span>
+                    <button
+                        onClick={loadDashboard}
+                        className="ml-auto text-rose-600 hover:underline text-xs font-medium"
+                    >
+                        Thử lại
+                    </button>
+                </div>
+            )}
+
             {/* TOP SECTION: Chart (left) + KPIs (right) */}
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mb-5">
                 {/* Biểu đồ Doanh thu vs Chi phí */}
@@ -1577,13 +1648,18 @@ export default function AccountantDashboard() {
                             Doanh thu vs Chi phí
                             (tháng)
                         </span>
+                        {loading && (
+                            <RefreshCw className="h-3.5 w-3.5 text-slate-400 animate-spin ml-auto" />
+                        )}
                     </div>
                     <div className="p-3">
-                        <RevExpChart
-                            data={
-                                chartData
-                            }
-                        />
+                        {initialLoading ? (
+                            <div className="h-[250px] flex items-center justify-center text-slate-400">
+                                <RefreshCw className="h-6 w-6 animate-spin" />
+                            </div>
+                        ) : (
+                            <RevExpChart data={chartData} />
+                        )}
                     </div>
                 </div>
 
