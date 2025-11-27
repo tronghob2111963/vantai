@@ -31,7 +31,7 @@ public class NotificationController {
             summary = "Lấy dashboard notifications & approvals",
             description = "Trả về tổng quan cảnh báo và yêu cầu chờ duyệt"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @GetMapping("/dashboard")
     public ResponseData<NotificationDashboardResponse> getDashboard(
             @RequestParam(required = false) Integer branchId) {
@@ -48,7 +48,7 @@ public class NotificationController {
             summary = "Lấy danh sách cảnh báo",
             description = "Lấy tất cả cảnh báo chưa xác nhận"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @GetMapping("/alerts")
     public ResponseData<List<AlertResponse>> getAlerts(
             @RequestParam(required = false) Integer branchId) {
@@ -65,7 +65,7 @@ public class NotificationController {
             summary = "Xác nhận đã biết cảnh báo",
             description = "Đánh dấu cảnh báo là đã xem/xử lý"
     )
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR','ACCOUNTANT')")
     @PostMapping("/alerts/{alertId}/acknowledge")
     public ResponseData<AlertResponse> acknowledgeAlert(
             @PathVariable Integer alertId,

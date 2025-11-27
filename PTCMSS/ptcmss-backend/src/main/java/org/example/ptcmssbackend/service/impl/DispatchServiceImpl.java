@@ -840,6 +840,11 @@ public class DispatchServiceImpl implements DispatchService {
                             .build();
                 }).collect(Collectors.toList());
 
+        // Tính số tiền còn lại cần thanh toán
+        java.math.BigDecimal totalCost = booking.getTotalCost() != null ? booking.getTotalCost() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal remainingAmount = totalCost.subtract(depositAmount);
+
         return TripDetailResponse.builder()
                 .tripId(trip.getId())
                 .bookingId(booking.getId())
@@ -855,6 +860,10 @@ public class DispatchServiceImpl implements DispatchService {
                 .vehiclePlate(vehiclePlate)
                 .vehicleModel(vehicleModel)
                 .status(trip.getStatus())
+                .bookingNote(booking.getNote())
+                .totalCost(totalCost)
+                .depositAmount(depositAmount)
+                .remainingAmount(remainingAmount)
                 .history(historyItems)
                 .build();
     }

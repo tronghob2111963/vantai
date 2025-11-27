@@ -2156,7 +2156,11 @@ export default function ConsultantOrdersPage() {
                     showActions={!isManager}
                 />
 
-         
+                {/* <div className="px-4 py-2 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50">
+                    Design-only: Dữ liệu đang mock. Lọc
+                    theo chi nhánh + phân trang thực sẽ do
+                    API trả về.
+                </div> */}
             </div>
 
             {/* MODAL CHI TIẾT */}
