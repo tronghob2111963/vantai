@@ -77,10 +77,7 @@ const SIDEBAR_SECTIONS = [
     roles: [ROLES.ADMIN, ROLES.MANAGER],
     items: [
       { label: "Danh sách xe", to: "/vehicles" },
-      // { label: "Tạo xe mới", to: "/vehicles/new", roles: [ROLES.ADMIN, ROLES.MANAGER] },
       { label: "Danh mục xe", to: "/vehicles/categories" },
-      { label: "Tạo danh mục", to: "/vehicles/categories/new", roles: [ROLES.ADMIN] },
-      // { label: "Chi tiết xe", to: "/vehicles/1" },
     ],
   },
   {
@@ -132,7 +129,7 @@ const SIDEBAR_SECTIONS = [
     sectionId: "manager",
     icon: Briefcase,
     label: "Quản lý chi nhánh",
-    roles: [ROLES.MANAGER],
+    roles: [ROLES.ADMIN, ROLES.MANAGER],
     items: [
       { label: "Tổng quan chi nhánh", to: "/analytics/manager" },
       { label: "Báo cáo chi phí", to: "/accounting/expenses" },
@@ -548,8 +545,9 @@ function Topbar() {
       .toUpperCase() || "JD";
   
   const [avatarUrl, setAvatarUrl] = React.useState(null);
+  const [avatarKey, setAvatarKey] = React.useState(0);
 
-  // Load avatar on mount
+  // Load avatar on mount and when avatarUpdated event is triggered
   React.useEffect(() => {
     let mounted = true;
     let blobUrl = null;
@@ -563,19 +561,26 @@ function Topbar() {
         const imgPath = profile?.avatar || profile?.avatarUrl || profile?.imgUrl;
         
         if (imgPath && mounted) {
+          // Add cache buster to force reload
           const fullUrl = /^https?:\/\//i.test(imgPath) 
             ? imgPath 
             : `${apiBase}${imgPath.startsWith("/") ? "" : "/"}${imgPath}`;
+          const urlWithCacheBuster = `${fullUrl}${fullUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
           
           // Fetch with auth
           const token = localStorage.getItem("access_token") || "";
-          const resp = await fetch(fullUrl, {
+          const resp = await fetch(urlWithCacheBuster, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: "include",
+            cache: "no-store",
           });
           
           if (resp.ok && mounted) {
             const blob = await resp.blob();
+            // Revoke old URL before creating new one
+            if (blobUrl) {
+              URL.revokeObjectURL(blobUrl);
+            }
             blobUrl = URL.createObjectURL(blob);
             setAvatarUrl(blobUrl);
           }
@@ -592,6 +597,19 @@ function Topbar() {
       if (blobUrl) {
         URL.revokeObjectURL(blobUrl);
       }
+    };
+  }, [avatarKey]);
+
+  // Listen for avatar update event from UpdateProfilePage
+  React.useEffect(() => {
+    const handleAvatarUpdate = () => {
+      console.log("Avatar update event received, reloading avatar...");
+      setAvatarKey((k) => k + 1);
+    };
+
+    window.addEventListener('avatarUpdated', handleAvatarUpdate);
+    return () => {
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
     };
   }, []);
   
