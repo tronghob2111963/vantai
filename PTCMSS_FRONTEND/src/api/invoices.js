@@ -128,6 +128,13 @@ export function markInvoiceAsPaid(invoiceId) {
   });
 }
 
+// Delete payment (only PENDING)
+export function deletePayment(paymentId) {
+  return apiFetch(`/api/invoices/payments/${paymentId}`, {
+    method: "DELETE",
+  });
+}
+
 // Generate invoice number
 export function generateInvoiceNumber(branchId) {
   const params = new URLSearchParams();

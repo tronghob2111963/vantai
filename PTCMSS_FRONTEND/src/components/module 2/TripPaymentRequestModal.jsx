@@ -7,6 +7,10 @@ import {
   X,
   Info,
   Loader2,
+  Trash2,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 /**
@@ -45,6 +49,18 @@ export default function TripPaymentRequestModal({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
+  // Payment history state
+  const [paymentHistory, setPaymentHistory] = React.useState([]);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+  const [deleteLoading, setDeleteLoading] = React.useState(null); // paymentId being deleted
+
+  // Load payment history khi modal mở
+  React.useEffect(() => {
+    if (open && bookingId) {
+      loadPaymentHistory();
+    }
+  }, [open, bookingId]);
+
   // Reset form khi modal mở
   React.useEffect(() => {
     if (open) {
@@ -55,6 +71,46 @@ export default function TripPaymentRequestModal({
       setError("");
     }
   }, [open, remainingAmount]);
+
+  async function loadPaymentHistory() {
+    setHistoryLoading(true);
+    try {
+      const { getPaymentHistory } = await import("../../api/invoices");
+      // Assuming we need to get invoice by bookingId first
+      // For now, we'll try to get payment history directly with bookingId as invoiceId
+      const history = await getPaymentHistory(bookingId);
+      setPaymentHistory(Array.isArray(history) ? history : []);
+    } catch (err) {
+      console.error("Error loading payment history:", err);
+      setPaymentHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function handleDeletePayment(paymentId) {
+    if (!confirm("Bạn có chắc muốn xóa yêu cầu thanh toán này?")) {
+      return;
+    }
+
+    setDeleteLoading(paymentId);
+    try {
+      const { deletePayment } = await import("../../api/invoices");
+      await deletePayment(paymentId);
+
+      // Reload payment history
+      await loadPaymentHistory();
+
+      // Show success message (you can use a toast library here)
+      alert("Đã xóa yêu cầu thanh toán");
+    } catch (err) {
+      console.error("Error deleting payment:", err);
+      const errorMsg = err?.data?.message || err?.message || "Không thể xóa yêu cầu thanh toán";
+      alert(errorMsg);
+    } finally {
+      setDeleteLoading(null);
+    }
+  }
 
   if (!open) return null;
 
@@ -85,6 +141,9 @@ export default function TripPaymentRequestModal({
 
       await createPayment(payload);
 
+      // Reload payment history sau khi tạo mới
+      await loadPaymentHistory();
+
       if (typeof onSubmitted === "function") {
         onSubmitted({
           amount,
@@ -93,7 +152,10 @@ export default function TripPaymentRequestModal({
         });
       }
 
-      if (typeof onClose === "function") onClose();
+      // Reset form nhưng không đóng modal để user thấy request vừa tạo
+      setAmountStr(String(remainingAmount || 0));
+      setNotes("");
+      setError("");
     } catch (err) {
       console.error("Error creating payment request:", err);
       setError(
@@ -139,6 +201,91 @@ export default function TripPaymentRequestModal({
 
         {/* BODY */}
         <div className="p-5 space-y-5 text-sm text-slate-700 overflow-y-auto flex-1">
+          {/* Payment History Section */}
+          {paymentHistory.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <div className="text-xs font-semibold text-slate-700 flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Các yêu cầu thanh toán đã gửi
+                </div>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {historyLoading ? (
+                  <div className="px-4 py-3 text-center text-slate-500 text-xs">
+                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                    Đang tải...
+                  </div>
+                ) : (
+                  paymentHistory.map((payment) => {
+                    const isPending = payment.confirmationStatus === "PENDING";
+                    const isConfirmed = payment.confirmationStatus === "CONFIRMED";
+                    const isRejected = payment.confirmationStatus === "REJECTED";
+
+                    return (
+                      <div key={payment.id} className="px-4 py-3 hover:bg-slate-50">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold text-slate-900 tabular-nums">
+                                {fmtVND(payment.amount)} đ
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                ({payment.paymentMethod === "CASH" ? "Tiền mặt" : "Chuyển khoản"})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isPending && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-amber-50 text-amber-700 border border-amber-300">
+                                  <Clock className="h-3 w-3" />
+                                  Chờ xác nhận
+                                </span>
+                              )}
+                              {isConfirmed && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-emerald-50 text-emerald-700 border border-emerald-300">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Đã xác nhận
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-rose-50 text-rose-700 border border-rose-300">
+                                  <XCircle className="h-3 w-3" />
+                                  Đã từ chối
+                                </span>
+                              )}
+                            </div>
+                            {payment.note && (
+                              <div className="text-xs text-slate-500 mt-1 truncate">
+                                {payment.note}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Nút xóa - chỉ hiện với PENDING */}
+                          {isPending && (
+                            <button
+                              onClick={() => handleDeletePayment(payment.id)}
+                              disabled={deleteLoading === payment.id}
+                              className="flex-shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 border border-rose-200 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                              title="Xóa yêu cầu"
+                            >
+                              {deleteLoading === payment.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                              Xóa
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Thông tin thanh toán */}
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
             <div className="flex justify-between text-[13px]">

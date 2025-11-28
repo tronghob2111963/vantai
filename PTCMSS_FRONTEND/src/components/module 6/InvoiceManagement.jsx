@@ -16,10 +16,6 @@ import {
     XCircle,
     Clock,
     X,
-    Receipt,
-    User,
-    Car,
-    Building2,
     AlertTriangle,
 } from "lucide-react";
 
@@ -36,12 +32,6 @@ import {
 import { listBookings } from "../../api/bookings";
 import { exportInvoiceListToExcel, exportInvoiceToPdf } from "../../api/exports";
 import { getCurrentRole, ROLES } from "../../utils/session";
-import {
-    getPendingExpenseRequests,
-    listExpenseRequests,
-    approveExpenseRequest,
-    rejectExpenseRequest,
-} from "../../api/expenses";
 
 /* ===== Helpers / constants ===== */
 const BRAND_COLOR = "#0079BC";
@@ -1224,11 +1214,6 @@ export default function InvoiceManagement() {
             (v) => !v
         );
 
-    // expense requests from drivers/coordinators
-    const [expenseRequests, setExpenseRequests] = React.useState([]);
-    const [expenseLoading, setExpenseLoading] = React.useState(false);
-    const [expenseFilter, setExpenseFilter] = React.useState("PENDING"); // PENDING | APPROVED | REJECTED | ALL
-
     // Load invoices from API
     const loadInvoices = React.useCallback(async () => {
         setLoading(true);
@@ -1271,51 +1256,6 @@ export default function InvoiceManagement() {
             setInitialLoading(false);
         }
     }, [page, debtMode, statusFilter, query, push]);
-
-    // Load expense requests from drivers/coordinators
-    const loadExpenseRequests = React.useCallback(async () => {
-        setExpenseLoading(true);
-        try {
-            let data;
-            if (expenseFilter === "PENDING") {
-                data = await getPendingExpenseRequests();
-            } else if (expenseFilter === "ALL") {
-                data = await listExpenseRequests({});
-            } else {
-                data = await listExpenseRequests({ status: expenseFilter });
-            }
-            setExpenseRequests(Array.isArray(data) ? data : (data?.data || []));
-        } catch (err) {
-            console.error("Error loading expense requests:", err);
-            push("Lỗi khi tải yêu cầu chi phí: " + (err?.message || "Unknown"), "error");
-            setExpenseRequests([]);
-        } finally {
-            setExpenseLoading(false);
-        }
-    }, [expenseFilter, push]);
-
-    // Handle approve/reject expense request
-    const handleApproveExpense = async (id) => {
-        try {
-            await approveExpenseRequest(id);
-            push("Đã duyệt yêu cầu chi phí", "success");
-            loadExpenseRequests();
-        } catch (err) {
-            console.error("Error approving expense:", err);
-            push("Lỗi khi duyệt yêu cầu: " + (err?.message || "Unknown"), "error");
-        }
-    };
-
-    const handleRejectExpense = async (id) => {
-        try {
-            await rejectExpenseRequest(id);
-            push("Đã từ chối yêu cầu chi phí", "success");
-            loadExpenseRequests();
-        } catch (err) {
-            console.error("Error rejecting expense:", err);
-            push("Lỗi khi từ chối yêu cầu: " + (err?.message || "Unknown"), "error");
-        }
-    };
 
     // Load completed orders for create invoice modal
     const loadCompletedOrders = React.useCallback(async () => {
@@ -1365,11 +1305,6 @@ export default function InvoiceManagement() {
     React.useEffect(() => {
         loadInvoices();
     }, [loadInvoices]);
-
-    // Load expense requests
-    React.useEffect(() => {
-        loadExpenseRequests();
-    }, [loadExpenseRequests]);
 
     React.useEffect(() => {
         if (createOpen) {
@@ -1792,144 +1727,6 @@ export default function InvoiceManagement() {
                 <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white leading-relaxed">
                     Dữ liệu được tải từ API. Tổng: {invoices.length} hóa đơn.
                     {debtMode && " Chế độ công nợ: chỉ hiển thị UNPAID/OVERDUE, sắp xếp theo due date."}
-                </div>
-            </div>
-
-            {/* Expense Requests Section */}
-            <div className="mt-5 rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Receipt className="h-5 w-5" style={{ color: BRAND_COLOR }} />
-                        <span className="font-semibold">Yêu cầu chi phí từ Tài xế / Điều phối</span>
-                        {expenseRequests.filter(e => e.status === "PENDING").length > 0 && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
-                                {expenseRequests.filter(e => e.status === "PENDING").length} chờ duyệt
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <select
-                            value={expenseFilter}
-                            onChange={(e) => setExpenseFilter(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white text-gray-700"
-                        >
-                            <option value="PENDING">Chờ duyệt</option>
-                            <option value="APPROVED">Đã duyệt</option>
-                            <option value="REJECTED">Đã từ chối</option>
-                            <option value="ALL">Tất cả</option>
-                        </select>
-                        <button
-                            onClick={loadExpenseRequests}
-                            className="p-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50"
-                        >
-                            <RefreshCw className={cls("h-4 w-4 text-gray-500", expenseLoading && "animate-spin")} />
-                        </button>
-                    </div>
-                </div>
-
-                {expenseLoading ? (
-                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
-                        Đang tải yêu cầu chi phí...
-                    </div>
-                ) : expenseRequests.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
-                        Không có yêu cầu chi phí nào.
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Người yêu cầu</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Loại chi phí</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Chi nhánh</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Xe</th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-600">Số tiền</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Ghi chú</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Trạng thái</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {expenseRequests.map((req) => (
-                                    <tr key={req.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <User className="h-4 w-4 text-gray-400" />
-                                                <span className="text-gray-900 font-medium">{req.requesterName || "N/A"}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-gray-700">
-                                            {req.type === "FUEL" && "Xăng dầu"}
-                                            {req.type === "TOLL" && "Phí cầu đường"}
-                                            {req.type === "PARKING" && "Gửi xe / Bến bãi"}
-                                            {req.type === "REPAIR" && "Sửa chữa"}
-                                            {!["FUEL", "TOLL", "PARKING", "REPAIR"].includes(req.type) && (req.type || "Khác")}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-1 text-gray-600">
-                                                <Building2 className="h-3.5 w-3.5" />
-                                                <span>{req.branchName || "N/A"}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {req.vehiclePlate ? (
-                                                <div className="flex items-center gap-1 text-gray-600">
-                                                    <Car className="h-3.5 w-3.5" />
-                                                    <span>{req.vehiclePlate}</span>
-                                                </div>
-                                            ) : "—"}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-semibold text-gray-900 tabular-nums">
-                                            {fmtVND(req.amount || 0)} đ
-                                        </td>
-                                        <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate" title={req.note}>
-                                            {req.note || "—"}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className={cls(
-                                                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border",
-                                                req.status === "PENDING" && "bg-amber-50 text-amber-700 border-amber-300",
-                                                req.status === "APPROVED" && "bg-emerald-50 text-emerald-700 border-emerald-300",
-                                                req.status === "REJECTED" && "bg-rose-50 text-rose-700 border-rose-300"
-                                            )}>
-                                                {req.status === "PENDING" && <Clock className="h-3.5 w-3.5" />}
-                                                {req.status === "APPROVED" && <CheckCircle className="h-3.5 w-3.5" />}
-                                                {req.status === "REJECTED" && <XCircle className="h-3.5 w-3.5" />}
-                                                {req.status === "PENDING" && "Chờ duyệt"}
-                                                {req.status === "APPROVED" && "Đã duyệt"}
-                                                {req.status === "REJECTED" && "Đã từ chối"}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {req.status === "PENDING" && (
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleApproveExpense(req.id)}
-                                                        className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1"
-                                                    >
-                                                        <CheckCircle className="h-3.5 w-3.5" />
-                                                        Duyệt
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRejectExpense(req.id)}
-                                                        className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium flex items-center gap-1"
-                                                    >
-                                                        <XCircle className="h-3.5 w-3.5" />
-                                                        Từ chối
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white">
-                    Tổng: {expenseRequests.length} yêu cầu
                 </div>
             </div>
 
