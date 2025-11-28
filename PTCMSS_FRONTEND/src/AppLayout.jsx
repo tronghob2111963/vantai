@@ -31,133 +31,72 @@ import { WebSocketProvider, useWebSocket } from "./contexts/WebSocketContext";
 import NotificationToast from "./components/common/NotificationToast";
 import { useNotifications } from "./hooks/useNotifications";
 
-const SIDEBAR_SECTIONS = [
-  {
-    sectionId: "analytics",
-    icon: BarChart3,
-    label: "Báo cáo & Phân tích",
-    roles: [ROLES.ADMIN],
-    items: [
-      { label: "Dashboard Công ty", to: "/analytics/admin", roles: [ROLES.ADMIN] },
-      { label: "Dashboard Chi nhánh", to: "/analytics/manager", roles: [ROLES.ADMIN] },
-    ],
-  },
-  {
-    sectionId: "admin",
-    icon: Settings,
-    label: "Quản trị hệ thống",
-    roles: [ROLES.ADMIN],
-    items: [
-      { label: "Cấu hình hệ thống", to: "/admin/settings", roles: [ROLES.ADMIN] },
-      { label: "Danh sách chi nhánh", to: "/admin/branches", roles: [ROLES.ADMIN] },
-      // { label: "Tạo chi nhánh", to: "/admin/branches/new", roles: [ROLES.ADMIN] },
-      { label: "Quản lý chi nhánh", to: "/admin/managers", roles: [ROLES.ADMIN] },
-      { label: "Quản lý tài khoản", to: "/admin/users", roles: [ROLES.ADMIN] },
-      { label: "Danh sách khách hàng", to: "/admin/customers", roles: [ROLES.ADMIN] },
-      // { label: "Hồ sơ cá nhân", to: "/me/profile", roles: ALL_ROLES },
-    ],
-  },
-  {
-    sectionId: "driver",
-    icon: Users,
-    label: "Tài xế",
-    roles: [ROLES.DRIVER], // Only actual drivers can access driver dashboard
-    items: [
-      { label: "Bảng điều khiển tài xế", to: "/driver/dashboard" },
-      { label: "Lịch làm việc", to: "/driver/schedule" },
-      { label: "Danh sách chuyến", to: "/driver/trips-list" },
-      { label: "Xin nghỉ phép", to: "/driver/leave-request" },
-      { label: "Danh sách yêu cầu", to: "/driver/requests" },
-      { label: "Hồ sơ tài xế", to: "/driver/profile" },
-    ],
-  },
-  {
-    sectionId: "vehicle",
-    icon: CarFront,
-    label: "Phương tiện",
-    roles: [ROLES.ADMIN, ROLES.MANAGER],
-    items: [
-      { label: "Danh sách xe", to: "/vehicles" },
-      { label: "Danh mục xe", to: "/vehicles/categories" },
-    ],
-  },
-  {
-    sectionId: "orders",
-    icon: ClipboardList,
-    label: "Báo giá & Đơn hàng",
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
-    items: [
-      { label: "Bảng điều khiển tư vấn viên", to: "/orders/dashboard", roles: [ROLES.ADMIN, ROLES.CONSULTANT] },
-      {
-        label: "Danh sách đơn hàng",
-        to: "/orders",
-        roles: [ROLES.ADMIN, ROLES.CONSULTANT, ROLES.COORDINATOR, ROLES.ACCOUNTANT],
-      },
-      { label: "Tạo đơn hàng", to: "/orders/new", roles: [ROLES.ADMIN, ROLES.CONSULTANT] },
-      { label: "Gán tài xế / Sửa đơn", to: "/orders", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
-    ],
-  },
-  {
-    sectionId: "dispatch",
-    icon: CalendarClock,
-    label: "Điều phối / Lịch chạy",
-    roles: [ROLES.ADMIN, ROLES.COORDINATOR],
-    items: [
-      { label: "Bảng điều phối", to: "/dispatch", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
-      { label: "Danh sách đơn", to: "/coordinator/orders", roles: [ROLES.COORDINATOR] },
-      { label: "Danh sách tài xế", to: "/coordinator/drivers", roles: [ROLES.COORDINATOR] },
-      { label: "Danh sách xe", to: "/coordinator/vehicles", roles: [ROLES.COORDINATOR] },
-      { label: "Cảnh báo chờ duyệt", to: "/dispatch/notifications-dashboard", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
-      { label: "Tạo yêu cầu thanh toán", to: "/dispatch/expense-request", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
-      { label: "Đánh giá tài xế", to: "/dispatch/ratings", roles: [ROLES.ADMIN, ROLES.COORDINATOR] },
-    ],
-  },
-  {
-    sectionId: "accounting",
-    icon: DollarSign,
-    label: "Kế toán & Thanh toán",
-    roles: [ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CONSULTANT],
-    items: [
-      { label: "Tổng quan kế toán", to: "/accounting", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
-      { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CONSULTANT] },
-      { label: "Báo cáo chi phí", to: "/accounting/expenses", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
-      { label: "Danh sách hóa đơn", to: "/accounting/invoices", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
-      { label: "Danh sách đơn hàng", to: "/orders", roles: [ROLES.ACCOUNTANT] },
-      { label: "Danh sách nhân viên", to: "/admin/users", roles: [ROLES.ACCOUNTANT] },
-    ],
-  },
-  {
-    sectionId: "manager",
-    icon: Briefcase,
-    label: "Quản lý chi nhánh",
-    roles: [ROLES.ADMIN, ROLES.MANAGER],
-    items: [
-      { label: "Tổng quan chi nhánh", to: "/analytics/manager" },
-      { label: "Báo cáo chi phí", to: "/accounting/expenses" },
-      { label: "Danh sách đơn hàng", to: "/orders" },
-      { label: "Danh sách nhân viên", to: "/admin/users" },
-      { label: "Danh sách xe", to: "/vehicles" },
-    ],
-  },
-];
+// Menu items cho từng role - hiển thị flat list, không dùng accordion
+const SIDEBAR_ITEMS_BY_ROLE = {
+  // Consultant (Tư vấn viên - 5 options)
+  [ROLES.CONSULTANT]: [
+    { label: "Bảng điều khiển", to: "/orders/dashboard", icon: LayoutDashboard },
+    { label: "Danh sách đơn hàng", to: "/orders", icon: ClipboardList },
+    { label: "Tạo đơn hàng", to: "/orders/new", icon: ClipboardList },
+    { label: "Danh sách xe", to: "/consultant/vehicles", icon: CarFront },
+    { label: "Danh sách tài xế", to: "/consultant/drivers", icon: Users },
+  ],
+  // Driver (Tài xế - 6 options)
+  [ROLES.DRIVER]: [
+    { label: "Bảng điều khiển", to: "/driver/dashboard", icon: LayoutDashboard },
+    { label: "Lịch làm việc", to: "/driver/schedule", icon: CalendarClock },
+    { label: "Danh sách chuyến", to: "/driver/trips-list", icon: ClipboardList },
+    { label: "Xin nghỉ phép", to: "/driver/leave-request", icon: CalendarClock },
+    { label: "Danh sách yêu cầu", to: "/driver/requests", icon: ClipboardList },
+    { label: "Hồ sơ tài xế", to: "/driver/profile", icon: Users },
+  ],
+  // Coordinator (Điều phối viên - 7 options)
+  [ROLES.COORDINATOR]: [
+    { label: "Bảng điều khiển", to: "/dispatch", icon: LayoutDashboard },
+    { label: "Cảnh báo chờ duyệt", to: "/dispatch/notifications-dashboard", icon: Bell },
+    { label: "Danh sách đơn", to: "/coordinator/orders", icon: ClipboardList },
+    { label: "Danh sách tài xế", to: "/coordinator/drivers", icon: Users },
+    { label: "Danh sách xe", to: "/coordinator/vehicles", icon: CarFront },
+    { label: "Tạo yêu cầu thanh toán", to: "/dispatch/expense-request", icon: DollarSign },
+    { label: "Đánh giá tài xế", to: "/dispatch/ratings", icon: BarChart3 },
+  ],
+  // Accountant (Kế toán - 7 options)
+  [ROLES.ACCOUNTANT]: [
+    { label: "Bảng điều khiển", to: "/accounting", icon: LayoutDashboard },
+    { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", icon: BarChart3 },
+    { label: "Báo cáo chi phí", to: "/accounting/expenses", icon: DollarSign },
+    { label: "Danh sách hóa đơn", to: "/accounting/invoices", icon: ClipboardList },
+    { label: "Danh sách đơn hàng", to: "/accountant/orders", icon: ClipboardList },
+    { label: "Danh sách nhân viên", to: "/accountant/users", icon: Users },
+    { label: "Danh sách xe", to: "/accountant/vehicles", icon: CarFront },
+  ],
+  // Manager (Quản lý - 6 options)
+  [ROLES.MANAGER]: [
+    { label: "Bảng điều khiển", to: "/analytics/manager", icon: LayoutDashboard },
+    { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", icon: BarChart3 },
+    { label: "Báo cáo chi phí", to: "/accounting/expenses", icon: DollarSign },
+    { label: "Danh sách nhân viên", to: "/admin/users", icon: Users },
+    { label: "Danh sách xe", to: "/vehicles", icon: CarFront },
+    { label: "Danh sách khách hàng", to: "/manager/customers", icon: Users },
+  ],
+  // Admin (Quản trị viên - 8 options)
+  [ROLES.ADMIN]: [
+    { label: "Bảng điều khiển công ty", to: "/analytics/admin", icon: LayoutDashboard },
+    { label: "Bảng điều khiển chi nhánh", to: "/analytics/manager", icon: Briefcase },
+    { label: "Danh sách chi nhánh", to: "/admin/branches", icon: Briefcase },
+    { label: "Danh mục xe", to: "/vehicles/categories", icon: CarFront },
+    { label: "Danh sách xe", to: "/vehicles", icon: CarFront },
+    { label: "Danh sách nhân viên", to: "/admin/users", icon: Users },
+    { label: "Danh sách khách hàng", to: "/admin/customers", icon: Users },
+    { label: "Cấu hình hệ thống", to: "/admin/settings", icon: Settings },
+  ],
+};
+
+// Legacy SIDEBAR_SECTIONS - giữ lại cho backward compatibility
+const SIDEBAR_SECTIONS = [];
 
 function useRole() {
   return React.useMemo(() => getCurrentRole(), []);
-}
-
-function filterSectionsByRole(role) {
-  return SIDEBAR_SECTIONS.map((section) => {
-    if (section.roles && !section.roles.includes(role)) {
-      return null;
-    }
-    const allowedItems = (section.items || []).filter(
-      (item) => !item.roles || item.roles.includes(role)
-    );
-    if (!allowedItems.length) {
-      return null;
-    }
-    return { ...section, items: allowedItems };
-  }).filter(Boolean);
 }
 
 /* ========= IMPORT CÁC PAGE ========= */
@@ -227,226 +166,18 @@ import AdminDashboardPro from "./components/module 7/AdminDashboard.jsx";
 import ManagerDashboardPro from "./components/module 7/ManagerDashboard.jsx";
 
 /* ---------------------------------------------------
-   SidebarSection (controlled)
-   - KHÔNG còn useState tự mở/tắt
-   - Nhận activeSection + setActiveSection từ SidebarNav
-   - Mỗi section có sectionId duy nhất
-   - Item active có viền Tài xế + nền xanh nhạt
---------------------------------------------------- */
-function SidebarSection({
-  sectionId,
-  icon,
-  label,
-  items,
-  activeSection,
-  setActiveSection,
-  location,
-}) {
-  const open = activeSection === sectionId;
-
-  // Kiểm tra xem có item nào trong section này đang active không
-  const hasActiveItem = items.some(item => location.pathname.startsWith(item.to));
-  // Section đang active nếu có item active hoặc section đang mở
-  const isCurrentSection = hasActiveItem || open;
-
-  const handleToggle = () => {
-    // Nếu section đang đóng, mở nó
-    if (!open) {
-      setActiveSection(sectionId);
-    } else {
-      // Nếu section đang mở và không có item active, cho phép đóng
-      if (!hasActiveItem) {
-        setActiveSection("");
-      }
-      // Nếu có item active, giữ nguyên (không đóng)
-    }
-  };
-
-  return (
-    <div className="text-[13px] text-slate-700">
-      {/* header group */}
-      <button
-        type="button"
-        onClick={handleToggle}
-        className={`group w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-700 transition-all duration-200 ease-in-out cursor-pointer active:scale-[0.98] ${isCurrentSection
-          ? "bg-gradient-to-r from-sky-50 to-blue-50 shadow-sm shadow-sky-100/50"
-          : "hover:bg-gradient-to-r hover:from-sky-50 hover:to-blue-50 hover:shadow-sm hover:shadow-sky-100/50"
-          }`}
-      >
-        <span className="flex items-center gap-2.5">
-          {React.createElement(icon, {
-            className: `h-4 w-4 transition-all duration-200 ${open
-              ? "text-[#0079BC] scale-110"
-              : "text-sky-600 group-hover:text-[#0079BC] group-hover:scale-110"
-              }`
-          })}
-          <span className={`font-medium leading-none transition-colors duration-200 ${open
-            ? "text-slate-900"
-            : "text-slate-800 group-hover:text-slate-900"
-            }`}>
-            {label}
-          </span>
-        </span>
-        <div className="transition-transform duration-200 ease-in-out">
-          {open ? (
-            <ChevronDown className={`h-4 w-4 transition-all duration-200 ${isCurrentSection ? "text-[#0079BC] rotate-0" : "text-slate-400"
-              }`} />
-          ) : (
-            <ChevronRight className={`h-4 w-4 transition-all duration-200 text-slate-400 group-hover:text-[#0079BC] group-hover:translate-x-0.5`} />
-          )}
-        </div>
-      </button>
-
-      {/* submenu */}
-      {open && (
-        <ul className={`mt-1.5 mb-3 ml-2 flex flex-col border-l-2 ${hasActiveItem ? "border-[#0079BC]" : "border-slate-200"} space-y-0.5 animate-in fade-in slide-in-from-top-2 duration-200`}>
-          {items.map((item) => (
-            <li key={`${sectionId}-${item.to}-${item.label}`}>
-              <NavLink
-                to={item.to}
-                className={({ isActive }) => {
-                  const base =
-                    "group/item relative flex items-center justify-between pl-3.5 pr-3 py-2 text-[12px] rounded-lg transition-all duration-200 ease-in-out border border-transparent";
-                  if (isActive) {
-                    return [
-                      base,
-                      "bg-gradient-to-r from-[#0079BC]/10 to-sky-50 text-[#0079BC] border-[#0079BC]/20 font-semibold shadow-sm shadow-[#0079BC]/10",
-                      "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[#0079BC] before:rounded-r-md",
-                      "hover:from-[#0079BC]/15 hover:to-sky-100 hover:shadow-md hover:shadow-[#0079BC]/20",
-                    ].join(" ");
-                  }
-                  return [
-                    base,
-                    "text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100/50 hover:text-slate-900 hover:border-slate-200 hover:shadow-sm",
-                    "hover:translate-x-1",
-                  ].join(" ");
-                }}
-              >
-                <span className="truncate">{item.label}</span>
-                <ChevronRight className={`h-3.5 w-3.5 transition-all duration-200 ${"opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 group-hover/item:text-[#0079BC]"
-                  }`} />
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/* ---------------------------------------------------
    SidebarNav
-   - nền trắng
-   - border phải xám nhạt
-   - header app với chip màu sky-600
-   - QUAN TRỌNG: quản lý state mở/đóng cho toàn bộ sidebar
-   - Tích hợp tìm kiếm chức năng
+   - Flat list menu - không dùng accordion
+   - Mỗi role có menu items riêng
 --------------------------------------------------- */
 function SidebarNav() {
   const role = useRole();
   const location = useLocation();
-  const navigate = useNavigate();
-  const sections = React.useMemo(() => filterSectionsByRole(role), [role]);
-  const [activeSection, setActiveSection] = React.useState(() => sections[0]?.sectionId || "");
-  const [searchQuery, setSearchQuery] = React.useState("");
-
-  // Tự động mở section tương ứng với route hiện tại
-  React.useEffect(() => {
-    const pathname = location.pathname;
-
-    // Tự động mở section "analytics" khi vào dashboard
-    if (pathname.startsWith("/analytics/")) {
-      const analyticsSection = sections.find(s => s.sectionId === "analytics");
-      if (analyticsSection) {
-        setActiveSection("analytics");
-        return;
-      }
-    }
-
-    // Tự động mở section "admin" khi vào admin pages
-    if (pathname.startsWith("/admin/")) {
-      const adminSection = sections.find(s => s.sectionId === "admin");
-      if (adminSection) {
-        setActiveSection("admin");
-        return;
-      }
-    }
-
-    // Tự động mở section "vehicles" khi vào vehicle pages
-    if (pathname.startsWith("/vehicles/")) {
-      const vehiclesSection = sections.find(s => s.sectionId === "vehicles");
-      if (vehiclesSection) {
-        setActiveSection("vehicles");
-        return;
-      }
-    }
-
-    // Tự động mở section "bookings" khi vào booking pages
-    if (pathname.startsWith("/bookings/") || pathname.startsWith("/quotes/")) {
-      const bookingsSection = sections.find(s => s.sectionId === "bookings");
-      if (bookingsSection) {
-        setActiveSection("bookings");
-        return;
-      }
-    }
-
-    // Tự động mở section "dispatch" khi vào dispatch pages
-    if (pathname.startsWith("/dispatch/")) {
-      const dispatchSection = sections.find(s => s.sectionId === "dispatch");
-      if (dispatchSection) {
-        setActiveSection("dispatch");
-        return;
-      }
-    }
-
-    // Tự động mở section "accounting" khi vào accounting pages
-    if (pathname.startsWith("/accounting/")) {
-      const accountingSection = sections.find(s => s.sectionId === "accounting");
-      if (accountingSection) {
-        setActiveSection("accounting");
-        return;
-      }
-    }
-  }, [location.pathname, sections]);
-
-  React.useEffect(() => {
-    if (!sections.length) {
-      setActiveSection("");
-      return;
-    }
-    if (!sections.some((section) => section.sectionId === activeSection)) {
-      setActiveSection(sections[0].sectionId);
-    }
-  }, [sections, activeSection]);
-
-  // Filter sections and items based on search query
-  const filteredSections = React.useMemo(() => {
-    if (!searchQuery.trim()) return sections;
-
-    const query = searchQuery.toLowerCase().trim();
-    return sections.map(section => {
-      const matchedItems = section.items.filter(item =>
-        item.label.toLowerCase().includes(query) ||
-        section.label.toLowerCase().includes(query)
-      );
-
-      if (matchedItems.length === 0 && !section.label.toLowerCase().includes(query)) {
-        return null;
-      }
-
-      return {
-        ...section,
-        items: matchedItems.length > 0 ? matchedItems : section.items
-      };
-    }).filter(Boolean);
-  }, [sections, searchQuery]);
-
-  // Handle search result click
-  const handleSearchResultClick = (item, sectionId) => {
-    navigate(item.to);
-    setActiveSection(sectionId);
-    setSearchQuery(""); // Clear search after navigation
-  };
+  
+  // Lấy menu items cho role hiện tại
+  const menuItems = React.useMemo(() => {
+    return SIDEBAR_ITEMS_BY_ROLE[role] || [];
+  }, [role]);
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm fixed left-0 top-0 bottom-0 z-10">
@@ -461,67 +192,46 @@ function SidebarNav() {
         </div>
       </div>
 
-      {/* Search box */}
-      <div className="px-3 py-3 border-b border-slate-200">
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm transition-all focus-within:ring-2 focus-within:ring-[#0079BC]/20 focus-within:border-[#0079BC]/50 focus-within:bg-white">
-          <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent outline-none flex-1 text-slate-700 placeholder:text-slate-400 text-xs"
-            placeholder="Tìm chức năng..."
-          />
-        </div>
-      </div>
-
-      {/* groups */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-3 text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
-        {searchQuery.trim() ? (
-          // Search results view
-          <div className="space-y-1">
-            {filteredSections.length > 0 ? (
-              filteredSections.map((section) => (
-                <div key={section.sectionId} className="mb-3">
-                  <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1 mb-1">
-                    {section.label}
-                  </div>
-                  {section.items.map((item) => (
-                    <button
-                      key={`${section.sectionId}-${item.to}`}
-                      onClick={() => handleSearchResultClick(item, section.sectionId)}
-                      className="w-full text-left flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-gradient-to-r hover:from-[#0079BC]/10 hover:to-sky-50 hover:text-[#0079BC] transition-all"
-                    >
-                      <span className="truncate">{item.label}</span>
-                      <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  ))}
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                Không tìm thấy kết quả
-              </div>
-            )}
-          </div>
-        ) : (
-          // Normal sections view
-          sections.map((section) => (
-            <SidebarSection
-              key={section.sectionId}
-              sectionId={section.sectionId}
-              icon={section.icon}
-              label={section.label}
-              items={section.items}
-              activeSection={activeSection}
-              setActiveSection={setActiveSection}
-              location={location}
-            />
-          ))
-        )}
+      {/* Menu items - Flat list */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
+        {menuItems.map((item, index) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.to || 
+            (item.to !== "/" && location.pathname.startsWith(item.to));
+          
+          return (
+            <NavLink
+              key={`${item.to}-${index}`}
+              to={item.to}
+              className={({ isActive: navActive }) => {
+                const active = navActive || isActive;
+                const base = "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-200 ease-in-out";
+                if (active) {
+                  return [
+                    base,
+                    "bg-gradient-to-r from-[#0079BC]/10 to-sky-50 text-[#0079BC] font-semibold shadow-sm",
+                    "border-l-[3px] border-[#0079BC]",
+                  ].join(" ");
+                }
+                return [
+                  base,
+                  "text-slate-700 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100/50",
+                  "hover:text-slate-900 border-l-[3px] border-transparent hover:border-slate-300",
+                ].join(" ");
+              }}
+            >
+              {Icon && (
+                <Icon className={`h-4 w-4 flex-shrink-0 transition-colors duration-200 ${
+                  location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to))
+                    ? "text-[#0079BC]"
+                    : "text-slate-500 group-hover:text-slate-700"
+                }`} />
+              )}
+              <span className="truncate">{item.label}</span>
+            </NavLink>
+          );
+        })}
       </nav>
-
-      {/* <div className="px-4 py-4 border-t border-slate-200 text-[11px] text-slate-500 bg-slate-50/50">v0.1 thử nghiệm</div> */}
     </aside>
   );
 }
@@ -1134,6 +844,60 @@ export default function AppLayout() {
             }
           />
 
+          {/* Consultant specific routes */}
+          <Route
+            path="/consultant/vehicles"
+            element={
+              <ProtectedRoute roles={[ROLES.CONSULTANT]}>
+                <VehicleListPage readOnly />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/consultant/drivers"
+            element={
+              <ProtectedRoute roles={[ROLES.CONSULTANT]}>
+                <CoordinatorDriverListPage readOnly />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Accountant specific routes */}
+          <Route
+            path="/accountant/orders"
+            element={
+              <ProtectedRoute roles={[ROLES.ACCOUNTANT]}>
+                <ConsultantOrderListPage readOnly />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accountant/users"
+            element={
+              <ProtectedRoute roles={[ROLES.ACCOUNTANT]}>
+                <AdminUsersPage readOnly />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accountant/vehicles"
+            element={
+              <ProtectedRoute roles={[ROLES.ACCOUNTANT]}>
+                <VehicleListPage readOnly />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Manager specific routes */}
+          <Route
+            path="/manager/customers"
+            element={
+              <ProtectedRoute roles={[ROLES.MANAGER]}>
+                <CustomerListPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Kế toán & Thanh toán */}
           <Route
             path="/accounting"
@@ -1162,7 +926,7 @@ export default function AppLayout() {
           <Route
             path="/accounting/revenue-report"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CONSULTANT]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CONSULTANT, ROLES.MANAGER]}>
                 <ReportRevenuePage />
               </ProtectedRoute>
             }

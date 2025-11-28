@@ -1653,7 +1653,7 @@ export default function InvoiceManagement() {
     const onConfirmPayment = async (paymentId, status) => {
         try {
             await confirmPayment(paymentId, status);
-            push(`${status === "CONFIRMED" ? "Đã xác nhận nhận tiền" : "Đã đánh dấu chưa nhận được tiền"}`, "success");
+            push(`Đã ${status === "CONFIRMED" ? "xác nhận" : "từ chối"} thanh toán`, "success");
             // Reload payment history
             if (selectedInvoiceId) {
                 const history = await getPaymentHistory(selectedInvoiceId);
@@ -1937,14 +1937,14 @@ export default function InvoiceManagement() {
                                                 className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm"
                                             >
                                                 <CheckCircle className="h-4 w-4" />
-                                                Đã nhận
+                                                Xác nhận
                                             </button>
                                             <button
                                                 onClick={() => onConfirmPayment(payment.paymentId, "REJECTED")}
                                                 className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm"
                                             >
                                                 <XCircle className="h-4 w-4" />
-                                                Chưa nhận được
+                                                Từ chối
                                             </button>
                                         </div>
                                     </div>
@@ -1954,7 +1954,7 @@ export default function InvoiceManagement() {
                     )}
 
                     <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white">
-                        Xác thực tiền đã nhận từ tài xế/tư vấn viên. Chọn "Đã nhận" để ghi nhận số tiền vào hóa đơn.
+                        Xác nhận thanh toán sẽ cập nhật số dư hóa đơn. Thanh toán đã xác nhận sẽ được tính vào tổng thanh toán.
                     </div>
                 </div>
             )}
@@ -2018,7 +2018,7 @@ export default function InvoiceManagement() {
                         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between"
                              style={{ backgroundColor: BRAND_COLOR }}>
                             <div className="text-white">
-                                <h3 className="text-lg font-semibold">Xác thực tiền đã nhận</h3>
+                                <h3 className="text-lg font-semibold">Xác nhận thanh toán</h3>
                                 {confirmModalInvoice && (
                                     <p className="text-sm opacity-90">{confirmModalInvoice.invoice_no} · {confirmModalInvoice.customer}</p>
                                 )}
@@ -2094,7 +2094,7 @@ export default function InvoiceManagement() {
                                                         className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm whitespace-nowrap"
                                                     >
                                                         <XCircle className="h-4 w-4" />
-                                                        Chưa nhận được
+                                                        Chưa nhận
                                                     </button>
                                                 </div>
                                             </div>
@@ -2248,14 +2248,14 @@ function PaymentHistoryModal({ open, invoiceId, paymentHistory, loading, onClose
                                                     className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
                                                 >
                                                     <CheckCircle className="h-3.5 w-3.5" />
-                                                    Đã nhận
+                                                    Xác nhận
                                                 </button>
                                                 <button
                                                     onClick={() => onConfirm(payment.paymentId, "REJECTED")}
                                                     className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
                                                 >
                                                     <XCircle className="h-3.5 w-3.5" />
-                                                    Chưa nhận được
+                                                    Từ chối
                                                 </button>
                                             </div>
                                         )}

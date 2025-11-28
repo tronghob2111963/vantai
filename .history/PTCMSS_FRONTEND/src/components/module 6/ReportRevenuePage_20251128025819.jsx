@@ -670,7 +670,7 @@ export default function ReportRevenuePage() {
 
                 {/* footer hint */}
                 <div className="border-t border-gray-200 bg-white px-4 py-2 text-[11px] leading-relaxed text-gray-500">
-                   Tổng: {reportData.totalInvoices || 0} hóa đơn.
+                    Dữ liệu được tải từ API. Tổng: {reportData.totalInvoices || 0} hóa đơn.
                     {error && <span className="text-rose-600 ml-2">Lỗi: {error}</span>}
                 </div>
             </div>
