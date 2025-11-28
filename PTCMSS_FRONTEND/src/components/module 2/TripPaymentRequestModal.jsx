@@ -217,13 +217,13 @@ export default function TripPaymentRequestModal({
                     Đang tải...
                   </div>
                 ) : (
-                  paymentHistory.map((payment) => {
+                  paymentHistory.map((payment, idx) => {
                     const isPending = payment.confirmationStatus === "PENDING";
                     const isConfirmed = payment.confirmationStatus === "CONFIRMED";
                     const isRejected = payment.confirmationStatus === "REJECTED";
 
                     return (
-                      <div key={payment.id} className="px-4 py-3 hover:bg-slate-50">
+                      <div key={payment.paymentId || payment.id || idx} className="px-4 py-3 hover:bg-slate-50">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -264,12 +264,12 @@ export default function TripPaymentRequestModal({
                           {/* Nút xóa - chỉ hiện với PENDING */}
                           {isPending && (
                             <button
-                              onClick={() => handleDeletePayment(payment.id)}
-                              disabled={deleteLoading === payment.id}
+                              onClick={() => handleDeletePayment(payment.paymentId || payment.id)}
+                              disabled={deleteLoading === (payment.paymentId || payment.id)}
                               className="flex-shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 border border-rose-200 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                               title="Xóa yêu cầu"
                             >
-                              {deleteLoading === payment.id ? (
+                              {deleteLoading === (payment.paymentId || payment.id) ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Trash2 className="h-3.5 w-3.5" />

@@ -37,11 +37,19 @@ public interface PaymentHistoryRepository extends JpaRepository<PaymentHistory, 
     List<PaymentHistory> findPendingPayments(@Param("branchId") Integer branchId);
     
     /**
-     * Đếm số payment requests đang chờ xác nhận
+     * Đếm số payment requests đang chờ xác nhận theo branch
      */
     @Query("SELECT COUNT(ph) FROM PaymentHistory ph " +
            "WHERE ph.confirmationStatus = org.example.ptcmssbackend.enums.PaymentConfirmationStatus.PENDING " +
            "AND (:branchId IS NULL OR ph.invoice.branch.id = :branchId)")
     Long countPendingPayments(@Param("branchId") Integer branchId);
+    
+    /**
+     * Đếm số payment requests đang chờ xác nhận cho một invoice cụ thể
+     */
+    @Query("SELECT COUNT(ph) FROM PaymentHistory ph " +
+           "WHERE ph.invoice.id = :invoiceId " +
+           "AND ph.confirmationStatus = org.example.ptcmssbackend.enums.PaymentConfirmationStatus.PENDING")
+    Integer countPendingPaymentsByInvoiceId(@Param("invoiceId") Integer invoiceId);
 }
 
