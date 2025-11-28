@@ -334,5 +334,27 @@ public class InvoiceController {
                             .build());
         }
     }
+
+    @Operation(summary = "Xóa payment request", description = "Xóa payment request (chỉ được xóa nếu status = PENDING)")
+    @DeleteMapping("/payments/{paymentId}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','DRIVER','CONSULTANT')")
+    public ResponseEntity<ApiResponse<Void>> deletePayment(
+            @Parameter(description = "ID của payment") @PathVariable Integer paymentId) {
+        log.info("[InvoiceController] Deleting payment: {}", paymentId);
+        try {
+            invoiceService.deletePayment(paymentId);
+            return ResponseEntity.ok(ApiResponse.<Void>builder()
+                    .success(true)
+                    .message("Payment deleted successfully")
+                    .build());
+        } catch (Exception e) {
+            log.error("[InvoiceController] Error deleting payment", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build());
+        }
+    }
 }
 

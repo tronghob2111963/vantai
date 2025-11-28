@@ -51,5 +51,8 @@ public interface InvoiceService {
     
     // Payment confirmation
     PaymentHistoryResponse confirmPayment(Integer paymentId, String status);
+
+    // Delete payment (only PENDING)
+    void deletePayment(Integer paymentId);
 }
 

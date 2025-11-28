@@ -503,12 +503,12 @@ public class InvoiceServiceImpl implements InvoiceService {
     public PaymentHistoryResponse confirmPayment(Integer paymentId, String status) {
         PaymentHistory payment = paymentHistoryRepository.findById(paymentId)
                 .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
-        
+
         try {
             PaymentConfirmationStatus confirmationStatus = PaymentConfirmationStatus.valueOf(status.toUpperCase());
             payment.setConfirmationStatus(confirmationStatus);
             payment = paymentHistoryRepository.save(payment);
-            
+
             // Update invoice payment status nếu cần
             Invoices invoice = payment.getInvoice();
             if (invoice != null) {
@@ -523,10 +523,36 @@ public class InvoiceServiceImpl implements InvoiceService {
                 }
                 invoiceRepository.save(invoice);
             }
-            
+
             return mapToPaymentHistoryResponse(payment);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Invalid confirmation status: " + status + ". Must be CONFIRMED or REJECTED");
+        }
+    }
+
+    @Override
+    public void deletePayment(Integer paymentId) {
+        PaymentHistory payment = paymentHistoryRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+
+        // Chỉ cho phép xóa payment có status PENDING
+        if (payment.getConfirmationStatus() != PaymentConfirmationStatus.PENDING) {
+            throw new RuntimeException("Chỉ được xóa payment request có trạng thái PENDING. Payment này đã " +
+                    (payment.getConfirmationStatus() == PaymentConfirmationStatus.CONFIRMED ? "được xác nhận" : "bị từ chối"));
+        }
+
+        // Xóa payment
+        paymentHistoryRepository.delete(payment);
+
+        // Update invoice payment status nếu cần
+        Invoices invoice = payment.getInvoice();
+        if (invoice != null) {
+            BigDecimal newBalance = calculateBalance(invoice.getId());
+            if (newBalance.compareTo(invoice.getAmount()) >= 0) {
+                // Nếu chưa có payment nào hoặc tất cả đã bị xóa
+                invoice.setPaymentStatus(PaymentStatus.UNPAID);
+            }
+            invoiceRepository.save(invoice);
         }
     }
 
