@@ -28,6 +28,8 @@ import {
     generateInvoiceNumber,
     getPaymentHistory,
     confirmPayment,
+    getPendingPayments,
+    countPendingPayments,
 } from "../../api/invoices";
 import { listBookings } from "../../api/bookings";
 import { exportInvoiceListToExcel, exportInvoiceToPdf } from "../../api/exports";
@@ -1213,6 +1215,12 @@ export default function InvoiceManagement() {
         setDebtMode(
             (v) => !v
         );
+    
+    // Tab: Yêu cầu thanh toán chờ xác nhận
+    const [activeTab, setActiveTab] = React.useState("invoices"); // "invoices" | "pending"
+    const [pendingPayments, setPendingPayments] = React.useState([]);
+    const [pendingCount, setPendingCount] = React.useState(0);
+    const [loadingPending, setLoadingPending] = React.useState(false);
 
     // Load invoices from API
     const loadInvoices = React.useCallback(async () => {
@@ -1301,10 +1309,44 @@ export default function InvoiceManagement() {
         }
     }, [push]);
 
+    // Load pending payments (for accountant)
+    const loadPendingPayments = React.useCallback(async () => {
+        setLoadingPending(true);
+        try {
+            const payments = await getPendingPayments();
+            setPendingPayments(Array.isArray(payments) ? payments : []);
+        } catch (err) {
+            console.error("Error loading pending payments:", err);
+            push("Lỗi khi tải yêu cầu thanh toán: " + (err?.message || "Unknown error"), "error");
+            setPendingPayments([]);
+        } finally {
+            setLoadingPending(false);
+        }
+    }, [push]);
+    
+    // Load pending count
+    const loadPendingCount = React.useCallback(async () => {
+        try {
+            const count = await countPendingPayments();
+            setPendingCount(count || 0);
+        } catch (err) {
+            console.error("Error loading pending count:", err);
+        }
+    }, []);
+
     // Load data on mount and when filters change
     React.useEffect(() => {
-        loadInvoices();
-    }, [loadInvoices]);
+        if (activeTab === "invoices") {
+            loadInvoices();
+        } else if (activeTab === "pending") {
+            loadPendingPayments();
+        }
+    }, [loadInvoices, loadPendingPayments, activeTab]);
+    
+    // Load pending count on mount (for badge)
+    React.useEffect(() => {
+        loadPendingCount();
+    }, [loadPendingCount]);
 
     React.useEffect(() => {
         if (createOpen) {
@@ -1572,6 +1614,8 @@ export default function InvoiceManagement() {
                 setPaymentHistory(Array.isArray(history) ? history : (history?.data ? history.data : []));
             }
             loadInvoices(); // Reload invoices để cập nhật tổng thanh toán
+            loadPendingPayments(); // Reload pending payments list
+            loadPendingCount(); // Update pending count badge
         } catch (err) {
             console.error("Error confirming payment:", err);
             push("Lỗi khi xác nhận thanh toán: " + (err?.data?.message || err?.message || "Unknown error"), "error");
@@ -1637,98 +1681,223 @@ export default function InvoiceManagement() {
                 )}
             </div>
 
-            {/* Toolbar card */}
-            <div className="rounded-xl border border-gray-200 bg-white p-4 mb-5 shadow-sm">
-                <Toolbar
-                    query={
-                        query
-                    }
-                    setQuery={
-                        setQuery
-                    }
-                    statusFilter={
-                        statusFilter
-                    }
-                    setStatusFilter={
-                        setStatusFilter
-                    }
-                    onCreateClick={
-                        onCreateClick
-                    }
-                    onRefresh={
-                        onRefresh
-                    }
-                    onExportCsv={
-                        onExportCsv
-                    }
-                    loading={
-                        loading
-                    }
-                    debtMode={
-                        debtMode
-                    }
-                    toggleDebtMode={
-                        toggleDebtMode
-                    }
-                    canCreate={
-                        canCreate
-                    }
-                />
+            {/* Tabs */}
+            <div className="flex items-center gap-1 mb-4 border-b border-gray-200">
+                <button
+                    onClick={() => setActiveTab("invoices")}
+                    className={cls(
+                        "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                        activeTab === "invoices"
+                            ? "text-[#0079BC] border-[#0079BC]"
+                            : "text-gray-500 border-transparent hover:text-gray-700"
+                    )}
+                >
+                    <span className="flex items-center gap-2">
+                        <FilePlus2 className="h-4 w-4" />
+                        Danh sách hóa đơn
+                    </span>
+                </button>
+                <button
+                    onClick={() => setActiveTab("pending")}
+                    className={cls(
+                        "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2",
+                        activeTab === "pending"
+                            ? "text-[#0079BC] border-[#0079BC]"
+                            : "text-gray-500 border-transparent hover:text-gray-700"
+                    )}
+                >
+                    <Clock className="h-4 w-4" />
+                    Yêu cầu thanh toán chờ xác nhận
+                    {pendingCount > 0 && (
+                        <span className="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500 text-white">
+                            {pendingCount}
+                        </span>
+                    )}
+                </button>
             </div>
 
-            {/* Table card */}
-            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 text-sm text-gray-600 flex items-center gap-2">
-                    {debtMode
-                        ? "Danh sách công nợ khách hàng"
-                        : "Danh sách hóa đơn"}
-                </div>
-
-                {initialLoading ? (
-                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
-                        Đang tải dữ liệu...
-                    </div>
-                ) : (
-                    <>
-                        <InvoiceTable
-                            items={filtered}
-                            onRecordPayment={onRecordPayment}
-                            onSendInvoice={onSendInvoice}
-                            onExportPdf={onExportPdf}
-                            onViewPaymentHistory={onViewPaymentHistory}
+            {/* Invoices Tab Content */}
+            {activeTab === "invoices" && (
+                <>
+                    {/* Toolbar card */}
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 mb-5 shadow-sm">
+                        <Toolbar
+                            query={query}
+                            setQuery={setQuery}
+                            statusFilter={statusFilter}
+                            setStatusFilter={setStatusFilter}
+                            onCreateClick={onCreateClick}
+                            onRefresh={onRefresh}
+                            onExportCsv={onExportCsv}
+                            loading={loading}
+                            debtMode={debtMode}
+                            toggleDebtMode={toggleDebtMode}
+                            canCreate={canCreate}
                         />
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                                <div className="text-sm text-gray-700">
-                                    Trang {page + 1} / {totalPages}
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setPage(Math.max(0, page - 1))}
-                                        disabled={page === 0}
-                                        className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                                    >
-                                        Trước
-                                    </button>
-                                    <button
-                                        onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                                        disabled={page >= totalPages - 1}
-                                        className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                                    >
-                                        Sau
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </>
-                )}
+                    </div>
 
-                <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white leading-relaxed">
-                    Dữ liệu được tải từ API. Tổng: {invoices.length} hóa đơn.
-                    {debtMode && " Chế độ công nợ: chỉ hiển thị UNPAID/OVERDUE, sắp xếp theo due date."}
+                    {/* Table card */}
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 text-sm text-gray-600 flex items-center gap-2">
+                            {debtMode
+                                ? "Danh sách công nợ khách hàng"
+                                : "Danh sách hóa đơn"}
+                        </div>
+
+                        {initialLoading ? (
+                            <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                                Đang tải dữ liệu...
+                            </div>
+                        ) : (
+                            <>
+                                <InvoiceTable
+                                    items={filtered}
+                                    onRecordPayment={onRecordPayment}
+                                    onSendInvoice={onSendInvoice}
+                                    onExportPdf={onExportPdf}
+                                    onViewPaymentHistory={onViewPaymentHistory}
+                                />
+                                {/* Pagination */}
+                                {totalPages > 1 && (
+                                    <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                                        <div className="text-sm text-gray-700">
+                                            Trang {page + 1} / {totalPages}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setPage(Math.max(0, page - 1))}
+                                                disabled={page === 0}
+                                                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                                            >
+                                                Trước
+                                            </button>
+                                            <button
+                                                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                                                disabled={page >= totalPages - 1}
+                                                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                                            >
+                                                Sau
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white leading-relaxed">
+                            Dữ liệu được tải từ API. Tổng: {invoices.length} hóa đơn.
+                            {debtMode && " Chế độ công nợ: chỉ hiển thị UNPAID/OVERDUE, sắp xếp theo due date."}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Pending Payments Tab Content */}
+            {activeTab === "pending" && (
+                <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                        <div className="text-sm text-gray-600 flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-amber-500" />
+                            Yêu cầu thanh toán từ tài xế/tư vấn viên đang chờ xác nhận
+                        </div>
+                        <button
+                            onClick={() => {
+                                loadPendingPayments();
+                                loadPendingCount();
+                            }}
+                            className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 text-sm font-medium shadow-sm flex items-center gap-1"
+                        >
+                            <RefreshCw className={cls("h-4 w-4", loadingPending ? "animate-spin" : "")} />
+                            Làm mới
+                        </button>
+                    </div>
+
+                    {loadingPending ? (
+                        <div className="px-4 py-12 text-center text-gray-500 text-sm">
+                            <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+                            Đang tải...
+                        </div>
+                    ) : pendingPayments.length === 0 ? (
+                        <div className="px-4 py-12 text-center text-gray-500">
+                            <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
+                            <div className="text-sm font-medium text-gray-700">Không có yêu cầu thanh toán nào đang chờ xác nhận</div>
+                            <div className="text-xs text-gray-500 mt-1">Tất cả yêu cầu đã được xử lý</div>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-gray-200">
+                            {pendingPayments.map((payment) => (
+                                <div key={payment.paymentId} className="p-4 hover:bg-gray-50">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <span className="text-lg font-bold text-gray-900 tabular-nums">
+                                                    {fmtVND(payment.amount || 0)} đ
+                                                </span>
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-amber-50 text-amber-700 border border-amber-300">
+                                                    <Clock className="h-3 w-3" />
+                                                    Chờ xác nhận
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-gray-600 space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium">Hóa đơn:</span>
+                                                    <span className="text-gray-900">{payment.invoiceNumber || `INV-${payment.invoiceId}`}</span>
+                                                    {payment.customerName && (
+                                                        <span className="text-gray-500">• {payment.customerName}</span>
+                                                    )}
+                                                </div>
+                                                {payment.bookingCode && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">Mã đơn:</span>
+                                                        <span>{payment.bookingCode}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium">Phương thức:</span>
+                                                    <span>{payment.paymentMethod === "CASH" ? "Tiền mặt" : payment.paymentMethod === "TRANSFER" ? "Chuyển khoản" : payment.paymentMethod}</span>
+                                                </div>
+                                                {payment.paymentDate && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">Thời gian:</span>
+                                                        <span>{new Date(payment.paymentDate).toLocaleString("vi-VN")}</span>
+                                                    </div>
+                                                )}
+                                                {payment.note && (
+                                                    <div className="mt-2 text-xs text-gray-500 italic">
+                                                        "{payment.note}"
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Action buttons */}
+                                        <div className="flex flex-col gap-2">
+                                            <button
+                                                onClick={() => onConfirmPayment(payment.paymentId, "CONFIRMED")}
+                                                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+                                            >
+                                                <CheckCircle className="h-4 w-4" />
+                                                Xác nhận
+                                            </button>
+                                            <button
+                                                onClick={() => onConfirmPayment(payment.paymentId, "REJECTED")}
+                                                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+                                            >
+                                                <XCircle className="h-4 w-4" />
+                                                Từ chối
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white">
+                        Xác nhận thanh toán sẽ cập nhật số dư hóa đơn. Thanh toán đã xác nhận sẽ được tính vào tổng thanh toán.
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Modals */}
             {!debtMode && canCreate && (

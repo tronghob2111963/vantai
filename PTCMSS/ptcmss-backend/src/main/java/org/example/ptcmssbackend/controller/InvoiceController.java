@@ -356,5 +356,50 @@ public class InvoiceController {
                             .build());
         }
     }
+    
+    @Operation(summary = "Danh sách yêu cầu thanh toán chờ xác nhận", 
+               description = "Lấy tất cả các payment request đang chờ kế toán xác nhận (PENDING). " +
+                           "Dùng cho kế toán để xem và xác nhận thanh toán từ tài xế/tư vấn viên.")
+    @GetMapping("/payments/pending")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<List<PaymentHistoryResponse>>> getPendingPayments(
+            @Parameter(description = "ID chi nhánh (null = tất cả)") @RequestParam(required = false) Integer branchId) {
+        log.info("[InvoiceController] Getting pending payments for branch: {}", branchId);
+        try {
+            List<PaymentHistoryResponse> payments = invoiceService.getPendingPayments(branchId);
+            return ResponseEntity.ok(ApiResponse.<List<PaymentHistoryResponse>>builder()
+                    .success(true)
+                    .data(payments)
+                    .build());
+        } catch (Exception e) {
+            log.error("[InvoiceController] Error getting pending payments", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<List<PaymentHistoryResponse>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build());
+        }
+    }
+    
+    @Operation(summary = "Đếm số yêu cầu thanh toán chờ xác nhận")
+    @GetMapping("/payments/pending/count")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<Long>> countPendingPayments(
+            @Parameter(description = "ID chi nhánh (null = tất cả)") @RequestParam(required = false) Integer branchId) {
+        try {
+            Long count = invoiceService.countPendingPayments(branchId);
+            return ResponseEntity.ok(ApiResponse.<Long>builder()
+                    .success(true)
+                    .data(count)
+                    .build());
+        } catch (Exception e) {
+            log.error("[InvoiceController] Error counting pending payments", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<Long>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build());
+        }
+    }
 }
 

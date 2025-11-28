@@ -566,5 +566,37 @@ public class InvoiceServiceImpl implements InvoiceService {
             default: return 7;
         }
     }
+    
+    @Override
+    public List<PaymentHistoryResponse> getPendingPayments(Integer branchId) {
+        log.info("[InvoiceService] Getting pending payments for branch: {}", branchId);
+        List<PaymentHistory> payments = paymentHistoryRepository.findPendingPayments(branchId);
+        return payments.stream()
+                .map(this::mapToPaymentHistoryResponseWithInvoice)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public Long countPendingPayments(Integer branchId) {
+        return paymentHistoryRepository.countPendingPayments(branchId);
+    }
+    
+    private PaymentHistoryResponse mapToPaymentHistoryResponseWithInvoice(PaymentHistory payment) {
+        PaymentHistoryResponse response = mapToPaymentHistoryResponse(payment);
+        // Add invoice info for context
+        if (payment.getInvoice() != null) {
+            Invoices invoice = payment.getInvoice();
+            response.setInvoiceId(invoice.getId());
+            response.setInvoiceNumber(invoice.getInvoiceNumber());
+            if (invoice.getCustomer() != null) {
+                response.setCustomerName(invoice.getCustomer().getFullName());
+            }
+            if (invoice.getBooking() != null) {
+                response.setBookingId(invoice.getBooking().getId());
+                response.setBookingCode("ORD-" + invoice.getBooking().getId());
+            }
+        }
+        return response;
+    }
 }
 

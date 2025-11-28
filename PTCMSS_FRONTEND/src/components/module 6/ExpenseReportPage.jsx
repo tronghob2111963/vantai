@@ -49,10 +49,12 @@ const todayISO = () =>
 
 const CATEGORY_LABELS = {
     FUEL: "Xăng dầu",
-    MAINTENANCE: "Bảo dưỡng / sửa chữa",
+    MAINTENANCE: "Bảo dưỡng & sửa chữa",
     SALARY: "Lương tài xế",
-    PARKING: "Bến bãi / đỗ xe",
+    PARKING: "Bến bãi & đỗ xe",
     INSURANCE: "Bảo hiểm",
+    TOLL: "Cầu đường & phí đường bộ",
+    REPAIR: "Sửa chữa khẩn cấp",
     OTHER: "Khác",
 };
 
@@ -1275,6 +1277,9 @@ export default function ExpenseReportPage() {
         return Number.isNaN(parsed) ? null : parsed;
     }, []);
     const isManagerView = currentRole === ROLES.MANAGER;
+    const isConsultantView = currentRole === ROLES.CONSULTANT;
+    const isAccountantView = currentRole === ROLES.ACCOUNTANT;
+    const isBranchLocked = isManagerView || isConsultantView || isAccountantView;
 
     // Bộ lọc
     const [fromDate, setFromDate] = React.useState("");
@@ -1297,7 +1302,7 @@ export default function ExpenseReportPage() {
 
     const [branches, setBranches] = React.useState([]);
     const [vehicles, setVehicles] = React.useState([]);
-    const [branchLockLoading, setBranchLockLoading] = React.useState(isManagerView);
+    const [branchLockLoading, setBranchLockLoading] = React.useState(isBranchLocked);
     const [branchLockError, setBranchLockError] = React.useState("");
     const [branchLockName, setBranchLockName] = React.useState("");
 
@@ -1317,9 +1322,9 @@ export default function ExpenseReportPage() {
         })();
     }, []);
 
-    // Lock branch filter for Manager role
+    // Lock branch filter for Manager and Consultant roles
     React.useEffect(() => {
-        if (!isManagerView) {
+        if (!isBranchLocked) {
             setBranchLockLoading(false);
             setBranchLockError("");
             setBranchLockName("");
@@ -1373,7 +1378,7 @@ export default function ExpenseReportPage() {
         return () => {
             cancelled = true;
         };
-    }, [isManagerView, currentUserId]);
+    }, [isBranchLocked, currentUserId]);
 
     // Load expense report
     const loadReport = React.useCallback(async () => {
@@ -1404,7 +1409,7 @@ export default function ExpenseReportPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [branchId, vehicleId, catFilter, fromDate, toDate, period]);
 
-    const branchReady = !isManagerView || (!branchLockLoading && branchId != null);
+    const branchReady = !isBranchLocked || (!branchLockLoading && branchId != null);
 
     // Load on mount and when filters change
     React.useEffect(() => {
@@ -1415,10 +1420,10 @@ export default function ExpenseReportPage() {
     }, [loadReport, branchReady]);
 
     React.useEffect(() => {
-        if (isManagerView && !branchLockLoading && branchId == null) {
+        if (isBranchLocked && !branchLockLoading && branchId == null) {
             setInitialLoading(false);
         }
-    }, [isManagerView, branchLockLoading, branchId]);
+    }, [isBranchLocked, branchLockLoading, branchId]);
 
     const categoryOptions =
         React.useMemo(
@@ -1474,7 +1479,7 @@ export default function ExpenseReportPage() {
 
     // Refresh
     const onRefresh = () => {
-        if (isManagerView && !branchReady) {
+        if (isBranchLocked && !branchReady) {
             push("Đang xác định chi nhánh của bạn...", "info");
             return;
         }
@@ -1484,7 +1489,7 @@ export default function ExpenseReportPage() {
 
     // Export excel
     const onExportExcel = async () => {
-        if (isManagerView && !branchReady) {
+        if (isBranchLocked && !branchReady) {
             push("Đang xác định chi nhánh của bạn...", "info");
             return;
         }
@@ -1553,7 +1558,7 @@ export default function ExpenseReportPage() {
                     onRefresh={onRefresh}
                     loading={loading}
                     onExportExcel={onExportExcel}
-                    branchDisabled={isManagerView}
+                    branchDisabled={isBranchLocked}
                     branchHelperText={branchLockName
                         ? `Chi nhánh ${branchLockName}`
                         : branchId != null
