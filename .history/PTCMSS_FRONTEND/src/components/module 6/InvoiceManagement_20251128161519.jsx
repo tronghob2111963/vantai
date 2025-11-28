@@ -1845,7 +1845,7 @@ export default function InvoiceManagement() {
                         )}
 
                         <div className="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-500 bg-white leading-relaxed">
-                            Tổng: {invoices.length} hóa đơn.
+                            Dữ liệu được tải từ API. Tổng: {invoices.length} hóa đơn.
                             {debtMode && " Chế độ công nợ: chỉ hiển thị UNPAID/OVERDUE, sắp xếp theo due date."}
                         </div>
                     </div>

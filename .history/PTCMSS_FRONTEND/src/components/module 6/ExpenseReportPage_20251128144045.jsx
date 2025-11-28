@@ -1622,7 +1622,7 @@ export default function ExpenseReportPage() {
                 />
 
                 <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 leading-relaxed">
-                 Tổng chi phí: {fmtVND(totalExpense)} đ.
+                    Dữ liệu được tải từ API. Tổng chi phí: {fmtVND(totalExpense)} đ.
                     {error && <span className="text-rose-600 ml-2">Lỗi: {error}</span>}
                 </div>
             </div>
