@@ -261,7 +261,7 @@ export default function AdminUsersPage() {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             <button
-              onClick={() => navigate('/admin/employees/create-with-user')}
+              onClick={() => navigate('/admin/users/new')}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
               style={{ backgroundColor: BRAND_COLOR }}
             >
