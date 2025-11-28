@@ -299,11 +299,11 @@ export default function DepositModal({
                 await createDeposit(context.id, depositPayload);
             } else {
                 // Record payment for invoice - Backend expects RecordPaymentRequest
-                // Kế toán tạo payment CONFIRMED luôn (không qua PENDING)
+                // Driver/Consultant tạo payment với status PENDING → Kế toán xác nhận sau
                 const paymentPayload = {
                     amount,
                     paymentMethod: method,
-                    confirmationStatus: "CONFIRMED", // Kế toán xác nhận ngay
+                    confirmationStatus: "PENDING", // Chờ Kế toán xác nhận
                     note: note || undefined,
                     createdBy: userId ? parseInt(userId) : undefined,
                 };

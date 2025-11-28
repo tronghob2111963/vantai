@@ -1538,7 +1538,7 @@ export default function AccountantDashboard() {
             try {
                 console.log("[AccountantDashboard] Confirming payment:", paymentId, status);
                 await confirmPayment(paymentId, status);
-                push(`Đã ${status === "CONFIRMED" ? "xác nhận" : "từ chối"} thanh toán`, "success");
+                push(`${status === "CONFIRMED" ? "Đã xác nhận nhận tiền" : "Đã đánh dấu chưa nhận được tiền"}`, "success");
                 // Reload pending payments and dashboard
                 loadPendingPayments();
                 loadDashboard();
@@ -1968,14 +1968,14 @@ export default function AccountantDashboard() {
                                             className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
                                         >
                                             <CheckCircle className="h-3.5 w-3.5" />
-                                            Xác nhận
+                                            Đã nhận
                                         </button>
                                         <button
                                             onClick={() => confirmPaymentRequest(payment.paymentId, "REJECTED")}
                                             className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
                                         >
                                             <XCircle className="h-3.5 w-3.5" />
-                                            Từ chối
+                                            Chưa nhận được
                                         </button>
                                     </div>
                                 </div>
@@ -1986,7 +1986,7 @@ export default function AccountantDashboard() {
 
                 {/* footer note */}
                 <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 leading-relaxed">
-                    Yêu cầu thanh toán từ tài xế/tư vấn viên. Xác nhận để ghi nhận số tiền vào hóa đơn.
+                    Xác thực tiền đã nhận từ tài xế/tư vấn viên. Chọn "Đã nhận" để ghi nhận số tiền vào hóa đơn.
                 </div>
             </div>
         </div>
