@@ -54,5 +54,9 @@ public interface InvoiceService {
 
     // Delete payment (only PENDING)
     void deletePayment(Integer paymentId);
+    
+    // Get pending payment requests (for accountant to confirm)
+    List<PaymentHistoryResponse> getPendingPayments(Integer branchId);
+    Long countPendingPayments(Integer branchId);
 }
 

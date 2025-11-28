@@ -116,10 +116,10 @@ const SIDEBAR_SECTIONS = [
     sectionId: "accounting",
     icon: DollarSign,
     label: "Kế toán & Thanh toán",
-    roles: [ROLES.ADMIN, ROLES.ACCOUNTANT],
+    roles: [ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CONSULTANT],
     items: [
       { label: "Tổng quan kế toán", to: "/accounting", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
-      { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
+      { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CONSULTANT] },
       { label: "Báo cáo chi phí", to: "/accounting/expenses", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
       { label: "Danh sách hóa đơn", to: "/accounting/invoices", roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
       { label: "Danh sách đơn hàng", to: "/orders", roles: [ROLES.ACCOUNTANT] },
@@ -1162,7 +1162,7 @@ export default function AppLayout() {
           <Route
             path="/accounting/revenue-report"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CONSULTANT]}>
                 <ReportRevenuePage />
               </ProtectedRoute>
             }
