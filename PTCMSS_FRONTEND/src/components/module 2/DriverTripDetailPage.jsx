@@ -397,6 +397,14 @@ export default function DriverTripDetailPage() {
       else if (nextStatus === "COMPLETED") await apiCompleteTrip(driver.driverId, trip.id);
       pushToast("Đã cập nhật trạng thái chuyến.", "success");
       await loadTripDetail(trip.id, { silent: true });
+      
+      // Sau khi hoàn thành chuyến, nếu còn tiền chưa thanh toán → tự động mở modal tạo payment request
+      if (nextStatus === "COMPLETED" && trip.remaining_amount > 0) {
+        setTimeout(() => {
+          setPaymentOpen(true);
+          pushToast("Vui lòng tạo yêu cầu thanh toán cho số tiền còn lại.", "info");
+        }, 500);
+      }
     } catch (err) {
       pushToast(err?.data?.message || err?.message || "Không thể cập nhật trạng thái chuyến.", "error");
     } finally {
@@ -499,8 +507,11 @@ export default function DriverTripDetailPage() {
                 </button>
               )}
 
-              {/* Nút Yêu cầu thanh toán - hiển thị khi IN_PROGRESS (trước khi hoàn thành) */}
-              {canUpdateStatus && trip?.status === "IN_PROGRESS" && (
+              {/* Nút Yêu cầu thanh toán - hiển thị khi:
+                  1. IN_PROGRESS (trước khi hoàn thành)
+                  2. COMPLETED nhưng còn tiền chưa thanh toán */}
+              {(canUpdateStatus && trip?.status === "IN_PROGRESS") || 
+               (trip?.status === "COMPLETED" && trip?.remaining_amount > 0) ? (
                 <button
                   onClick={() => setPaymentOpen(true)}
                   className="rounded-xl border border-[#0079BC] bg-[#0079BC] hover:bg-[#0079BC]/90 text-white text-sm font-semibold px-4 py-2 flex items-center justify-center gap-2 shadow-sm"
@@ -508,7 +519,7 @@ export default function DriverTripDetailPage() {
                   <BadgeDollarSign className="h-4 w-4" />
                   <span>Yêu cầu thanh toán</span>
                 </button>
-              )}
+              ) : null}
 
               {/* Nút Báo cáo chi phí - chỉ khi HÔM NAY + chưa hoàn thành */}
               {canUpdateStatus && (
