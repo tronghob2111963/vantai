@@ -1379,13 +1379,170 @@ public class BookingServiceImpl implements BookingService {
         int available = Math.max(0, total - busy);
         boolean ok = available >= needed;
 
+        // Nếu không đủ xe -> tính suggestions
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory> alternativeCategories = null;
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> nextAvailableSlots = null;
+        
+        if (!ok) {
+            // 1. Tìm loại xe thay thế có sẵn tại thời điểm yêu cầu
+            alternativeCategories = findAlternativeCategories(branchId, categoryId, start, end, needed);
+            
+            // 2. Tìm thời gian rảnh tiếp theo của loại xe được yêu cầu
+            nextAvailableSlots = findNextAvailableSlots(branchId, categoryId, start, needed, candidates);
+        }
+
         return org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.builder()
                 .ok(ok)
                 .availableCount(available)
                 .needed(needed)
                 .totalCandidates(total)
                 .busyCount(busy)
+                .alternativeCategories(alternativeCategories)
+                .nextAvailableSlots(nextAvailableSlots)
                 .build();
+    }
+    
+    /**
+     * Tìm các loại xe thay thế có sẵn tại thời điểm yêu cầu
+     */
+    private List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory> findAlternativeCategories(
+            Integer branchId, Integer excludeCategoryId, Instant start, Instant end, int needed) {
+        
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory> alternatives = new ArrayList<>();
+        
+        // Lấy tất cả loại xe active
+        List<VehicleCategoryPricing> allCategories = vehicleCategoryRepository.findAll().stream()
+                .filter(c -> c.getStatus() == VehicleCategoryStatus.ACTIVE)
+                .filter(c -> !c.getId().equals(excludeCategoryId))
+                .collect(Collectors.toList());
+        
+        for (VehicleCategoryPricing category : allCategories) {
+            // Đếm xe available cho loại này
+            List<Vehicles> catVehicles = vehicleRepository.filterVehicles(category.getId(), branchId, VehicleStatus.AVAILABLE);
+            int totalInCategory = catVehicles != null ? catVehicles.size() : 0;
+            
+            // Đếm xe busy trong khoảng thời gian
+            List<Integer> busyInCategory = tripVehicleRepository.findBusyVehicleIds(branchId, category.getId(), start, end);
+            int busyCount = busyInCategory != null ? busyInCategory.size() : 0;
+            
+            int availableInCategory = Math.max(0, totalInCategory - busyCount);
+            
+            // Chỉ suggest nếu có đủ xe
+            if (availableInCategory >= needed) {
+                alternatives.add(org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory.builder()
+                        .categoryId(category.getId())
+                        .categoryName(category.getCategoryName())
+                        .seats(category.getSeats())
+                        .availableCount(availableInCategory)
+                        .pricePerKm(category.getPricePerKm())
+                        .estimatedPrice(null) // Có thể tính nếu biết distance
+                        .build());
+            }
+        }
+        
+        // Sắp xếp theo số ghế tăng dần (ưu tiên xe gần với yêu cầu)
+        alternatives.sort((a, b) -> {
+            if (a.getSeats() == null) return 1;
+            if (b.getSeats() == null) return -1;
+            return a.getSeats().compareTo(b.getSeats());
+        });
+        
+        return alternatives.isEmpty() ? null : alternatives;
+    }
+    
+    /**
+     * Tìm thời gian rảnh tiếp theo của loại xe được yêu cầu
+     */
+    private List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> findNextAvailableSlots(
+            Integer branchId, Integer categoryId, Instant requestedStart, int needed, List<Vehicles> candidates) {
+        
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+        
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> slots = new ArrayList<>();
+        
+        // Tìm thời gian kết thúc của các trip đang chạy cho mỗi xe
+        for (Vehicles vehicle : candidates) {
+            // Lấy trip đang SCHEDULED hoặc ONGOING có thời gian gần nhất sau requestedStart
+            List<TripVehicles> upcomingTrips = tripVehicleRepository.findAllByVehicleId(vehicle.getId());
+            
+            // Lọc các trip trong tương lai gần (trong 24h) có overlap với requestedStart
+            Instant searchEnd = requestedStart.plus(java.time.Duration.ofHours(24));
+            
+            Instant earliestAvailable = null;
+            Instant availableUntil = null;
+            
+            for (TripVehicles tv : upcomingTrips) {
+                Trips trip = tv.getTrip();
+                if (trip == null || trip.getStatus() == null) continue;
+                
+                // Chỉ xét SCHEDULED hoặc ONGOING
+                if (trip.getStatus() != TripStatus.SCHEDULED && trip.getStatus() != TripStatus.ONGOING) {
+                    continue;
+                }
+                
+                Instant tripStart = trip.getStartTime();
+                Instant tripEnd = trip.getEndTime();
+                
+                if (tripStart == null || tripEnd == null) continue;
+                
+                // Nếu trip này đang block thời gian yêu cầu
+                if (tripStart.isBefore(searchEnd) && tripEnd.isAfter(requestedStart)) {
+                    // Xe sẽ rảnh sau khi trip này kết thúc
+                    if (earliestAvailable == null || tripEnd.isAfter(earliestAvailable)) {
+                        earliestAvailable = tripEnd;
+                    }
+                }
+                
+                // Tìm trip tiếp theo sau earliestAvailable để biết availableUntil
+                if (earliestAvailable != null && tripStart.isAfter(earliestAvailable)) {
+                    if (availableUntil == null || tripStart.isBefore(availableUntil)) {
+                        availableUntil = tripStart;
+                    }
+                }
+            }
+            
+            // Nếu tìm được thời gian rảnh
+            if (earliestAvailable != null) {
+                slots.add(org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot.builder()
+                        .vehicleId(vehicle.getId())
+                        .vehicleLicensePlate(vehicle.getLicensePlate())
+                        .availableFrom(earliestAvailable)
+                        .availableUntil(availableUntil)
+                        .availableCount(1)
+                        .build());
+            }
+        }
+        
+        // Sắp xếp theo thời gian rảnh sớm nhất
+        slots.sort((a, b) -> {
+            if (a.getAvailableFrom() == null) return 1;
+            if (b.getAvailableFrom() == null) return -1;
+            return a.getAvailableFrom().compareTo(b.getAvailableFrom());
+        });
+        
+        // Gộp các slot cùng thời gian và chỉ trả về top 5
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> result = new ArrayList<>();
+        for (var slot : slots) {
+            // Kiểm tra xem đã có slot với thời gian tương tự chưa (trong vòng 30 phút)
+            boolean merged = false;
+            for (var existing : result) {
+                if (existing.getAvailableFrom() != null && slot.getAvailableFrom() != null) {
+                    long diffMinutes = java.time.Duration.between(existing.getAvailableFrom(), slot.getAvailableFrom()).abs().toMinutes();
+                    if (diffMinutes <= 30) {
+                        existing.setAvailableCount(existing.getAvailableCount() + 1);
+                        merged = true;
+                        break;
+                    }
+                }
+            }
+            if (!merged && result.size() < 5) {
+                result.add(slot);
+            }
+        }
+        
+        return result.isEmpty() ? null : result;
     }
     
     private BookingResponse toResponse(Bookings booking) {
