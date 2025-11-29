@@ -131,7 +131,7 @@ public class BookingController {
      */
     @Operation(summary = "Lấy danh sách đơn hàng", description = "Lấy danh sách đơn hàng với filter (status, branch, consultant, date, keyword) và pagination")
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT','COORDINATOR')")
     public ResponseEntity<ApiResponse<?>> getAll(
             @Parameter(description = "Lọc theo trạng thái (PENDING, QUOTATION_SENT, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED)") @RequestParam(required = false) String status,
             @Parameter(description = "Lọc theo ID chi nhánh") @RequestParam(required = false) Integer branchId,
@@ -177,7 +177,7 @@ public class BookingController {
      */
     @Operation(summary = "Lấy chi tiết đơn hàng", description = "Lấy thông tin chi tiết của một đơn hàng (bao gồm trips, vehicles, payments)")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT','COORDINATOR')")
     public ResponseEntity<ApiResponse<BookingResponse>> getById(
             @Parameter(description = "ID đơn hàng") @PathVariable Integer id
     ) {
