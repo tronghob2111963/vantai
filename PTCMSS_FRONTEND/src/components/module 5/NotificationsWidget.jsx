@@ -406,7 +406,11 @@ export default function NotificationsWidget() {
         const Icon = config.icon;
         const idKey = `approval-${approval.id}`;
         const working = busyIds.has(idKey);
-        const canApprove = isAdmin || role === ROLES.MANAGER;
+        
+        // Coordinator chỉ được duyệt nghỉ phép, Admin/Manager duyệt tất cả
+        const isCoordinator = role === ROLES.COORDINATOR;
+        const canApprove = isAdmin || role === ROLES.MANAGER || 
+            (isCoordinator && approval.approvalType === "DRIVER_DAY_OFF");
 
         return (
             <div className="flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-all duration-200 group">
