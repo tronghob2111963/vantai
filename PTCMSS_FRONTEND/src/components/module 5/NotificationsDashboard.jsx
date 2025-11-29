@@ -55,6 +55,15 @@ export default function NotificationsDashboard() {
     const role = getCurrentRole();
     const userId = getStoredUserId();
     const isAdmin = role === ROLES.ADMIN;
+    const isCoordinator = role === ROLES.COORDINATOR;
+    const isManager = role === ROLES.MANAGER;
+
+    // Coordinator chỉ được duyệt nghỉ phép, không được duyệt chi phí
+    const canApproveType = (approvalType) => {
+        if (isAdmin || isManager) return true;
+        if (isCoordinator && approvalType === "DRIVER_DAY_OFF") return true;
+        return false;
+    };
 
     // Load user's branch
     React.useEffect(() => {
@@ -119,7 +128,7 @@ export default function NotificationsDashboard() {
         loadDashboard();
     }, [selectedBranchId, isAdmin]);
 
-    // Load processed approvals (đã duyệt/từ chối)
+    // Load processed approvals (đã duyệt/từ chối) - chỉ lấy những yêu cầu do mình duyệt
     React.useEffect(() => {
         if (!selectedBranchId && !isAdmin) return;
 
@@ -129,6 +138,8 @@ export default function NotificationsDashboard() {
                 const params = new URLSearchParams();
                 if (selectedBranchId) params.append("branchId", selectedBranchId);
                 params.append("limit", "50"); // Lấy 50 mục gần nhất
+                // Chỉ lấy những yêu cầu do current user duyệt
+                if (userId) params.append("processedByUserId", userId);
                 
                 const data = await apiFetch(`/api/notifications/approvals/processed?${params}`);
                 setProcessedApprovals(Array.isArray(data) ? data : []);
@@ -141,7 +152,7 @@ export default function NotificationsDashboard() {
         }
 
         loadProcessedApprovals();
-    }, [selectedBranchId, isAdmin]);
+    }, [selectedBranchId, isAdmin, userId]);
 
     const handleRefresh = () => {
         setSelectedBranchId(selectedBranchId); // Trigger reload
@@ -152,6 +163,8 @@ export default function NotificationsDashboard() {
                 const params = new URLSearchParams();
                 if (selectedBranchId) params.append("branchId", selectedBranchId);
                 params.append("limit", "50");
+                // Chỉ lấy những yêu cầu do current user duyệt
+                if (userId) params.append("processedByUserId", userId);
                 const data = await apiFetch(`/api/notifications/approvals/processed?${params}`);
                 setProcessedApprovals(Array.isArray(data) ? data : []);
             } catch (err) {
@@ -357,7 +370,7 @@ export default function NotificationsDashboard() {
                                                     approval={approval}
                                                     onApprove={handleApproveClick}
                                                     onReject={handleRejectClick}
-                                                    canApprove={isAdmin || role === ROLES.MANAGER}
+                                                    canApprove={canApproveType(approval.approvalType)}
                                                     approvalNote={approvalNotes[approval.id]}
                                                     onClick={() => handleViewDetail(approval, "pending")}
                                                 />
@@ -461,7 +474,7 @@ export default function NotificationsDashboard() {
                     onAcknowledge={selectedItemType === "alert" ? handleAcknowledgeAlert : undefined}
                     onApprove={selectedItemType === "pending" ? handleApproveClick : undefined}
                     onReject={selectedItemType === "pending" ? handleRejectClick : undefined}
-                    canApprove={selectedItemType === "pending" && (isAdmin || role === ROLES.MANAGER)}
+                    canApprove={selectedItemType === "pending" && canApproveType(selectedItem.approvalType)}
                 />
             )}
         </div>

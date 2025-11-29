@@ -319,8 +319,8 @@ public class NotificationServiceImpl implements NotificationService {
     }
     
     @Override
-    public List<ApprovalItemResponse> getProcessedApprovals(Integer branchId, Integer limit) {
-        log.info("[Notification] Get processed approvals for branch {} (limit: {})", branchId, limit);
+    public List<ApprovalItemResponse> getProcessedApprovals(Integer branchId, Integer processedByUserId, Integer limit) {
+        log.info("[Notification] Get processed approvals for branch {}, processedBy {} (limit: {})", branchId, processedByUserId, limit);
         
         List<ApprovalHistory> approved = branchId == null
                 ? approvalHistoryRepository.findByStatusOrderByRequestedAtDesc(ApprovalStatus.APPROVED)
@@ -334,6 +334,13 @@ public class NotificationServiceImpl implements NotificationService {
         List<ApprovalHistory> allProcessed = new ArrayList<>();
         allProcessed.addAll(approved);
         allProcessed.addAll(rejected);
+        
+        // Filter theo người xử lý (nếu có)
+        if (processedByUserId != null) {
+            allProcessed = allProcessed.stream()
+                    .filter(a -> a.getApprovedBy() != null && a.getApprovedBy().getId().equals(processedByUserId))
+                    .collect(Collectors.toList());
+        }
         
         // Sắp xếp theo processedAt DESC (nếu có) hoặc requestedAt DESC
         allProcessed.sort((a, b) -> {
@@ -368,6 +375,12 @@ public class NotificationServiceImpl implements NotificationService {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found: " + userId));
         
+        // Coordinator chỉ được duyệt nghỉ phép (DRIVER_DAY_OFF)
+        String userRole = user.getRole() != null ? user.getRole().getRoleName().toUpperCase() : "";
+        if ("COORDINATOR".equals(userRole) && history.getApprovalType() != ApprovalType.DRIVER_DAY_OFF) {
+            throw new RuntimeException("Coordinator chỉ được duyệt yêu cầu nghỉ phép tài xế");
+        }
+        
         history.setStatus(ApprovalStatus.APPROVED);
         history.setApprovedBy(user);
         history.setApprovalNote(note);
@@ -399,6 +412,12 @@ public class NotificationServiceImpl implements NotificationService {
         
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        
+        // Coordinator chỉ được từ chối nghỉ phép (DRIVER_DAY_OFF)
+        String userRole = user.getRole() != null ? user.getRole().getRoleName().toUpperCase() : "";
+        if ("COORDINATOR".equals(userRole) && history.getApprovalType() != ApprovalType.DRIVER_DAY_OFF) {
+            throw new RuntimeException("Coordinator chỉ được từ chối yêu cầu nghỉ phép tài xế");
+        }
         
         history.setStatus(ApprovalStatus.REJECTED);
         history.setApprovedBy(user);
