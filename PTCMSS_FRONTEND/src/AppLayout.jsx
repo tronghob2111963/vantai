@@ -152,6 +152,7 @@ import CoordinatorOrderListPage from "./components/module 5/CoordinatorOrderList
 import CoordinatorDriverListPage from "./components/module 5/CoordinatorDriverListPage.jsx";
 import CoordinatorDriverDetailPage from "./components/module 5/CoordinatorDriverDetailPage.jsx";
 import CoordinatorVehicleListPage from "./components/module 5/CoordinatorVehicleListPage.jsx";
+import CoordinatorVehicleDetailPage from "./components/module 5/CoordinatorVehicleDetailPage.jsx";
 
 /* DemoAssign – mở AssignDriverDialog */
 import DemoAssign from "./DemoAssign.jsx";
@@ -849,6 +850,14 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.COORDINATOR]}>
                 <CoordinatorVehicleListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coordinator/vehicles/:vehicleId"
+            element={
+              <ProtectedRoute roles={[ROLES.COORDINATOR]}>
+                <CoordinatorVehicleDetailPage />
               </ProtectedRoute>
             }
           />

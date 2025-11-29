@@ -531,44 +531,15 @@ function EditVehicleModal({
             return;
         }
 
-        // Validation: không cho phép cập nhật ngày đăng kiểm, bảo hiểm về quá khứ
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (regDueDate) {
-            const regDate = new Date(regDueDate);
-            if (regDate < today) {
-                setError("Ngày đăng kiểm không được là ngày trong quá khứ");
-                return;
-            }
-        }
-
-        if (insDueDate) {
-            const insDate = new Date(insDueDate);
-            if (insDate < today) {
-                setError("Ngày hết hạn bảo hiểm không được là ngày trong quá khứ");
-                return;
-            }
-        }
-
-        // Validation: Xe đang "Đang chạy" (ON_TRIP) không cho phép đổi trạng thái
-        if (vehicle.status === "ON_TRIP" && status !== "ON_TRIP") {
-            setError("Không thể thay đổi trạng thái khi xe đang trong chuyến đi");
-            return;
-        }
-
-        // Validation: Không cho phép đổi sang "Đang chạy" thủ công
-        if (vehicle.status !== "ON_TRIP" && status === "ON_TRIP") {
-            setError("Trạng thái 'Đang chạy' chỉ được cập nhật tự động khi xe trong chuyến");
-            return;
-        }
-
         const payload = {
-            branchId: Number(vehicle.branch_id), // Không cho sửa, giữ nguyên
-            categoryId: Number(vehicle.category_id), // Không cho sửa, giữ nguyên
+            branchId: Number(vehicle.branch_id),
+            categoryId: Number(vehicle.category_id),
+            licensePlate: vehicle.license_plate,
+            brand: vehicle.brand || "",
+            model: vehicle.model || "",
+            productionYear: vehicle.year || null,
+            odometer: vehicle.odometer || null,
             status,
-            model: vehicle.model || null, // Không cho sửa, giữ nguyên
-            productionYear: vehicle.year || null, // Không cho sửa, giữ nguyên
             inspectionExpiry: regDueDate || null,
             insuranceExpiry: insDueDate || null,
         };

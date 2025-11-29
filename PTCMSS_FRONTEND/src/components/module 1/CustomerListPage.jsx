@@ -31,6 +31,7 @@ export default function CustomerListPage() {
     const [branchId, setBranchId] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
+    const [dateError, setDateError] = useState("");
     
     // Pagination
     const [page, setPage] = useState(0);
@@ -56,6 +57,11 @@ export default function CustomerListPage() {
     }, []);
 
     const fetchCustomers = useCallback(async () => {
+        // Không fetch nếu date không hợp lệ
+        if (fromDate && toDate && new Date(toDate) < new Date(fromDate)) {
+            return;
+        }
+        
         try {
             setLoading(true);
             setError(null);
@@ -88,8 +94,33 @@ export default function CustomerListPage() {
         fetchCustomers();
     }, [fetchCustomers]);
 
+    // Validate ngày kết thúc phải sau ngày bắt đầu
+    const validateDates = (from, to) => {
+        if (from && to) {
+            if (new Date(to) < new Date(from)) {
+                setDateError("Ngày kết thúc phải sau ngày bắt đầu");
+                return false;
+            }
+        }
+        setDateError("");
+        return true;
+    };
+
+    const handleFromDateChange = (e) => {
+        const value = e.target.value;
+        setFromDate(value);
+        validateDates(value, toDate);
+    };
+
+    const handleToDateChange = (e) => {
+        const value = e.target.value;
+        setToDate(value);
+        validateDates(fromDate, value);
+    };
+
     const handleSearch = (e) => {
         e.preventDefault();
+        if (!validateDates(fromDate, toDate)) return;
         setPage(0);
         fetchCustomers();
     };
@@ -99,6 +130,7 @@ export default function CustomerListPage() {
         setBranchId("");
         setFromDate("");
         setToDate("");
+        setDateError("");
         setPage(0);
     };
 
@@ -163,8 +195,14 @@ export default function CustomerListPage() {
                                 <input
                                     type="date"
                                     value={fromDate}
-                                    onChange={(e) => setFromDate(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0079BC]/30 focus:border-[#0079BC]"
+                                    onChange={handleFromDateChange}
+                                    className={cls(
+                                        "w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2",
+                                        dateError 
+                                            ? "border-red-300 bg-red-50 focus:ring-red-200 focus:border-red-400" 
+                                            : "border-slate-200 bg-slate-50 focus:ring-[#0079BC]/30 focus:border-[#0079BC]"
+                                    )}
+                                    placeholder="Từ ngày"
                                 />
                             </div>
                             
@@ -174,8 +212,15 @@ export default function CustomerListPage() {
                                 <input
                                     type="date"
                                     value={toDate}
-                                    onChange={(e) => setToDate(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0079BC]/30 focus:border-[#0079BC]"
+                                    onChange={handleToDateChange}
+                                    min={fromDate || undefined}
+                                    className={cls(
+                                        "w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2",
+                                        dateError 
+                                            ? "border-red-300 bg-red-50 focus:ring-red-200 focus:border-red-400" 
+                                            : "border-slate-200 bg-slate-50 focus:ring-[#0079BC]/30 focus:border-[#0079BC]"
+                                    )}
+                                    placeholder="Đến ngày"
                                 />
                             </div>
                             
@@ -190,7 +235,13 @@ export default function CustomerListPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2.5 rounded-lg bg-[#0079BC] text-white text-sm font-medium hover:bg-[#006699] transition-colors flex items-center gap-2"
+                                    disabled={!!dateError}
+                                    className={cls(
+                                        "px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2",
+                                        dateError 
+                                            ? "bg-slate-400 cursor-not-allowed" 
+                                            : "bg-[#0079BC] hover:bg-[#006699]"
+                                    )}
                                 >
                                     <Search className="h-4 w-4" />
                                     Tìm kiếm
@@ -205,6 +256,14 @@ export default function CustomerListPage() {
                                 </button>
                             </div>
                         </div>
+
+                        {/* Date Error */}
+                        {dateError && (
+                            <div className="text-sm text-red-600 flex items-center gap-2">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                {dateError}
+                            </div>
+                        )}
                     </form>
                 </div>
 

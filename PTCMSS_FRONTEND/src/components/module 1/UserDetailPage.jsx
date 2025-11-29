@@ -90,6 +90,36 @@ export default function UserDetailPage() {
     })();
   }, []);
 
+  // Filter roles dựa trên quyền của current user
+  const filteredRoles = React.useMemo(() => {
+    if (!roles.length) return [];
+    
+    const editingSelf = currentUserId != null && currentUserId === Number(userId);
+    
+    return roles.filter(r => {
+      const roleName = (r.roleName || r.name || "").toUpperCase();
+      
+      // Nếu đang edit chính mình và là Admin, cho phép giữ nguyên Admin
+      if (editingSelf && isCurrentUserAdmin && roleName === "ADMIN") {
+        return true;
+      }
+      
+      // Admin không được đổi người khác sang Admin
+      if (isCurrentUserAdmin && !editingSelf && roleName === "ADMIN") {
+        return false;
+      }
+      
+      // Manager không được chọn Admin hoặc Manager
+      if (!isCurrentUserAdmin) {
+        if (roleName === "ADMIN" || roleName === "MANAGER" || roleName === "QUẢN LÝ") {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [roles, isCurrentUserAdmin, currentUserId, userId]);
+
   React.useEffect(() => {
     (async () => {
       try {
@@ -300,7 +330,7 @@ export default function UserDetailPage() {
                 disabled={!canEditTarget}
               >
                 <option value="">-- Chọn vai trò --</option>
-                {roles.map((r) => (
+                {filteredRoles.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.roleName || r.name}
                   </option>

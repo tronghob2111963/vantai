@@ -99,7 +99,7 @@ public class VehicleController {
 
     @Operation(summary = "Chi tiết phương tiện theo ID")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT','COORDINATOR')")
     public ResponseEntity<ApiResponse<?>> getById(@PathVariable Integer id) {
         try {
             VehicleResponse response = vehicleService.getById(id);
@@ -118,7 +118,7 @@ public class VehicleController {
 
     @Operation(summary = "Cập nhật thông tin xe")
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','COORDINATOR')")
     public ResponseEntity<ApiResponse<?>> update(@PathVariable Integer id, @RequestBody VehicleRequest request) {
         try {
             VehicleResponse response = vehicleService.update(id, request);

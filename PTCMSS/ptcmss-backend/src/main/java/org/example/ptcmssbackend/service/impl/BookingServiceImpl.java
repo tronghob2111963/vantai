@@ -658,8 +658,15 @@ public class BookingServiceImpl implements BookingService {
 
     /**
      * Tính giá với logic mới theo yêu cầu:
-     * - Nếu là chuyến trong ngày (6h sáng - 11h đêm cùng ngày): Dùng giá cố định (sameDayFixedPrice)
-     * - Nếu không: GIÁ THUÊ = TỔNG QUÃNG ĐƯỜNG × ĐƠN GIÁ THEO LOẠI XE × HỆ SỐ + PHỤ PHÍ
+     * 
+     * 1. TÍNH THEO CHIỀU:
+     *    a. Một chiều: CT = Số_km × PricePerKm + baseFee
+     *    b. Hai chiều: CT = Số_km × PricePerKm × 1.5 + baseFee
+     * 
+     * 2. TÍNH THEO NGÀY:
+     *    a. Trong tỉnh / nội thành (TP): CT = sameDayFixedPrice + baseFee
+     *    b. Liên tỉnh – 1 ngày: CT = Số_km × PricePerKm × 1.5 + sameDayFixedPrice + baseFee
+     *    c. Nhiều ngày: CT = Số_km × PricePerKm × 1.5 + sameDayFixedPrice × Số_ngày + baseFee
      */
     public BigDecimal calculatePrice(
             List<Integer> vehicleCategoryIds,
@@ -680,18 +687,25 @@ public class BookingServiceImpl implements BookingService {
         // Lấy cấu hình từ SystemSettings
         BigDecimal holidaySurchargeRate = getSystemSettingDecimal("HOLIDAY_SURCHARGE_RATE", new BigDecimal("0.25"));
         BigDecimal weekendSurchargeRate = getSystemSettingDecimal("WEEKEND_SURCHARGE_RATE", new BigDecimal("0.20"));
-        BigDecimal oneWayDiscountRate = getSystemSettingDecimal("ONE_WAY_DISCOUNT_RATE", new BigDecimal("0.6667"));
         BigDecimal additionalPointSurchargeRate = getSystemSettingDecimal("ADDITIONAL_POINT_SURCHARGE_RATE", new BigDecimal("0.05"));
+        BigDecimal roundTripMultiplier = getSystemSettingDecimal("ROUND_TRIP_MULTIPLIER", new BigDecimal("1.5"));
+        int interProvinceDistanceKm = getSystemSettingInt("INTER_PROVINCE_DISTANCE_KM", 100);
         
-        // Check xem có phải chuyến trong ngày không (6h sáng - 11h đêm cùng ngày)
+        // Tính số ngày
+        int numberOfDays = calculateNumberOfDays(startTime, endTime);
+        
+        // Kiểm tra chuyến trong ngày
         boolean isSameDayTrip = isSameDayTrip(startTime, endTime);
         
-        // Xác định hệ số đi 1 chiều vs 2 chiều
-        BigDecimal tripTypeMultiplier = BigDecimal.ONE;
+        // Kiểm tra liên tỉnh (dựa trên khoảng cách > ngưỡng cấu hình, mặc định 100km)
+        boolean isInterProvince = distance != null && distance > interProvinceDistanceKm;
+        
+        // Xác định loại thuê
+        String hireTypeCode = null;
         if (hireTypeId != null) {
             HireTypes hireType = hireTypesRepository.findById(hireTypeId).orElse(null);
-            if (hireType != null && "ONE_WAY".equals(hireType.getCode())) {
-                tripTypeMultiplier = oneWayDiscountRate;
+            if (hireType != null) {
+                hireTypeCode = hireType.getCode();
             }
         }
         
@@ -714,42 +728,74 @@ public class BookingServiceImpl implements BookingService {
                     .orElseThrow(() -> new RuntimeException("Vehicle category not found: " + categoryId));
             
             if (category.getStatus() != VehicleCategoryStatus.ACTIVE) {
-                continue; // Bỏ qua loại xe không active
+                continue;
             }
             
             BigDecimal pricePerKm = category.getPricePerKm() != null ? category.getPricePerKm() : BigDecimal.ZERO;
+            BigDecimal baseFee = category.getBaseFare() != null ? category.getBaseFare() : BigDecimal.ZERO;
             BigDecimal highwayFee = category.getHighwayFee() != null ? category.getHighwayFee() : BigDecimal.ZERO;
             BigDecimal sameDayFixedPrice = category.getSameDayFixedPrice() != null ? category.getSameDayFixedPrice() : BigDecimal.ZERO;
             
             BigDecimal basePrice = BigDecimal.ZERO;
             
-            // Nếu là chuyến trong ngày và có giá cố định, ưu tiên dùng giá cố định
-            if (isSameDayTrip && sameDayFixedPrice.compareTo(BigDecimal.ZERO) > 0) {
-                basePrice = sameDayFixedPrice;
-                // Nếu chưa bao gồm cao tốc và có yêu cầu cao tốc, cộng thêm phí cao tốc
-                // Giá cố định thường đã bao gồm cao tốc, nhưng nếu chưa thì cộng thêm
-                // (Theo yêu cầu: 2,600,000đ đã bao cao tốc, 2,500,000đ chưa + 300k)
-                if (useHighway != null && useHighway && highwayFee.compareTo(BigDecimal.ZERO) > 0) {
-                    // Kiểm tra: nếu giá cố định = 2,500,000 (chưa cao tốc) thì cộng thêm
-                    // Nếu = 2,600,000 (đã có cao tốc) thì không cộng
-                    // Logic: nếu giá cố định < 2,600,000 thì cộng thêm phí cao tốc
-                    BigDecimal standardWithHighway = new BigDecimal("2600000");
-                    if (sameDayFixedPrice.compareTo(standardWithHighway) < 0) {
-                        basePrice = basePrice.add(highwayFee);
-                    }
-                }
-            } else {
-                // Công thức tính theo km: GIÁ = distance × pricePerKm × hệ số loại chuyến
+            // Áp dụng công thức tính giá
+            if ("MULTI_DAY".equals(hireTypeCode) && numberOfDays > 1) {
+                // 2c. Nhiều ngày: km × PricePerKm × 1.5 + sameDayFixedPrice × số_ngày + baseFee
+                BigDecimal kmCost = BigDecimal.ZERO;
                 if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
-                    basePrice = pricePerKm
+                    kmCost = pricePerKm
                             .multiply(BigDecimal.valueOf(distance))
-                            .multiply(tripTypeMultiplier);
+                            .multiply(roundTripMultiplier);
+                }
+                BigDecimal dailyCost = sameDayFixedPrice.multiply(BigDecimal.valueOf(numberOfDays));
+                basePrice = kmCost.add(dailyCost).add(baseFee);
+                log.debug("[Price] MULTI_DAY: km={}, days={}, kmCost={}, dailyCost={}, baseFee={}, total={}", 
+                        distance, numberOfDays, kmCost, dailyCost, baseFee, basePrice);
+                
+            } else if (isSameDayTrip && sameDayFixedPrice.compareTo(BigDecimal.ZERO) > 0) {
+                // Chuyến trong ngày
+                if (isInterProvince) {
+                    // 2b. Liên tỉnh 1 ngày: km × PricePerKm × 1.5 + sameDayFixedPrice + baseFee
+                    BigDecimal kmCost = BigDecimal.ZERO;
+                    if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
+                        kmCost = pricePerKm
+                                .multiply(BigDecimal.valueOf(distance))
+                                .multiply(roundTripMultiplier);
+                    }
+                    basePrice = kmCost.add(sameDayFixedPrice).add(baseFee);
+                    log.debug("[Price] INTER_PROVINCE_SAME_DAY: km={}, kmCost={}, sameDayPrice={}, baseFee={}, total={}", 
+                            distance, kmCost, sameDayFixedPrice, baseFee, basePrice);
+                } else {
+                    // 2a. Trong tỉnh / nội thành: sameDayFixedPrice + baseFee
+                    basePrice = sameDayFixedPrice.add(baseFee);
+                    log.debug("[Price] SAME_DAY_LOCAL: sameDayPrice={}, baseFee={}, total={}", 
+                            sameDayFixedPrice, baseFee, basePrice);
                 }
                 
-                // Phụ phí cao tốc
-                if (useHighway != null && useHighway && highwayFee.compareTo(BigDecimal.ZERO) > 0) {
-                    basePrice = basePrice.add(highwayFee);
+            } else {
+                // 1. Tính theo chiều
+                if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal kmCost = pricePerKm.multiply(BigDecimal.valueOf(distance));
+                    
+                    if ("ONE_WAY".equals(hireTypeCode)) {
+                        // 1a. Một chiều: km × PricePerKm + baseFee
+                        basePrice = kmCost.add(baseFee);
+                        log.debug("[Price] ONE_WAY: km={}, kmCost={}, baseFee={}, total={}", 
+                                distance, kmCost, baseFee, basePrice);
+                    } else {
+                        // 1b. Hai chiều (ROUND_TRIP hoặc mặc định): km × PricePerKm × 1.5 + baseFee
+                        basePrice = kmCost.multiply(roundTripMultiplier).add(baseFee);
+                        log.debug("[Price] ROUND_TRIP: km={}, kmCost={}, multiplier={}, baseFee={}, total={}", 
+                                distance, kmCost, roundTripMultiplier, baseFee, basePrice);
+                    }
+                } else {
+                    basePrice = baseFee;
                 }
+            }
+            
+            // Phụ phí cao tốc
+            if (useHighway != null && useHighway && highwayFee.compareTo(BigDecimal.ZERO) > 0) {
+                basePrice = basePrice.add(highwayFee);
             }
             
             // Phụ phí xe hạng sang
@@ -766,7 +812,7 @@ public class BookingServiceImpl implements BookingService {
                 basePrice = basePrice.add(surcharge);
             }
             
-            // Phụ phí địa điểm phát sinh (tăng % mỗi điểm)
+            // Phụ phí địa điểm phát sinh
             if (additionalPoints != null && additionalPoints > 0) {
                 BigDecimal additionalPointFee = basePrice
                         .multiply(additionalPointSurchargeRate)
@@ -780,6 +826,31 @@ public class BookingServiceImpl implements BookingService {
         }
         
         return totalPrice.setScale(2, RoundingMode.HALF_UP);
+    }
+    
+    /**
+     * Helper method: Tính số ngày giữa startTime và endTime
+     */
+    private int calculateNumberOfDays(Instant startTime, Instant endTime) {
+        if (startTime == null || endTime == null) {
+            return 1;
+        }
+        
+        try {
+            java.time.ZonedDateTime startZoned = startTime.atZone(java.time.ZoneId.systemDefault());
+            java.time.ZonedDateTime endZoned = endTime.atZone(java.time.ZoneId.systemDefault());
+            
+            long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(
+                    startZoned.toLocalDate(), 
+                    endZoned.toLocalDate()
+            );
+            
+            // Tối thiểu 1 ngày
+            return Math.max(1, (int) daysBetween + 1);
+        } catch (Exception e) {
+            log.warn("Error calculating number of days: {}", e.getMessage());
+            return 1;
+        }
     }
     
     /**
@@ -1308,13 +1379,170 @@ public class BookingServiceImpl implements BookingService {
         int available = Math.max(0, total - busy);
         boolean ok = available >= needed;
 
+        // Nếu không đủ xe -> tính suggestions
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory> alternativeCategories = null;
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> nextAvailableSlots = null;
+        
+        if (!ok) {
+            // 1. Tìm loại xe thay thế có sẵn tại thời điểm yêu cầu
+            alternativeCategories = findAlternativeCategories(branchId, categoryId, start, end, needed);
+            
+            // 2. Tìm thời gian rảnh tiếp theo của loại xe được yêu cầu
+            nextAvailableSlots = findNextAvailableSlots(branchId, categoryId, start, needed, candidates);
+        }
+
         return org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.builder()
                 .ok(ok)
                 .availableCount(available)
                 .needed(needed)
                 .totalCandidates(total)
                 .busyCount(busy)
+                .alternativeCategories(alternativeCategories)
+                .nextAvailableSlots(nextAvailableSlots)
                 .build();
+    }
+    
+    /**
+     * Tìm các loại xe thay thế có sẵn tại thời điểm yêu cầu
+     */
+    private List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory> findAlternativeCategories(
+            Integer branchId, Integer excludeCategoryId, Instant start, Instant end, int needed) {
+        
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory> alternatives = new ArrayList<>();
+        
+        // Lấy tất cả loại xe active
+        List<VehicleCategoryPricing> allCategories = vehicleCategoryRepository.findAll().stream()
+                .filter(c -> c.getStatus() == VehicleCategoryStatus.ACTIVE)
+                .filter(c -> !c.getId().equals(excludeCategoryId))
+                .collect(Collectors.toList());
+        
+        for (VehicleCategoryPricing category : allCategories) {
+            // Đếm xe available cho loại này
+            List<Vehicles> catVehicles = vehicleRepository.filterVehicles(category.getId(), branchId, VehicleStatus.AVAILABLE);
+            int totalInCategory = catVehicles != null ? catVehicles.size() : 0;
+            
+            // Đếm xe busy trong khoảng thời gian
+            List<Integer> busyInCategory = tripVehicleRepository.findBusyVehicleIds(branchId, category.getId(), start, end);
+            int busyCount = busyInCategory != null ? busyInCategory.size() : 0;
+            
+            int availableInCategory = Math.max(0, totalInCategory - busyCount);
+            
+            // Chỉ suggest nếu có đủ xe
+            if (availableInCategory >= needed) {
+                alternatives.add(org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory.builder()
+                        .categoryId(category.getId())
+                        .categoryName(category.getCategoryName())
+                        .seats(category.getSeats())
+                        .availableCount(availableInCategory)
+                        .pricePerKm(category.getPricePerKm())
+                        .estimatedPrice(null) // Có thể tính nếu biết distance
+                        .build());
+            }
+        }
+        
+        // Sắp xếp theo số ghế tăng dần (ưu tiên xe gần với yêu cầu)
+        alternatives.sort((a, b) -> {
+            if (a.getSeats() == null) return 1;
+            if (b.getSeats() == null) return -1;
+            return a.getSeats().compareTo(b.getSeats());
+        });
+        
+        return alternatives.isEmpty() ? null : alternatives;
+    }
+    
+    /**
+     * Tìm thời gian rảnh tiếp theo của loại xe được yêu cầu
+     */
+    private List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> findNextAvailableSlots(
+            Integer branchId, Integer categoryId, Instant requestedStart, int needed, List<Vehicles> candidates) {
+        
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+        
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> slots = new ArrayList<>();
+        
+        // Tìm thời gian kết thúc của các trip đang chạy cho mỗi xe
+        for (Vehicles vehicle : candidates) {
+            // Lấy trip đang SCHEDULED hoặc ONGOING có thời gian gần nhất sau requestedStart
+            List<TripVehicles> upcomingTrips = tripVehicleRepository.findAllByVehicleId(vehicle.getId());
+            
+            // Lọc các trip trong tương lai gần (trong 24h) có overlap với requestedStart
+            Instant searchEnd = requestedStart.plus(java.time.Duration.ofHours(24));
+            
+            Instant earliestAvailable = null;
+            Instant availableUntil = null;
+            
+            for (TripVehicles tv : upcomingTrips) {
+                Trips trip = tv.getTrip();
+                if (trip == null || trip.getStatus() == null) continue;
+                
+                // Chỉ xét SCHEDULED hoặc ONGOING
+                if (trip.getStatus() != TripStatus.SCHEDULED && trip.getStatus() != TripStatus.ONGOING) {
+                    continue;
+                }
+                
+                Instant tripStart = trip.getStartTime();
+                Instant tripEnd = trip.getEndTime();
+                
+                if (tripStart == null || tripEnd == null) continue;
+                
+                // Nếu trip này đang block thời gian yêu cầu
+                if (tripStart.isBefore(searchEnd) && tripEnd.isAfter(requestedStart)) {
+                    // Xe sẽ rảnh sau khi trip này kết thúc
+                    if (earliestAvailable == null || tripEnd.isAfter(earliestAvailable)) {
+                        earliestAvailable = tripEnd;
+                    }
+                }
+                
+                // Tìm trip tiếp theo sau earliestAvailable để biết availableUntil
+                if (earliestAvailable != null && tripStart.isAfter(earliestAvailable)) {
+                    if (availableUntil == null || tripStart.isBefore(availableUntil)) {
+                        availableUntil = tripStart;
+                    }
+                }
+            }
+            
+            // Nếu tìm được thời gian rảnh
+            if (earliestAvailable != null) {
+                slots.add(org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot.builder()
+                        .vehicleId(vehicle.getId())
+                        .vehicleLicensePlate(vehicle.getLicensePlate())
+                        .availableFrom(earliestAvailable)
+                        .availableUntil(availableUntil)
+                        .availableCount(1)
+                        .build());
+            }
+        }
+        
+        // Sắp xếp theo thời gian rảnh sớm nhất
+        slots.sort((a, b) -> {
+            if (a.getAvailableFrom() == null) return 1;
+            if (b.getAvailableFrom() == null) return -1;
+            return a.getAvailableFrom().compareTo(b.getAvailableFrom());
+        });
+        
+        // Gộp các slot cùng thời gian và chỉ trả về top 5
+        List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> result = new ArrayList<>();
+        for (var slot : slots) {
+            // Kiểm tra xem đã có slot với thời gian tương tự chưa (trong vòng 30 phút)
+            boolean merged = false;
+            for (var existing : result) {
+                if (existing.getAvailableFrom() != null && slot.getAvailableFrom() != null) {
+                    long diffMinutes = java.time.Duration.between(existing.getAvailableFrom(), slot.getAvailableFrom()).abs().toMinutes();
+                    if (diffMinutes <= 30) {
+                        existing.setAvailableCount(existing.getAvailableCount() + 1);
+                        merged = true;
+                        break;
+                    }
+                }
+            }
+            if (!merged && result.size() < 5) {
+                result.add(slot);
+            }
+        }
+        
+        return result.isEmpty() ? null : result;
     }
     
     private BookingResponse toResponse(Bookings booking) {

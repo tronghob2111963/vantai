@@ -60,7 +60,9 @@ INSERT IGNORE INTO system_settings (settingId, settingKey, settingValue, effecti
 (14, 'CANCELLATION_PARTIAL_DEPOSIT_LOSS_HOURS', '48', '2025-01-01', 'int', 'Booking', 'Số giờ trước khởi hành để mất một phần tiền cọc (48h)', 1, NOW(), 'ACTIVE'),
 (15, 'CANCELLATION_PARTIAL_DEPOSIT_PERCENT', '0.30', '2025-01-01', 'decimal', 'Booking', 'Tỷ lệ mất cọc khi hủy trong khoảng thời gian (30%)', 1, NOW(), 'ACTIVE'),
 (16, 'MAX_CONTINUOUS_DRIVING_HOURS', '4', '2025-01-01', 'int', 'Driver', 'Số giờ lái xe liên tục tối đa (4 giờ)', 1, NOW(), 'ACTIVE'),
-(17, 'MAX_DRIVING_HOURS_PER_WEEK', '48', '2025-01-01', 'int', 'Driver', 'Số giờ lái xe tối đa mỗi tuần (48 giờ)', 1, NOW(), 'ACTIVE');
+(17, 'MAX_DRIVING_HOURS_PER_WEEK', '48', '2025-01-01', 'int', 'Driver', 'Số giờ lái xe tối đa mỗi tuần (48 giờ)', 1, NOW(), 'ACTIVE'),
+(18, 'ROUND_TRIP_MULTIPLIER', '1.5', '2025-01-01', 'decimal', 'Pricing', 'Hệ số nhân cho chuyến 2 chiều (1.5x)', 1, NOW(), 'ACTIVE'),
+(19, 'INTER_PROVINCE_DISTANCE_KM', '100', '2025-01-01', 'int', 'Pricing', 'Ngưỡng khoảng cách để tính liên tỉnh (100km)', 1, NOW(), 'ACTIVE');
 
 -- =====================================================
 -- SAMPLE DATA FOR TESTING

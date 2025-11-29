@@ -3,7 +3,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { listVehicleCategories } from "../../api/vehicleCategories";
 import { listHireTypes } from "../../api/hireTypes";
-import { calculatePrice, createBooking, getBooking, pageBookings } from "../../api/bookings";
+import { calculatePrice, createBooking, getBooking, pageBookings, checkVehicleAvailability } from "../../api/bookings";
 import { calculateDistance } from "../../api/graphhopper";
 import { getBranchByUserId, listBranches } from "../../api/branches";
 import PlaceAutocomplete from "../common/PlaceAutocomplete";
@@ -274,31 +274,68 @@ export default function CreateOrderPage() {
     const [checkingAvail, setCheckingAvail] =
         React.useState(false);
 
-    // mock "API check-availability"
+    // Real API check-availability với suggestions
     React.useEffect(() => {
-        if (!startTime || !endTime || !categoryId) return;
-
-        setCheckingAvail(true);
-
-        setTimeout(() => {
-            if (categoryId === "BUS16") {
-                setAvailabilityInfo({
-                    ok: false,
-                    count: 0,
-                    text: "Cảnh báo: Hết xe",
-                    branch: branchId,
+        if (!startTime || !endTime || !categoryId || !branchId) {
+            setAvailabilityInfo(null);
+            return;
+        }
+        
+        const checkAvail = async () => {
+            setCheckingAvail(true);
+            try {
+                const sStart = new Date(startTime).toISOString();
+                const sEnd = new Date(endTime).toISOString();
+                
+                const res = await checkVehicleAvailability({
+                    branchId: Number(branchId),
+                    categoryId: Number(categoryId),
+                    startTime: sStart,
+                    endTime: sEnd,
+                    quantity: vehicleCount || 1,
                 });
-            } else {
+                
+                if (res.success && res.data) {
+                    const data = res.data;
+                    setAvailabilityInfo({
+                        ok: data.ok,
+                        count: data.availableCount,
+                        needed: data.needed,
+                        totalCandidates: data.totalCandidates,
+                        busyCount: data.busyCount,
+                        text: data.ok 
+                            ? `Khả dụng: Còn ${data.availableCount} xe` 
+                            : `Hết xe (${data.busyCount}/${data.totalCandidates} đang bận)`,
+                        branch: branchId,
+                        // Suggestions khi hết xe
+                        alternativeCategories: data.alternativeCategories,
+                        nextAvailableSlots: data.nextAvailableSlots,
+                    });
+                } else {
+                    setAvailabilityInfo({
+                        ok: true,
+                        count: 0,
+                        text: "Không thể kiểm tra",
+                        branch: branchId,
+                    });
+                }
+            } catch (err) {
+                console.error("Check availability error:", err);
                 setAvailabilityInfo({
                     ok: true,
-                    count: 5,
-                    text: "Khả dụng: Còn xe",
+                    count: 0,
+                    text: "Lỗi kiểm tra",
                     branch: branchId,
                 });
+            } finally {
+                setCheckingAvail(false);
             }
-            setCheckingAvail(false);
-        }, 400);
-    }, [startTime, endTime, categoryId, branchId]);
+        };
+        
+        // Debounce 500ms
+        const timer = setTimeout(checkAvail, 500);
+        return () => clearTimeout(timer);
+    }, [startTime, endTime, categoryId, branchId, vehicleCount]);
 
     /* --- Part 4: báo giá --- */
     const [estPriceSys, setEstPriceSys] =
@@ -1722,17 +1759,104 @@ export default function CreateOrderPage() {
 
                     {availabilityInfo &&
                         !availabilityInfo.ok ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[12px] p-3 flex items-start gap-2 leading-relaxed">
-                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                            <div>
-                                Xe trong chi nhánh{" "}
-                                <span className="font-semibold text-slate-900">
-                                    {branchId}
-                                </span>{" "}
-                                đang hết cho loại này / khung
-                                giờ này. Vui lòng báo quản lý
-                                để điều phối chi nhánh khác.
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[12px] p-3 space-y-3">
+                            <div className="flex items-start gap-2 leading-relaxed">
+                                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                                <div>
+                                    Xe trong chi nhánh{" "}
+                                    <span className="font-semibold text-slate-900">
+                                        {branchName || branchId}
+                                    </span>{" "}
+                                    đang hết cho loại này / khung
+                                    giờ này.
+                                </div>
                             </div>
+                            
+                            {/* Gợi ý xe thay thế */}
+                            {availabilityInfo.alternativeCategories && availabilityInfo.alternativeCategories.length > 0 && (
+                                <div className="bg-white rounded-md border border-amber-200 p-2.5">
+                                    <div className="text-[11px] font-semibold text-amber-800 mb-2 flex items-center gap-1">
+                                        <Sparkles className="h-3.5 w-3.5" />
+                                        Loại xe khác có sẵn:
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        {availabilityInfo.alternativeCategories.map((alt) => (
+                                            <button
+                                                key={alt.categoryId}
+                                                type="button"
+                                                onClick={() => {
+                                                    setCategoryId(String(alt.categoryId));
+                                                    push(`Đã chọn ${alt.categoryName}`, "success");
+                                                }}
+                                                className="w-full text-left px-2.5 py-1.5 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 transition-colors flex items-center justify-between"
+                                            >
+                                                <span>
+                                                    <span className="font-medium">{alt.categoryName}</span>
+                                                    <span className="text-emerald-600 ml-1">({alt.seats} chỗ)</span>
+                                                </span>
+                                                <span className="text-[10px] bg-emerald-200 px-1.5 py-0.5 rounded font-medium">
+                                                    {alt.availableCount} xe rảnh
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Gợi ý thời gian khác */}
+                            {availabilityInfo.nextAvailableSlots && availabilityInfo.nextAvailableSlots.length > 0 && (
+                                <div className="bg-white rounded-md border border-amber-200 p-2.5">
+                                    <div className="text-[11px] font-semibold text-amber-800 mb-2 flex items-center gap-1">
+                                        <Clock className="h-3.5 w-3.5" />
+                                        Thời gian xe rảnh tiếp theo:
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        {availabilityInfo.nextAvailableSlots.map((slot, idx) => {
+                                            const fromDate = new Date(slot.availableFrom);
+                                            const formattedTime = fromDate.toLocaleString("vi-VN", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                            });
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        // Cập nhật startTime với thời gian gợi ý
+                                                        const newStart = fromDate.toISOString().slice(0, 16);
+                                                        setStartTime(newStart);
+                                                        push(`Đã đổi giờ đón sang ${formattedTime}`, "success");
+                                                    }}
+                                                    className="w-full text-left px-2.5 py-1.5 rounded bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 transition-colors flex items-center justify-between"
+                                                >
+                                                    <span className="flex items-center gap-1.5">
+                                                        <ArrowRight className="h-3 w-3 text-sky-500" />
+                                                        <span className="font-medium">{formattedTime}</span>
+                                                        {slot.vehicleLicensePlate && (
+                                                            <span className="text-sky-600 text-[10px]">
+                                                                ({slot.vehicleLicensePlate})
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <span className="text-[10px] bg-sky-200 px-1.5 py-0.5 rounded font-medium">
+                                                        {slot.availableCount} xe
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Fallback nếu không có suggestion */}
+                            {(!availabilityInfo.alternativeCategories || availabilityInfo.alternativeCategories.length === 0) && 
+                             (!availabilityInfo.nextAvailableSlots || availabilityInfo.nextAvailableSlots.length === 0) && (
+                                <div className="text-[11px] text-amber-600">
+                                    Vui lòng báo quản lý để điều phối chi nhánh khác.
+                                </div>
+                            )}
                         </div>
                     ) : null}
                 </div>
