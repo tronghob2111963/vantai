@@ -260,6 +260,7 @@ export default function CreateOrderPage() {
     const [recentBookingSuggestion, setRecentBookingSuggestion] = React.useState(null);
     const [showPrefillDialog, setShowPrefillDialog] = React.useState(false);
     const [prefillLoading, setPrefillLoading] = React.useState(false);
+    const [showSuggestionDialog, setShowSuggestionDialog] = React.useState(false);
 
     // branch management
     const [branchId, setBranchId] = React.useState("");
@@ -313,6 +314,10 @@ export default function CreateOrderPage() {
                         alternativeCategories: data.alternativeCategories,
                         nextAvailableSlots: data.nextAvailableSlots,
                     });
+                    // Tự động mở popup gợi ý khi không đủ xe và có suggestions
+                    if (!data.ok && (data.alternativeCategories?.length > 0 || data.nextAvailableSlots?.length > 0)) {
+                        setShowSuggestionDialog(true);
+                    }
                 } else {
                     console.warn("[CheckAvailability] Unexpected response format:", data);
                     setAvailabilityInfo({
@@ -1762,103 +1767,25 @@ export default function CreateOrderPage() {
 
                     {availabilityInfo &&
                         !availabilityInfo.ok ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[12px] p-3 space-y-3">
-                            <div className="flex items-start gap-2 leading-relaxed">
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[12px] p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
                                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                                <div>
-                                    Xe trong chi nhánh{" "}
-                                    <span className="font-semibold text-slate-900">
-                                        {branchName || branchId}
-                                    </span>{" "}
-                                    đang hết cho loại này / khung
-                                    giờ này.
-                                </div>
+                                <span>
+                                    Không đủ xe {selectedCategory?.name || "loại này"} cho khung giờ này
+                                    {(availabilityInfo.alternativeCategories?.length > 0 || availabilityInfo.nextAvailableSlots?.length > 0) && (
+                                        <span className="text-amber-600"> - có gợi ý thay thế!</span>
+                                    )}
+                                </span>
                             </div>
-                            
-                            {/* Gợi ý xe thay thế */}
-                            {availabilityInfo.alternativeCategories && availabilityInfo.alternativeCategories.length > 0 && (
-                                <div className="bg-white rounded-md border border-amber-200 p-2.5">
-                                    <div className="text-[11px] font-semibold text-amber-800 mb-2 flex items-center gap-1">
-                                        <Sparkles className="h-3.5 w-3.5" />
-                                        Loại xe khác có sẵn:
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        {availabilityInfo.alternativeCategories.map((alt) => (
-                                            <button
-                                                key={alt.categoryId}
-                                                type="button"
-                                                onClick={() => {
-                                                    setCategoryId(String(alt.categoryId));
-                                                    push(`Đã chọn ${alt.categoryName}`, "success");
-                                                }}
-                                                className="w-full text-left px-2.5 py-1.5 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 transition-colors flex items-center justify-between"
-                                            >
-                                                <span>
-                                                    <span className="font-medium">{alt.categoryName}</span>
-                                                    <span className="text-emerald-600 ml-1">({alt.seats} chỗ)</span>
-                                                </span>
-                                                <span className="text-[10px] bg-emerald-200 px-1.5 py-0.5 rounded font-medium">
-                                                    {alt.availableCount} xe rảnh
-                                                </span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Gợi ý thời gian khác */}
-                            {availabilityInfo.nextAvailableSlots && availabilityInfo.nextAvailableSlots.length > 0 && (
-                                <div className="bg-white rounded-md border border-amber-200 p-2.5">
-                                    <div className="text-[11px] font-semibold text-amber-800 mb-2 flex items-center gap-1">
-                                        <Clock className="h-3.5 w-3.5" />
-                                        Thời gian xe rảnh tiếp theo:
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        {availabilityInfo.nextAvailableSlots.map((slot, idx) => {
-                                            const fromDate = new Date(slot.availableFrom);
-                                            const formattedTime = fromDate.toLocaleString("vi-VN", {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                                day: "2-digit",
-                                                month: "2-digit",
-                                            });
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        // Cập nhật startTime với thời gian gợi ý
-                                                        const newStart = fromDate.toISOString().slice(0, 16);
-                                                        setStartTime(newStart);
-                                                        push(`Đã đổi giờ đón sang ${formattedTime}`, "success");
-                                                    }}
-                                                    className="w-full text-left px-2.5 py-1.5 rounded bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 transition-colors flex items-center justify-between"
-                                                >
-                                                    <span className="flex items-center gap-1.5">
-                                                        <ArrowRight className="h-3 w-3 text-sky-500" />
-                                                        <span className="font-medium">{formattedTime}</span>
-                                                        {slot.vehicleLicensePlate && (
-                                                            <span className="text-sky-600 text-[10px]">
-                                                                ({slot.vehicleLicensePlate})
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                    <span className="text-[10px] bg-sky-200 px-1.5 py-0.5 rounded font-medium">
-                                                        {slot.availableCount} xe
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Fallback nếu không có suggestion */}
-                            {(!availabilityInfo.alternativeCategories || availabilityInfo.alternativeCategories.length === 0) && 
-                             (!availabilityInfo.nextAvailableSlots || availabilityInfo.nextAvailableSlots.length === 0) && (
-                                <div className="text-[11px] text-amber-600">
-                                    Vui lòng báo quản lý để điều phối chi nhánh khác.
-                                </div>
+                            {(availabilityInfo.alternativeCategories?.length > 0 || availabilityInfo.nextAvailableSlots?.length > 0) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSuggestionDialog(true)}
+                                    className="px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                    Xem gợi ý
+                                </button>
                             )}
                         </div>
                     ) : null}
@@ -1941,6 +1868,148 @@ export default function CreateOrderPage() {
                                     <Sparkles className="h-4 w-4" />
                                 )}
                                 Tự động điền ngay
+                            </button>
+                        </div>
+                    </div>
+                </AnimatedDialog>
+            )}
+
+            {/* Popup gợi ý xe thay thế */}
+            {availabilityInfo && !availabilityInfo.ok && showSuggestionDialog && (
+                <AnimatedDialog
+                    open={showSuggestionDialog}
+                    onClose={() => setShowSuggestionDialog(false)}
+                    size="md"
+                >
+                    <div className="p-6 space-y-5">
+                        {/* Header */}
+                        <div className="flex items-start gap-4">
+                            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600 flex items-center justify-center shadow-inner">
+                                <AlertTriangle className="h-7 w-7" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-slate-800">
+                                    Không đủ xe khả dụng
+                                </h3>
+                                <p className="text-sm text-slate-500 mt-1">
+                                    Cần <span className="font-medium text-slate-700">{availabilityInfo.needed}</span> xe {selectedCategory?.name || ""}, 
+                                    hiện chỉ còn <span className="font-medium text-amber-600">{availabilityInfo.count}</span> xe rảnh.
+                                    Vui lòng chọn một trong các gợi ý bên dưới.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Gợi ý xe thay thế */}
+                        {availabilityInfo.alternativeCategories && availabilityInfo.alternativeCategories.length > 0 && (
+                            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                        <CarFront className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-emerald-800">Loại xe thay thế</h4>
+                                        <p className="text-[11px] text-emerald-600">Các loại xe khác có sẵn trong cùng khung giờ</p>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    {availabilityInfo.alternativeCategories.map((alt) => (
+                                        <button
+                                            key={alt.categoryId}
+                                            type="button"
+                                            onClick={() => {
+                                                setCategoryId(String(alt.categoryId));
+                                                setShowSuggestionDialog(false);
+                                                push(`Đã chọn ${alt.categoryName}`, "success");
+                                            }}
+                                            className="w-full text-left px-4 py-3 rounded-lg bg-white hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-400 text-slate-700 transition-all flex items-center justify-between group shadow-sm hover:shadow"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-10 w-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                                                    <CarFront className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-slate-800">{alt.categoryName}</div>
+                                                    <div className="text-[11px] text-slate-500">{alt.seats} chỗ ngồi • {alt.pricePerKm?.toLocaleString("vi-VN")}đ/km</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium">
+                                                    {alt.availableCount} xe rảnh
+                                                </span>
+                                                <ArrowRight className="h-4 w-4 text-emerald-500 group-hover:translate-x-1 transition-transform" />
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Gợi ý thời gian khác */}
+                        {availabilityInfo.nextAvailableSlots && availabilityInfo.nextAvailableSlots.length > 0 && (
+                            <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl border border-sky-200 p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="h-8 w-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
+                                        <Clock className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-sky-800">Thời gian khác</h4>
+                                        <p className="text-[11px] text-sky-600">Xe {selectedCategory?.name || ""} sẽ rảnh vào các khung giờ sau</p>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    {availabilityInfo.nextAvailableSlots.map((slot, idx) => {
+                                        const fromDate = new Date(slot.availableFrom);
+                                        const formattedTime = fromDate.toLocaleString("vi-VN", {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "numeric",
+                                        });
+                                        return (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => {
+                                                    const newStart = fromDate.toISOString().slice(0, 16);
+                                                    setStartTime(newStart);
+                                                    setShowSuggestionDialog(false);
+                                                    push(`Đã đổi giờ đón sang ${formattedTime}`, "success");
+                                                }}
+                                                className="w-full text-left px-4 py-3 rounded-lg bg-white hover:bg-sky-50 border border-sky-200 hover:border-sky-400 text-slate-700 transition-all flex items-center justify-between group shadow-sm hover:shadow"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-10 w-10 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center group-hover:bg-sky-200 transition-colors">
+                                                        <Calendar className="h-5 w-5" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-medium text-slate-800">{formattedTime}</div>
+                                                        {slot.vehicleLicensePlate && (
+                                                            <div className="text-[11px] text-slate-500">Xe {slot.vehicleLicensePlate}</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs bg-sky-100 text-sky-700 px-2.5 py-1 rounded-full font-medium">
+                                                        {slot.availableCount} xe
+                                                    </span>
+                                                    <ArrowRight className="h-4 w-4 text-sky-500 group-hover:translate-x-1 transition-transform" />
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="flex justify-end pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowSuggestionDialog(false)}
+                                className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium transition-colors"
+                            >
+                                Đóng
                             </button>
                         </div>
                     </div>

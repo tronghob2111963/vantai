@@ -62,6 +62,7 @@ public class DispatchServiceImpl implements DispatchService {
     private final TripAssignmentHistoryRepository tripAssignmentHistoryRepository;
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     private final SystemSettingService systemSettingService;
+    private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
 
     // =========================================================
     // 1) PENDING TRIPS (QUEUE)
@@ -258,7 +259,21 @@ public class DispatchServiceImpl implements DispatchService {
                 reasons.add("Bằng lái còn hạn");
             }
             
-            // 3) Check time overlap
+            // 3) Check license class vs vehicle capacity
+            // Hạng D: Lái xe từ 10-30 chỗ
+            // Hạng E: Lái xe trên 30 chỗ
+            // Hạng B1/B2: Lái xe dưới 9 chỗ
+            Integer maxSeatsRequired = getMaxSeatsFromBooking(trip.getBooking());
+            String licenseClass = d.getLicenseClass() != null ? d.getLicenseClass().toUpperCase() : "";
+            boolean licenseClassValid = isLicenseClassValidForSeats(licenseClass, maxSeatsRequired);
+            if (!licenseClassValid) {
+                eligible = false;
+                reasons.add(String.format("Bằng %s không đủ hạng cho xe %d chỗ", licenseClass, maxSeatsRequired));
+            } else {
+                reasons.add(String.format("Bằng %s phù hợp xe %d chỗ", licenseClass, maxSeatsRequired != null ? maxSeatsRequired : 0));
+            }
+            
+            // 4) Check time overlap
             List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(d.getId());
             boolean overlap = driverTrips.stream().anyMatch(td -> {
                 Trips t = td.getTrip();
@@ -1085,8 +1100,16 @@ public class DispatchServiceImpl implements DispatchService {
                 log.debug("Driver {} license expired, skip", d.getId());
                 continue;
             }
+            
+            // 3) Check hạng bằng lái phù hợp với loại xe
+            Integer maxSeats = getMaxSeatsFromBooking(booking);
+            String licenseClass = d.getLicenseClass() != null ? d.getLicenseClass() : "";
+            if (!isLicenseClassValidForSeats(licenseClass, maxSeats)) {
+                log.debug("Driver {} license class {} not valid for {} seats, skip", d.getId(), licenseClass, maxSeats);
+                continue;
+            }
 
-            // 3) Check trùng giờ (trip SCHEDULED/ONGOING)
+            // 4) Check trùng giờ (trip SCHEDULED/ONGOING)
             List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(d.getId());
             boolean overlap = driverTrips.stream().anyMatch(td -> {
                 Trips t = td.getTrip();
@@ -1104,7 +1127,7 @@ public class DispatchServiceImpl implements DispatchService {
                 continue;
             }
 
-            // 4) Fairness: số chuyến đã chạy trong ngày
+            // 5) Fairness: số chuyến đã chạy trong ngày
             long todayTrips = driverTrips.stream().filter(td -> {
                 Trips t = td.getTrip();
                 if (t.getStartTime() == null) return false;
@@ -1155,6 +1178,14 @@ public class DispatchServiceImpl implements DispatchService {
 
             // Check hạn bằng lái
             if (d.getLicenseExpiry() != null && d.getLicenseExpiry().isBefore(tripDate)) {
+                continue;
+            }
+            
+            // Check hạng bằng lái phù hợp với loại xe
+            Integer maxSeats = getMaxSeatsFromBooking(booking);
+            String licenseClass = d.getLicenseClass() != null ? d.getLicenseClass() : "";
+            if (!isLicenseClassValidForSeats(licenseClass, maxSeats)) {
+                log.debug("Driver {} license class {} not valid for {} seats, skip", d.getId(), licenseClass, maxSeats);
                 continue;
             }
 
@@ -1269,6 +1300,75 @@ public class DispatchServiceImpl implements DispatchService {
 
         public T getCandidate() { return candidate; }
         public int getScore() { return score; }
+    }
+    
+    /**
+     * Lấy số ghế tối đa từ các loại xe trong booking
+     */
+    private Integer getMaxSeatsFromBooking(Bookings booking) {
+        if (booking == null) return null;
+        
+        try {
+            List<BookingVehicleDetails> vehicleDetails = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+            if (vehicleDetails == null || vehicleDetails.isEmpty()) {
+                return null;
+            }
+            
+            return vehicleDetails.stream()
+                    .map(vd -> vd.getVehicleCategory())
+                    .filter(cat -> cat != null && cat.getSeats() != null)
+                    .mapToInt(cat -> cat.getSeats())
+                    .max()
+                    .orElse(0);
+        } catch (Exception e) {
+            log.warn("Cannot get max seats from booking {}: {}", booking.getId(), e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Kiểm tra hạng bằng lái có đủ để lái xe với số ghế yêu cầu không
+     * 
+     * Quy định bằng lái VN:
+     * - Hạng B1: Xe ô tô chở người đến 9 chỗ ngồi
+     * - Hạng B2: Xe ô tô chở người đến 9 chỗ ngồi (có thể lái xe tải)
+     * - Hạng C: Xe tải, xe chuyên dùng
+     * - Hạng D: Xe ô tô chở người từ 10-30 chỗ ngồi
+     * - Hạng E: Xe ô tô chở người trên 30 chỗ ngồi
+     * - Hạng F: Các loại xe hạng B, C, D, E có kéo rơ moóc
+     */
+    private boolean isLicenseClassValidForSeats(String licenseClass, Integer seats) {
+        if (licenseClass == null || licenseClass.isEmpty()) {
+            return false; // Không có bằng lái -> không hợp lệ
+        }
+        if (seats == null || seats <= 0) {
+            return true; // Không có thông tin số ghế -> bỏ qua check
+        }
+        
+        String upperClass = licenseClass.toUpperCase().trim();
+        
+        // Hạng E hoặc F: Lái được tất cả loại xe khách
+        if (upperClass.equals("E") || upperClass.startsWith("F")) {
+            return true;
+        }
+        
+        // Hạng D: Lái được xe từ 10-30 chỗ (và cả dưới 10 chỗ)
+        if (upperClass.equals("D")) {
+            return seats <= 30;
+        }
+        
+        // Hạng B1, B2: Chỉ lái được xe dưới 9 chỗ
+        if (upperClass.equals("B1") || upperClass.equals("B2") || upperClass.equals("B")) {
+            return seats <= 9;
+        }
+        
+        // Hạng C: Xe tải, không phù hợp cho xe khách (trừ trường hợp đặc biệt)
+        if (upperClass.equals("C")) {
+            return seats <= 9; // Tạm cho phép lái xe nhỏ
+        }
+        
+        // Các hạng khác (A1, A2, A3, A4...): Không lái được xe khách
+        return false;
     }
 }
 
