@@ -468,6 +468,34 @@ public class DispatchServiceImpl implements DispatchService {
         }
         List<Trips> tripsInDay = tripRepository.findByBooking_Branch_IdAndStartTimeBetween(branchId, from, to);
 
+        // ===== THỐNG KÊ =====
+        int pendingCount = 0;
+        int assignedCount = 0;
+        int cancelledCount = 0;
+        int completedCount = 0;
+        int inProgressCount = 0;
+
+        for (Trips trip : tripsInDay) {
+            TripStatus status = trip.getStatus();
+            if (status == TripStatus.CANCELLED) {
+                cancelledCount++;
+            } else if (status == TripStatus.COMPLETED) {
+                completedCount++;
+            } else if (status == TripStatus.ONGOING) {
+                inProgressCount++;
+            } else if (status == TripStatus.SCHEDULED) {
+                // Kiểm tra đã gán driver/vehicle chưa
+                List<TripDrivers> td = tripDriverRepository.findByTripId(trip.getId());
+                List<TripVehicles> tv = tripVehicleRepository.findByTripId(trip.getId());
+                if (td.isEmpty() && tv.isEmpty()) {
+                    pendingCount++;
+                } else {
+                    assignedCount++;
+                }
+            }
+        }
+        // ===== END THỐNG KÊ =====
+
         Map<Integer, List<TripDrivers>> tripDriverMap = new HashMap<>();
         Map<Integer, List<TripVehicles>> tripVehicleMap = new HashMap<>();
 
@@ -480,6 +508,11 @@ public class DispatchServiceImpl implements DispatchService {
                 .collect(Collectors.toList());
 
         return DispatchDashboardResponse.builder()
+                .pendingCount(pendingCount)
+                .assignedCount(assignedCount)
+                .cancelledCount(cancelledCount)
+                .completedCount(completedCount)
+                .inProgressCount(inProgressCount)
                 .pendingTrips(pending)
                 .driverSchedules(driverSchedules)
                 .vehicleSchedules(vehicleSchedules)

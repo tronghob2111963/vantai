@@ -8,6 +8,7 @@ import org.example.ptcmssbackend.enums.UserStatus;
 import org.example.ptcmssbackend.repository.UsersRepository;
 import org.example.ptcmssbackend.service.PasswordService;
 import org.example.ptcmssbackend.service.JwtService;
+import org.example.ptcmssbackend.service.EmailService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ public class PasswordServiceImpl implements PasswordService {
 
     private final UsersRepository usersRepository;
     private final JwtService jwtService;
+    private final EmailService emailService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
@@ -41,7 +43,21 @@ public class PasswordServiceImpl implements PasswordService {
         Users savedUser = usersRepository.save(user);
         log.info("✅ Mật khẩu mới (đã mã hóa): {}", savedUser.getPasswordHash());
 
-        return "Mật khẩu đã được thiết lập thành công! Bạn có thể đăng nhập.";
+        // Gửi email thông tin đăng nhập
+        try {
+            emailService.sendCredentialsEmail(
+                savedUser.getEmail(),
+                savedUser.getFullName(),
+                savedUser.getUsername(),
+                password // Gửi mật khẩu plaintext trước khi mã hóa
+            );
+            log.info("📧 Đã gửi thông tin đăng nhập đến email: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            log.error("❌ Lỗi gửi email thông tin đăng nhập: {}", e.getMessage());
+            // Không throw exception vì mật khẩu đã được thiết lập thành công
+        }
+
+        return "Mật khẩu đã được thiết lập thành công! Thông tin đăng nhập đã được gửi đến email của bạn.";
     }
 
     private Users resolveUserFromToken(String token) {

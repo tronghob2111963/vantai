@@ -7,9 +7,10 @@
 INSERT IGNORE INTO roles (roleId, roleName, description, status) VALUES
 (1, 'Admin', 'Quản trị viên hệ thống', 'ACTIVE'),
 (2, 'Manager', 'Quản lý chi nhánh', 'ACTIVE'),
-(3, 'Consultant', 'Điều hành/Tư vấn', 'ACTIVE'),
+(3, 'Consultant', 'Tư vấn viên', 'ACTIVE'),
 (4, 'Driver', 'Tài xế', 'ACTIVE'),
-(5, 'Accountant', 'Kế toán', 'ACTIVE');
+(5, 'Accountant', 'Kế toán', 'ACTIVE'),
+(6, 'Coordinator', 'Điều phối viên', 'ACTIVE');
 
 -- Insert Default Admin User
 INSERT IGNORE INTO users (userId, roleId, fullName, username, passwordHash, email, phone, status, email_verified, createdAt) VALUES
