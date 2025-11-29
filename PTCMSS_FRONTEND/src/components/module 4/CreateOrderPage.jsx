@@ -287,7 +287,8 @@ export default function CreateOrderPage() {
                 const sStart = new Date(startTime).toISOString();
                 const sEnd = new Date(endTime).toISOString();
                 
-                const res = await checkVehicleAvailability({
+                // apiFetch đã unwrap response, nên res chính là data object
+                const data = await checkVehicleAvailability({
                     branchId: Number(branchId),
                     categoryId: Number(categoryId),
                     startTime: sStart,
@@ -295,23 +296,25 @@ export default function CreateOrderPage() {
                     quantity: vehicleCount || 1,
                 });
                 
-                if (res.success && res.data) {
-                    const data = res.data;
+                console.log("[CheckAvailability] Response:", data);
+                
+                if (data && typeof data.ok !== 'undefined') {
                     setAvailabilityInfo({
                         ok: data.ok,
-                        count: data.availableCount,
+                        count: data.availableCount || 0,
                         needed: data.needed,
-                        totalCandidates: data.totalCandidates,
-                        busyCount: data.busyCount,
+                        totalCandidates: data.totalCandidates || 0,
+                        busyCount: data.busyCount || 0,
                         text: data.ok 
-                            ? `Khả dụng: Còn ${data.availableCount} xe` 
-                            : `Hết xe (${data.busyCount}/${data.totalCandidates} đang bận)`,
+                            ? `Khả dụng: Còn ${data.availableCount || 0} xe` 
+                            : `Hết xe (${data.busyCount || 0}/${data.totalCandidates || 0} đang bận)`,
                         branch: branchId,
                         // Suggestions khi hết xe
                         alternativeCategories: data.alternativeCategories,
                         nextAvailableSlots: data.nextAvailableSlots,
                     });
                 } else {
+                    console.warn("[CheckAvailability] Unexpected response format:", data);
                     setAvailabilityInfo({
                         ok: true,
                         count: 0,
@@ -324,7 +327,7 @@ export default function CreateOrderPage() {
                 setAvailabilityInfo({
                     ok: true,
                     count: 0,
-                    text: "Lỗi kiểm tra",
+                    text: "Lỗi kiểm tra: " + (err.message || "Unknown"),
                     branch: branchId,
                 });
             } finally {
