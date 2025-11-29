@@ -139,10 +139,22 @@ public class DriverServiceImpl implements DriverService {
                 .orElseThrow(() -> new RuntimeException("Driver not found"));
         var user = driver.getEmployee().getUser();
 
+        // Cập nhật thông tin user
         if (request.getPhone() != null) user.setPhone(request.getPhone());
         if (request.getAddress() != null) user.setAddress(request.getAddress());
+
+        // Cập nhật thông tin driver
         if (request.getNote() != null) driver.setNote(request.getNote());
         if (request.getHealthCheckDate() != null) driver.setHealthCheckDate(request.getHealthCheckDate());
+        if (request.getLicenseClass() != null) driver.setLicenseClass(request.getLicenseClass());
+        if (request.getLicenseExpiry() != null) driver.setLicenseExpiry(request.getLicenseExpiry());
+        if (request.getStatus() != null) {
+            try {
+                driver.setStatus(org.example.ptcmssbackend.enums.DriverStatus.valueOf(request.getStatus()));
+            } catch (IllegalArgumentException e) {
+                log.warn("[DriverProfile] Invalid status value: {}", request.getStatus());
+            }
+        }
 
         driverRepository.save(driver);
         return new DriverProfileResponse(driver);

@@ -14,6 +14,11 @@ import {
     Loader2,
     AlertCircle,
     RefreshCw,
+    ClipboardList,
+    CheckCircle2,
+    XCircle,
+    PlayCircle,
+    TrendingUp,
 } from "lucide-react";
 import { getDispatchDashboard, assignTrips } from "../../api/dispatch";
 import { listBranches, getBranchByUserId } from "../../api/branches";
@@ -995,6 +1000,15 @@ export default function CoordinatorTimelinePro() {
     const [branchLoading, setBranchLoading] = React.useState(true);
     const [branchError, setBranchError] = React.useState("");
 
+    // Thống kê dashboard
+    const [stats, setStats] = React.useState({
+        pendingCount: 0,
+        assignedCount: 0,
+        cancelledCount: 0,
+        completedCount: 0,
+        inProgressCount: 0,
+    });
+
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState("");
     const [active, setActive] = React.useState(null);
@@ -1160,6 +1174,15 @@ export default function CoordinatorTimelinePro() {
                 setPending(normalizePendingTrips(pendingRows));
                 setDrivers(normalizeDriverSchedules(driverRows));
                 setVehicles(normalizeVehicleSchedules(vehicleRows));
+
+                // Cập nhật thống kê
+                setStats({
+                    pendingCount: payload?.pendingCount ?? pendingRows.length ?? 0,
+                    assignedCount: payload?.assignedCount ?? 0,
+                    cancelledCount: payload?.cancelledCount ?? 0,
+                    completedCount: payload?.completedCount ?? 0,
+                    inProgressCount: payload?.inProgressCount ?? 0,
+                });
             } catch (err) {
                 console.error("[CoordinatorTimelinePro] Failed to load dashboard:", err);
 
@@ -1661,6 +1684,64 @@ export default function CoordinatorTimelinePro() {
                     </div>
 
                     <Legend />
+                </div>
+
+                {/* THỐNG KÊ DASHBOARD */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {/* Chờ gắn lịch */}
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                            <ClipboardList className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-amber-700">{stats.pendingCount}</div>
+                            <div className="text-[11px] text-amber-600 font-medium">Chờ gắn lịch</div>
+                        </div>
+                    </div>
+
+                    {/* Đã gắn lịch */}
+                    <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-sky-100 flex items-center justify-center">
+                            <CheckCircle2 className="h-5 w-5 text-sky-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-sky-700">{stats.assignedCount}</div>
+                            <div className="text-[11px] text-sky-600 font-medium">Đã gắn lịch</div>
+                        </div>
+                    </div>
+
+                    {/* Đang thực hiện */}
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                            <PlayCircle className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-emerald-700">{stats.inProgressCount}</div>
+                            <div className="text-[11px] text-emerald-600 font-medium">Đang thực hiện</div>
+                        </div>
+                    </div>
+
+                    {/* Hoàn thành */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <TrendingUp className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-slate-700">{stats.completedCount}</div>
+                            <div className="text-[11px] text-slate-600 font-medium">Hoàn thành</div>
+                        </div>
+                    </div>
+
+                    {/* Đã hủy */}
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-rose-100 flex items-center justify-center">
+                            <XCircle className="h-5 w-5 text-rose-600" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-rose-700">{stats.cancelledCount}</div>
+                            <div className="text-[11px] text-rose-600 font-medium">Đã hủy</div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* MAIN LAYOUT: Queue (left) + Gantt (right) */}
