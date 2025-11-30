@@ -876,7 +876,7 @@ export default function VehicleCategoryManagePage() {
             pushToast("Cập nhật thành công", "success");
         } catch (e) {
             console.error("[UPDATE] Error:", e);
-            pushToast("Cập nhật thất bại: " + (e.message || "Unknown error"), "error");
+            pushToast("Cập nhật thất bại: " + (e.message || "Lỗi không xác định"), "error");
         }
     }
 

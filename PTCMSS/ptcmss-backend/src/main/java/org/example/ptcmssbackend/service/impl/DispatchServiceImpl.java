@@ -170,7 +170,7 @@ public class DispatchServiceImpl implements DispatchService {
         log.info("[Dispatch] Getting assignment suggestions for trip {}", tripId);
         
         Trips trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new RuntimeException("Trip not found: " + tripId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi: " + tripId));
         
         Bookings booking = trip.getBooking();
         Integer branchId = booking.getBranch().getId();
@@ -469,7 +469,7 @@ public class DispatchServiceImpl implements DispatchService {
     @Override
     public DispatchDashboardResponse getDashboard(Integer branchId, LocalDate date) {
         if (branchId == null) {
-            throw new IllegalArgumentException("branchId is required");
+            throw new IllegalArgumentException("Mã chi nhánh là bắt buộc");
         }
         LocalDate targetDate = date != null ? date : LocalDate.now();
         Instant from = targetDate.atStartOfDay(DEFAULT_ZONE).toInstant();
@@ -542,15 +542,15 @@ public class DispatchServiceImpl implements DispatchService {
         log.info("[Dispatch] Assign called: {}", request);
 
         if (request.getBookingId() == null) {
-            throw new RuntimeException("bookingId is required");
+            throw new RuntimeException("Mã đơn hàng là bắt buộc");
         }
 
         Bookings booking = bookingRepository.findById(request.getBookingId())
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + request.getBookingId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + request.getBookingId()));
 
         List<Trips> trips = tripRepository.findByBooking_Id(booking.getId());
         if (trips.isEmpty()) {
-            throw new RuntimeException("No trips found for booking " + booking.getId());
+            throw new RuntimeException("Không tìm thấy chuyến đi cho đơn hàng " + booking.getId());
         }
 
         // Nếu không truyền tripIds -> gán tất cả chuyến
@@ -569,7 +569,7 @@ public class DispatchServiceImpl implements DispatchService {
             Trips representativeTrip = trips.stream()
                     .filter(t -> targetTripIds.contains(t.getId()))
                     .findFirst()
-                    .orElseThrow(() -> new RuntimeException("No target trip for auto assign"));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi để phân công tự động"));
 
             if (driverId == null) {
                 // Tính tổng quãng đường của booking để quyết định số lượng tài xế
@@ -607,7 +607,7 @@ public class DispatchServiceImpl implements DispatchService {
 
         // Tới đây, nếu vẫn không có driverId hoặc vehicleId thì coi như lỗi (có thể mềm dẻo hơn)
         if (driverId == null && vehicleId == null) {
-            throw new RuntimeException("No driverId or vehicleId specified/available for assignment");
+            throw new RuntimeException("Chưa chỉ định tài xế hoặc xe để phân công");
         }
 
         // Sử dụng BookingService.assign để tái dùng logic gán driver/vehicle cho tất cả trips được chọn
@@ -624,7 +624,7 @@ public class DispatchServiceImpl implements DispatchService {
         if (request.getSecondDriverId() != null) {
             log.info("[Dispatch] Assigning second driver {} for long trip", request.getSecondDriverId());
             Drivers secondDriver = driverRepository.findById(request.getSecondDriverId())
-                    .orElseThrow(() -> new RuntimeException("Second driver not found: " + request.getSecondDriverId()));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế phụ: " + request.getSecondDriverId()));
             
             for (Integer tid : targetTripIds) {
                 // Check xem đã có tài xế thứ 2 chưa
@@ -770,7 +770,7 @@ public class DispatchServiceImpl implements DispatchService {
     public void unassign(Integer tripId, String note) {
         log.info("[Dispatch] Unassign trip {}", tripId);
         Trips trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new RuntimeException("Trip not found: " + tripId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi: " + tripId));
 
         // Xoá driver mapping
         List<TripDrivers> tds = tripDriverRepository.findByTripId(tripId);
@@ -836,7 +836,7 @@ public class DispatchServiceImpl implements DispatchService {
     @Transactional(readOnly = true)
     public TripDetailResponse getTripDetail(Integer tripId) {
         Trips trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new RuntimeException("Trip not found: " + tripId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi: " + tripId));
 
         Bookings booking = trip.getBooking();
         Customers customer = booking.getCustomer();

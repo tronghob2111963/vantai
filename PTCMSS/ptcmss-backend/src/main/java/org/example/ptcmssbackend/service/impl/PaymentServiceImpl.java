@@ -41,10 +41,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public PaymentResponse generateQRCode(Integer bookingId, BigDecimal amount, String note, Boolean deposit, Integer employeeId) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than 0");
+            throw new IllegalArgumentException("Số tiền phải lớn hơn 0");
         }
         Bookings booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
 
         Invoices invoice = buildInvoiceSkeleton(booking, amount, Boolean.TRUE.equals(deposit), PaymentStatus.UNPAID);
         invoice.setPaymentMethod("QR");
@@ -89,10 +89,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public PaymentResponse createDeposit(Integer bookingId, CreatePaymentRequest request, Integer employeeId) {
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than 0");
+            throw new IllegalArgumentException("Số tiền phải lớn hơn 0");
         }
         Bookings booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
 
         Invoices invoice = buildInvoiceSkeleton(booking, request.getAmount(), Boolean.TRUE.equals(request.getDeposit()), PaymentStatus.PAID);
         invoice.setPaymentMethod(StringUtils.hasText(request.getPaymentMethod()) ? request.getPaymentMethod() : "CASH");

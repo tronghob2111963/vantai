@@ -103,7 +103,7 @@ public class DriverServiceImpl implements DriverService {
     public DriverProfileResponse getProfile(Integer driverId) {
         log.info("[DriverProfile] Loading profile for driver {}", driverId);
         var driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new RuntimeException("Driver not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế"));
         
         DriverProfileResponse response = new DriverProfileResponse(driver);
         
@@ -124,9 +124,9 @@ public class DriverServiceImpl implements DriverService {
     public DriverProfileResponse getProfileByUserId(Integer userId) {
         log.info("[DriverProfile] Loading profile by userId {}", userId);
         var employee = employeeRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Employee not found for user"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên cho người dùng này"));
         var driver = driverRepository.findByEmployee_EmployeeId(employee.getEmployeeId())
-                .orElseThrow(() -> new RuntimeException("Driver not found for employee"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế cho nhân viên này"));
         
         // Sử dụng getProfile để có thống kê
         return getProfile(driver.getId());
@@ -136,7 +136,7 @@ public class DriverServiceImpl implements DriverService {
     public DriverProfileResponse updateProfile(Integer driverId, DriverProfileUpdateRequest request) {
         log.info("[DriverProfile] Updating profile for driver {}", driverId);
         var driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new RuntimeException("Driver not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế"));
         var user = driver.getEmployee().getUser();
 
         // Cập nhật thông tin user
@@ -164,7 +164,7 @@ public class DriverServiceImpl implements DriverService {
     public DriverDayOffResponse requestDayOff(Integer driverId, DriverDayOffRequest request) {
         log.info("[DriverDayOff] Request day off for driver {}", driverId);
         var driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new RuntimeException("Driver not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế"));
 
         var dayOff = new DriverDayOff();
         dayOff.setDriver(driver);
@@ -207,16 +207,16 @@ public class DriverServiceImpl implements DriverService {
     public Integer startTrip(Integer tripId, Integer driverId) {
         log.info("[Trip] Driver {} started trip {}", driverId, tripId);
         var trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new RuntimeException("Trip not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi"));
 
         // check driver có được gán không
         if (!tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)) {
-            throw new RuntimeException("Driver is not assigned to this trip");
+            throw new RuntimeException("Tài xế không được phân công cho chuyến đi này");
         }
 
         // chỉ cho start từ trạng thái SCHEDULED
         if (trip.getStatus() != TripStatus.SCHEDULED) {
-            throw new RuntimeException("Trip is not in SCHEDULED status");
+            throw new RuntimeException("Chuyến đi không ở trạng thái ĐÃ LÊN LỊCH");
         }
 
         trip.setStatus(TripStatus.ONGOING);
@@ -231,14 +231,14 @@ public class DriverServiceImpl implements DriverService {
     public Integer completeTrip(Integer tripId, Integer driverId) {
         log.info("[Trip] Driver {} completed trip {}", driverId, tripId);
         var trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new RuntimeException("Trip not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi"));
 
         if (!tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)) {
-            throw new RuntimeException("Driver is not assigned to this trip");
+            throw new RuntimeException("Tài xế không được phân công cho chuyến đi này");
         }
 
         if (trip.getStatus() != TripStatus.ONGOING) {
-            throw new RuntimeException("Trip is not in ONGOING status");
+            throw new RuntimeException("Chuyến đi không ở trạng thái ĐANG THỰC HIỆN");
         }
 
         trip.setStatus(TripStatus.COMPLETED);
@@ -253,9 +253,9 @@ public class DriverServiceImpl implements DriverService {
         log.info("[TripIncident] Driver reports issue for trip {}: {}", request.getTripId(), request.getDescription());
 
         var trip = tripRepository.findById(request.getTripId())
-                .orElseThrow(() -> new RuntimeException("Trip not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi"));
         var driver = driverRepository.findById(request.getDriverId())
-                .orElseThrow(() -> new RuntimeException("Driver not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế"));
 
         var incident = new TripIncidents();
         incident.setTrip(trip);
@@ -277,13 +277,13 @@ public class DriverServiceImpl implements DriverService {
                 request.getEmployeeId(), request.getBranchId());
 
         var branch = branchRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh"));
 
         var employee = employeeRepository.findById(request.getEmployeeId())
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên"));
 
         if (driverRepository.existsByLicenseNumber(request.getLicenseNumber())) {
-            throw new RuntimeException("Driver with this license number already exists");
+            throw new RuntimeException("Tài xế với số giấy phép này đã tồn tại");
         }
 
         var driver = new Drivers();
@@ -305,7 +305,7 @@ public class DriverServiceImpl implements DriverService {
         log.info("[Driver] Get drivers by branch {}", branchId);
 
         var branch = branchRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh"));
         return driverRepository.findAllByBranchId(branchId);
     }
 }

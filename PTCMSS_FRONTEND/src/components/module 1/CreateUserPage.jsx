@@ -316,7 +316,7 @@ export default function CreateUserPage() {
               },
               {
                 field: "username",
-                label: "Username",
+                label: "Tên đăng nhập",
                 icon: <User className="h-4 w-4 text-slate-400" />,
                 required: true,
                 placeholder: "nguyen.van.a",

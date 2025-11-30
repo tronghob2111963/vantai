@@ -123,13 +123,13 @@ public class JwtServiceImpl implements JwtService {
                     .getBody();
         } catch (SignatureException e) {
             log.error("[JWT] Invalid signature for {} token", type);
-            throw new AccessDeniedException("Access denied! Invalid JWT signature.");
+            throw new AccessDeniedException("Truy cập bị từ chối! Chữ ký JWT không hợp lệ.");
         } catch (ExpiredJwtException e) {
             log.error("[JWT] {} token expired", type);
-            throw new AccessDeniedException("Access denied! Token expired.");
+            throw new AccessDeniedException("Truy cập bị từ chối! Token đã hết hạn.");
         } catch (Exception e) {
             log.error("[JWT] Error parsing {} token: {}", type, e.getMessage());
-            throw new AccessDeniedException("Access denied! " + e.getMessage());
+            throw new AccessDeniedException("Truy cập bị từ chối! " + e.getMessage());
         }
     }
 
@@ -140,7 +140,7 @@ public class JwtServiceImpl implements JwtService {
         } else if (type == TokenType.REFRESH_TOKEN) {
             return Keys.hmacShaKeyFor(refreshkey.getBytes());
         } else {
-            throw new IllegalArgumentException("Invalid token type: " + type);
+            throw new IllegalArgumentException("Loại token không hợp lệ: " + type);
         }
     }
 }

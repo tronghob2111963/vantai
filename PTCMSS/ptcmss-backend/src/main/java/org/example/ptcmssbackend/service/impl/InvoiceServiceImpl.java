@@ -76,7 +76,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         try {
             invoiceType = InvoiceType.valueOf(request.getType().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid invoice type: " + request.getType());
+            throw new RuntimeException("Loại hóa đơn không hợp lệ: " + request.getType());
         }
         invoice.setType(invoiceType);
         invoice.setCostType(request.getCostType());
@@ -513,7 +513,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public PaymentHistoryResponse confirmPayment(Integer paymentId, String status) {
         PaymentHistory payment = paymentHistoryRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thanh toán: " + paymentId));
 
         try {
             PaymentConfirmationStatus confirmationStatus = PaymentConfirmationStatus.valueOf(status.toUpperCase());
@@ -547,14 +547,14 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             return mapToPaymentHistoryResponse(payment);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid confirmation status: " + status + ". Must be CONFIRMED or REJECTED");
+            throw new RuntimeException("Trạng thái xác nhận không hợp lệ: " + status + ". Phải là CONFIRMED hoặc REJECTED");
         }
     }
 
     @Override
     public void deletePayment(Integer paymentId) {
         PaymentHistory payment = paymentHistoryRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thanh toán: " + paymentId));
 
         // Chỉ cho phép xóa payment có status PENDING
         if (payment.getConfirmationStatus() != PaymentConfirmationStatus.PENDING) {

@@ -320,7 +320,7 @@ export default function DepositModal({
             console.error("Error submitting payment:", err);
             console.error("Error status:", err.status);
             console.error("Error data:", err.data);
-            const errorMsg = err.data?.message || err.message || "Unknown error";
+            const errorMsg = err.data?.message || err.message || "Lỗi không xác định";
             setError("Không thể ghi nhận thanh toán: " + errorMsg);
         } finally {
             setLoading(false);

@@ -69,7 +69,7 @@ public class BookingServiceImpl implements BookingService {
         
         // 2. Load các entity cần thiết
         Branches branch = branchesRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found: " + request.getBranchId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh: " + request.getBranchId()));
         
         Employees consultant = consultantEmployeeId != null
                 ? employeeRepository.findById(consultantEmployeeId).orElse(null)
@@ -212,7 +212,7 @@ public class BookingServiceImpl implements BookingService {
                 details.setId(id);
                 details.setBooking(booking);
                 VehicleCategoryPricing category = vehicleCategoryRepository.findById(vehicleReq.getVehicleCategoryId())
-                        .orElseThrow(() -> new RuntimeException("Vehicle category not found: " + vehicleReq.getVehicleCategoryId()));
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy loại xe: " + vehicleReq.getVehicleCategoryId()));
                 details.setVehicleCategory(category);
                 details.setQuantity(vehicleReq.getQuantity());
                 bookingVehicleDetailsRepository.save(details);
@@ -228,11 +228,11 @@ public class BookingServiceImpl implements BookingService {
         log.info("[BookingService] Updating booking: {}", bookingId);
         
         Bookings booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
         
         // Chỉ cho phép update khi status là PENDING hoặc CONFIRMED
         if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new RuntimeException("Cannot update booking with status: " + booking.getStatus());
+            throw new RuntimeException("Không thể cập nhật đơn hàng với trạng thái: " + booking.getStatus());
         }
         
         // Validation: Kiểm tra loại thay đổi và thời gian cho phép
@@ -253,7 +253,7 @@ public class BookingServiceImpl implements BookingService {
         // Update branch
         if (request.getBranchId() != null) {
             Branches branch = branchesRepository.findById(request.getBranchId())
-                    .orElseThrow(() -> new RuntimeException("Branch not found: " + request.getBranchId()));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh: " + request.getBranchId()));
             booking.setBranch(branch);
         }
         
@@ -438,7 +438,7 @@ public class BookingServiceImpl implements BookingService {
                 details.setId(id);
                 details.setBooking(booking);
                 VehicleCategoryPricing category = vehicleCategoryRepository.findById(vehicleReq.getVehicleCategoryId())
-                        .orElseThrow(() -> new RuntimeException("Vehicle category not found: " + vehicleReq.getVehicleCategoryId()));
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy loại xe: " + vehicleReq.getVehicleCategoryId()));
                 details.setVehicleCategory(category);
                 details.setQuantity(vehicleReq.getQuantity());
                 bookingVehicleDetailsRepository.save(details);
@@ -451,7 +451,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookingResponse getById(Integer bookingId) {
         Bookings booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
         return toResponse(booking);
     }
     
@@ -510,7 +510,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public void delete(Integer bookingId) {
         Bookings booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
         
         // Validation: Chỉ cho phép hủy trước khi khởi hành
         validateCanCancelOrModify(booking, "hủy");
@@ -725,7 +725,7 @@ public class BookingServiceImpl implements BookingService {
             Integer quantity = i < quantities.size() ? quantities.get(i) : 1;
             
             VehicleCategoryPricing category = vehicleCategoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new RuntimeException("Vehicle category not found: " + categoryId));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy loại xe: " + categoryId));
             
             if (category.getStatus() != VehicleCategoryStatus.ACTIVE) {
                 continue;
@@ -1232,7 +1232,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingResponse addPayment(Integer bookingId, CreatePaymentRequest request, Integer employeeId) {
         Bookings booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
 
         // Tìm invoice UNPAID với cùng số tiền và isDeposit để cập nhật thay vì tạo mới
         List<Invoices> existingInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(bookingId);
@@ -1284,7 +1284,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingResponse assign(Integer bookingId, AssignRequest request) {
         Bookings booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
 
         List<Trips> trips = tripRepository.findByBooking_Id(bookingId);
         List<Integer> targetTripIds = (request.getTripIds() != null && !request.getTripIds().isEmpty())
@@ -1294,7 +1294,7 @@ public class BookingServiceImpl implements BookingService {
         // Assign driver if provided
         if (request.getDriverId() != null) {
             Drivers driver = driverRepository.findById(request.getDriverId())
-                    .orElseThrow(() -> new RuntimeException("Driver not found: " + request.getDriverId()));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế: " + request.getDriverId()));
             for (Integer tid : targetTripIds) {
                 List<TripDrivers> olds = tripDriverRepository.findByTripId(tid);
                 if (!olds.isEmpty()) tripDriverRepository.deleteAll(olds);
@@ -1316,7 +1316,7 @@ public class BookingServiceImpl implements BookingService {
         // Assign vehicle if provided
         if (request.getVehicleId() != null) {
             Vehicles vehicle = vehicleRepository.findById(request.getVehicleId())
-                    .orElseThrow(() -> new RuntimeException("Vehicle not found: " + request.getVehicleId()));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy xe: " + request.getVehicleId()));
             for (Integer tid : targetTripIds) {
                 List<TripVehicles> olds = tripVehicleRepository.findByTripId(tid);
 

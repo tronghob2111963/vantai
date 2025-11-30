@@ -332,7 +332,7 @@ export default function CreateOrderPage() {
                 setAvailabilityInfo({
                     ok: true,
                     count: 0,
-                    text: "Lỗi kiểm tra: " + (err.message || "Unknown"),
+                    text: "Lỗi kiểm tra: " + (err.message || "Không xác định"),
                     branch: branchId,
                 });
             } finally {

@@ -456,7 +456,7 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr })
                                     <span className="text-[11px] text-slate-500 whitespace-nowrap">{item.createdAt ? fmtDateTime(item.createdAt) : "--"}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-[11px]">
-                                    <span className="text-slate-600">{item.paymentMethod || "N/A"}</span>
+                                    <span className="text-slate-600">{item.paymentMethod || "Không có"}</span>
                                     <span
                                         className={cls(
                                             "font-semibold px-2 py-0.5 rounded-md",

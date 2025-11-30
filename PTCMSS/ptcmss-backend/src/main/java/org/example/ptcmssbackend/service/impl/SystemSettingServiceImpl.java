@@ -34,7 +34,7 @@ public class SystemSettingServiceImpl implements SystemSettingService {
     @Override
     public SystemSettingResponse getById(Integer id) {
         SystemSetting setting = systemSettingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("SystemSetting not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy cài đặt hệ thống"));
         return mapToResponse(setting);
     }
 
@@ -52,7 +52,7 @@ public class SystemSettingServiceImpl implements SystemSettingService {
     @Override
     public SystemSettingResponse create(SystemSettingRequest request) {
         if (systemSettingRepository.existsBySettingKey(request.getSettingKey())) {
-            throw new RuntimeException("Setting key already exists");
+            throw new RuntimeException("Khóa cài đặt đã tồn tại");
         }
 
         Employees updater = null;
@@ -81,7 +81,7 @@ public class SystemSettingServiceImpl implements SystemSettingService {
     @Override
     public SystemSettingResponse update(Integer id, SystemSettingRequest request) {
         SystemSetting setting = systemSettingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("SystemSetting not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy cài đặt hệ thống"));
 
         Employees updater = null;
         if (request.getUpdatedById() != null) {
@@ -108,7 +108,7 @@ public class SystemSettingServiceImpl implements SystemSettingService {
     @Override
     public void delete(Integer id) {
         if (!systemSettingRepository.existsById(id)) {
-            throw new RuntimeException("SystemSetting not found");
+            throw new RuntimeException("Không tìm thấy cài đặt hệ thống");
         }
         systemSettingRepository.deleteById(id);
     }

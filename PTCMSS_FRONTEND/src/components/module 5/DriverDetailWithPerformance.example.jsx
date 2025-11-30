@@ -36,11 +36,11 @@ const DriverDetailWithPerformance = () => {
     };
 
     if (loading) {
-        return <div className="p-8">Loading...</div>;
+        return <div className="p-8">Đang tải...</div>;
     }
 
     if (!driver) {
-        return <div className="p-8">Driver not found</div>;
+        return <div className="p-8">Không tìm thấy tài xế</div>;
     }
 
     return (

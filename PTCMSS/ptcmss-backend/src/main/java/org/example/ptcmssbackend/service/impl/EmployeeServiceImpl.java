@@ -71,20 +71,20 @@ public class EmployeeServiceImpl implements EmployeeService {
         
         // Tìm User, Branch, Role từ ID
         Users user = usersRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + request.getUserId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với ID: " + request.getUserId()));
         System.out.println("Found user: " + user.getId() + " - " + user.getFullName());
         
         Branches branch = branchesRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found with id: " + request.getBranchId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh với ID: " + request.getBranchId()));
         System.out.println("Found branch: " + branch.getId() + " - " + branch.getBranchName());
         
         Roles role = rolesRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new RuntimeException("Role not found with id: " + request.getRoleId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò với ID: " + request.getRoleId()));
         System.out.println("Found role: " + role.getId() + " - " + role.getRoleName());
         
         // Kiểm tra xem user đã là employee chưa
         if (employeeRepository.existsByUser_Id(request.getUserId())) {
-            throw new RuntimeException("User is already an employee");
+            throw new RuntimeException("Người dùng này đã là nhân viên");
         }
         
         // Tạo Employee mới
@@ -117,15 +117,15 @@ public class EmployeeServiceImpl implements EmployeeService {
         
         // Tìm employee hiện tại với eager loading
         Employees employee = employeeRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với ID: " + id));
         
         // Tìm Branch và Role mới
         Branches branch = branchesRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found with id: " + request.getBranchId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh với ID: " + request.getBranchId()));
         System.out.println("Found branch: " + branch.getId() + " - " + branch.getBranchName());
         
         Roles role = rolesRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new RuntimeException("Role not found with id: " + request.getRoleId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò với ID: " + request.getRoleId()));
         System.out.println("Found role: " + role.getId() + " - " + role.getRoleName());
         
         // Cập nhật thông tin
@@ -152,30 +152,30 @@ public class EmployeeServiceImpl implements EmployeeService {
         
         // Kiểm tra username đã tồn tại chưa
         if (usersRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new RuntimeException("Username already exists: " + request.getUsername());
+            throw new RuntimeException("Tên đăng nhập đã tồn tại: " + request.getUsername());
         }
         
         // Kiểm tra email đã tồn tại chưa (nếu có)
         if (request.getEmail() != null && !request.getEmail().isEmpty()) {
             if (usersRepository.findByEmail(request.getEmail()).isPresent()) {
-                throw new RuntimeException("Email already exists: " + request.getEmail());
+                throw new RuntimeException("Email đã tồn tại: " + request.getEmail());
             }
         }
         
         // Kiểm tra phone đã tồn tại chưa (nếu có)
         if (request.getPhone() != null && !request.getPhone().isEmpty()) {
             if (usersRepository.findByPhone(request.getPhone()).isPresent()) {
-                throw new RuntimeException("Phone already exists: " + request.getPhone());
+                throw new RuntimeException("Số điện thoại đã tồn tại: " + request.getPhone());
             }
         }
         
         // Tìm Branch và Role
         Branches branch = branchesRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found with id: " + request.getBranchId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh với ID: " + request.getBranchId()));
         System.out.println("Found branch: " + branch.getId() + " - " + branch.getBranchName());
         
         Roles role = rolesRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new RuntimeException("Role not found with id: " + request.getRoleId()));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò với ID: " + request.getRoleId()));
         System.out.println("Found role: " + role.getId() + " - " + role.getRoleName());
         
         // 1. Tạo User mới (KHÔNG CÓ PASSWORD - sẽ tạo sau khi verify email)

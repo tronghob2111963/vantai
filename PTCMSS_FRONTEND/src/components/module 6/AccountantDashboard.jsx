@@ -471,7 +471,7 @@ function RevExpChart({ data = [] }) {
                 />
                 <LegendSwatchLine
                     x={180}
-                    label="Net (Rev-Exp)"
+                    label="Lợi nhuận ròng"
                 />
             </g>
         </svg>
@@ -1727,7 +1727,7 @@ export default function AccountantDashboard() {
                         up={false}
                     />
                     <KpiCard
-                        title="Net (Rev - Exp)"
+                        title="Lợi nhuận ròng"
                         value={Number(dashboardData.netProfit || 0)}
                         delta={dashboardData.expenseToRevenueRatio ? Number(dashboardData.expenseToRevenueRatio) : 0}
                         up={Number(dashboardData.netProfit || 0) >= 0}

@@ -1505,7 +1505,7 @@ export default function ExpenseReportPage() {
             push("Đã xuất báo cáo chi phí (Excel)", "success");
         } catch (err) {
             console.error("Export error:", err);
-            push("Lỗi khi xuất Excel: " + (err.message || "Unknown error"), "error");
+            push("Lỗi khi xuất Excel: " + (err.message || "Lỗi không xác định"), "error");
         }
     };
 

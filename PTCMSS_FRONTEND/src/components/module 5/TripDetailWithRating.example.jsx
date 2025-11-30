@@ -34,11 +34,11 @@ const TripDetailWithRating = () => {
     };
 
     if (loading) {
-        return <div className="p-8">Loading...</div>;
+        return <div className="p-8">Đang tải...</div>;
     }
 
     if (!trip) {
-        return <div className="p-8">Trip not found</div>;
+        return <div className="p-8">Không tìm thấy chuyến</div>;
     }
 
     return (

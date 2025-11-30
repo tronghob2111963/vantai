@@ -129,7 +129,7 @@ function ToastItem({ notification, onDismiss }) {
         <button
           onClick={handleManualDismiss}
           className="shrink-0 rounded-md p-1 hover:bg-slate-200/50 transition-colors"
-          aria-label="Dismiss notification"
+          aria-label="Đóng thông báo"
         >
           <X className="h-4 w-4 text-slate-600" />
         </button>

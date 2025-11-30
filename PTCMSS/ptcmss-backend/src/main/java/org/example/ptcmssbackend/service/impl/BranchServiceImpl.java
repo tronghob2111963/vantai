@@ -99,7 +99,7 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public Integer updateBranch(Integer id, UpdateBranchRequest request) {
         Branches branch = branchesRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh"));
         
         // Validate branch name if it's being updated
         if (request.getBranchName() != null) {
@@ -169,7 +169,7 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public BranchResponse getBranchById(Integer id) {
         Branches branch = branchesRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh"));
         
         // Get manager phone from User entity
         String managerPhone = null;
@@ -194,7 +194,7 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public Integer deleteBranch(Integer id) {
         Branches branch = branchesRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh"));
         branch.setStatus(BranchStatus.INACTIVE);
         branchesRepository.save(branch);
         return branch.getId();
@@ -294,7 +294,7 @@ public class BranchServiceImpl implements BranchService {
         
         // Get branch info
         Branches branch = branchesRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh"));
         
         ManagerDashboardStatsResponse.BranchInfo branchInfo = ManagerDashboardStatsResponse.BranchInfo.builder()
                 .branchId(branch.getId())

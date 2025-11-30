@@ -45,7 +45,7 @@ public class DepositServiceImpl implements DepositService {
         // Validate deposit amount
         BigDecimal remainingAmount = getRemainingAmount(bookingId);
         if (request.getAmount().compareTo(remainingAmount) > 0) {
-            throw new RuntimeException("Deposit amount exceeds remaining amount: " + remainingAmount);
+            throw new RuntimeException("Số tiền đặt cọc vượt quá số tiền còn lại: " + remainingAmount);
         }
 
         // Nếu isDeposit = false (thanh toán thường), tìm invoice UNPAID để cập nhật thay vì tạo mới
@@ -147,7 +147,7 @@ public class DepositServiceImpl implements DepositService {
                 .orElseThrow(() -> new ResourceNotFoundException("Deposit not found: " + depositId));
 
         if (!Boolean.TRUE.equals(deposit.getIsDeposit())) {
-            throw new RuntimeException("Invoice is not a deposit");
+            throw new RuntimeException("Hóa đơn không phải là tiền đặt cọc");
         }
 
         deposit.setStatus(InvoiceStatus.CANCELLED);

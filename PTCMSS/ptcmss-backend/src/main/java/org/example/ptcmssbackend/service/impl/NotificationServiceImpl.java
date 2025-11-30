@@ -64,10 +64,10 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("[Notification] Acknowledge alert {} by user {}", alertId, userId);
         
         SystemAlerts alert = alertsRepository.findById(alertId)
-                .orElseThrow(() -> new RuntimeException("Alert not found: " + alertId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy cảnh báo: " + alertId));
         
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng: " + userId));
         
         alert.setIsAcknowledged(true);
         alert.setAcknowledgedBy(user);
@@ -366,14 +366,14 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("[Notification] Approve request {} by user {}", historyId, userId);
         
         ApprovalHistory history = approvalHistoryRepository.findById(historyId)
-                .orElseThrow(() -> new RuntimeException("Approval history not found: " + historyId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch sử phê duyệt: " + historyId));
         
         if (history.getStatus() != ApprovalStatus.PENDING) {
-            throw new RuntimeException("Request already processed");
+            throw new RuntimeException("Yêu cầu đã được xử lý");
         }
         
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng: " + userId));
         
         // Coordinator chỉ được duyệt nghỉ phép (DRIVER_DAY_OFF)
         String userRole = user.getRole() != null ? user.getRole().getRoleName().toUpperCase() : "";
@@ -404,14 +404,14 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("[Notification] Reject request {} by user {}", historyId, userId);
         
         ApprovalHistory history = approvalHistoryRepository.findById(historyId)
-                .orElseThrow(() -> new RuntimeException("Approval history not found: " + historyId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch sử phê duyệt: " + historyId));
         
         if (history.getStatus() != ApprovalStatus.PENDING) {
-            throw new RuntimeException("Request already processed");
+            throw new RuntimeException("Yêu cầu đã được xử lý");
         }
         
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng: " + userId));
         
         // Coordinator chỉ được từ chối nghỉ phép (DRIVER_DAY_OFF)
         String userRole = user.getRole() != null ? user.getRole().getRoleName().toUpperCase() : "";
@@ -854,11 +854,11 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("[Notification] Delete notification {} for user {}", notificationId, userId);
         
         Notifications notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found: " + notificationId));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông báo: " + notificationId));
         
         // Verify ownership
         if (!notification.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Notification does not belong to user: " + userId);
+            throw new RuntimeException("Thông báo không thuộc về người dùng: " + userId);
         }
         
         notificationRepository.delete(notification);

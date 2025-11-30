@@ -339,9 +339,9 @@ public class VehicleServiceImpl implements VehicleService {
                 parseVehicleStatus(req.getStatus()) :
                 VehicleStatus.AVAILABLE);
         v.setBranch(branchRepository.findById(req.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found")));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh")));
         v.setCategory(categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found")));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy loại xe")));
         return v;
     }
 
@@ -359,9 +359,9 @@ public class VehicleServiceImpl implements VehicleService {
                 parseVehicleStatus(req.getStatus()) :
                 existing.getStatus());
         existing.setBranch(branchRepository.findById(req.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found")));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh")));
         existing.setCategory(categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found")));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy loại xe")));
         return existing;
     }
 

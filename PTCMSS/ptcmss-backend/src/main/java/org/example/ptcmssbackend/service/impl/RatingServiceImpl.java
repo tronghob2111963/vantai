@@ -40,20 +40,20 @@ public class RatingServiceImpl implements RatingService {
         
         // Validate trip exists and is COMPLETED
         Trips trip = tripsRepository.findById(request.getTripId())
-            .orElseThrow(() -> new RuntimeException("Trip not found"));
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến đi"));
         
         if (trip.getStatus() != TripStatus.COMPLETED) {
-            throw new RuntimeException("Can only rate completed trips");
+            throw new RuntimeException("Chỉ có thể đánh giá các chuyến đi đã hoàn thành");
         }
         
         // Check if already rated
         if (ratingsRepository.findByTrip_Id(request.getTripId()).isPresent()) {
-            throw new RuntimeException("Trip already rated");
+            throw new RuntimeException("Chuyến đi đã được đánh giá");
         }
         
         // Get driver from trip (via TripDrivers)
         TripDrivers tripDriver = tripDriversRepository.findMainDriverByTripId(request.getTripId())
-            .orElseThrow(() -> new RuntimeException("No driver assigned to this trip"));
+            .orElseThrow(() -> new RuntimeException("Chưa có tài xế được phân công cho chuyến đi này"));
         Drivers driver = tripDriver.getDriver();
         
         // Get customer
@@ -110,7 +110,7 @@ public class RatingServiceImpl implements RatingService {
         log.info("Getting performance for driver {} for last {} days", driverId, days);
         
         Drivers driver = driversRepository.findById(driverId)
-            .orElseThrow(() -> new RuntimeException("Driver not found"));
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế"));
         
         Instant since = Instant.now().minus(days, ChronoUnit.DAYS);
         

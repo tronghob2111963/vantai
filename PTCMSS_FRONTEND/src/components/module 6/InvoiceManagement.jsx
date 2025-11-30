@@ -1276,7 +1276,7 @@ export default function InvoiceManagement() {
             }
         } catch (err) {
             console.error("Error loading invoices:", err);
-            push("Lỗi khi tải danh sách hóa đơn: " + (err.message || "Unknown error"), "error");
+            push("Lỗi khi tải danh sách hóa đơn: " + (err.message || "Lỗi không xác định"), "error");
             setInvoices([]);
         } finally {
             setLoading(false);
@@ -1323,7 +1323,7 @@ export default function InvoiceManagement() {
             setCompletedOrders(formatted);
         } catch (err) {
             console.error("Error loading completed orders:", err);
-            push("Lỗi khi tải danh sách đơn hàng hoàn thành: " + (err?.data?.message || err?.message || "Unknown error"), "error");
+            push("Lỗi khi tải danh sách đơn hàng hoàn thành: " + (err?.data?.message || err?.message || "Lỗi không xác định"), "error");
             setCompletedOrders([]);
         }
     }, [push]);
@@ -1336,7 +1336,7 @@ export default function InvoiceManagement() {
             setPendingPayments(Array.isArray(payments) ? payments : []);
         } catch (err) {
             console.error("Error loading pending payments:", err);
-            push("Lỗi khi tải yêu cầu thanh toán: " + (err?.message || "Unknown error"), "error");
+            push("Lỗi khi tải yêu cầu thanh toán: " + (err?.message || "Lỗi không xác định"), "error");
             setPendingPayments([]);
         } finally {
             setLoadingPending(false);
@@ -1429,7 +1429,7 @@ export default function InvoiceManagement() {
             );
         } catch (err) {
             console.error("Export error:", err);
-            push("Lỗi khi export: " + (err.message || "Unknown error"), "error");
+            push("Lỗi khi export: " + (err.message || "Lỗi không xác định"), "error");
         }
     };
 
@@ -1617,7 +1617,7 @@ export default function InvoiceManagement() {
             push(`✅ Đã gửi hóa đơn ${iv.invoice_no} đến ${customerEmail}`, "success", 4000);
         } catch (err) {
             console.error("Error sending invoice:", err);
-            const errorMsg = err?.data?.message || err?.message || "Unknown error";
+            const errorMsg = err?.data?.message || err?.message || "Lỗi không xác định";
             push(`❌ Lỗi khi gửi email: ${errorMsg}`, "error", 4000);
         }
     };
@@ -1629,7 +1629,7 @@ export default function InvoiceManagement() {
             push(`Đã xuất PDF cho ${iv.invoice_no}`, "success");
         } catch (err) {
             console.error("Error exporting PDF:", err);
-            push("Lỗi khi xuất PDF: " + (err.message || "Unknown error"), "error");
+            push("Lỗi khi xuất PDF: " + (err.message || "Lỗi không xác định"), "error");
         }
     };
     
@@ -1676,7 +1676,7 @@ export default function InvoiceManagement() {
             loadPendingCount(); // Update pending count badge
         } catch (err) {
             console.error("Error confirming payment:", err);
-            push("Lỗi khi xác nhận thanh toán: " + (err?.data?.message || err?.message || "Unknown error"), "error");
+            push("Lỗi khi xác nhận thanh toán: " + (err?.data?.message || err?.message || "Lỗi không xác định"), "error");
         }
     };
 
@@ -2212,7 +2212,7 @@ function PaymentHistoryModal({ open, invoiceId, paymentHistory, loading, onClose
                                             <div className="text-sm text-gray-600 space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium">Phương thức:</span>
-                                                    <span>{payment.paymentMethod || "N/A"}</span>
+                                                    <span>{payment.paymentMethod || "Không có"}</span>
                                                 </div>
                                                 {payment.paymentDate && (
                                                     <div className="flex items-center gap-2">

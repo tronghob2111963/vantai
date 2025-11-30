@@ -219,15 +219,15 @@ export default function EmployeeManagementPage() {
                             {filteredEmployees.map((emp, index) => (
                                 <tr key={emp.id || `emp-${index}`} className="hover:bg-slate-50">
                                     <td className="px-4 py-3 text-sm">{emp.id}</td>
-                                    <td className="px-4 py-3 text-sm font-medium">{emp.userFullName || "N/A"}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-600">{emp.userEmail || "N/A"}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-600">{emp.userPhone || "N/A"}</td>
+                                    <td className="px-4 py-3 text-sm font-medium">{emp.userFullName || "Không có"}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-600">{emp.userEmail || "Không có"}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-600">{emp.userPhone || "Không có"}</td>
                                     <td className="px-4 py-3 text-sm">
                                         <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                            {emp.roleName || "N/A"}
+                                            {emp.roleName || "Không có"}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-sm">{emp.branchName || "N/A"}</td>
+                                    <td className="px-4 py-3 text-sm">{emp.branchName || "Không có"}</td>
                                     <td className="px-4 py-3 text-sm">
                                         <span
                                             className={`px-2 py-1 rounded text-xs ${emp.status === "ACTIVE"

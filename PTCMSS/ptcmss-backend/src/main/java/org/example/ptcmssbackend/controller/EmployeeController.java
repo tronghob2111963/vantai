@@ -108,7 +108,7 @@ public class EmployeeController {
     public ResponseData<EmployeeResponse> getEmployeeById(@PathVariable Integer id) {
         Employees employee = employeeService.findById(id);
         if (employee == null) {
-            throw new RuntimeException("Employee not found with id: " + id);
+            throw new RuntimeException("Không tìm thấy nhân viên với ID: " + id);
         }
         return new ResponseData<>(
                 HttpStatus.OK.value(),
@@ -124,7 +124,7 @@ public class EmployeeController {
     public ResponseData<EmployeeResponse> getEmployeeByUserId(@PathVariable Integer userId) {
         Employees employee = employeeService.findByUserId(userId);
         if (employee == null) {
-            throw new RuntimeException("Employee not found for user id: " + userId);
+            throw new RuntimeException("Không tìm thấy nhân viên cho người dùng ID: " + userId);
         }
         return new ResponseData<>(
                 HttpStatus.OK.value(),
@@ -152,7 +152,7 @@ public class EmployeeController {
         } catch (Exception e) {
             System.err.println("Error creating employee: " + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("Failed to create employee: " + e.getMessage());
+            throw new RuntimeException("Không thể tạo nhân viên: " + e.getMessage());
         }
     }
 
@@ -205,7 +205,7 @@ public class EmployeeController {
         } catch (Exception e) {
             System.err.println("Error updating employee: " + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("Failed to update employee: " + e.getMessage());
+            throw new RuntimeException("Không thể cập nhật nhân viên: " + e.getMessage());
         }
     }
 

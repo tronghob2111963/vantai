@@ -226,7 +226,7 @@ export default function ReportRevenuePage() {
             });
         } catch (err) {
             console.error("Export error:", err);
-            alert("Lỗi khi xuất Excel: " + (err.message || "Unknown error"));
+            alert("Lỗi khi xuất Excel: " + (err.message || "Lỗi không xác định"));
         }
     };
 

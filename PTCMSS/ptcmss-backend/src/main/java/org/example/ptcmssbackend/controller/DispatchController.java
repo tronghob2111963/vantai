@@ -131,7 +131,7 @@ public class DispatchController {
         try {
             String note = request != null ? request.getNote() : null;
             if (note == null || note.isBlank()) {
-                throw new IllegalArgumentException("Note is required for unassign action");
+                throw new IllegalArgumentException("Ghi chú là bắt buộc cho hành động hủy phân công");
             }
             dispatchService.unassign(tripId, note);
             return new ResponseData<>(HttpStatus.OK.value(), "Unassigned successfully", null);
