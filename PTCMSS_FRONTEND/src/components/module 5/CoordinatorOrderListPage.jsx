@@ -26,9 +26,13 @@ export default function CoordinatorOrderListPage() {
     const [branchLoading, setBranchLoading] = useState(true);
     const [branchError, setBranchError] = useState("");
 
-    // Time filter
+    // Time filter - Default to last 30 days instead of just today
     const today = new Date().toISOString().slice(0, 10);
-    const [startDate, setStartDate] = useState(today);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const defaultStartDate = thirtyDaysAgo.toISOString().slice(0, 10);
+    
+    const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(today);
 
     // Load branch for scoped users
@@ -48,18 +52,27 @@ export default function CoordinatorOrderListPage() {
             setBranchLoading(true);
             setBranchError("");
             try {
+                console.log("[CoordinatorOrderListPage] Loading branch for userId:", userId);
                 const resp = await getBranchByUserId(Number(userId));
+                console.log("[CoordinatorOrderListPage] Branch response:", resp);
                 if (cancelled) return;
-                const id = resp?.branchId ?? resp?.id ?? null;
-                const name = resp?.branchName ?? resp?.name ?? "";
+                
+                // Try multiple possible response formats
+                const id = resp?.branchId ?? resp?.id ?? resp?.data?.branchId ?? resp?.data?.id ?? null;
+                const name = resp?.branchName ?? resp?.name ?? resp?.data?.branchName ?? resp?.data?.name ?? "";
+                
+                console.log("[CoordinatorOrderListPage] Extracted branchId:", id, "branchName:", name);
+                
                 if (id) {
                     setBranchId(id);
                     setBranchName(name);
                 } else {
+                    console.error("[CoordinatorOrderListPage] Branch ID not found in response:", resp);
                     setBranchError("Không tìm thấy chi nhánh phụ trách");
                 }
             } catch (err) {
                 if (cancelled) return;
+                console.error("[CoordinatorOrderListPage] Error loading branch:", err);
                 setBranchError(err?.message || "Không tải được thông tin chi nhánh");
             } finally {
                 if (!cancelled) setBranchLoading(false);
@@ -87,8 +100,12 @@ export default function CoordinatorOrderListPage() {
             };
 
             // Add branchId for scoped users
+            // Ensure branchId is a number for proper API filtering
             if (isBranchScoped && branchId) {
-                params.branchId = branchId;
+                params.branchId = Number(branchId);
+                console.log("[CoordinatorOrderListPage] Filtering by branchId:", params.branchId, "(type:", typeof params.branchId, ")");
+            } else if (isBranchScoped && !branchId) {
+                console.warn("[CoordinatorOrderListPage] Warning: Coordinator should have branchId but it's missing. Fetching without branch filter.");
             }
 
             // Add filter for assigned/unassigned
@@ -98,9 +115,10 @@ export default function CoordinatorOrderListPage() {
                 params.hasTrip = false;
             }
 
-            console.log("[CoordinatorOrderListPage] Fetching with params:", params);
+            console.log("[CoordinatorOrderListPage] Fetching orders with params:", params);
             const response = await pageBookings(params);
-            console.log("[CoordinatorOrderListPage] Response:", response);
+            console.log("[CoordinatorOrderListPage] Orders response:", response);
+            console.log("[CoordinatorOrderListPage] Total orders found:", response?.totalElements ?? response?.content?.length ?? 0);
 
             // Handle different response formats
             const content = response?.content ?? response?.items ?? response ?? [];
@@ -108,6 +126,13 @@ export default function CoordinatorOrderListPage() {
 
             setOrders(Array.isArray(content) ? content : []);
             setTotalPages(total);
+            
+            if (Array.isArray(content) && content.length === 0) {
+                console.log("[CoordinatorOrderListPage] No orders found. Check if:");
+                console.log("  - BranchId is correct:", branchId);
+                console.log("  - Date range is appropriate");
+                console.log("  - Filter status is correct:", filterStatus);
+            }
         } catch (error) {
             console.error("[CoordinatorOrderListPage] Error fetching orders:", error);
             setOrders([]);
@@ -230,9 +255,20 @@ export default function CoordinatorOrderListPage() {
                                         setCurrentPage(1);
                                     }}
                                     className="px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                    title="Xóa filter thời gian"
+                                    title="Xóa filter thời gian (lấy tất cả đơn)"
                                 >
                                     <X className="h-4 w-4" />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setStartDate(defaultStartDate);
+                                        setEndDate(today);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="px-3 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                    title="Reset về 30 ngày gần đây"
+                                >
+                                    Reset
                                 </button>
                             </div>
 

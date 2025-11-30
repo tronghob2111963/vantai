@@ -114,13 +114,13 @@ function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
             onClick={onCancel}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 shadow-sm"
           >
-            Huy
+            Hủy
           </button>
           <button
             onClick={onConfirm}
             className="rounded-lg bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white shadow-sm"
           >
-            Xac nhan
+            Xác nhận
           </button>
         </div>
       </div>
@@ -131,17 +131,17 @@ function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
 function StatusChip({ status }) {
   const map = {
     NOT_STARTED: {
-      label: "Chua bat dau",
+      label: "Chưa bắt đầu",
       cls: "bg-slate-100 text-slate-700 border-slate-300",
       icon: <Flag className="h-3.5 w-3.5 text-slate-500" />,
     },
     IN_PROGRESS: {
-      label: "Dang di chuyen",
+      label: "Đang di chuyển",
       cls: "bg-sky-50 text-sky-700 border-sky-200",
       icon: <Navigation className="h-3.5 w-3.5 text-sky-500" />,
     },
     COMPLETED: {
-      label: "Hoan thanh",
+      label: "Hoàn thành",
       cls: "bg-amber-50 text-amber-700 border-amber-200",
       icon: <CheckCircle2 className="h-3.5 w-3.5 text-amber-500" />,
     },
@@ -157,9 +157,9 @@ function StatusChip({ status }) {
 
 function ProgressSteps({ status }) {
   const steps = [
-    { key: "NOT_STARTED", label: "Chua bat dau" },
-    { key: "IN_PROGRESS", label: "Dang chay" },
-    { key: "COMPLETED", label: "Hoan thanh" },
+    { key: "NOT_STARTED", label: "Chưa bắt đầu" },
+    { key: "IN_PROGRESS", label: "Đang chạy" },
+    { key: "COMPLETED", label: "Hoàn thành" },
   ];
   const idxActive = steps.findIndex((s) => s.key === status);
   return (
