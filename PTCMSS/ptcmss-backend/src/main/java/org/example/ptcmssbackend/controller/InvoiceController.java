@@ -223,7 +223,7 @@ public class InvoiceController {
 
     @Operation(summary = "Lịch sử thanh toán", description = "Lấy danh sách tất cả các khoản thanh toán của một hóa đơn")
     @GetMapping("/{invoiceId}/payments")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT','DRIVER')")
     public ResponseEntity<ApiResponse<List<PaymentHistoryResponse>>> getPaymentHistory(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId) {
         log.info("[InvoiceController] Getting payment history for invoice: {}", invoiceId);

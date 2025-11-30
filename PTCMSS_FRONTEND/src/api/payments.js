@@ -24,6 +24,7 @@ export async function createPayment(payload) {
   const res = await axios.post(`/api/deposits/bookings/${bookingId}`, {
     branchId: branchId,
     bookingId: bookingId,
+    type: "INCOME", // Required field
     amount: amount,
     paymentMethod: paymentMethod === "TRANSFER" ? "BANK_TRANSFER" : (paymentMethod || "CASH"),
     isDeposit: false, // Đây là thanh toán, không phải cọc

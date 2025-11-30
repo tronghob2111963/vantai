@@ -177,7 +177,7 @@ public class BookingController {
      */
     @Operation(summary = "Lấy chi tiết đơn hàng", description = "Lấy thông tin chi tiết của một đơn hàng (bao gồm trips, vehicles, payments)")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT','COORDINATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT','COORDINATOR','DRIVER')")
     public ResponseEntity<ApiResponse<BookingResponse>> getById(
             @Parameter(description = "ID đơn hàng") @PathVariable Integer id
     ) {
@@ -295,7 +295,7 @@ public class BookingController {
     }
 
     @GetMapping("/{id}/payments")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT','DRIVER')")
     public ResponseEntity<ApiResponse<java.util.List<PaymentResponse>>> listPayments(
             @PathVariable Integer id
     ) {

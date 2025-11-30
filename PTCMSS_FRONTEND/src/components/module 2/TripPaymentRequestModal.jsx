@@ -48,6 +48,7 @@ export default function TripPaymentRequestModal({
   const [notes, setNotes] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [successMsg, setSuccessMsg] = React.useState("");
 
   // Payment history state
   const [paymentHistory, setPaymentHistory] = React.useState([]);
@@ -69,16 +70,16 @@ export default function TripPaymentRequestModal({
       setNotes("");
       setLoading(false);
       setError("");
+      setSuccessMsg("");
     }
   }, [open, remainingAmount]);
 
   async function loadPaymentHistory() {
     setHistoryLoading(true);
     try {
-      const { getPaymentHistory } = await import("../../api/invoices");
-      // Assuming we need to get invoice by bookingId first
-      // For now, we'll try to get payment history directly with bookingId as invoiceId
-      const history = await getPaymentHistory(bookingId);
+      // Dùng endpoint booking payments thay vì invoice payments
+      const { listBookingPayments } = await import("../../api/bookings");
+      const history = await listBookingPayments(bookingId);
       setPaymentHistory(Array.isArray(history) ? history : []);
     } catch (err) {
       console.error("Error loading payment history:", err);
@@ -126,6 +127,7 @@ export default function TripPaymentRequestModal({
 
     setLoading(true);
     setError("");
+    setSuccessMsg("");
 
     try {
       // Import API
@@ -151,6 +153,9 @@ export default function TripPaymentRequestModal({
           notes,
         });
       }
+
+      // Hiển thị thông báo thành công
+      setSuccessMsg(`Đã gửi yêu cầu thanh toán ${fmtVND(amount)}đ. Đang chờ kế toán xác nhận.`);
 
       // Reset form nhưng không đóng modal để user thấy request vừa tạo
       setAmountStr(String(remainingAmount || 0));
@@ -392,9 +397,19 @@ export default function TripPaymentRequestModal({
             </div>
           </div>
 
+          {/* Success message */}
+          {successMsg && (
+            <div className="flex items-start gap-2 text-[11px] leading-relaxed bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+              <CheckCircle className="h-4 w-4 mt-0.5 text-emerald-500 shrink-0" />
+              <div className="text-emerald-700 font-medium">{successMsg}</div>
+            </div>
+          )}
+
+          {/* Error message */}
           {error && (
-            <div className="text-rose-600 text-[11px] leading-relaxed">
-              {error}
+            <div className="flex items-start gap-2 text-[11px] leading-relaxed bg-rose-50 border border-rose-200 rounded-lg p-3">
+              <XCircle className="h-4 w-4 mt-0.5 text-rose-500 shrink-0" />
+              <div className="text-rose-600">{error}</div>
             </div>
           )}
         </div>
