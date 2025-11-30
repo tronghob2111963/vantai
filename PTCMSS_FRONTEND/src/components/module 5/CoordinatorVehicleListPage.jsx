@@ -109,7 +109,8 @@ export default function CoordinatorVehicleListPage() {
     };
 
     const handleViewDetail = (vehicleId) => {
-        navigate(`/coordinator/vehicles/${vehicleId}`);
+        // Đi đến VehicleDetailPage để xem đầy đủ thông tin + chi phí
+        navigate(`/vehicles/${vehicleId}`);
     };
 
     const getInspectionStatus = (expiryDate) => {
