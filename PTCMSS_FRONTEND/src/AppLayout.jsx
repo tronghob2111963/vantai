@@ -702,7 +702,7 @@ export default function AppLayout() {
           <Route
             path="/vehicles/:vehicleId"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.COORDINATOR, ROLES.ACCOUNTANT]}>
                 <VehicleDetailPage />
               </ProtectedRoute>
             }

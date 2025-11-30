@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { useNavigate } from "react-router-dom";
 import { listVehicles, createVehicle, updateVehicle, listVehicleCategories } from "../../api/vehicles";
 import { listBranches } from "../../api/branches";
 import { getEmployeeByUserId } from "../../api/employees";
@@ -1254,6 +1255,7 @@ const MOCK_VEHICLES = [
 /* -------------------------------- */
 export default function VehicleListPage() {
     const { toasts, push } = useToasts();
+    const navigate = useNavigate();
 
     // Check current user role
     const currentRole = React.useMemo(() => getCurrentRole(), []);
@@ -1438,10 +1440,9 @@ export default function VehicleListPage() {
         }
     };
 
-    // "Chi tiết xe"
+    // "Chi tiết xe" - Navigate đến VehicleDetailPage để xem đầy đủ (hồ sơ, chuyến đi, chi phí)
     const handleClickDetail = (vehicle) => {
-        setEditingVehicle(vehicle);
-        setEditOpen(true);
+        navigate(`/vehicles/${vehicle.id}`);
     };
 
     // "Lưu thay đổi" từ edit modal
