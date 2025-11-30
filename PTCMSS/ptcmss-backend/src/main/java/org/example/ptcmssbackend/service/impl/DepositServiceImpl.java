@@ -48,40 +48,62 @@ public class DepositServiceImpl implements DepositService {
             throw new RuntimeException("Số tiền đặt cọc vượt quá số tiền còn lại: " + remainingAmount);
         }
 
-        // Nếu isDeposit = false (thanh toán thường), tìm invoice UNPAID để cập nhật thay vì tạo mới
+        // Nếu isDeposit = false (thanh toán thường từ tài xế), tạo payment_history PENDING chờ kế toán duyệt
         if (Boolean.FALSE.equals(request.getIsDeposit())) {
             List<Invoices> existingInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(bookingId);
-            Invoices matchingUnpaidInvoice = existingInvoices.stream()
-                    .filter(inv -> inv.getPaymentStatus() == PaymentStatus.UNPAID
-                            && inv.getAmount() != null
-                            && inv.getAmount().compareTo(request.getAmount()) == 0
-                            && inv.getType() == InvoiceType.INCOME)
+            // Tìm invoice INCOME UNPAID bất kỳ của booking này để gắn payment history
+            Invoices targetInvoice = existingInvoices.stream()
+                    .filter(inv -> inv.getType() == InvoiceType.INCOME && inv.getPaymentStatus() == PaymentStatus.UNPAID)
                     .findFirst()
                     .orElse(null);
 
-            if (matchingUnpaidInvoice != null) {
-                // Cập nhật invoice UNPAID thành PAID
-                matchingUnpaidInvoice.setPaymentMethod(request.getPaymentMethod());
-                matchingUnpaidInvoice.setPaymentStatus(PaymentStatus.PAID);
-                if (request.getNote() != null && !request.getNote().isEmpty()) {
-                    matchingUnpaidInvoice.setNote(request.getNote());
-                }
-                if (request.getCreatedBy() != null) {
-                    matchingUnpaidInvoice.setCreatedBy(
-                            employeeRepository.findById(request.getCreatedBy()).orElse(null)
-                    );
-                }
-                // Update bank/cash info
-                if (request.getBankName() != null) matchingUnpaidInvoice.setBankName(request.getBankName());
-                if (request.getBankAccount() != null) matchingUnpaidInvoice.setBankAccount(request.getBankAccount());
-                if (request.getReferenceNumber() != null) matchingUnpaidInvoice.setReferenceNumber(request.getReferenceNumber());
-                if (request.getCashierName() != null) matchingUnpaidInvoice.setCashierName(request.getCashierName());
-                if (request.getReceiptNumber() != null) matchingUnpaidInvoice.setReceiptNumber(request.getReceiptNumber());
-
-                Invoices updated = invoiceRepository.save(matchingUnpaidInvoice);
-                log.info("[DepositService] Updated existing UNPAID invoice to PAID: {}", updated.getInvoiceNumber());
-                return invoiceService.getInvoiceById(updated.getId());
+            // Nếu không có invoice UNPAID, tạo mới invoice với status UNPAID
+            if (targetInvoice == null) {
+                request.setBookingId(bookingId);
+                request.setCustomerId(booking.getCustomer().getId());
+                request.setBranchId(booking.getBranch().getId());
+                request.setType("INCOME");
+                request.setIsDeposit(false);
+                
+                // Tạo invoice mới với status UNPAID (InvoiceService tạo với UNPAID by default)
+                InvoiceResponse newInvoiceResp = invoiceService.createInvoice(request);
+                targetInvoice = invoiceRepository.findById(newInvoiceResp.getInvoiceId())
+                        .orElseThrow(() -> new RuntimeException("Failed to create invoice"));
             }
+
+            // Tạo payment_history với status PENDING chờ kế toán xác nhận
+            org.example.ptcmssbackend.entity.PaymentHistory paymentHistory = new org.example.ptcmssbackend.entity.PaymentHistory();
+            paymentHistory.setInvoice(targetInvoice);
+            paymentHistory.setPaymentDate(java.time.Instant.now());
+            paymentHistory.setAmount(request.getAmount());
+            paymentHistory.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "CASH");
+            paymentHistory.setConfirmationStatus(org.example.ptcmssbackend.enums.PaymentConfirmationStatus.PENDING);
+            paymentHistory.setNote(request.getNote());
+            paymentHistory.setBankName(request.getBankName());
+            paymentHistory.setBankAccount(request.getBankAccount());
+            paymentHistory.setReferenceNumber(request.getReferenceNumber());
+            paymentHistory.setCashierName(request.getCashierName());
+            
+            // Generate receipt number if CASH
+            if ("CASH".equalsIgnoreCase(request.getPaymentMethod())) {
+                String receiptNum = request.getReceiptNumber();
+                if (receiptNum == null || receiptNum.isEmpty()) {
+                    receiptNum = generateReceiptNumber(booking.getBranch().getId());
+                }
+                paymentHistory.setReceiptNumber(receiptNum);
+            } else {
+                paymentHistory.setReceiptNumber(request.getReceiptNumber());
+            }
+
+            if (request.getCreatedBy() != null) {
+                paymentHistory.setCreatedBy(employeeRepository.findById(request.getCreatedBy()).orElse(null));
+            }
+
+            paymentHistoryRepository.save(paymentHistory);
+            log.info("[DepositService] Created payment_history PENDING for invoice: {}, amount: {}", 
+                    targetInvoice.getInvoiceNumber(), request.getAmount());
+
+            return invoiceService.getInvoiceById(targetInvoice.getId());
         }
 
         // Set deposit flag (nếu chưa set)
