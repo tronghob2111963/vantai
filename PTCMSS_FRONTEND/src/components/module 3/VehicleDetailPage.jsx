@@ -66,8 +66,9 @@ const fmtDateTimeShort = (isoLike) => {
 /* ---------------- status badge ---------------- */
 const STATUS_LABEL = {
     AVAILABLE: "Sẵn sàng",
+    INUSE: "Đang sử dụng",
     MAINTENANCE: "Bảo trì",
-    INACTIVE: "Ngưng sử dụng",
+    INACTIVE: "Không hoạt động",
 };
 
 function VehicleStatusBadge({ status }) {
@@ -81,11 +82,23 @@ function VehicleStatusBadge({ status }) {
         IconEl = (
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
         );
+    } else if (status === "INUSE") {
+        classes =
+            "bg-sky-50 text-sky-700 border-sky-200";
+        IconEl = (
+            <CarFront className="h-3.5 w-3.5 text-sky-600" />
+        );
     } else if (status === "MAINTENANCE") {
         classes =
             "bg-amber-50 text-amber-700 border-amber-200";
         IconEl = (
             <Wrench className="h-3.5 w-3.5 text-amber-600" />
+        );
+    } else if (status === "INACTIVE") {
+        classes =
+            "bg-gray-50 text-gray-700 border-gray-200";
+        IconEl = (
+            <X className="h-3.5 w-3.5 text-gray-600" />
         );
     } else {
         classes =
@@ -447,59 +460,59 @@ function TripHistoryTab({ trips }) {
                 <div className="overflow-x-auto rounded-lg border border-slate-200">
                     <table className="w-full text-left text-[13px]">
                         <thead className="text-[11px] uppercase tracking-wide bg-slate-100/60 border-b border-slate-200 text-slate-500">
-                        <tr>
-                            <th className="px-3 py-2 font-medium">Mã chuyến</th>
-                            <th className="px-3 py-2 font-medium">Khách</th>
-                            <th className="px-3 py-2 font-medium">Địa điểm đón</th>
-                            <th className="px-3 py-2 font-medium">Thời gian đón</th>
-                            <th className="px-3 py-2 font-medium text-right">Tình trạng</th>
-                        </tr>
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Mã chuyến</th>
+                                <th className="px-3 py-2 font-medium">Khách</th>
+                                <th className="px-3 py-2 font-medium">Địa điểm đón</th>
+                                <th className="px-3 py-2 font-medium">Thời gian đón</th>
+                                <th className="px-3 py-2 font-medium text-right">Tình trạng</th>
+                            </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
-                        {slice.map((t) => (
-                            <tr
-                                key={t.id}
-                                className="hover:bg-slate-50"
-                            >
-                                <td className="px-3 py-2 font-medium text-slate-900 whitespace-nowrap">
-                                    {t.code}
-                                </td>
-                                <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
-                                    {t.customer_name}
-                                    <div className="text-[11px] text-slate-500">
-                                        {t.customer_phone}
-                                    </div>
-                                </td>
-                                <td className="px-3 py-2 text-slate-700">
-                                    <div className="flex items-start gap-1 text-[12px] leading-relaxed">
-                                        <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                                        <span>{t.pickup}</span>
-                                    </div>
-                                </td>
-                                <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
-                                    <div className="flex items-start gap-1 text-[12px] leading-relaxed">
-                                        <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                        <span>
+                            {slice.map((t) => (
+                                <tr
+                                    key={t.id}
+                                    className="hover:bg-slate-50"
+                                >
+                                    <td className="px-3 py-2 font-medium text-slate-900 whitespace-nowrap">
+                                        {t.code}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
+                                        {t.customer_name}
+                                        <div className="text-[11px] text-slate-500">
+                                            {t.customer_phone}
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-700">
+                                        <div className="flex items-start gap-1 text-[12px] leading-relaxed">
+                                            <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                            <span>{t.pickup}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
+                                        <div className="flex items-start gap-1 text-[12px] leading-relaxed">
+                                            <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                            <span>
                                                 {fmtDateTimeShort(t.pickup_time)}
                                             </span>
-                                    </div>
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-right">
-                                    <VehicleStatusBadge status={t.status} />
-                                </td>
-                            </tr>
-                        ))}
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-right">
+                                        <VehicleStatusBadge status={t.status} />
+                                    </td>
+                                </tr>
+                            ))}
 
-                        {slice.length === 0 && (
-                            <tr>
-                                <td
-                                    colSpan={5}
-                                    className="px-3 py-6 text-center text-slate-400 text-[13px]"
-                                >
-                                    Chưa có chuyến nào.
-                                </td>
-                            </tr>
-                        )}
+                            {slice.length === 0 && (
+                                <tr>
+                                    <td
+                                        colSpan={5}
+                                        className="px-3 py-6 text-center text-slate-400 text-[13px]"
+                                    >
+                                        Chưa có chuyến nào.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -578,64 +591,64 @@ function ExpenseHistoryTab({ expenses }) {
                 <div className="overflow-x-auto rounded-lg border border-slate-200">
                     <table className="w-full text-left text-[13px]">
                         <thead className="text-[11px] uppercase tracking-wide bg-slate-100/60 border-b border-slate-200 text-slate-500">
-                        <tr>
-                            <th className="px-3 py-2 font-medium">Ngày</th>
-                            <th className="px-3 py-2 font-medium">Loại chi phí</th>
-                            <th className="px-3 py-2 font-medium">Mô tả</th>
-                            <th className="px-3 py-2 font-medium text-right">
-                                Số tiền
-                            </th>
-                        </tr>
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Ngày</th>
+                                <th className="px-3 py-2 font-medium">Loại chi phí</th>
+                                <th className="px-3 py-2 font-medium">Mô tả</th>
+                                <th className="px-3 py-2 font-medium text-right">
+                                    Số tiền
+                                </th>
+                            </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
-                        {slice.map((e) => (
-                            <tr
-                                key={e.id}
-                                className="hover:bg-slate-50"
-                            >
-                                <td className="px-3 py-2 text-[12px] text-slate-700 whitespace-nowrap">
-                                    <div className="flex items-start gap-1 leading-relaxed">
-                                        <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                        <span>{fmtDate(e.date)}</span>
-                                    </div>
-                                </td>
+                            {slice.map((e) => (
+                                <tr
+                                    key={e.id}
+                                    className="hover:bg-slate-50"
+                                >
+                                    <td className="px-3 py-2 text-[12px] text-slate-700 whitespace-nowrap">
+                                        <div className="flex items-start gap-1 leading-relaxed">
+                                            <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                            <span>{fmtDate(e.date)}</span>
+                                        </div>
+                                    </td>
 
-                                <td className="px-3 py-2 text-[12px] text-slate-700 whitespace-nowrap">
-                                    <div className="flex items-center gap-1">
-                                        {e.type === "FUEL" ? (
-                                            <Fuel className="h-3.5 w-3.5 text-sky-600" />
-                                        ) : (
-                                            <Wrench className="h-3.5 w-3.5 text-amber-600" />
-                                        )}
-                                        <span className="font-medium text-slate-900">
+                                    <td className="px-3 py-2 text-[12px] text-slate-700 whitespace-nowrap">
+                                        <div className="flex items-center gap-1">
+                                            {e.type === "FUEL" ? (
+                                                <Fuel className="h-3.5 w-3.5 text-sky-600" />
+                                            ) : (
+                                                <Wrench className="h-3.5 w-3.5 text-amber-600" />
+                                            )}
+                                            <span className="font-medium text-slate-900">
                                                 {e.type_label}
                                             </span>
-                                    </div>
-                                </td>
+                                        </div>
+                                    </td>
 
-                                <td className="px-3 py-2 text-[12px] text-slate-600">
-                                    {e.note || "—"}
-                                </td>
+                                    <td className="px-3 py-2 text-[12px] text-slate-600">
+                                        {e.note || "—"}
+                                    </td>
 
-                                <td className="px-3 py-2 text-[12px] text-right whitespace-nowrap tabular-nums text-slate-900">
-                                    {Number(e.amount || 0).toLocaleString(
-                                        "vi-VN"
-                                    )}
-                                    đ
-                                </td>
-                            </tr>
-                        ))}
+                                    <td className="px-3 py-2 text-[12px] text-right whitespace-nowrap tabular-nums text-slate-900">
+                                        {Number(e.amount || 0).toLocaleString(
+                                            "vi-VN"
+                                        )}
+                                        đ
+                                    </td>
+                                </tr>
+                            ))}
 
-                        {slice.length === 0 && (
-                            <tr>
-                                <td
-                                    colSpan={4}
-                                    className="px-3 py-6 text-center text-slate-400 text-[13px]"
-                                >
-                                    Chưa có chi phí nào.
-                                </td>
-                            </tr>
-                        )}
+                            {slice.length === 0 && (
+                                <tr>
+                                    <td
+                                        colSpan={4}
+                                        className="px-3 py-6 text-center text-slate-400 text-[13px]"
+                                    >
+                                        Chưa có chi phí nào.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -795,10 +808,10 @@ export default function VehicleDetailPage() {
                 date: e.expenseDate || e.date || e.expense_date,
                 type: e.costType || e.type,
                 type_label: e.costType === "FUEL" ? "Xăng dầu" :
-                           e.costType === "TOLL" ? "Cầu đường" :
-                           e.costType === "REPAIR" ? "Sửa chữa" :
-                           e.costType === "MAINTENANCE" ? "Bảo trì" :
-                           e.type_label || e.costType || "Khác",
+                    e.costType === "TOLL" ? "Cầu đường" :
+                        e.costType === "REPAIR" ? "Sửa chữa" :
+                            e.costType === "MAINTENANCE" ? "Bảo trì" :
+                                e.type_label || e.costType || "Khác",
                 note: e.description || e.note || "—",
                 amount: e.amount || 0,
             }));
@@ -825,9 +838,9 @@ export default function VehicleDetailPage() {
                 date: m.maintenanceDate || m.date || m.maintenance_date,
                 type: m.maintenanceType || m.type || "MAINTENANCE",
                 type_label: m.maintenanceType === "INSPECTION" ? "Đăng kiểm" :
-                           m.maintenanceType === "REPAIR" ? "Sửa chữa" :
-                           m.maintenanceType === "MAINTENANCE" ? "Bảo trì" :
-                           m.type_label || "Bảo trì",
+                    m.maintenanceType === "REPAIR" ? "Sửa chữa" :
+                        m.maintenanceType === "MAINTENANCE" ? "Bảo trì" :
+                            m.type_label || "Bảo trì",
                 note: m.description || m.note || "—",
                 amount: m.cost || m.amount || 0,
             }));
@@ -898,17 +911,8 @@ export default function VehicleDetailPage() {
                 }
             }
 
-            // Validation: Nếu xe đang "ON_TRIP", không cho phép đổi trạng thái
-            if (savedVehicle.status === "ON_TRIP" && vehicleForm.status !== "ON_TRIP") {
-                push("Không thể thay đổi trạng thái khi xe đang trong chuyến đi", "error");
-                return;
-            }
-
-            // Validation: Nếu xe không phải "ON_TRIP", không cho phép đổi sang "ON_TRIP"
-            if (savedVehicle.status !== "ON_TRIP" && vehicleForm.status === "ON_TRIP") {
-                push("Trạng thái 'Đang chạy' chỉ được cập nhật tự động khi xe trong chuyến", "error");
-                return;
-            }
+            // Note: Removed validation for INUSE status to allow manual status changes
+            // Status can now be changed freely by authorized users (ADMIN, MANAGER, COORDINATOR)
 
             await updateVehicle(vehicleForm.id, {
                 license_plate: vehicleForm.license_plate,
@@ -986,7 +990,7 @@ export default function VehicleDetailPage() {
                         Đang tải lịch sử chuyến đi...
                     </div>
                 ) : (
-                <TripHistoryTab trips={tripsData} />
+                    <TripHistoryTab trips={tripsData} />
                 )
             ) : null}
 

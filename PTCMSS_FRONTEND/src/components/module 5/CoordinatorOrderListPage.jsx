@@ -91,23 +91,53 @@ export default function CoordinatorOrderListPage() {
                 params.branchId = branchId;
             }
 
-            // Add filter for assigned/unassigned
-            if (filterStatus === "ASSIGNED") {
-                params.hasTrip = true;
-            } else if (filterStatus === "UNASSIGNED") {
-                params.hasTrip = false;
-            }
-
             console.log("[CoordinatorOrderListPage] Fetching with params:", params);
             const response = await pageBookings(params);
             console.log("[CoordinatorOrderListPage] Response:", response);
+            console.log("[CoordinatorOrderListPage] First order sample:", response?.content?.[0] || response?.items?.[0] || response?.[0]);
 
             // Handle different response formats
-            const content = response?.content ?? response?.items ?? response ?? [];
-            const total = response?.totalPages ?? Math.ceil((response?.totalElements ?? content.length) / pageSize) ?? 1;
+            // Backend returns: { success, message, data: { items, totalPages, totalElements } }
+            let content = response?.data?.items ?? response?.content ?? response?.items ?? response ?? [];
+            const totalElements = response?.data?.totalElements ?? response?.totalElements ?? content.length;
+            const totalPagesFromBackend = response?.data?.totalPages ?? response?.totalPages;
+
+            // Debug: Log field names of first order
+            if (content.length > 0) {
+                console.log("[CoordinatorOrderListPage] Available fields:", Object.keys(content[0]));
+                console.log("[CoordinatorOrderListPage] Sample order data:", {
+                    id: content[0].id,
+                    customerName: content[0].customerName,
+                    customerPhone: content[0].customerPhone,
+                    pickupLocation: content[0].pickupLocation,
+                    dropoffLocation: content[0].dropoffLocation,
+                    departureDate: content[0].departureDate,
+                    tripId: content[0].tripId,
+                    // Try alternative field names
+                    pickup_location: content[0].pickup_location,
+                    dropoff_location: content[0].dropoff_location,
+                    departure_date: content[0].departure_date,
+                    startLocation: content[0].startLocation,
+                    endLocation: content[0].endLocation,
+                    startDate: content[0].startDate,
+                });
+            }
+
+            // Client-side filter for assigned/unassigned status
+            // Backend doesn't support hasTrip parameter yet
+            if (filterStatus === "ASSIGNED") {
+                content = content.filter(order => order.tripId != null && order.tripId !== "");
+            } else if (filterStatus === "UNASSIGNED") {
+                content = content.filter(order => order.tripId == null || order.tripId === "");
+            }
+
+            // Use backend total pages if no filter, otherwise calculate from filtered content
+            const filteredTotal = filterStatus === "ALL"
+                ? (totalPagesFromBackend || Math.ceil(totalElements / pageSize) || 1)
+                : Math.ceil(content.length / pageSize) || 1;
 
             setOrders(Array.isArray(content) ? content : []);
-            setTotalPages(total);
+            setTotalPages(filteredTotal);
         } catch (error) {
             console.error("[CoordinatorOrderListPage] Error fetching orders:", error);
             setOrders([]);
@@ -350,17 +380,35 @@ export default function CoordinatorOrderListPage() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <div className="text-sm font-medium text-slate-900">{order.customerName}</div>
-                                                <div className="text-xs text-slate-500">{order.customerPhone}</div>
+                                                <div className="text-sm font-medium text-slate-900">
+                                                    {order.customerName || order.customer?.name || "—"}
+                                                </div>
+                                                <div className="text-xs text-slate-500">
+                                                    {order.customerPhone || order.customer?.phone || "—"}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="text-sm text-slate-700">
-                                                    <div className="truncate max-w-xs">{order.pickupLocation}</div>
-                                                    <div className="text-xs text-slate-500 truncate max-w-xs">→ {order.dropoffLocation}</div>
+                                                    {order.routeSummary ? (
+                                                        <div className="truncate max-w-xs" title={order.routeSummary}>
+                                                            {order.routeSummary}
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="truncate max-w-xs">
+                                                                {order.pickupLocation || order.pickup_location || order.startLocation || order.start_location || "—"}
+                                                            </div>
+                                                            <div className="text-xs text-slate-500 truncate max-w-xs">
+                                                                → {order.dropoffLocation || order.dropoff_location || order.endLocation || order.end_location || "—"}
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-slate-700">
-                                                {new Date(order.departureDate).toLocaleDateString("vi-VN")}
+                                                {order.startDate || order.departureDate || order.departure_date || order.start_date
+                                                    ? new Date(order.startDate || order.departureDate || order.departure_date || order.start_date).toLocaleDateString("vi-VN")
+                                                    : "—"}
                                             </td>
                                             <td className="px-4 py-3">{getStatusBadge(order.status)}</td>
                                             <td className="px-4 py-3">

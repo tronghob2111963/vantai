@@ -12,12 +12,13 @@ export default function EmployeeManagementPage() {
     const currentUserId = React.useMemo(() => getStoredUserId(), []);
     const isAdmin = currentRole === ROLES.ADMIN;
     const isManager = currentRole === ROLES.MANAGER;
+    const isAccountant = currentRole === ROLES.ACCOUNTANT;
 
     const [allEmployees, setAllEmployees] = React.useState([]); // Tất cả nhân viên từ API
     const [branches, setBranches] = React.useState([]);
     const [roles, setRoles] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
-    
+
     // Manager's branch info
     const [managerBranchId, setManagerBranchId] = React.useState(null);
     const [managerBranchName, setManagerBranchName] = React.useState("");
@@ -31,10 +32,10 @@ export default function EmployeeManagementPage() {
     const [currentPage, setCurrentPage] = React.useState(1);
     const pageSize = 10;
 
-    // Load Manager's branch
+    // Load Manager/Accountant's branch
     React.useEffect(() => {
-        if (!isManager || !currentUserId) return;
-        
+        if ((!isManager && !isAccountant) || !currentUserId) return;
+
         (async () => {
             try {
                 const resp = await getEmployeeByUserId(currentUserId);
@@ -42,13 +43,13 @@ export default function EmployeeManagementPage() {
                 if (emp?.branchId) {
                     setManagerBranchId(emp.branchId);
                     setManagerBranchName(emp.branchName || "");
-                    setFilterBranch(String(emp.branchId)); // Auto filter by manager's branch
+                    setFilterBranch(String(emp.branchId)); // Auto filter by user's branch
                 }
             } catch (err) {
-                console.error("Error loading manager branch:", err);
+                console.error("Error loading user branch:", err);
             }
         })();
-    }, [isManager, currentUserId]);
+    }, [isManager, isAccountant, currentUserId]);
 
     // Load data
     React.useEffect(() => {
@@ -124,9 +125,9 @@ export default function EmployeeManagementPage() {
 
             // Loại bỏ Admin
             if (roleName === "admin") return false;
-            
-            // Manager chỉ xem nhân viên trong chi nhánh của mình
-            if (isManager && managerBranchId && emp.branchId !== managerBranchId) return false;
+
+            // Manager và Accountant chỉ xem nhân viên trong chi nhánh của mình
+            if ((isManager || isAccountant) && managerBranchId && emp.branchId !== managerBranchId) return false;
 
             const matchSearch = !searchTerm || userName.includes(search) || userEmail.includes(search);
             const matchBranch = !filterBranch || emp.branchId === Number(filterBranch);
@@ -134,7 +135,7 @@ export default function EmployeeManagementPage() {
 
             return matchSearch && matchBranch && matchRole;
         });
-    }, [allEmployees, searchTerm, filterBranch, filterRole, isManager, managerBranchId]);
+    }, [allEmployees, searchTerm, filterBranch, filterRole, isManager, isAccountant, managerBranchId]);
 
     // Pagination
     const totalPages = Math.ceil(filteredEmployees.length / pageSize) || 1;
@@ -156,11 +157,12 @@ export default function EmployeeManagementPage() {
                     <Users className="text-sky-600" size={28} />
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800">Quản lý nhân viên</h1>
-                        {isManager && managerBranchName && (
+                        {(isManager || isAccountant) && managerBranchName && (
                             <p className="text-sm text-slate-500">Chi nhánh: {managerBranchName}</p>
                         )}
                     </div>
                 </div>
+                {/* Chỉ Admin mới có nút thêm nhân viên */}
                 {isAdmin && (
                     <button
                         onClick={() => navigate("/admin/users/new")}
@@ -188,8 +190,8 @@ export default function EmployeeManagementPage() {
                     />
                 </div>
 
-                {/* Chi nhánh - Ẩn với Manager vì đã lock theo chi nhánh */}
-                {!isManager && (
+                {/* Chi nhánh - Ẩn với Manager và Accountant vì đã lock theo chi nhánh */}
+                {!isManager && !isAccountant && (
                     <div>
                         <label className="text-xs text-slate-600 mb-1 block">
                             <Building2 size={14} className="inline mr-1" />
@@ -240,97 +242,101 @@ export default function EmployeeManagementPage() {
                     <div className="p-8 text-center text-slate-500">Không có nhân viên nào</div>
                 ) : (
                     <>
-                    <table className="w-full">
-                        <thead className="bg-slate-100 border-b">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Họ tên</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Email</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Số điện thoại</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Vai trò</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Chi nhánh</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Trạng thái</th>
-                                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {paginatedEmployees.map((emp, index) => (
-                                <tr key={emp.id || `emp-${index}`} className="hover:bg-slate-50">
-                                    <td className="px-4 py-3 text-sm">{emp.id}</td>
-                                    <td className="px-4 py-3 text-sm font-medium">{emp.userFullName || "Không có"}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-600">{emp.userEmail || "Không có"}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-600">{emp.userPhone || "Không có"}</td>
-                                    <td className="px-4 py-3 text-sm">
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                            {emp.roleName || "Không có"}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm">{emp.branchName || "Không có"}</td>
-                                    <td className="px-4 py-3 text-sm">
-                                        <span
-                                            className={`px-2 py-1 rounded text-xs ${emp.status === "ACTIVE"
-                                                ? "bg-green-100 text-green-700"
-                                                : "bg-gray-100 text-gray-700"
-                                                }`}
-                                        >
-                                            {emp.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            {/* Admin có thể sửa tất cả, Manager có thể sửa nhân viên trong chi nhánh (trừ Manager khác) */}
-                                            {(isAdmin || (isManager && emp.roleName?.toLowerCase() !== "manager")) && (
-                                                <button
-                                                    onClick={() => navigate(`/admin/employees/edit/${emp.id}`)}
-                                                    className="text-blue-600 hover:text-blue-800"
-                                                    title="Chỉnh sửa"
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
-                                            )}
-                                            {/* Chỉ Admin mới có thể vô hiệu hóa/kích hoạt */}
-                                            {isAdmin && (
-                                                <button
-                                                    onClick={() => handleToggleStatus(emp)}
-                                                    className={emp.status === "ACTIVE"
-                                                        ? "text-orange-600 hover:text-orange-800"
-                                                        : "text-green-600 hover:text-green-800"}
-                                                    title={emp.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-                                                >
-                                                    {emp.status === "ACTIVE" ? <Ban size={16} /> : <CheckCircle size={16} />}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
+                        <table className="w-full">
+                            <thead className="bg-slate-100 border-b">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">ID</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Họ tên</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Email</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Số điện thoại</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Vai trò</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Chi nhánh</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Trạng thái</th>
+                                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700">Thao tác</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {/* Pagination */}
-                    <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
-                        <div className="text-sm text-slate-600">
-                            Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredEmployees.length)} / {filteredEmployees.length} nhân viên
+                            </thead>
+                            <tbody className="divide-y">
+                                {paginatedEmployees.map((emp, index) => (
+                                    <tr key={emp.id || `emp-${index}`} className="hover:bg-slate-50">
+                                        <td className="px-4 py-3 text-sm">{emp.id}</td>
+                                        <td className="px-4 py-3 text-sm font-medium">{emp.userFullName || "Không có"}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-600">{emp.userEmail || "Không có"}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-600">{emp.userPhone || "Không có"}</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                                                {emp.roleName || "Không có"}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">{emp.branchName || "Không có"}</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span
+                                                className={`px-2 py-1 rounded text-xs ${emp.status === "ACTIVE"
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-gray-100 text-gray-700"
+                                                    }`}
+                                            >
+                                                {emp.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                {/* Admin có thể sửa tất cả, Manager có thể sửa nhân viên trong chi nhánh (trừ Manager khác), Accountant chỉ xem */}
+                                                {(isAdmin || (isManager && emp.roleName?.toLowerCase() !== "manager")) && (
+                                                    <button
+                                                        onClick={() => navigate(`/admin/employees/edit/${emp.id}`)}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                        title="Chỉnh sửa"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                )}
+                                                {/* Chỉ Admin mới có thể vô hiệu hóa/kích hoạt */}
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={() => handleToggleStatus(emp)}
+                                                        className={emp.status === "ACTIVE"
+                                                            ? "text-orange-600 hover:text-orange-800"
+                                                            : "text-green-600 hover:text-green-800"}
+                                                        title={emp.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+                                                    >
+                                                        {emp.status === "ACTIVE" ? <Ban size={16} /> : <CheckCircle size={16} />}
+                                                    </button>
+                                                )}
+                                                {/* Accountant chỉ xem, không có nút thao tác */}
+                                                {isAccountant && !isAdmin && !isManager && (
+                                                    <span className="text-xs text-slate-400">Chỉ xem</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {/* Pagination */}
+                        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="text-sm text-slate-600">
+                                Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredEmployees.length)} / {filteredEmployees.length} nhân viên
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage <= 1}
+                                    className="flex items-center gap-1 px-3 py-1 border border-slate-300 rounded-md text-sm bg-white hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronLeft size={16} /> Trước
+                                </button>
+                                <span className="text-sm text-slate-600 px-2">
+                                    Trang {currentPage} / {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage >= totalPages}
+                                    className="flex items-center gap-1 px-3 py-1 border border-slate-300 rounded-md text-sm bg-white hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Sau <ChevronRight size={16} />
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                disabled={currentPage <= 1}
-                                className="flex items-center gap-1 px-3 py-1 border border-slate-300 rounded-md text-sm bg-white hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <ChevronLeft size={16} /> Trước
-                            </button>
-                            <span className="text-sm text-slate-600 px-2">
-                                Trang {currentPage} / {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                disabled={currentPage >= totalPages}
-                                className="flex items-center gap-1 px-3 py-1 border border-slate-300 rounded-md text-sm bg-white hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Sau <ChevronRight size={16} />
-                            </button>
-                        </div>
-                    </div>
                     </>
                 )}
             </div>

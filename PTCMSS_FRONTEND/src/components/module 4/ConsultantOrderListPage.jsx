@@ -421,11 +421,11 @@ function OrdersTable({
     // Cho phép sửa khi chuyến chưa khởi hành (DRAFT, PENDING, CONFIRMED, ASSIGNED)
     const canEdit = (status) => {
         const normalized = status ? status.replace(/_/g, '').toUpperCase() : '';
-        return normalized === 'DRAFT' || 
-               normalized === 'PENDING' || 
-               normalized === 'CONFIRMED' ||
-               normalized === 'ASSIGNED' ||
-               normalized === 'QUOTATIONSENT';
+        return normalized === 'DRAFT' ||
+            normalized === 'PENDING' ||
+            normalized === 'CONFIRMED' ||
+            normalized === 'ASSIGNED' ||
+            normalized === 'QUOTATIONSENT';
     };
 
     return (
@@ -441,11 +441,9 @@ function OrdersTable({
                         {headerCell("deposit_amount", "Đã thu")}
                         {headerCell("quoted_price", "Tổng tiền")}
                         {headerCell("status", "Trạng thái")}
-                        {showActions && (
-                            <th className="px-3 py-2 font-medium text-slate-500 text-[12px]">
-                                Hành động
-                            </th>
-                        )}
+                        <th className="px-3 py-2 font-medium text-slate-500 text-[12px]">
+                            Hành động
+                        </th>
                     </tr>
                 </thead>
 
@@ -542,19 +540,19 @@ function OrdersTable({
                                 <OrderStatusPill status={o.status} />
                             </td>
 
-                            {/* Actions - Hidden for Manager */}
-                            {showActions && (
-                                <td className="px-3 py-2 text-[13px] whitespace-nowrap">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <button
-                                            type="button"
-                                            onClick={() => onViewDetail(o)}
-                                            className="rounded-md border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm"
-                                        >
-                                            <Eye className="h-3.5 w-3.5" />
-                                            <span>Chi tiết</span>
-                                        </button>
+                            {/* Actions - Always show "Chi tiết", hide "Sửa" for Manager/Accountant */}
+                            <td className="px-3 py-2 text-[13px] whitespace-nowrap">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => onViewDetail(o)}
+                                        className="rounded-md border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 px-2.5 py-1.5 text-[12px] flex items-center gap-1 shadow-sm"
+                                    >
+                                        <Eye className="h-3.5 w-3.5" />
+                                        <span>Chi tiết</span>
+                                    </button>
 
+                                    {showActions && (
                                         <button
                                             type="button"
                                             disabled={!canEdit(o.status)}
@@ -571,16 +569,16 @@ function OrdersTable({
                                             <Pencil className="h-3.5 w-3.5" />
                                             <span>Sửa</span>
                                         </button>
-                                    </div>
-                                </td>
-                            )}
+                                    )}
+                                </div>
+                            </td>
                         </tr>
                     ))}
 
                     {current.length === 0 && (
                         <tr>
                             <td
-                                colSpan={showActions ? 9 : 8}
+                                colSpan={9}
                                 className="px-3 py-6 text-center text-slate-500 text-[13px]"
                             >
                                 Không có đơn hàng phù hợp.
@@ -1687,6 +1685,7 @@ export default function ConsultantOrdersPage() {
     // Check current user role
     const currentRole = React.useMemo(() => getCurrentRole(), []);
     const isManager = currentRole === ROLES.MANAGER;
+    const isAccountant = currentRole === ROLES.ACCOUNTANT;
 
     // filters
     const [statusFilter, setStatusFilter] = React.useState("");
@@ -2170,10 +2169,10 @@ export default function ConsultantOrdersPage() {
                     setSortDir={setSortDir}
                     onViewDetail={handleViewDetail}
                     onEdit={handleEdit}
-                    showActions={!isManager}
+                    showActions={!isManager && !isAccountant}
                 />
 
-         
+
             </div>
 
             {/* MODAL CHI TIẾT */}

@@ -275,7 +275,7 @@ export default function CoordinatorVehicleListPage() {
                                                     <span
                                                         className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${vehicle.status === "AVAILABLE"
                                                             ? "bg-green-50 text-green-700"
-                                                            : vehicle.status === "IN_USE"
+                                                            : vehicle.status === "INUSE"
                                                                 ? "bg-blue-50 text-blue-700"
                                                                 : vehicle.status === "MAINTENANCE"
                                                                     ? "bg-orange-50 text-orange-700"
@@ -284,7 +284,7 @@ export default function CoordinatorVehicleListPage() {
                                                     >
                                                         {vehicle.status === "AVAILABLE"
                                                             ? "Sẵn sàng"
-                                                            : vehicle.status === "IN_USE"
+                                                            : vehicle.status === "INUSE"
                                                                 ? "Đang sử dụng"
                                                                 : vehicle.status === "MAINTENANCE"
                                                                     ? "Bảo trì"

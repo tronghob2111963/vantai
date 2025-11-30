@@ -150,9 +150,32 @@ public class DriverServiceImpl implements DriverService {
         if (request.getLicenseExpiry() != null) driver.setLicenseExpiry(request.getLicenseExpiry());
         if (request.getStatus() != null) {
             try {
-                driver.setStatus(org.example.ptcmssbackend.enums.DriverStatus.valueOf(request.getStatus()));
+                org.example.ptcmssbackend.enums.DriverStatus newStatus = 
+                    org.example.ptcmssbackend.enums.DriverStatus.valueOf(request.getStatus());
+                
+                // VALIDATION: Kiểm tra quyền của user hiện tại
+                org.springframework.security.core.Authentication auth = 
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                boolean isCoordinator = auth != null && auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_COORDINATOR"));
+                
+                // Coordinator chỉ được chuyển tài xế sang ACTIVE hoặc INACTIVE
+                if (isCoordinator) {
+                    if (newStatus != org.example.ptcmssbackend.enums.DriverStatus.ACTIVE && 
+                        newStatus != org.example.ptcmssbackend.enums.DriverStatus.INACTIVE) {
+                        throw new RuntimeException("Điều phối viên chỉ được phép chuyển tài xế sang trạng thái 'Hoạt động' (ACTIVE) hoặc 'Không hoạt động' (INACTIVE).");
+                    }
+                    // Coordinator không được thay đổi trạng thái nếu tài xế đang ON_TRIP
+                    if (driver.getStatus() == org.example.ptcmssbackend.enums.DriverStatus.ON_TRIP) {
+                        throw new RuntimeException("Không thể thay đổi trạng thái khi tài xế đang trong chuyến đi.");
+                    }
+                }
+                
+                log.info("[DriverProfile] Updating driver {} status from {} to {}", driverId, driver.getStatus(), newStatus);
+                driver.setStatus(newStatus);
             } catch (IllegalArgumentException e) {
                 log.warn("[DriverProfile] Invalid status value: {}", request.getStatus());
+                throw new RuntimeException("Trạng thái không hợp lệ: " + request.getStatus());
             }
         }
 
@@ -201,6 +224,43 @@ public class DriverServiceImpl implements DriverService {
                 .map(DriverDayOffResponse::new)
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt())) // Mới nhất trước
                 .collect(java.util.stream.Collectors.toList());
+    }
+    
+    @Override
+    @Transactional
+    public void cancelDayOffRequest(Integer dayOffId, Integer driverId) {
+        log.info("[DriverDayOff] Driver {} cancelling day off request {}", driverId, dayOffId);
+        
+        DriverDayOff dayOff = driverDayOffRepository.findById(dayOffId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy yêu cầu nghỉ phép"));
+        
+        // Kiểm tra quyền: chỉ tài xế tạo yêu cầu mới được hủy
+        if (!dayOff.getDriver().getId().equals(driverId)) {
+            throw new RuntimeException("Bạn không có quyền hủy yêu cầu này");
+        }
+        
+        // Chỉ cho phép hủy yêu cầu đang PENDING hoặc APPROVED
+        if (dayOff.getStatus() == DriverDayOffStatus.REJECTED) {
+            throw new RuntimeException("Không thể hủy yêu cầu đã bị từ chối");
+        }
+        
+        if (dayOff.getStatus() == DriverDayOffStatus.CANCELLED) {
+            throw new RuntimeException("Yêu cầu đã được hủy trước đó");
+        }
+        
+        // Cập nhật trạng thái
+        dayOff.setStatus(DriverDayOffStatus.CANCELLED);
+        driverDayOffRepository.save(dayOff);
+        
+        // Cập nhật trạng thái tài xế về ACTIVE nếu đang OFF_DUTY
+        Drivers driver = dayOff.getDriver();
+        if (driver.getStatus() == DriverStatus.OFF_DUTY) {
+            driver.setStatus(DriverStatus.ACTIVE);
+            driverRepository.save(driver);
+            log.info("[DriverDayOff] Driver {} status changed from OFF_DUTY to ACTIVE", driverId);
+        }
+        
+        log.info("[DriverDayOff] Day off request {} cancelled successfully", dayOffId);
     }
 
     @Override

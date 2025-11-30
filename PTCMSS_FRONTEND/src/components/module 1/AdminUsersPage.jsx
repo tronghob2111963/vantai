@@ -35,14 +35,15 @@ export default function AdminUsersPage() {
   const currentRole = React.useMemo(() => getCurrentRole(), []);
   const currentUserId = React.useMemo(() => getStoredUserId(), []);
   const isManagerView = currentRole === ROLES.MANAGER;
+  const isAccountantView = currentRole === ROLES.ACCOUNTANT;
   const [managerBranchInfo, setManagerBranchInfo] = React.useState({ id: null, name: "" });
-  const [managerBranchLoading, setManagerBranchLoading] = React.useState(isManagerView);
+  const [managerBranchLoading, setManagerBranchLoading] = React.useState(isManagerView || isAccountantView);
   const [managerBranchError, setManagerBranchError] = React.useState("");
   const [branches, setBranches] = React.useState([]);
   const [selectedBranchId, setSelectedBranchId] = React.useState("");
 
   React.useEffect(() => {
-    if (!isManagerView) {
+    if (!isManagerView && !isAccountantView) {
       setManagerBranchInfo({ id: null, name: "" });
       setManagerBranchError("");
       setManagerBranchLoading(false);
@@ -59,16 +60,20 @@ export default function AdminUsersPage() {
       setManagerBranchLoading(true);
       setManagerBranchError("");
       try {
-        const managers = await listEmployeesByRole("Manager");
+        // Load employees to find current user's branch
+        const { getEmployeeByUserId } = await import("../../api/employees");
+        const emp = await getEmployeeByUserId(currentUserId);
         if (cancelled) return;
-        const mine = (managers || []).find((emp) => String(emp.userId) === String(currentUserId));
-        if (mine?.branchId) {
-          setManagerBranchInfo({ id: mine.branchId, name: mine.branchName || "" });
+
+        const empData = emp?.data || emp;
+        if (empData?.branchId) {
+          setManagerBranchInfo({ id: empData.branchId, name: empData.branchName || "" });
         } else {
           setManagerBranchInfo({ id: null, name: "" });
           setManagerBranchError("Không xác định được chi nhánh của bạn.");
         }
-      } catch {
+      } catch (error) {
+        console.error("Failed to load branch:", error);
         if (cancelled) return;
         setManagerBranchInfo({ id: null, name: "" });
         setManagerBranchError("Không tải được chi nhánh của bạn.");
@@ -80,9 +85,9 @@ export default function AdminUsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [isManagerView, currentUserId]);
+  }, [isManagerView, isAccountantView, currentUserId]);
 
-  const branchFilterValue = isManagerView ? managerBranchInfo.id : undefined;
+  const branchFilterValue = (isManagerView || isAccountantView) ? managerBranchInfo.id : undefined;
   const normalizedKeyword = React.useMemo(() => keyword.trim().toLowerCase(), [keyword]);
   const normalizedStatus = React.useMemo(() => (status || "").trim().toUpperCase(), [status]);
   const selectedRoleName = React.useMemo(() => {
@@ -122,19 +127,19 @@ export default function AdminUsersPage() {
           const st = String(u.status || "").trim().toUpperCase();
           if (st !== normalizedStatus) return false;
         }
-        
+
         // Admin branch filter
         if (!isManagerView && selectedBranchId) {
           const userBranchId = String(u.branchId || "");
           if (userBranchId !== selectedBranchId) return false;
         }
-        
+
         // Manager branch filter - chỉ hiện nhân viên trong chi nhánh của Manager
         if (isManagerView && branchFilterValue) {
           const userBranchId = Number(u.branchId || 0);
           if (userBranchId !== branchFilterValue) return false;
         }
-        
+
         return true;
       });
     },
@@ -215,10 +220,10 @@ export default function AdminUsersPage() {
       try {
         const rs = await listRoles();
         // Handle different response formats
-        const rolesList = Array.isArray(rs) 
-          ? rs 
-          : Array.isArray(rs?.data) 
-            ? rs.data 
+        const rolesList = Array.isArray(rs)
+          ? rs
+          : Array.isArray(rs?.data)
+            ? rs.data
             : Array.isArray(rs?.items)
               ? rs.items
               : [];
@@ -233,7 +238,7 @@ export default function AdminUsersPage() {
   // Load branches for Admin filter
   React.useEffect(() => {
     if (isManagerView) return; // Only load for Admin
-    
+
     (async () => {
       try {
         const { listBranches } = await import("../../api/branches");
@@ -292,14 +297,17 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <button
-              onClick={() => navigate('/admin/users/new')}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
-              style={{ backgroundColor: BRAND_COLOR }}
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Thêm nhân viên</span>
-            </button>
+            {/* Chỉ Admin và Manager mới có nút thêm nhân viên, Accountant chỉ xem */}
+            {!isAccountantView && (
+              <button
+                onClick={() => navigate('/admin/users/new')}
+                className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                style={{ backgroundColor: BRAND_COLOR }}
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Thêm nhân viên</span>
+              </button>
+            )}
             <button
               onClick={onRefresh}
               disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))}
@@ -323,8 +331,8 @@ export default function AdminUsersPage() {
                 {managerBranchLoading
                   ? "Đang xác định chi nhánh phụ trách..."
                   : branchFilterValue
-                  ? "Chỉ hiển thị tài khoản thuộc chi nhánh " + (managerBranchInfo.name || ("#" + branchFilterValue)) + "."
-                  : managerBranchError || "Không xác định được chi nhánh của bạn. Hãy liên hệ Admin."}
+                    ? "Chỉ hiển thị tài khoản thuộc chi nhánh " + (managerBranchInfo.name || ("#" + branchFilterValue)) + "."
+                    : managerBranchError || "Không xác định được chi nhánh của bạn. Hãy liên hệ Admin."}
               </div>
             </div>
           </div>
@@ -335,19 +343,19 @@ export default function AdminUsersPage() {
           <div className="flex flex-wrap gap-3 items-center">
             <div className="flex-1 min-w-[240px] flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
               <Search className="h-4 w-4 text-slate-400" />
-              <input 
-                value={keyword} 
-                onChange={(e)=>setKeyword(e.target.value)} 
-                placeholder="Tìm theo tên hoặc email" 
-                className="flex-1 bg-transparent outline-none text-sm text-slate-900 placeholder:text-slate-400" 
+              <input
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="Tìm theo tên hoặc email"
+                className="flex-1 bg-transparent outline-none text-sm text-slate-900 placeholder:text-slate-400"
               />
             </div>
-            
+
             <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
               <Shield className="h-4 w-4 text-slate-400" />
-              <select 
-                value={roleId} 
-                onChange={(e)=>setRoleId(e.target.value)} 
+              <select
+                value={roleId}
+                onChange={(e) => setRoleId(e.target.value)}
                 className="bg-transparent outline-none text-sm text-slate-900 border-none cursor-pointer"
               >
                 <option value="">-- Vai trò --</option>
@@ -357,9 +365,9 @@ export default function AdminUsersPage() {
 
             <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
               <ShieldCheck className="h-4 w-4 text-slate-400" />
-              <select 
-                value={status} 
-                onChange={(e)=>setStatus(e.target.value)} 
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
                 className="bg-transparent outline-none text-sm text-slate-900 border-none cursor-pointer"
               >
                 <option value="">-- Trạng thái --</option>
@@ -371,9 +379,9 @@ export default function AdminUsersPage() {
             {!isManagerView && (
               <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus-within:border-[#0079BC]/50 focus-within:ring-2 focus-within:ring-[#0079BC]/20 transition-all">
                 <Filter className="h-4 w-4 text-slate-400" />
-                <select 
-                  value={selectedBranchId} 
-                  onChange={(e)=>setSelectedBranchId(e.target.value)} 
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
                   className="bg-transparent outline-none text-sm text-slate-900 border-none cursor-pointer"
                 >
                   <option value="">-- Tất cả chi nhánh --</option>
@@ -386,9 +394,9 @@ export default function AdminUsersPage() {
               </div>
             )}
 
-            <button 
-              onClick={onRefresh} 
-              disabled={isManagerView && (managerBranchLoading || !branchFilterValue)} 
+            <button
+              onClick={onRefresh}
+              disabled={isManagerView && (managerBranchLoading || !branchFilterValue)}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all active:scale-[0.98]"
               style={{ backgroundColor: BRAND_COLOR }}
             >
@@ -479,23 +487,29 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => navigate(`/admin/users/${u.id}`)} 
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" /> 
-                          Chỉnh sửa
-                        </button>
-                        <button 
-                          onClick={() => onToggle(u.id)} 
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${
-                            u.status === "ACTIVE"
-                              ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                              : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                          }`}
-                        >
-                          {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-                        </button>
+                        {/* Chỉ Admin và Manager mới có nút Chỉnh sửa và Vô hiệu hóa */}
+                        {!isAccountantView ? (
+                          <>
+                            <button
+                              onClick={() => navigate(`/admin/users/${u.id}`)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                              Chỉnh sửa
+                            </button>
+                            <button
+                              onClick={() => onToggle(u.id)}
+                              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${u.status === "ACTIVE"
+                                ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                }`}
+                            >
+                              {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Chỉ xem</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -503,7 +517,7 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination */}
           {users.length > 0 && (
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">

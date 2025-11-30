@@ -165,6 +165,26 @@ public class DriverController {
             throw new RuntimeException(e);
         }
     }
+    
+    @Operation(summary = "Hủy yêu cầu nghỉ phép", description = "Tài xế hủy yêu cầu nghỉ phép đã gửi (PENDING hoặc APPROVED). Trạng thái tài xế sẽ chuyển về ACTIVE.")
+    @DeleteMapping("/{driverId}/dayoff/{dayOffId}")
+    @PreAuthorize("hasRole('DRIVER')")
+    public ResponseData<?> cancelDayOffRequest(
+            @Parameter(description = "ID tài xế") @PathVariable Integer driverId,
+            @Parameter(description = "ID yêu cầu nghỉ phép") @PathVariable Integer dayOffId) {
+        try {
+            log.info("Driver {} cancelling day off request {}", driverId, dayOffId);
+            driverService.cancelDayOffRequest(dayOffId, driverId);
+            return new ResponseData<>(HttpStatus.OK.value(),
+                    "Đã hủy yêu cầu nghỉ phép thành công. Trạng thái của bạn đã chuyển về sẵn sàng.",
+                    null);
+        } catch (Exception e) {
+            log.error("Cancel day off request failed", e);
+            return new ResponseData<>(HttpStatus.BAD_REQUEST.value(),
+                    e.getMessage(),
+                    null);
+        }
+    }
 
     // ======================================================
     //  5 Bắt đầu và hoàn thành chuyến đi

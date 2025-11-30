@@ -276,14 +276,21 @@ export default function CoordinatorDriverListPage() {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span
-                                                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${driver.status === "ACTIVE"
-                                                            ? "bg-green-50 text-green-700"
-                                                            : "bg-gray-50 text-gray-700"
-                                                            }`}
-                                                    >
-                                                        {driver.status === "ACTIVE" ? "Hoạt động" : "Không hoạt động"}
-                                                    </span>
+                                                    {(() => {
+                                                        const statusMap = {
+                                                            "AVAILABLE": { label: "Sẵn sàng", color: "bg-green-50 text-green-700" },
+                                                            "BUSY": { label: "Đang bận", color: "bg-amber-50 text-amber-700" },
+                                                            "ON_LEAVE": { label: "Nghỉ phép", color: "bg-slate-50 text-slate-700" },
+                                                            "INACTIVE": { label: "Không hoạt động", color: "bg-rose-50 text-rose-700" },
+                                                            "ACTIVE": { label: "Hoạt động", color: "bg-green-50 text-green-700" },
+                                                        };
+                                                        const config = statusMap[driver.status] || { label: driver.status || "—", color: "bg-slate-50 text-slate-700" };
+                                                        return (
+                                                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+                                                                {config.label}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center justify-center">
