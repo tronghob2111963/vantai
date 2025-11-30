@@ -2,7 +2,7 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { listVehicleCategories } from "../../api/vehicleCategories";
-import { listBookings, createBooking } from "../../api/bookings";
+import { listBookings, createBooking, cancelBooking } from "../../api/bookings";
 import { listBranches } from "../../api/branches";
 import { getEmployeeByUserId } from "../../api/employees";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
@@ -26,6 +26,8 @@ import {
     X,
     Clock,
     CarFront,
+    Trash2,
+    AlertCircle,
 } from "lucide-react";
 
 /**
@@ -869,25 +871,29 @@ function OrderFormModal({
     React.useEffect(() => {
         if (!open) return;
 
-        // tải danh sách loại xe từ BE
+        // tải danh sách loại xe từ BE - chỉ lấy danh mục đang hoạt động (ACTIVE)
         let mounted = true;
         setLoadingCats(true);
         listVehicleCategories()
             .then((list) => {
                 if (!mounted || !Array.isArray(list)) return;
-                setCategories(list);
+                // Filter chỉ lấy categories có status = ACTIVE
+                const activeCategories = list.filter(c => !c.status || c.status === "ACTIVE");
+                setCategories(activeCategories);
             })
             .catch(() => { })
             .finally(() => { if (mounted) setLoadingCats(false); });
 
-        // Load branches
+        // Load branches - chỉ lấy chi nhánh đang hoạt động (ACTIVE)
         setLoadingBranches(true);
         listBranches({ page: 0, size: 50 })
             .then((res) => {
                 const list = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
                 if (!mounted) return;
-                setBranches(list);
-                if (!branchId && list.length) setBranchId(String(list[0].branchId ?? list[0].id));
+                // Filter chỉ lấy branches có status = ACTIVE
+                const activeBranches = list.filter(b => !b.status || b.status === "ACTIVE");
+                setBranches(activeBranches);
+                if (!branchId && activeBranches.length) setBranchId(String(activeBranches[0].branchId ?? activeBranches[0].id));
             })
             .catch(() => { })
             .finally(() => { if (mounted) setLoadingBranches(false); });

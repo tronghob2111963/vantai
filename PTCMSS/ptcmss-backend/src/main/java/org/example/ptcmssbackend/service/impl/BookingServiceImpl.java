@@ -67,13 +67,29 @@ public class BookingServiceImpl implements BookingService {
                 consultantEmployeeId != null ? consultantEmployeeId : null
         );
         
-        // 2. Load các entity cần thiết
-        Branches branch = branchesRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh: " + request.getBranchId()));
-        
+        // 2. Load consultant trước để lấy branch
         Employees consultant = consultantEmployeeId != null
                 ? employeeRepository.findById(consultantEmployeeId).orElse(null)
                 : null;
+        
+        // 3. Xác định branch: ưu tiên branch của consultant, nếu không có thì lấy từ request
+        Branches branch;
+        if (consultant != null && consultant.getBranch() != null) {
+            // Consultant có branch → dùng branch của consultant
+            branch = consultant.getBranch();
+            log.info("[BookingService] Using consultant's branch: {} ({})", branch.getBranchName(), branch.getId());
+        } else if (request.getBranchId() != null) {
+            // Không có consultant hoặc consultant không có branch → dùng từ request (Admin tạo)
+            branch = branchesRepository.findById(request.getBranchId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh: " + request.getBranchId()));
+        } else {
+            throw new RuntimeException("Không xác định được chi nhánh cho đơn hàng");
+        }
+        
+        // Check branch status - không cho tạo booking nếu chi nhánh không hoạt động
+        if (branch.getStatus() != BranchStatus.ACTIVE) {
+            throw new RuntimeException("Chi nhánh '" + branch.getBranchName() + "' đã ngưng hoạt động, không thể tạo đơn hàng mới");
+        }
         
         HireTypes hireType = request.getHireTypeId() != null
                 ? hireTypesRepository.findById(request.getHireTypeId()).orElse(null)
@@ -709,6 +725,21 @@ public class BookingServiceImpl implements BookingService {
             }
         }
         
+        // Auto-detect hình thức thuê nếu không có hireType
+        // Nếu numberOfDays >= 1 và chưa có hireType → mặc định là DAILY
+        if (hireTypeCode == null && numberOfDays >= 1) {
+            // Check nếu là chuyến trong ngày với khoảng cách ngắn → có thể là ONE_WAY hoặc ROUND_TRIP
+            if (isSameDayTrip && distance != null && distance <= interProvinceDistanceKm) {
+                // Để logic bên dưới xử lý (isSameDayTrip case)
+            } else if (numberOfDays > 1) {
+                hireTypeCode = "MULTI_DAY";
+                log.debug("[Price] Auto-detected hireType: MULTI_DAY (days={})", numberOfDays);
+            } else {
+                hireTypeCode = "DAILY";
+                log.debug("[Price] Auto-detected hireType: DAILY (days={})", numberOfDays);
+            }
+        }
+        
         // Tính hệ số phụ phí ngày lễ/cuối tuần
         BigDecimal surchargeRate = BigDecimal.ZERO;
         if (isHoliday != null && isHoliday) {
@@ -738,9 +769,17 @@ public class BookingServiceImpl implements BookingService {
             
             BigDecimal basePrice = BigDecimal.ZERO;
             
-            // Áp dụng công thức tính giá
-            if ("MULTI_DAY".equals(hireTypeCode) && numberOfDays > 1) {
-                // 2c. Nhiều ngày: km × PricePerKm × 1.5 + sameDayFixedPrice × số_ngày + baseFee
+            // Áp dụng công thức tính giá theo hình thức thuê
+            if ("DAILY".equals(hireTypeCode)) {
+                // THUÊ THEO NGÀY: sameDayFixedPrice × số_ngày + baseFee (không tính km)
+                int days = Math.max(1, numberOfDays);
+                BigDecimal dailyCost = sameDayFixedPrice.multiply(BigDecimal.valueOf(days));
+                basePrice = dailyCost.add(baseFee);
+                log.debug("[Price] DAILY: days={}, dailyRate={}, baseFee={}, total={}", 
+                        days, sameDayFixedPrice, baseFee, basePrice);
+                
+            } else if ("MULTI_DAY".equals(hireTypeCode) && numberOfDays > 1) {
+                // THUÊ NHIỀU NGÀY (đi xa): km × PricePerKm × 1.5 + sameDayFixedPrice × số_ngày + baseFee
                 BigDecimal kmCost = BigDecimal.ZERO;
                 if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
                     kmCost = pricePerKm
@@ -752,10 +791,30 @@ public class BookingServiceImpl implements BookingService {
                 log.debug("[Price] MULTI_DAY: km={}, days={}, kmCost={}, dailyCost={}, baseFee={}, total={}", 
                         distance, numberOfDays, kmCost, dailyCost, baseFee, basePrice);
                 
+            } else if ("ONE_WAY".equals(hireTypeCode)) {
+                // MỘT CHIỀU: km × PricePerKm + baseFee
+                BigDecimal kmCost = BigDecimal.ZERO;
+                if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
+                    kmCost = pricePerKm.multiply(BigDecimal.valueOf(distance));
+                }
+                basePrice = kmCost.add(baseFee);
+                log.debug("[Price] ONE_WAY: km={}, kmCost={}, baseFee={}, total={}", 
+                        distance, kmCost, baseFee, basePrice);
+                
+            } else if ("ROUND_TRIP".equals(hireTypeCode)) {
+                // KHỨ HỒI: km × PricePerKm × 1.5 + baseFee
+                BigDecimal kmCost = BigDecimal.ZERO;
+                if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
+                    kmCost = pricePerKm.multiply(BigDecimal.valueOf(distance)).multiply(roundTripMultiplier);
+                }
+                basePrice = kmCost.add(baseFee);
+                log.debug("[Price] ROUND_TRIP: km={}, kmCost={}, multiplier={}, baseFee={}, total={}", 
+                        distance, kmCost, roundTripMultiplier, baseFee, basePrice);
+                
             } else if (isSameDayTrip && sameDayFixedPrice.compareTo(BigDecimal.ZERO) > 0) {
-                // Chuyến trong ngày
+                // CHUYẾN TRONG NGÀY (không có hireType cụ thể)
                 if (isInterProvince) {
-                    // 2b. Liên tỉnh 1 ngày: km × PricePerKm × 1.5 + sameDayFixedPrice + baseFee
+                    // Liên tỉnh 1 ngày: km × PricePerKm × 1.5 + sameDayFixedPrice + baseFee
                     BigDecimal kmCost = BigDecimal.ZERO;
                     if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
                         kmCost = pricePerKm
@@ -766,31 +825,21 @@ public class BookingServiceImpl implements BookingService {
                     log.debug("[Price] INTER_PROVINCE_SAME_DAY: km={}, kmCost={}, sameDayPrice={}, baseFee={}, total={}", 
                             distance, kmCost, sameDayFixedPrice, baseFee, basePrice);
                 } else {
-                    // 2a. Trong tỉnh / nội thành: sameDayFixedPrice + baseFee
+                    // Trong tỉnh / nội thành: sameDayFixedPrice + baseFee
                     basePrice = sameDayFixedPrice.add(baseFee);
                     log.debug("[Price] SAME_DAY_LOCAL: sameDayPrice={}, baseFee={}, total={}", 
                             sameDayFixedPrice, baseFee, basePrice);
                 }
                 
             } else {
-                // 1. Tính theo chiều
+                // MẶC ĐỊNH: Tính theo km × 1.5 + baseFee
+                BigDecimal kmCost = BigDecimal.ZERO;
                 if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal kmCost = pricePerKm.multiply(BigDecimal.valueOf(distance));
-                    
-                    if ("ONE_WAY".equals(hireTypeCode)) {
-                        // 1a. Một chiều: km × PricePerKm + baseFee
-                        basePrice = kmCost.add(baseFee);
-                        log.debug("[Price] ONE_WAY: km={}, kmCost={}, baseFee={}, total={}", 
-                                distance, kmCost, baseFee, basePrice);
-                    } else {
-                        // 1b. Hai chiều (ROUND_TRIP hoặc mặc định): km × PricePerKm × 1.5 + baseFee
-                        basePrice = kmCost.multiply(roundTripMultiplier).add(baseFee);
-                        log.debug("[Price] ROUND_TRIP: km={}, kmCost={}, multiplier={}, baseFee={}, total={}", 
-                                distance, kmCost, roundTripMultiplier, baseFee, basePrice);
-                    }
-                } else {
-                    basePrice = baseFee;
+                    kmCost = pricePerKm.multiply(BigDecimal.valueOf(distance)).multiply(roundTripMultiplier);
                 }
+                basePrice = kmCost.add(baseFee);
+                log.debug("[Price] DEFAULT: km={}, kmCost={}, baseFee={}, total={}", 
+                        distance, kmCost, baseFee, basePrice);
             }
             
             // Phụ phí cao tốc
