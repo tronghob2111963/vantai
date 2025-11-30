@@ -464,64 +464,6 @@ function FiltersBar({
         <div className="flex flex-col xl:flex-row xl:items-start gap-4 w-full">
             {/* left section */}
             <div className="flex flex-wrap items-start gap-3 flex-1">
-                {/* Date range */}
-                <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 shadow-sm">
-                    <CalendarRange className="h-4 w-4 text-slate-500" />
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={fromDate}
-                            onChange={(e) =>
-                                setFromDate(
-                                    e
-                                        .target
-                                        .value
-                                )
-                            }
-                            className="bg-transparent outline-none text-[13px] text-slate-900"
-                        />
-                        <span className="text-slate-400">
-                            →
-                        </span>
-                        <input
-                            type="date"
-                            value={toDate}
-                            onChange={(e) =>
-                                setToDate(
-                                    e
-                                        .target
-                                        .value
-                                )
-                            }
-                            className="bg-transparent outline-none text-[13px] text-slate-900"
-                        />
-                    </div>
-                </div>
-
-                {/* Period */}
-                <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 shadow-sm">
-                    <CalendarRange className="h-4 w-4 text-slate-500" />
-                    <select
-                        value={period || ""}
-                        onChange={(e) => {
-                            setPeriod(e.target.value);
-                            if (e.target.value) {
-                                setFromDate("");
-                                setToDate("");
-                            }
-                        }}
-                        className="bg-transparent outline-none text-[13px] text-slate-900"
-                    >
-                        <option value="">Tùy chỉnh</option>
-                        <option value="TODAY">Hôm nay</option>
-                        <option value="7D">7 ngày qua</option>
-                        <option value="30D">30 ngày qua</option>
-                        <option value="MONTH">Tháng này</option>
-                        <option value="QUARTER">Quý này</option>
-                        <option value="YTD">Năm nay (YTD)</option>
-                    </select>
-                </div>
-
                 {/* Branch */}
                 <div className="flex flex-col gap-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 shadow-sm">
                     <div className="flex items-center gap-2">
@@ -1569,39 +1511,12 @@ export default function ExpenseReportPage() {
                 />
             </div>
 
-            {/* CHART + BREAKDOWN */}
-            <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-5 mb-6">
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
-                    <div className="text-sm text-slate-600 mb-3">
-                        Cơ cấu chi phí
-                    </div>
-                    {pieSlices.length ===
-                    0 ? (
-                        <div className="text-[12px] text-slate-500">
-                            Không
-                            có dữ
-                            liệu
-                            trong
-                            khoảng
-                            lọc.
-                        </div>
-                    ) : (
-                        <ExpensePieChart
-                            slices={
-                                pieSlices
-                            }
-                        />
-                    )}
+            {/* TOTAL EXPENSE CARD */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 mb-6">
+                <div className="text-sm text-slate-500 mb-1">Tổng chi phí</div>
+                <div className="text-3xl font-semibold text-slate-900 tabular-nums">
+                    {fmtVND(totalExpense)} đ
                 </div>
-
-                <BreakdownCard
-                    totalExpense={
-                        totalExpense
-                    }
-                    slices={
-                        pieSlices
-                    }
-                />
             </div>
 
             {/* TABLE CARD */}

@@ -1,7 +1,8 @@
 ﻿import React from "react";
 import { listVehicles, createVehicle, updateVehicle, listVehicleCategories } from "../../api/vehicles";
 import { listBranches } from "../../api/branches";
-import { getCurrentRole, ROLES } from "../../utils/session";
+import { getEmployeeByUserId } from "../../api/employees";
+import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import {
     CarFront,
     PlusCircle,
@@ -136,6 +137,9 @@ function CreateVehicleModal({
     onCreate,
     branches,
     categories,
+    isManager = false,
+    managerBranchId = null,
+    managerBranchName = "",
 }) {
     const [licensePlate, setLicensePlate] = React.useState("");
     const [brand, setBrand] = React.useState("");
@@ -157,17 +161,20 @@ function CreateVehicleModal({
             setYear("");
             setOdometer("");
             setCategoryId("");
-            setBranchId("");
+            // Manager tự động set chi nhánh của mình
+            setBranchId(isManager && managerBranchId ? String(managerBranchId) : "");
             setStatus("AVAILABLE");
             setRegDueDate("");
             setInsDueDate("");
             setError("");
         }
-    }, [open]);
+    }, [open, isManager, managerBranchId]);
 
     if (!open) return null;
 
     const numericOnly = (s) => s.replace(/[^0-9]/g, "");
+    const currentYear = new Date().getFullYear();
+    const today = new Date().toISOString().split("T")[0];
 
     // Validation biển số xe theo chuẩn Việt Nam
     const isPlateValid = (plate) => {
@@ -184,14 +191,34 @@ function CreateVehicleModal({
             militaryPlateRegex.test(cleanPlate);
     };
 
+    // Validation năm sản xuất: 2000 - năm hiện tại
+    const yearNum = Number(year);
+    const isYearValid = year.trim() !== "" && yearNum >= 2000 && yearNum <= currentYear;
+
+    // Validation hạn đăng kiểm: phải là ngày trong tương lai
+    const isRegDueDateValid = !regDueDate || regDueDate > today;
+
     const valid =
         isPlateValid(licensePlate) &&
         categoryId !== "" &&
         branchId !== "" &&
-        year.trim() !== "" &&
-        odometer.trim() !== "";
+        isYearValid &&
+        odometer.trim() !== "" &&
+        isRegDueDateValid;
 
     const handleSubmit = () => {
+        if (!isPlateValid(licensePlate)) {
+            setError("Biển số xe không đúng định dạng.");
+            return;
+        }
+        if (!isYearValid) {
+            setError(`Năm sản xuất phải từ 2000 đến ${currentYear}.`);
+            return;
+        }
+        if (!isRegDueDateValid) {
+            setError("Hạn đăng kiểm phải là ngày trong tương lai.");
+            return;
+        }
         if (!valid) {
             setError("Vui lòng điền đủ thông tin bắt buộc.");
             return;
@@ -313,22 +340,31 @@ function CreateVehicleModal({
                         {/* Năm sản xuất */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Năm sản xuất{" "}
+                                Năm sản xuất (2000-{currentYear}){" "}
                                 <span className="text-red-500">*</span>
                             </div>
                             <input
                                 value={year}
-                                onChange={(e) =>
-                                    setYear(numericOnly(e.target.value))
-                                }
+                                onChange={(e) => {
+                                    const val = numericOnly(e.target.value);
+                                    if (val.length <= 4) setYear(val);
+                                }}
                                 inputMode="numeric"
+                                maxLength={4}
                                 className={cls(
                                     "w-full rounded-md border px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none",
-                                    "border-slate-300 bg-white shadow-sm",
+                                    year && !isYearValid
+                                        ? "border-red-400 bg-red-50"
+                                        : "border-slate-300 bg-white shadow-sm",
                                     "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
                                 )}
-                                placeholder="2022"
+                                placeholder={`VD: ${currentYear}`}
                             />
+                            {year && !isYearValid && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Năm sản xuất phải từ 2000 đến {currentYear}
+                                </div>
+                            )}
                         </div>
 
                         {/* Odo */}
@@ -390,7 +426,9 @@ function CreateVehicleModal({
                                 )}
                             >
                                 <option value="">-- Chọn danh mục --</option>
-                                {categories.map((c) => (
+                                {categories
+                                    .filter((c) => c.status === "ACTIVE")
+                                    .map((c) => (
                                     <option key={c.id} value={c.id}>
                                         {c.name} ({c.seats} chỗ)
                                     </option>
@@ -398,50 +436,67 @@ function CreateVehicleModal({
                             </select>
                         </div>
 
-                        {/* Chi nhánh */}
+                        {/* Chi nhánh - Manager không được đổi */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
                                 Chi nhánh quản lý{" "}
                                 <span className="text-red-500">*</span>
-                            </div>
-                            <select
-                                value={branchId}
-                                onChange={(e) =>
-                                    setBranchId(e.target.value)
-                                }
-                                className={cls(
-                                    "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
-                                    "border-slate-300 bg-white shadow-sm",
-                                    "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                                {isManager && (
+                                    <span className="text-amber-600 ml-1">(Tự động)</span>
                                 )}
-                            >
-                                <option value="">-- Chọn chi nhánh --</option>
-                                {branches.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
+                            </div>
+                            {isManager ? (
+                                <div className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-[13px] text-slate-600">
+                                    {managerBranchName || `Chi nhánh #${managerBranchId}`}
+                                </div>
+                            ) : (
+                                <select
+                                    value={branchId}
+                                    onChange={(e) =>
+                                        setBranchId(e.target.value)
+                                    }
+                                    className={cls(
+                                        "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
+                                        "border-slate-300 bg-white shadow-sm",
+                                        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                                    )}
+                                >
+                                    <option value="">-- Chọn chi nhánh --</option>
+                                    {branches.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
 
                         {/* Ngày Đăng kiểm tiếp theo */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1 flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-slate-400" />
-                                <span>Ngày Đăng kiểm tiếp theo</span>
+                                <span>Hạn đăng kiểm (ngày trong tương lai)</span>
                             </div>
                             <input
                                 type="date"
                                 value={regDueDate}
+                                min={today}
                                 onChange={(e) =>
                                     setRegDueDate(e.target.value)
                                 }
                                 className={cls(
                                     "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
-                                    "border-slate-300 bg-white shadow-sm",
+                                    regDueDate && !isRegDueDateValid
+                                        ? "border-red-400 bg-red-50"
+                                        : "border-slate-300 bg-white shadow-sm",
                                     "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
                                 )}
                             />
+                            {regDueDate && !isRegDueDateValid && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Hạn đăng kiểm phải là ngày trong tương lai
+                                </div>
+                            )}
                         </div>
 
                         {/* Ngày hết hạn bảo hiểm TNDS */}
@@ -506,8 +561,10 @@ function EditVehicleModal({
     vehicle,
     branches,
     categories,
+    isManager = false,
 }) {
     const [status, setStatus] = React.useState("");
+    const [branchId, setBranchId] = React.useState("");
     const [regDueDate, setRegDueDate] = React.useState("");
     const [insDueDate, setInsDueDate] = React.useState("");
     const [error, setError] = React.useState("");
@@ -515,6 +572,7 @@ function EditVehicleModal({
     React.useEffect(() => {
         if (open && vehicle) {
             setStatus(vehicle.status || "AVAILABLE");
+            setBranchId(vehicle.branch_id ? String(vehicle.branch_id) : "");
             setRegDueDate(vehicle.reg_due_date || "");
             setInsDueDate(vehicle.ins_due_date || "");
             setError("");
@@ -523,16 +581,25 @@ function EditVehicleModal({
 
     if (!open || !vehicle) return null;
 
-    const valid = status !== "";
+    const today = new Date().toISOString().split("T")[0];
+
+    // Validation hạn đăng kiểm: phải là ngày trong tương lai
+    const isRegDueDateValid = !regDueDate || regDueDate > today;
+
+    const valid = status !== "" && isRegDueDateValid;
 
     const handleSubmit = () => {
+        if (!isRegDueDateValid) {
+            setError("Hạn đăng kiểm phải là ngày trong tương lai.");
+            return;
+        }
         if (!valid) {
             setError("Thiếu thông tin bắt buộc.");
             return;
         }
 
         const payload = {
-            branchId: Number(vehicle.branch_id),
+            branchId: branchId ? Number(branchId) : Number(vehicle.branch_id),
             categoryId: Number(vehicle.category_id),
             licensePlate: vehicle.license_plate,
             brand: vehicle.brand || "",
@@ -644,34 +711,63 @@ function EditVehicleModal({
                             </div>
                         </div>
 
-                        {/* branch - READONLY (yêu cầu mới: KHÔNG cho chuyển chi nhánh) */}
+                        {/* branch - Manager có thể chuyển xe sang chi nhánh khác */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Chi nhánh
+                                Chi nhánh{" "}
+                                {isManager && (
+                                    <span className="text-sky-600">(Có thể chuyển)</span>
+                                )}
                             </div>
-                            <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-[13px] text-slate-700 font-medium shadow-inner">
-                                {vehicle.branch_name || "—"}
-                            </div>
+                            {isManager ? (
+                                <select
+                                    value={branchId}
+                                    onChange={(e) => setBranchId(e.target.value)}
+                                    className={cls(
+                                        "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
+                                        "border-slate-300 bg-white shadow-sm",
+                                        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                                    )}
+                                >
+                                    {branches.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-[13px] text-slate-700 font-medium shadow-inner">
+                                    {vehicle.branch_name || "—"}
+                                </div>
+                            )}
                         </div>
 
                         {/* Ngày đăng kiểm tiếp theo */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1 flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-slate-400" />
-                                <span>Ngày đăng kiểm tiếp theo</span>
+                                <span>Hạn đăng kiểm (ngày trong tương lai)</span>
                             </div>
                             <input
                                 type="date"
                                 value={regDueDate || ""}
+                                min={today}
                                 onChange={(e) =>
                                     setRegDueDate(e.target.value)
                                 }
                                 className={cls(
                                     "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
-                                    "border-slate-300 bg-white shadow-sm",
+                                    regDueDate && !isRegDueDateValid
+                                        ? "border-red-400 bg-red-50"
+                                        : "border-slate-300 bg-white shadow-sm",
                                     "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
                                 )}
                             />
+                            {regDueDate && !isRegDueDateValid && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Hạn đăng kiểm phải là ngày trong tương lai
+                                </div>
+                            )}
                         </div>
 
                         {/* Ngày hết hạn bảo hiểm */}
@@ -1161,7 +1257,12 @@ export default function VehicleListPage() {
 
     // Check current user role
     const currentRole = React.useMemo(() => getCurrentRole(), []);
+    const currentUserId = React.useMemo(() => getStoredUserId(), []);
     const isManager = currentRole === ROLES.MANAGER;
+
+    // Manager's branch info
+    const [managerBranchId, setManagerBranchId] = React.useState(null);
+    const [managerBranchName, setManagerBranchName] = React.useState("");
 
     // filter state
     const [branchFilter, setBranchFilter] = React.useState("");
@@ -1182,6 +1283,25 @@ export default function VehicleListPage() {
     const [vehicles, setVehicles] = React.useState([]);
     const [branches, setBranches] = React.useState([]);
     const [categories, setCategories] = React.useState([]);
+
+    // Load Manager's branch
+    React.useEffect(() => {
+        if (!isManager || !currentUserId) return;
+        
+        (async () => {
+            try {
+                const resp = await getEmployeeByUserId(currentUserId);
+                const emp = resp?.data || resp;
+                if (emp?.branchId) {
+                    setManagerBranchId(emp.branchId);
+                    setManagerBranchName(emp.branchName || "");
+                    setBranchFilter(String(emp.branchId)); // Auto filter by manager's branch
+                }
+            } catch (err) {
+                console.error("Error loading manager branch:", err);
+            }
+        })();
+    }, [isManager, currentUserId]);
 
     // helper map backend -> UI
     const mapVehicle = React.useCallback((v) => ({
@@ -1209,7 +1329,7 @@ export default function VehicleListPage() {
                 ]);
                 const brs = Array.isArray(brData) ? brData : (brData?.items || brData?.content || []);
                 setBranches(brs.map(b => ({ id: b.id, name: b.branchName || b.name || b.branch_name })));
-                setCategories((catData || []).map(c => ({ id: c.id, name: c.categoryName || c.name })));
+                setCategories((catData || []).map(c => ({ id: c.id, name: c.categoryName || c.name, seats: c.seats, status: c.status })));
                 setVehicles((vehData || []).map(mapVehicle));
             } catch { }
         })();
@@ -1223,7 +1343,10 @@ export default function VehicleListPage() {
     // filter + sort data
     const filteredSorted = React.useMemo(() => {
         const q = searchPlate.trim().toLowerCase();
-        const bf = branchFilter ? String(branchFilter) : "";
+        // Manager chỉ xem xe trong chi nhánh của mình
+        const bf = isManager && managerBranchId 
+            ? String(managerBranchId) 
+            : (branchFilter ? String(branchFilter) : "");
         const cf = categoryFilter ? String(categoryFilter) : "";
 
         const afterFilter = vehicles.filter((v) => {
@@ -1271,6 +1394,8 @@ export default function VehicleListPage() {
         searchPlate,
         sortKey,
         sortDir,
+        isManager,
+        managerBranchId,
     ]);
 
     // total pages
@@ -1293,12 +1418,23 @@ export default function VehicleListPage() {
 
     // "Thêm xe mới"
     const handleCreateSubmit = async (payload) => {
+        // Kiểm tra trùng biển số
+        const plateToCheck = (payload.license_plate || payload.licensePlate || "").trim().toUpperCase();
+        const isDuplicate = vehicles.some(v => 
+            v.license_plate?.toUpperCase().replace(/[.\s-]/g, "") === plateToCheck.replace(/[.\s-]/g, "")
+        );
+        if (isDuplicate) {
+            push("Biển số xe đã tồn tại trong hệ thống!", "error");
+            return;
+        }
+        
         try {
             const created = await createVehicle(payload);
             setVehicles((prev) => [mapVehicle(created), ...prev]);
-            push("Thêm xe mới thành công:   " + (payload.license_plate || payload.licensePlate), "success");
+            push("Thêm xe mới thành công: " + plateToCheck, "success");
         } catch (e) {
-            push("Thêm xe mới thất bại", "error");
+            const errMsg = e?.message || e?.response?.data?.message || "Thêm xe mới thất bại";
+            push(errMsg, "error");
         }
     };
 
@@ -1356,8 +1492,11 @@ export default function VehicleListPage() {
                                     Quản lý phương tiện
                                 </div>
                                 <div className="text-[12px] text-slate-500 leading-snug max-w-xl">
-                                    Theo dõi tình trạng xe, hiện đang kiểm, và
-                                    phân bổ theo chi nhánh.
+                                    {isManager && managerBranchName ? (
+                                        <>Chi nhánh: <span className="font-medium text-slate-700">{managerBranchName}</span></>
+                                    ) : (
+                                        "Theo dõi tình trạng xe, hiện đang kiểm, và phân bổ theo chi nhánh."
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1387,7 +1526,7 @@ export default function VehicleListPage() {
                     onRefresh={handleRefresh}
                     showBranchFilter={!isManager}
                     showCreateButton={true}
-                    createButtonPosition={isManager ? "right" : "left"}
+                    createButtonPosition="left"
                 />
             </div>
 
@@ -1426,6 +1565,9 @@ export default function VehicleListPage() {
                 onCreate={handleCreateSubmit}
                 branches={branches}
                 categories={categories}
+                isManager={isManager}
+                managerBranchId={managerBranchId}
+                managerBranchName={managerBranchName}
             />
 
             <EditVehicleModal
@@ -1435,6 +1577,7 @@ export default function VehicleListPage() {
                 vehicle={editingVehicle}
                 branches={branches}
                 categories={categories}
+                isManager={isManager}
             />
         </div>
     );

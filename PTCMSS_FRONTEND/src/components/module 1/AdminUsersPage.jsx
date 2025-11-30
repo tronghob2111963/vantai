@@ -1,7 +1,7 @@
 ﻿import React from "react";
 import { useNavigate } from "react-router-dom";
 import { listUsers, listUsersByBranch, listRoles, toggleUserStatus } from "../../api/users";
-import { listEmployeesByRole } from "../../api/employees";
+import { listEmployeesByRole, listEmployees } from "../../api/employees";
 import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, UserPlus } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
@@ -129,10 +129,16 @@ export default function AdminUsersPage() {
           if (userBranchId !== selectedBranchId) return false;
         }
         
+        // Manager branch filter - chỉ hiện nhân viên trong chi nhánh của Manager
+        if (isManagerView && branchFilterValue) {
+          const userBranchId = Number(u.branchId || 0);
+          if (userBranchId !== branchFilterValue) return false;
+        }
+        
         return true;
       });
     },
-    [normalizedKeyword, selectedRoleName, normalizedStatus, isManagerView, selectedBranchId]
+    [normalizedKeyword, selectedRoleName, normalizedStatus, isManagerView, selectedBranchId, branchFilterValue]
   );
 
   const [allUsers, setAllUsers] = React.useState([]);
@@ -148,15 +154,28 @@ export default function AdminUsersPage() {
     }
     setLoading(true);
     try {
-      let data;
-      if (isManagerView) {
-        data = await listUsersByBranch(branchFilterValue);
-      } else {
-        // Load tất cả users, không filter ở API level
-        data = await listUsers();
+      // Dùng employees API vì có branchId
+      const data = await listEmployees();
+      let arr = [];
+      if (Array.isArray(data?.data)) {
+        arr = data.data;
+      } else if (Array.isArray(data)) {
+        arr = data;
       }
-      const arr = Array.isArray(data) ? data : data?.items || data?.data?.items || data?.data?.content || [];
-      setAllUsers(arr);
+      // Map employee data to user-like structure
+      const mapped = arr.map(emp => ({
+        id: emp.userId || emp.id,
+        empId: emp.id,
+        fullName: emp.userFullName,
+        email: emp.userEmail,
+        phone: emp.userPhone,
+        roleName: emp.roleName,
+        roleId: emp.roleId,
+        branchId: emp.branchId,
+        branchName: emp.branchName,
+        status: emp.status,
+      }));
+      setAllUsers(mapped);
     } finally {
       setLoading(false);
     }
@@ -219,7 +238,20 @@ export default function AdminUsersPage() {
       try {
         const { listBranches } = await import("../../api/branches");
         const data = await listBranches({ page: 0, size: 100 });
-        const arr = Array.isArray(data) ? data : data?.items || data?.content || [];
+        let arr = [];
+        if (Array.isArray(data)) {
+          arr = data;
+        } else if (data?.data?.items) {
+          arr = data.data.items;
+        } else if (data?.data?.content) {
+          arr = data.data.content;
+        } else if (data?.items) {
+          arr = data.items;
+        } else if (data?.content) {
+          arr = data.content;
+        } else if (Array.isArray(data?.data)) {
+          arr = data.data;
+        }
         setBranches(arr);
       } catch (error) {
         console.error("Failed to load branches:", error);
@@ -393,6 +425,9 @@ export default function AdminUsersPage() {
                     Vai trò
                   </th>
                   <th className="text-left font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
+                    Chi nhánh
+                  </th>
+                  <th className="text-left font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
                     Trạng thái
                   </th>
                   <th className="text-right font-semibold px-6 py-3.5 text-xs text-slate-700 uppercase tracking-wider">
@@ -403,7 +438,7 @@ export default function AdminUsersPage() {
               <tbody className="divide-y divide-slate-100">
                 {currentUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center">
                           <Users className="h-8 w-8 text-slate-400" />
@@ -435,6 +470,9 @@ export default function AdminUsersPage() {
                         <Shield className="h-4 w-4 text-slate-400" />
                         <span className="text-sm font-medium text-slate-700">{u.roleName}</span>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-slate-700">{u.branchName || "—"}</span>
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge value={u.status} />

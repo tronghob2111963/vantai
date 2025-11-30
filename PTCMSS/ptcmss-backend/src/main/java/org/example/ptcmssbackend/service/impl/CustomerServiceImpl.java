@@ -92,6 +92,13 @@ public class CustomerServiceImpl implements CustomerService {
     public CustomerResponse toResponse(Customers customer) {
         if (customer == null) return null;
         
+        Integer branchId = null;
+        String branchName = null;
+        if (customer.getCreatedBy() != null && customer.getCreatedBy().getBranch() != null) {
+            branchId = customer.getCreatedBy().getBranch().getId();
+            branchName = customer.getCreatedBy().getBranch().getBranchName();
+        }
+        
         return CustomerResponse.builder()
                 .id(customer.getId())
                 .fullName(customer.getFullName())
@@ -101,6 +108,8 @@ public class CustomerServiceImpl implements CustomerService {
                 .note(customer.getNote())
                 .status(customer.getStatus() != null ? customer.getStatus().name() : null)
                 .createdAt(customer.getCreatedAt())
+                .branchId(branchId)
+                .branchName(branchName)
                 .build();
     }
     

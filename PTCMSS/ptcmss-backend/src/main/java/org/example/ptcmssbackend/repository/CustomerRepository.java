@@ -29,7 +29,15 @@ public interface CustomerRepository extends JpaRepository<Customers, Integer> {
     Optional<Customers> findByPhoneIgnoreCase(@Param("phone") String phone);
     
     // Danh sách customer với filter
-    @Query("SELECT c FROM Customers c LEFT JOIN c.createdBy e LEFT JOIN e.branch b WHERE " +
+    @Query(value = "SELECT c FROM Customers c LEFT JOIN FETCH c.createdBy e LEFT JOIN FETCH e.branch b WHERE " +
+           "(:keyword IS NULL OR :keyword = '' OR " +
+           "LOWER(c.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.phone) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.email) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+           "(:branchId IS NULL OR b.id = :branchId) AND " +
+           "(:fromDate IS NULL OR c.createdAt >= :fromDate) AND " +
+           "(:toDate IS NULL OR c.createdAt <= :toDate)",
+           countQuery = "SELECT COUNT(c) FROM Customers c LEFT JOIN c.createdBy e LEFT JOIN e.branch b WHERE " +
            "(:keyword IS NULL OR :keyword = '' OR " +
            "LOWER(c.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(c.phone) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +

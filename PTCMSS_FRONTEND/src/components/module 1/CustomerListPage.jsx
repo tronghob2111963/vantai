@@ -47,8 +47,21 @@ export default function CustomerListPage() {
         async function loadBranches() {
             try {
                 const resp = await listBranches({ size: 100 });
-                const list = resp?.content || resp?.data?.content || resp || [];
-                setBranches(Array.isArray(list) ? list : []);
+                let list = [];
+                if (Array.isArray(resp)) {
+                    list = resp;
+                } else if (resp?.data?.items) {
+                    list = resp.data.items;
+                } else if (resp?.data?.content) {
+                    list = resp.data.content;
+                } else if (resp?.items) {
+                    list = resp.items;
+                } else if (resp?.content) {
+                    list = resp.content;
+                } else if (Array.isArray(resp?.data)) {
+                    list = resp.data;
+                }
+                setBranches(list);
             } catch (err) {
                 console.error("Failed to load branches:", err);
             }
@@ -290,6 +303,9 @@ export default function CustomerListPage() {
                                         Số điện thoại
                                     </th>
                                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Chi nhánh
+                                    </th>
+                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         Ghi chú
                                     </th>
                                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
@@ -300,7 +316,7 @@ export default function CustomerListPage() {
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-12 text-center">
+                                        <td colSpan={6} className="px-4 py-12 text-center">
                                             <div className="flex flex-col items-center gap-2">
                                                 <RefreshCw className="h-6 w-6 text-slate-400 animate-spin" />
                                                 <span className="text-sm text-slate-500">Đang tải...</span>
@@ -309,7 +325,7 @@ export default function CustomerListPage() {
                                     </tr>
                                 ) : customers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-12 text-center">
+                                        <td colSpan={6} className="px-4 py-12 text-center">
                                             <div className="flex flex-col items-center gap-2">
                                                 <Users className="h-8 w-8 text-slate-300" />
                                                 <span className="text-sm text-slate-500">Không có khách hàng nào</span>
@@ -365,6 +381,13 @@ export default function CustomerListPage() {
                                                 )}
                                             </td>
                                             
+                                            {/* Branch */}
+                                            <td className="px-4 py-3">
+                                                <span className="text-sm text-slate-700">
+                                                    {customer.branchName || "—"}
+                                                </span>
+                                            </td>
+                                            
                                             {/* Note */}
                                             <td className="px-4 py-3">
                                                 {customer.note ? (
@@ -392,18 +415,18 @@ export default function CustomerListPage() {
                     </div>
                     
                     {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="border-t border-slate-200 px-4 py-3 flex items-center justify-between">
-                            <div className="text-sm text-slate-600">
-                                Trang {page + 1} / {totalPages} • Tổng {totalElements} khách hàng
-                            </div>
+                    <div className="border-t border-slate-200 px-4 py-3 flex items-center justify-between">
+                        <div className="text-sm text-slate-600">
+                            Trang {page + 1} / {totalPages} • Tổng {totalElements} khách hàng
+                        </div>
+                        {totalPages > 1 && (
                             <Pagination
                                 currentPage={page + 1}
                                 totalPages={totalPages}
                                 onPageChange={(p) => setPage(p - 1)}
                             />
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
             
