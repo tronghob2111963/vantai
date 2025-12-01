@@ -13,6 +13,7 @@ import {
   ChevronRight,
   AlertTriangle,
   Loader2,
+  Star,
 } from "lucide-react";
 import TripExpenseModal from "./TripExpenseModal.jsx";
 import TripPaymentRequestModal from "./TripPaymentRequestModal.jsx";
@@ -55,6 +56,7 @@ function normalizeTripDetail(payload) {
     pickup_location: payload.startLocation || "",
     dropoff_location: payload.endLocation || "",
     pickup_time: payload.startTime || "",
+    dropoff_time: payload.endTime || payload.end_time || "",
     customer_name: payload.customerName || "",
     customer_phone: payload.customerPhone || "",
     vehicle_plate: payload.vehiclePlate || "Chưa gán xe",
@@ -64,6 +66,8 @@ function normalizeTripDetail(payload) {
     deposit_amount: payload.depositAmount || 0,
     remaining_amount: payload.remainingAmount || 0,
     booking_id: payload.bookingId || null,
+    rating: payload.rating || 0,
+    rating_comment: payload.ratingComment || payload.rating_comment || "",
   };
 }
 
@@ -230,7 +234,7 @@ function TripMetaCard({ trip }) {
   );
 }
 
-function RouteCard({ pickupLocation, dropoffLocation, pickupTime }) {
+function RouteCard({ pickupLocation, dropoffLocation, pickupTime, dropoffTime }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-4 shadow-inner">
       <div className="flex items-center gap-2 text-slate-600 text-xs font-medium uppercase tracking-wide">
@@ -259,7 +263,9 @@ function RouteCard({ pickupLocation, dropoffLocation, pickupTime }) {
                 Điểm trả
               </div>
               <div className="font-semibold text-slate-900">{dropoffLocation || "—"}</div>
-              <div className="text-xs text-slate-500">Kết thúc: Sau khi đón khách</div>
+              <div className="text-xs text-slate-500">
+                Kết thúc: {dropoffTime ? fmtDateTime(dropoffTime) : "Sau khi đón khách"}
+              </div>
             </div>
           </div>
         </div>
@@ -542,7 +548,12 @@ export default function DriverTripDetailPage() {
           </div>
           <div className="grid xl:grid-cols-2 gap-5">
             <TripMetaCard trip={trip} />
-            <RouteCard pickupLocation={trip.pickup_location} dropoffLocation={trip.dropoff_location} pickupTime={trip.pickup_time} />
+            <RouteCard 
+              pickupLocation={trip.pickup_location} 
+              dropoffLocation={trip.dropoff_location} 
+              pickupTime={trip.pickup_time}
+              dropoffTime={trip.dropoff_time}
+            />
           </div>
 
           {/* Card thông tin thanh toán */}
@@ -565,6 +576,40 @@ export default function DriverTripDetailPage() {
                   <div className="text-[11px] text-amber-600 mb-1">Còn lại</div>
                   <div className="text-lg font-bold text-amber-700 tabular-nums">{fmtVND(trip.remaining_amount)} đ</div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Card đánh giá - chỉ hiển thị khi chuyến đã hoàn thành và có rating */}
+          {trip.status === "COMPLETED" && trip.rating > 0 && (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-inner">
+              <div className="text-[11px] uppercase tracking-wide text-amber-700 flex items-center gap-2 font-medium mb-3">
+                <Star className="h-3.5 w-3.5 text-amber-600 fill-amber-600" />
+                Đánh giá từ khách hàng
+              </div>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={cls(
+                          "h-5 w-5",
+                          star <= Math.round(trip.rating)
+                            ? "text-amber-500 fill-amber-500"
+                            : "text-slate-300"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-lg font-bold text-amber-700">{trip.rating.toFixed(1)}</span>
+                </div>
+                {trip.rating_comment && (
+                  <div className="rounded-lg border border-amber-200 bg-white p-3 text-sm text-slate-700 leading-relaxed">
+                    <div className="text-xs text-slate-500 mb-1 font-medium">Nhận xét:</div>
+                    <div>{trip.rating_comment}</div>
+                  </div>
+                )}
               </div>
             </div>
           )}
