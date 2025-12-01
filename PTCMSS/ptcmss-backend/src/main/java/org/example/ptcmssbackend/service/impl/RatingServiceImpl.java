@@ -314,10 +314,11 @@ public class RatingServiceImpl implements RatingService {
             // Gửi real-time notification qua WebSocket
             if (webSocketNotificationService != null) {
                 try {
-                    webSocketNotificationService.sendNotificationToUser(
+                    webSocketNotificationService.sendUserNotification(
                         driverUser.getId(),
                         notification.getTitle(),
-                        notification.getMessage()
+                        notification.getMessage(),
+                        "RATING_RECEIVED"
                     );
                     log.info("Real-time notification sent to driver {} via WebSocket", driver.getId());
                 } catch (Exception e) {

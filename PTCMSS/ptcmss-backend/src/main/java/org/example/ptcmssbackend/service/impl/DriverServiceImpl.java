@@ -18,6 +18,7 @@ import org.example.ptcmssbackend.entity.TripDrivers;
 import org.example.ptcmssbackend.entity.TripIncidents;
 import org.example.ptcmssbackend.enums.ApprovalType;
 import org.example.ptcmssbackend.enums.DriverDayOffStatus;
+import org.example.ptcmssbackend.enums.DriverStatus;
 import org.example.ptcmssbackend.enums.TripStatus;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.ApprovalService;
