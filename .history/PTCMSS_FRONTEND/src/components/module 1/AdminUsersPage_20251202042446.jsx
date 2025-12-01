@@ -1,7 +1,7 @@
 ﻿import React from "react";
 import { useNavigate } from "react-router-dom";
 import { listUsers, listUsersByBranch, listRoles, toggleUserStatus } from "../../api/users";
-import { listEmployeesByRole, listEmployees, listEmployeesByBranch } from "../../api/employees";
+import { listEmployeesByRole, listEmployees } from "../../api/employees";
 import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, UserPlus } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
@@ -128,14 +128,14 @@ export default function AdminUsersPage() {
           if (st !== normalizedStatus) return false;
         }
 
-        // Admin branch filter (chỉ áp dụng cho Admin)
-        if (!isManagerView && !isAccountantView && selectedBranchId) {
+        // Admin branch filter
+        if (!isManagerView && selectedBranchId) {
           const userBranchId = String(u.branchId || "");
           if (userBranchId !== selectedBranchId) return false;
         }
 
-        // Manager/Accountant branch filter - chỉ hiện nhân viên trong chi nhánh
-        if ((isManagerView || isAccountantView) && branchFilterValue) {
+        // Manager branch filter - chỉ hiện nhân viên trong chi nhánh của Manager
+        if (isManagerView && branchFilterValue) {
           const userBranchId = Number(u.branchId || 0);
           if (userBranchId !== branchFilterValue) return false;
         }
@@ -149,7 +149,7 @@ export default function AdminUsersPage() {
   const [allUsers, setAllUsers] = React.useState([]);
 
   const onRefresh = React.useCallback(async () => {
-    if (isManagerView || isAccountantView) {
+    if (isManagerView) {
       if (managerBranchLoading) return;
       if (!branchFilterValue) {
         setAllUsers([]);
@@ -160,13 +160,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       // Dùng employees API vì có branchId
-      let data;
-      if ((isManagerView || isAccountantView) && branchFilterValue) {
-        data = await listEmployeesByBranch(branchFilterValue);
-      } else {
-        data = await listEmployees();
-      }
-
+      const data = await listEmployees();
       let arr = [];
       if (Array.isArray(data?.data)) {
         arr = data.data;
@@ -193,7 +187,6 @@ export default function AdminUsersPage() {
   }, [
     branchFilterValue,
     isManagerView,
-    isAccountantView,
     managerBranchLoading,
   ]);
 
@@ -203,11 +196,11 @@ export default function AdminUsersPage() {
   }, [onRefresh]);
 
   React.useEffect(() => {
-    if (isManagerView || isAccountantView) {
+    if (isManagerView) {
       if (managerBranchLoading || !branchFilterValue) return;
     }
     refreshRef.current();
-  }, [isManagerView, isAccountantView, managerBranchLoading, branchFilterValue]);
+  }, [isManagerView, managerBranchLoading, branchFilterValue]);
 
   // Apply filters whenever allUsers or filter values change
   React.useEffect(() => {
@@ -242,9 +235,9 @@ export default function AdminUsersPage() {
     })();
   }, []);
 
-  // Load branches for Admin filter (not for Manager or Accountant)
+  // Load branches for Admin filter
   React.useEffect(() => {
-    if (isManagerView || isAccountantView) return; // Only load for Admin
+    if (isManagerView) return; // Only load for Admin
 
     (async () => {
       try {
@@ -295,10 +288,10 @@ export default function AdminUsersPage() {
                 Quản trị hệ thống
               </div>
               <h1 className="text-xl font-bold text-slate-900 leading-tight">
-                {isManagerView || isAccountantView ? "Danh sách nhân viên" : "Quản lý người dùng"}
+                {isManagerView ? "Danh sách nhân viên" : "Quản lý người dùng"}
               </h1>
               <p className="text-xs text-slate-500 mt-1">
-                {isManagerView || isAccountantView ? "Quản lý nhân viên trong chi nhánh" : "Quản lý tài khoản và phân quyền người dùng"}
+                {isManagerView ? "Quản lý nhân viên trong chi nhánh" : "Quản lý tài khoản và phân quyền người dùng"}
               </p>
             </div>
           </div>
@@ -317,7 +310,7 @@ export default function AdminUsersPage() {
             )}
             <button
               onClick={onRefresh}
-              disabled={loading || ((isManagerView || isAccountantView) && (managerBranchLoading || !branchFilterValue))}
+              disabled={loading || (isManagerView && (managerBranchLoading || !branchFilterValue))}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50 transition-all active:scale-[0.98]"
             >
               <RefreshCw className={cls("h-4 w-4", loading && "animate-spin")} />
@@ -326,16 +319,14 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {/* Manager/Accountant View Notice */}
-        {(isManagerView || isAccountantView) && (
+        {/* Manager View Notice */}
+        {isManagerView && (
           <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl px-4 py-3 flex items-start gap-3">
             <div className="h-8 w-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
               <ShieldCheck className="h-4 w-4 text-sky-700" />
             </div>
             <div className="flex-1">
-              <div className="font-semibold text-sky-800 text-sm mb-1">
-                {isManagerView ? "Chế độ Manager" : "Chế độ Kế toán"}
-              </div>
+              <div className="font-semibold text-sky-800 text-sm mb-1">Chế độ Manager</div>
               <div className="text-sm text-sky-800">
                 {managerBranchLoading
                   ? "Đang xác định chi nhánh phụ trách..."
@@ -405,7 +396,7 @@ export default function AdminUsersPage() {
 
             <button
               onClick={onRefresh}
-              disabled={(isManagerView || isAccountantView) && (managerBranchLoading || !branchFilterValue)}
+              disabled={isManagerView && (managerBranchLoading || !branchFilterValue)}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all active:scale-[0.98]"
               style={{ backgroundColor: BRAND_COLOR }}
             >

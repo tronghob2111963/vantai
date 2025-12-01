@@ -34,53 +34,36 @@ export default function EmployeeManagementPage() {
 
     // Load Manager/Accountant's branch FIRST, then load data
     React.useEffect(() => {
-        console.log("[EmployeeManagementPage] Effect triggered. Role:", currentRole, "UserId:", currentUserId);
-        
-        if (!isManager && !isAccountant) {
-            // Admin: load all employees immediately
-            console.log("[EmployeeManagementPage] Admin detected, loading all employees");
+        if ((!isManager && !isAccountant) || !currentUserId) {
+            // Admin: load data immediately
             loadData();
-            return;
-        }
-
-        if (!currentUserId) {
-            console.warn("[EmployeeManagementPage] No userId found for Manager/Accountant");
             return;
         }
 
         (async () => {
             try {
-                console.log("[EmployeeManagementPage] Loading branch for userId:", currentUserId);
                 const resp = await getEmployeeByUserId(currentUserId);
                 const emp = resp?.data || resp;
-                console.log("[EmployeeManagementPage] Employee data:", emp);
-                
                 if (emp?.branchId) {
-                    console.log("[EmployeeManagementPage] Setting branchId:", emp.branchId);
                     setManagerBranchId(emp.branchId);
                     setManagerBranchName(emp.branchName || "");
-                    setFilterBranch(String(emp.branchId));
+                    setFilterBranch(String(emp.branchId)); // Auto filter by user's branch
                     // Load data after getting branchId
                     await loadDataWithBranch(emp.branchId);
-                } else {
-                    console.error("[EmployeeManagementPage] No branchId found in employee data");
                 }
             } catch (err) {
-                console.error("[EmployeeManagementPage] Error loading user branch:", err);
+                console.error("Error loading user branch:", err);
             }
         })();
     }, [isManager, isAccountant, currentUserId]);
 
     // Helper function to load data with specific branchId
-    const loadDataWithBranch = React.useCallback(async (branchId) => {
-        console.log("[EmployeeManagementPage] Loading data with branchId:", branchId);
+    const loadDataWithBranch = async (branchId) => {
         setLoading(true);
         try {
             const empPromise = branchId
                 ? listEmployeesByBranch(branchId)
                 : listEmployees();
-
-            console.log("[EmployeeManagementPage] Using API:", branchId ? `listEmployeesByBranch(${branchId})` : 'listEmployees()');
 
             const [empData, branchData, roleData] = await Promise.all([
                 empPromise,
@@ -88,11 +71,8 @@ export default function EmployeeManagementPage() {
                 listRoles(),
             ]);
 
-            console.log("[EmployeeManagementPage] Employee data received:", empData);
-
             // Xử lý employees data - ResponseData { status, message, data: [] }
             const employeesList = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
-            console.log("[EmployeeManagementPage] Parsed employees count:", employeesList.length);
             setAllEmployees(employeesList);
 
             // Xử lý branches data
@@ -120,14 +100,53 @@ export default function EmployeeManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    };
 
-    const loadData = React.useCallback(async () => {
-        console.log("[EmployeeManagementPage] loadData called with managerBranchId:", managerBranchId);
-        // For Manager/Accountant, this should use the branchId
-        // For Admin, managerBranchId is null
-        await loadDataWithBranch(managerBranchId);
-    }, [managerBranchId, loadDataWithBranch]);
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            // Manager/Accountant: chỉ load nhân viên trong chi nhánh của mình
+            // Admin: load tất cả nhân viên
+            const empPromise = (isManager || isAccountant) && managerBranchId
+                ? listEmployeesByBranch(managerBranchId)
+                : listEmployees();
+
+            const [empData, branchData, roleData] = await Promise.all([
+                empPromise,
+                listBranches({ size: 100 }),
+                listRoles(),
+            ]);
+
+            // Xử lý employees data - ResponseData { status, message, data: [] }
+            const employeesList = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
+            setAllEmployees(employeesList);
+
+            // Xử lý branches data - Có thể là { items: [] } hoặc { content: [] }
+            let branchesList = [];
+            if (branchData?.items && Array.isArray(branchData.items)) {
+                branchesList = branchData.items;
+            } else if (branchData?.data?.items && Array.isArray(branchData.data.items)) {
+                branchesList = branchData.data.items;
+            } else if (branchData?.data?.content && Array.isArray(branchData.data.content)) {
+                branchesList = branchData.data.content;
+            } else if (branchData?.content && Array.isArray(branchData.content)) {
+                branchesList = branchData.content;
+            } else if (Array.isArray(branchData?.data)) {
+                branchesList = branchData.data;
+            } else if (Array.isArray(branchData)) {
+                branchesList = branchData;
+            }
+            setBranches(branchesList);
+
+            // Xử lý roles data - ResponseData { status, message, data: [] }
+            const rolesList = Array.isArray(roleData?.data) ? roleData.data : (Array.isArray(roleData) ? roleData : []);
+            setRoles(rolesList);
+        } catch (error) {
+            console.error("Load data error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleToggleStatus = async (emp) => {
         const newStatus = emp.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
@@ -196,21 +215,19 @@ export default function EmployeeManagementPage() {
                     </div>
                 </div>
                 {/* Chỉ Admin mới có nút thêm nhân viên */}
-            // Loại bỏ Admin
-            if (roleName === "admin") return false;
-
-            // Note: Branch filtering is now done at API level for Manager/Accountant
-            // This client-side filter is just for extra safety
-
-            const matchSearch = !searchTerm || userName.includes(search) || userEmail.includes(search);
+                {isAdmin && (
+                    <button
+                        onClick={() => navigate("/admin/users/new")}
+                        className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg shadow-sm font-medium transition-all"
+                    >
+                        <Plus size={18} />
+                        Tạo tài khoản mới
                     </button>
                 )}
             </div>
 
             {/* Filters */}
-            <div className={`bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-1 gap-4 ${
-                isManager || isAccountant ? 'md:grid-cols-2' : 'md:grid-cols-3'
-            }`}>
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label className="text-xs text-slate-600 mb-1 block">
                         <Search size={14} className="inline mr-1" />
@@ -225,8 +242,8 @@ export default function EmployeeManagementPage() {
                     />
                 </div>
 
-                {/* Chi nhánh - Chỉ hiển thị cho Admin */}
-                {isAdmin && (
+                {/* Chi nhánh - Ẩn với Manager và Accountant vì đã lock theo chi nhánh */}
+                {!isManager && !isAccountant && (
                     <div>
                         <label className="text-xs text-slate-600 mb-1 block">
                             <Building2 size={14} className="inline mr-1" />
@@ -315,34 +332,31 @@ export default function EmployeeManagementPage() {
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
-                                                {/* Accountant: chỉ xem, không có nút */}
-                                                {isAccountant ? (
-                                                    <span className="text-xs text-slate-400 italic">Chỉ xem</span>
-                                                ) : (
-                                                    <>
-                                                        {/* Admin có thể sửa tất cả, Manager có thể sửa nhân viên trong chi nhánh (trừ Manager khác) */}
-                                                        {(isAdmin || (isManager && emp.roleName?.toLowerCase() !== "manager")) && (
-                                                            <button
-                                                                onClick={() => navigate(`/admin/users/${emp.userId}`)}
-                                                                className="text-blue-600 hover:text-blue-800"
-                                                                title="Chỉnh sửa"
-                                                            >
-                                                                <Edit size={16} />
-                                                            </button>
-                                                        )}
-                                                        {/* Chỉ Admin và Manager mới có thể vô hiệu hóa/kích hoạt */}
-                                                        {(isAdmin || isManager) && (
-                                                            <button
-                                                                onClick={() => handleToggleStatus(emp)}
-                                                                className={emp.status === "ACTIVE"
-                                                                    ? "text-orange-600 hover:text-orange-800"
-                                                                    : "text-green-600 hover:text-green-800"}
-                                                                title={emp.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-                                                            >
-                                                                {emp.status === "ACTIVE" ? <Ban size={16} /> : <CheckCircle size={16} />}
-                                                            </button>
-                                                        )}
-                                                    </>
+                                                {/* Admin có thể sửa tất cả, Manager có thể sửa nhân viên trong chi nhánh (trừ Manager khác), Accountant chỉ xem */}
+                                                {(isAdmin || (isManager && emp.roleName?.toLowerCase() !== "manager")) && (
+                                                    <button
+                                                        onClick={() => navigate(`/admin/users/${emp.userId}`)}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                        title="Chỉnh sửa"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                )}
+                                                {/* Chỉ Admin mới có thể vô hiệu hóa/kích hoạt */}
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={() => handleToggleStatus(emp)}
+                                                        className={emp.status === "ACTIVE"
+                                                            ? "text-orange-600 hover:text-orange-800"
+                                                            : "text-green-600 hover:text-green-800"}
+                                                        title={emp.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+                                                    >
+                                                        {emp.status === "ACTIVE" ? <Ban size={16} /> : <CheckCircle size={16} />}
+                                                    </button>
+                                                )}
+                                                {/* Accountant chỉ xem, không có nút thao tác */}
+                                                {isAccountant && !isAdmin && !isManager && (
+                                                    <span className="text-xs text-slate-400">Chỉ xem</span>
                                                 )}
                                             </div>
                                         </td>

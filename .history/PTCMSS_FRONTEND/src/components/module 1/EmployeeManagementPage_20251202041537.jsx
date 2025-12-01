@@ -208,9 +208,7 @@ export default function EmployeeManagementPage() {
             </div>
 
             {/* Filters */}
-            <div className={`bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-1 gap-4 ${
-                isManager || isAccountant ? 'md:grid-cols-2' : 'md:grid-cols-3'
-            }`}>
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label className="text-xs text-slate-600 mb-1 block">
                         <Search size={14} className="inline mr-1" />
@@ -225,8 +223,8 @@ export default function EmployeeManagementPage() {
                     />
                 </div>
 
-                {/* Chi nhánh - Chỉ hiển thị cho Admin */}
-                {isAdmin && (
+                {/* Chi nhánh - Ẩn với Manager và Accountant vì đã lock theo chi nhánh */}
+                {!isManager && !isAccountant && (
                     <div>
                         <label className="text-xs text-slate-600 mb-1 block">
                             <Building2 size={14} className="inline mr-1" />

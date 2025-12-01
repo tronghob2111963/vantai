@@ -160,13 +160,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       // Dùng employees API vì có branchId
-      let data;
-      if ((isManagerView || isAccountantView) && branchFilterValue) {
-        data = await listEmployeesByBranch(branchFilterValue);
-      } else {
-        data = await listEmployees();
-      }
-
+      const data = await listEmployees();
       let arr = [];
       if (Array.isArray(data?.data)) {
         arr = data.data;

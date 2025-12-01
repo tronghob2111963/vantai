@@ -208,9 +208,7 @@ export default function EmployeeManagementPage() {
             </div>
 
             {/* Filters */}
-            <div className={`bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-1 gap-4 ${
-                isManager || isAccountant ? 'md:grid-cols-2' : 'md:grid-cols-3'
-            }`}>
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label className="text-xs text-slate-600 mb-1 block">
                         <Search size={14} className="inline mr-1" />
@@ -225,8 +223,8 @@ export default function EmployeeManagementPage() {
                     />
                 </div>
 
-                {/* Chi nhánh - Chỉ hiển thị cho Admin */}
-                {isAdmin && (
+                {/* Chi nhánh - Ẩn với Manager và Accountant vì đã lock theo chi nhánh */}
+                {!isManager && !isAccountant && (
                     <div>
                         <label className="text-xs text-slate-600 mb-1 block">
                             <Building2 size={14} className="inline mr-1" />
@@ -315,34 +313,31 @@ export default function EmployeeManagementPage() {
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
-                                                {/* Accountant: chỉ xem, không có nút */}
-                                                {isAccountant ? (
-                                                    <span className="text-xs text-slate-400 italic">Chỉ xem</span>
-                                                ) : (
-                                                    <>
-                                                        {/* Admin có thể sửa tất cả, Manager có thể sửa nhân viên trong chi nhánh (trừ Manager khác) */}
-                                                        {(isAdmin || (isManager && emp.roleName?.toLowerCase() !== "manager")) && (
-                                                            <button
-                                                                onClick={() => navigate(`/admin/users/${emp.userId}`)}
-                                                                className="text-blue-600 hover:text-blue-800"
-                                                                title="Chỉnh sửa"
-                                                            >
-                                                                <Edit size={16} />
-                                                            </button>
-                                                        )}
-                                                        {/* Chỉ Admin và Manager mới có thể vô hiệu hóa/kích hoạt */}
-                                                        {(isAdmin || isManager) && (
-                                                            <button
-                                                                onClick={() => handleToggleStatus(emp)}
-                                                                className={emp.status === "ACTIVE"
-                                                                    ? "text-orange-600 hover:text-orange-800"
-                                                                    : "text-green-600 hover:text-green-800"}
-                                                                title={emp.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
-                                                            >
-                                                                {emp.status === "ACTIVE" ? <Ban size={16} /> : <CheckCircle size={16} />}
-                                                            </button>
-                                                        )}
-                                                    </>
+                                                {/* Admin có thể sửa tất cả, Manager có thể sửa nhân viên trong chi nhánh (trừ Manager khác), Accountant chỉ xem */}
+                                                {(isAdmin || (isManager && emp.roleName?.toLowerCase() !== "manager")) && (
+                                                    <button
+                                                        onClick={() => navigate(`/admin/users/${emp.userId}`)}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                        title="Chỉnh sửa"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                )}
+                                                {/* Chỉ Admin mới có thể vô hiệu hóa/kích hoạt */}
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={() => handleToggleStatus(emp)}
+                                                        className={emp.status === "ACTIVE"
+                                                            ? "text-orange-600 hover:text-orange-800"
+                                                            : "text-green-600 hover:text-green-800"}
+                                                        title={emp.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+                                                    >
+                                                        {emp.status === "ACTIVE" ? <Ban size={16} /> : <CheckCircle size={16} />}
+                                                    </button>
+                                                )}
+                                                {/* Accountant chỉ xem, không có nút thao tác */}
+                                                {isAccountant && !isAdmin && !isManager && (
+                                                    <span className="text-xs text-slate-400">Chỉ xem</span>
                                                 )}
                                             </div>
                                         </td>

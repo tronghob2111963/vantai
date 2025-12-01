@@ -1,7 +1,7 @@
 ﻿import React from "react";
 import { useNavigate } from "react-router-dom";
 import { listUsers, listUsersByBranch, listRoles, toggleUserStatus } from "../../api/users";
-import { listEmployeesByRole, listEmployees, listEmployeesByBranch } from "../../api/employees";
+import { listEmployeesByRole, listEmployees } from "../../api/employees";
 import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, UserPlus } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
@@ -160,13 +160,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       // Dùng employees API vì có branchId
-      let data;
-      if ((isManagerView || isAccountantView) && branchFilterValue) {
-        data = await listEmployeesByBranch(branchFilterValue);
-      } else {
-        data = await listEmployees();
-      }
-
+      const data = await listEmployees();
       let arr = [];
       if (Array.isArray(data?.data)) {
         arr = data.data;
