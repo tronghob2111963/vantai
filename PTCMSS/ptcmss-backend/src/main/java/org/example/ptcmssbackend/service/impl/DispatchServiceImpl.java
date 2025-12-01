@@ -65,6 +65,7 @@ public class DispatchServiceImpl implements DispatchService {
     private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
     private final org.example.ptcmssbackend.repository.InvoiceRepository invoiceRepository;
     private final org.example.ptcmssbackend.repository.PaymentHistoryRepository paymentHistoryRepository;
+    private final DriverRatingsRepository driverRatingsRepository;
 
     // =========================================================
     // 1) PENDING TRIPS (QUEUE)
@@ -915,6 +916,11 @@ public class DispatchServiceImpl implements DispatchService {
         java.math.BigDecimal depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount() : java.math.BigDecimal.ZERO;
         java.math.BigDecimal remainingAmount = totalCost.subtract(depositAmount);
 
+        // Lấy rating nếu có
+        var ratingOpt = driverRatingsRepository.findByTrip_Id(trip.getId());
+        java.math.BigDecimal rating = ratingOpt.map(r -> r.getOverallRating()).orElse(null);
+        String ratingComment = ratingOpt.map(r -> r.getComment()).orElse(null);
+
         return TripDetailResponse.builder()
                 .tripId(trip.getId())
                 .bookingId(booking.getId())
@@ -934,6 +940,8 @@ public class DispatchServiceImpl implements DispatchService {
                 .totalCost(totalCost)
                 .depositAmount(depositAmount)
                 .remainingAmount(remainingAmount)
+                .rating(rating)
+                .ratingComment(ratingComment)
                 .history(historyItems)
                 .build();
     }

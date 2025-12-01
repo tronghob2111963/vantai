@@ -66,7 +66,7 @@ function normalizeTripDetail(payload) {
     deposit_amount: payload.depositAmount || 0,
     remaining_amount: payload.remainingAmount || 0,
     booking_id: payload.bookingId || null,
-    rating: payload.rating || 0,
+    rating: payload.rating ? Number(payload.rating) : 0,
     rating_comment: payload.ratingComment || payload.rating_comment || "",
   };
 }

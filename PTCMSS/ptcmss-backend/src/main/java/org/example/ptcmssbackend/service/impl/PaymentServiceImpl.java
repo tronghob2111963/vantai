@@ -47,6 +47,28 @@ public class PaymentServiceImpl implements PaymentService {
         Bookings booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
 
+        // Validation: Kiểm tra ràng buộc thanh toán
+        if (!Boolean.TRUE.equals(deposit)) {
+            // Chỉ validate cho thanh toán (không phải cọc)
+            BigDecimal remainingAmount = getRemainingAmount(bookingId);
+            BigDecimal totalPendingAmount = getTotalPendingPaymentAmount(bookingId);
+            
+            // Ràng buộc 1: Không được tạo yêu cầu mới nếu đã có yêu cầu PENDING
+            if (totalPendingAmount.compareTo(BigDecimal.ZERO) > 0) {
+                throw new RuntimeException(String.format(
+                    "Không thể tạo yêu cầu thanh toán mới. Đã có yêu cầu thanh toán đang chờ duyệt (tổng %s). Vui lòng đợi kế toán xác nhận các yêu cầu trước.", 
+                    totalPendingAmount));
+            }
+            
+            // Ràng buộc 2: Tổng pending + amount mới <= remaining amount
+            BigDecimal totalWithNewAmount = totalPendingAmount.add(amount);
+            if (totalWithNewAmount.compareTo(remainingAmount) > 0) {
+                throw new RuntimeException(String.format(
+                    "Tổng số tiền yêu cầu (%s) vượt quá số tiền còn lại (%s). Số tiền có thể tạo thêm: %s", 
+                    totalWithNewAmount, remainingAmount, remainingAmount.subtract(totalPendingAmount)));
+            }
+        }
+
         Invoices invoice = buildInvoiceSkeleton(booking, amount, Boolean.TRUE.equals(deposit), PaymentStatus.UNPAID);
         invoice.setPaymentMethod("QR");
         invoice.setNote(note);
@@ -259,5 +281,41 @@ public class PaymentServiceImpl implements PaymentService {
                 .paymentId(ph.getId())
                 .confirmationStatus(ph.getConfirmationStatus() != null ? ph.getConfirmationStatus().name() : null)
                 .build();
+    }
+
+    /**
+     * Tính số tiền còn lại của booking cần thu (totalCost - depositAmount)
+     * Đây là số tiền còn lại ban đầu, chưa trừ đi các payment requests PENDING
+     */
+    private BigDecimal getRemainingAmount(Integer bookingId) {
+        Bookings booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
+        BigDecimal totalCost = booking.getTotalCost() != null ? booking.getTotalCost() : BigDecimal.ZERO;
+        BigDecimal depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount() : BigDecimal.ZERO;
+        return totalCost.subtract(depositAmount);
+    }
+
+    /**
+     * Tính tổng số tiền các payment requests PENDING của booking
+     */
+    private BigDecimal getTotalPendingPaymentAmount(Integer bookingId) {
+        // Tìm tất cả invoices của booking
+        List<Invoices> invoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(bookingId);
+        
+        // Tính tổng payment requests PENDING của tất cả invoices
+        BigDecimal totalPending = BigDecimal.ZERO;
+        for (Invoices invoice : invoices) {
+            List<org.example.ptcmssbackend.entity.PaymentHistory> pendingPayments = 
+                paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(invoice.getId())
+                    .stream()
+                    .filter(ph -> ph.getConfirmationStatus() == org.example.ptcmssbackend.enums.PaymentConfirmationStatus.PENDING)
+                    .collect(Collectors.toList());
+            
+            for (org.example.ptcmssbackend.entity.PaymentHistory ph : pendingPayments) {
+                totalPending = totalPending.add(ph.getAmount() != null ? ph.getAmount() : BigDecimal.ZERO);
+            }
+        }
+        
+        return totalPending;
     }
 }
