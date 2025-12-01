@@ -1540,7 +1540,7 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
         sortKey,
         sortDir,
         isManager,
-        managerBranchId,
+        managerBranchId
     ]);
 
     // total pages

@@ -74,6 +74,15 @@ export default function UserDetailPage() {
         
         // Check permission
         let finalPermission = false;
+        console.log("Initial permission check:", {
+          isAdminLocal,
+          isManagerLocal,
+          editingSelf,
+          isTargetAdmin,
+          isTargetManager,
+          numericUserId,
+          userId: Number(userId)
+        });
         
         if (isAdminLocal) {
           // Admin có thể sửa tất cả
@@ -88,15 +97,36 @@ export default function UserDetailPage() {
               const empResp = await getEmployeeByUserId(numericUserId);
               const emp = empResp?.data || empResp;
               const managerBranchId = emp?.branchId ? Number(emp.branchId) : null;
+              console.log("Manager branch check:", {
+                managerBranchId,
+                targetBranchId,
+                managerUserId: numericUserId,
+                targetUserId: userId,
+                isSame: managerBranchId && targetBranchId && managerBranchId === targetBranchId
+              });
               if (managerBranchId && targetBranchId && managerBranchId === targetBranchId) {
                 finalPermission = true;
+                console.log("Manager permission GRANTED - same branch");
+              } else {
+                console.log("Manager permission DENIED - different branch or missing data");
               }
             } catch (err) {
               console.error("Error checking manager branch:", err);
             }
+          } else {
+            console.log("Manager permission DENIED - target is Admin or Manager");
           }
         }
         
+        console.log("Final permission check:", {
+          finalPermission,
+          canEditTarget: Boolean(finalPermission),
+          isAdminLocal,
+          isManagerLocal,
+          editingSelf,
+          isTargetAdmin,
+          isTargetManager
+        });
         setCanEditTarget(Boolean(finalPermission));
         if (!finalPermission) {
           setGeneralError("Bạn không có quyền chỉnh sửa tài khoản này. Vui lòng liên hệ Admin.");
@@ -188,7 +218,18 @@ export default function UserDetailPage() {
     setSaving(true);
     setGeneralError("");
     try {
-      await updateUser(userId, {
+      console.log("Saving user data:", {
+        userId,
+        fullName,
+        email,
+        phone,
+        address,
+        roleId,
+        status,
+        branchId,
+        canEditTarget
+      });
+      const result = await updateUser(userId, {
         fullName, // Giữ nguyên để tương thích với backend
         email,
         phone,
@@ -197,10 +238,13 @@ export default function UserDetailPage() {
         status,
         branchId: branchId ? Number(branchId) : undefined,
       });
+      console.log("Update user success:", result);
       setShowSuccess(true);
       setTimeout(() => navigate(-1), 1500);
     } catch (e) {
+      console.error("Update user error:", e);
       const errorMessage = e?.response?.data?.message || e?.data?.message || e?.message || "Cập nhật thất bại";
+      console.error("Error message:", errorMessage);
       setGeneralError(errorMessage);
     } finally {
       setSaving(false);
@@ -250,7 +294,15 @@ export default function UserDetailPage() {
           </div>
 
           <button
-            onClick={onSave}
+            onClick={() => {
+              console.log("Save button clicked - disabled state:", {
+                saving,
+                loading,
+                canEditTarget,
+                disabled: saving || loading || !canEditTarget
+              });
+              onSave();
+            }}
             disabled={saving || loading || !canEditTarget}
             className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all active:scale-[0.98]"
             style={{ backgroundColor: BRAND_COLOR }}
@@ -296,48 +348,88 @@ export default function UserDetailPage() {
               <h2 className="text-base font-bold text-slate-900">Thông tin cá nhân</h2>
             </div>
 
-            {/* Full Name - View Only */}
+            {/* Full Name - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <User className="h-4 w-4 text-slate-400" />
                 <span>Họ và tên</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
-                {fullName || "—"}
-              </div>
+              <input
+                type="text"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  updateField("fullName", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập họ và tên"
+              />
+              {errors.fullName && (
+                <div className="text-xs text-red-600 mt-1">{errors.fullName}</div>
+              )}
             </div>
 
-            {/* Email - View Only */}
+            {/* Email - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <Mail className="h-4 w-4 text-slate-400" />
                 <span>Email</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
-                {email || "—"}
-              </div>
+              <input
+                type="email"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  updateField("email", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập email"
+              />
+              {errors.email && (
+                <div className="text-xs text-red-600 mt-1">{errors.email}</div>
+              )}
             </div>
 
-            {/* Phone - View Only */}
+            {/* Phone - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <Phone className="h-4 w-4 text-slate-400" />
                 <span>Số điện thoại</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
-                {phone || "—"}
-              </div>
+              <input
+                type="tel"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  updateField("phone", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập số điện thoại"
+              />
+              {errors.phone && (
+                <div className="text-xs text-red-600 mt-1">{errors.phone}</div>
+              )}
             </div>
 
-            {/* Address - View Only */}
+            {/* Address - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <MapPin className="h-4 w-4 text-slate-400" />
                 <span>Địa chỉ</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600 min-h-[60px]">
-                {address || "—"}
-              </div>
+              <textarea
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500 min-h-[60px] resize-y"
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  updateField("address", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập địa chỉ"
+              />
             </div>
           </div>
 
@@ -357,8 +449,28 @@ export default function UserDetailPage() {
               <select
                 className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
                 value={roleId}
-                onChange={(e) => setRoleId(e.target.value)}
+                onChange={(e) => {
+                  console.log("Role changed:", e.target.value, "canEditTarget:", canEditTarget);
+                  setRoleId(e.target.value);
+                }}
                 disabled={!canEditTarget}
+                style={{ 
+                  opacity: !canEditTarget ? 0.5 : 1,
+                  cursor: !canEditTarget ? 'not-allowed' : 'pointer',
+                  pointerEvents: !canEditTarget ? 'none' : 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
+                onFocus={() => console.log("Role select focused, canEditTarget:", canEditTarget, "disabled:", !canEditTarget)}
+                onMouseEnter={() => console.log("Role select hover, canEditTarget:", canEditTarget, "disabled:", !canEditTarget)}
+                onMouseDown={() => console.log("Role select mousedown, canEditTarget:", canEditTarget, "disabled:", !canEditTarget)}
+                onClick={(e) => {
+                  console.log("Role select clicked, canEditTarget:", canEditTarget, "disabled:", !canEditTarget, "event:", e);
+                  if (!canEditTarget) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                }}
               >
                 <option value="">-- Chọn vai trò --</option>
                 {filteredRoles.map((r) => (
