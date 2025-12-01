@@ -375,7 +375,7 @@ function QuoteInfoCard({ quote }) {
 }
 
 /* 4. Thanh toán / Cọc */
-function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr }) {
+function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, isConsultant = false }) {
     const remain = Math.max(0, Number(payment.remaining || 0));
     const paid = Math.max(0, Number(payment.paid || 0));
 
@@ -424,7 +424,7 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr })
                     onClick={onOpenDeposit}
                 >
                     <BadgeDollarSign className="h-4 w-4" />
-                    <span>Ghi nhận thanh toán</span>
+                    <span>{isConsultant ? "Yêu cầu đặt cọc" : "Ghi nhận thanh toán"}</span>
                 </button>
 
                 <button
@@ -438,7 +438,9 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr })
             </div>
 
             <div className="text-[11px] text-slate-500 text-center leading-relaxed px-2">
-                Ghi nhận tiền mặt/chuyển khoản hoặc gửi mã QR để khách tự thanh toán.
+                {isConsultant 
+                    ? "Tạo yêu cầu thu cọc/thanh toán để kế toán xác nhận, hoặc gửi QR cho khách."
+                    : "Ghi nhận tiền mặt/chuyển khoản hoặc gửi mã QR để khách tự thanh toán."}
             </div>
 
             {/* Lịch sử thanh toán */}
@@ -1161,6 +1163,7 @@ export default function OrderDetailPage() {
                     history={paymentHistory}
                     onOpenDeposit={openDeposit}
                     onGenerateQr={openQrModal}
+                    isConsultant={isConsultant}
                 />
             </div>
 

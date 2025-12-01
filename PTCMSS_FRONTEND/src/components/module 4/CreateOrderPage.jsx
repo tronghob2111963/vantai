@@ -959,12 +959,21 @@ export default function CreateOrderPage() {
                 distance: Number(distanceKm || 0),
             };
 
-            console.log("📤 Creating booking:", req);
+            console.log("📤 Creating booking (draft):", req);
             const created = await createBooking(req);
-            push("Đã lưu nháp đơn hàng", "success");
-            // Redirect to order detail page
-            if (created?.id) {
-                navigate(`/orders/${created.id}`);
+            console.log("✅ Draft created response:", created);
+            
+            // Handle different response formats
+            const bookingId = created?.id || created?.data?.id || created?.bookingId;
+            
+            if (bookingId) {
+                push(`✓ Đã lưu nháp đơn hàng #${bookingId} - Đang chuyển đến trang chi tiết...`, "success", 3000);
+                setTimeout(() => {
+                    navigate(`/orders/${bookingId}`);
+                }, 500);
+            } else {
+                push("Đã lưu nháp thành công", "success");
+                navigate("/orders");
             }
         } catch (err) {
             console.error("❌ Save draft error:", err);
@@ -1085,10 +1094,20 @@ export default function CreateOrderPage() {
 
             console.log("📤 Creating booking:", req);
             const created = await createBooking(req);
-            push(`Đã tạo đơn hàng #${created?.id || "?"}`, "success");
-            // Redirect to order detail page to create deposit request
-            if (created?.id) {
-                navigate(`/orders/${created.id}`);
+            console.log("✅ Booking created response:", created);
+            
+            // Handle different response formats
+            const bookingId = created?.id || created?.data?.id || created?.bookingId;
+            
+            if (bookingId) {
+                push(`✓ Đã tạo đơn hàng #${bookingId} - Đang chuyển đến trang chi tiết...`, "success", 3000);
+                // Chuyển đến trang chi tiết để tạo request đặt cọc
+                setTimeout(() => {
+                    navigate(`/orders/${bookingId}`);
+                }, 500);
+            } else {
+                push("Đã tạo đơn hàng thành công", "success");
+                navigate("/orders");
             }
         } catch (err) {
             console.error("❌ Submit order error:", err);
