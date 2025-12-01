@@ -249,7 +249,7 @@ public class BookingController {
     }
 
     @PostMapping("/{id}/payments/qr")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','ACCOUNTANT','DRIVER')")
     public ResponseEntity<ApiResponse<org.example.ptcmssbackend.dto.response.Booking.PaymentResponse>> createQrPayment(
             @Parameter(description = "ID đơn hàng") @PathVariable Integer id,
             @Valid @RequestBody CreatePaymentRequest request

@@ -29,8 +29,14 @@ import {
  */
 
 const cls = (...a) => a.filter(Boolean).join(" ");
-const fmtVND = (n) =>
-  new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(n || 0)));
+const fmtVND = (n) => {
+  const num = Math.max(0, Number(n || 0));
+  // Format với số thập phân nếu có, tối đa 2 chữ số sau dấu phẩy
+  return new Intl.NumberFormat("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
 
 export default function TripPaymentRequestModal({
   open,
@@ -49,6 +55,7 @@ export default function TripPaymentRequestModal({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [successMsg, setSuccessMsg] = React.useState("");
+  const [qrData, setQrData] = React.useState(null); // { qrText, qrImageUrl, expiresAt }
 
   // Payment history state
   const [paymentHistory, setPaymentHistory] = React.useState([]);
@@ -100,8 +107,16 @@ export default function TripPaymentRequestModal({
       setLoading(false);
       setError("");
       setSuccessMsg("");
+      setQrData(null);
     }
   }, [open, calculatedRemainingAmount]);
+
+  // Khi chọn TRANSFER, tự động set amount = remaining amount
+  React.useEffect(() => {
+    if (paymentMethod === "TRANSFER" && calculatedRemainingAmount.amount > 0) {
+      setAmountStr(String(calculatedRemainingAmount.amount));
+    }
+  }, [paymentMethod, calculatedRemainingAmount.amount]);
 
   async function loadPaymentHistory() {
     setHistoryLoading(true);
@@ -111,7 +126,7 @@ export default function TripPaymentRequestModal({
       const history = await listBookingPayments(bookingId);
       setPaymentHistory(Array.isArray(history) ? history : []);
     } catch (err) {
-      console.error("Error loading payment history:", err);
+      console.error("Lỗi khi tải lịch sử thanh toán:", err);
       setPaymentHistory([]);
     } finally {
       setHistoryLoading(false);
@@ -131,10 +146,10 @@ export default function TripPaymentRequestModal({
       // Reload payment history
       await loadPaymentHistory();
 
-      // Show success message (you can use a toast library here)
-      alert("Đã xóa yêu cầu thanh toán");
+      // Hiển thị thông báo thành công
+      alert("Đã xóa yêu cầu thanh toán thành công");
     } catch (err) {
-      console.error("Error deleting payment:", err);
+      console.error("Lỗi khi xóa yêu cầu thanh toán:", err);
       const errorMsg = err?.data?.message || err?.message || "Không thể xóa yêu cầu thanh toán";
       alert(errorMsg);
     } finally {
@@ -144,8 +159,20 @@ export default function TripPaymentRequestModal({
 
   if (!open) return null;
 
-  const cleanDigits = (s) => String(s || "").replace(/[^0-9]/g, "");
-  const amount = Number(cleanDigits(amountStr || ""));
+  // Clean input: chỉ giữ số và dấu chấm (cho số thập phân)
+  const cleanDigits = (s) => {
+    const str = String(s || "");
+    // Loại bỏ tất cả ký tự không phải số hoặc dấu chấm
+    let cleaned = str.replace(/[^0-9.]/g, "");
+    // Chỉ giữ 1 dấu chấm đầu tiên
+    const parts = cleaned.split(".");
+    if (parts.length > 2) {
+      cleaned = parts[0] + "." + parts.slice(1).join("");
+    }
+    return cleaned;
+  };
+  
+  const amount = Number(cleanDigits(amountStr || "") || 0);
   const valid = amount > 0 && amount <= calculatedRemainingAmount.amount && paymentMethod && !calculatedRemainingAmount.isOverLimit;
 
   async function handleSubmit() {
@@ -163,41 +190,76 @@ export default function TripPaymentRequestModal({
     setLoading(true);
     setError("");
     setSuccessMsg("");
+    setQrData(null);
 
     try {
-      // Import API
-      const { createPayment } = await import("../../api/payments");
-
-      const payload = {
-        bookingId: bookingId,
-        amount: amount,
-        paymentMethod: paymentMethod,
-        note: notes || `Thu tiền từ khách - Chuyến #${tripId}`,
-        status: "PENDING", // Chờ kế toán duyệt
-      };
-
-      await createPayment(payload);
-
-      // Reload payment history sau khi tạo mới
-      await loadPaymentHistory();
-
-      if (typeof onSubmitted === "function") {
-        onSubmitted({
-          amount,
-          paymentMethod,
-          notes,
+      if (paymentMethod === "TRANSFER") {
+        // Chuyển khoản: Tạo QR code
+        const { generateBookingQrPayment } = await import("../../api/bookings");
+        
+        const qrResponse = await generateBookingQrPayment(bookingId, {
+          amount: amount,
+          note: notes || `Thu tiền từ khách - Chuyến #${tripId}`,
+          deposit: false, // Đây là thanh toán, không phải cọc
         });
+
+        // Lưu QR data để hiển thị
+        if (qrResponse?.qrImageUrl || qrResponse?.data?.qrImageUrl) {
+          setQrData({
+            qrText: qrResponse?.qrText || qrResponse?.data?.qrText,
+            qrImageUrl: qrResponse?.qrImageUrl || qrResponse?.data?.qrImageUrl,
+            expiresAt: qrResponse?.expiresAt || qrResponse?.data?.expiresAt,
+          });
+        }
+
+        // Reload payment history sau khi tạo QR
+        await loadPaymentHistory();
+
+        if (typeof onSubmitted === "function") {
+          onSubmitted({
+            amount,
+            paymentMethod: "TRANSFER",
+            notes,
+            qrData: qrResponse,
+          });
+        }
+
+        // Hiển thị thông báo thành công
+        setSuccessMsg(`Đã tạo mã QR thanh toán ${fmtVND(amount)}đ. Vui lòng cho khách quét mã QR để thanh toán.`);
+      } else {
+        // Tiền mặt: Tạo payment request như cũ
+        const { createPayment } = await import("../../api/payments");
+
+        const payload = {
+          bookingId: bookingId,
+          amount: amount,
+          paymentMethod: paymentMethod,
+          note: notes || `Thu tiền từ khách - Chuyến #${tripId}`,
+          status: "PENDING", // Chờ kế toán duyệt
+        };
+
+        await createPayment(payload);
+
+        // Reload payment history sau khi tạo mới
+        await loadPaymentHistory();
+
+        if (typeof onSubmitted === "function") {
+          onSubmitted({
+            amount,
+            paymentMethod,
+            notes,
+          });
+        }
+
+        // Hiển thị thông báo thành công
+        setSuccessMsg(`Đã gửi yêu cầu thanh toán ${fmtVND(amount)}đ. Đang chờ kế toán xác nhận.`);
       }
 
-      // Hiển thị thông báo thành công
-      setSuccessMsg(`Đã gửi yêu cầu thanh toán ${fmtVND(amount)}đ. Đang chờ kế toán xác nhận.`);
-
       // Reset form với remaining amount mới (sẽ được tính lại bởi useEffect khi paymentHistory thay đổi)
-      // calculatedRemainingAmount sẽ tự động cập nhật sau khi loadPaymentHistory() hoàn thành
       setNotes("");
       setError("");
     } catch (err) {
-      console.error("Error creating payment request:", err);
+      console.error("Lỗi khi tạo yêu cầu thanh toán:", err);
       setError(
         err?.data?.message || err?.message || "Không thể gửi yêu cầu thanh toán. Vui lòng thử lại."
       );
@@ -378,11 +440,18 @@ export default function TripPaymentRequestModal({
               onChange={(e) => setAmountStr(cleanDigits(e.target.value))}
               inputMode="numeric"
               placeholder="0"
+              disabled={paymentMethod === "TRANSFER"}
               className={cls(
                 "w-full bg-white border border-slate-300 rounded-lg px-3 py-2 tabular-nums text-base outline-none shadow-sm",
-                "focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 text-slate-900 placeholder:text-slate-400"
+                "focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 text-slate-900 placeholder:text-slate-400",
+                paymentMethod === "TRANSFER" ? "bg-slate-50 cursor-not-allowed" : ""
               )}
             />
+            {paymentMethod === "TRANSFER" && (
+              <div className="text-[11px] text-slate-500 mt-1">
+                Số tiền sẽ tự động được set bằng số tiền còn lại
+              </div>
+            )}
           </div>
 
           {/* Phương thức thanh toán */}
@@ -393,7 +462,10 @@ export default function TripPaymentRequestModal({
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setPaymentMethod("CASH")}
+                onClick={() => {
+                  setPaymentMethod("CASH");
+                  setQrData(null);
+                }}
                 className={cls(
                   "rounded-xl border p-3 flex flex-col items-center gap-2 transition-all",
                   paymentMethod === "CASH"
@@ -418,7 +490,50 @@ export default function TripPaymentRequestModal({
                 <span className="text-[13px] font-medium">Chuyển khoản</span>
               </button>
             </div>
+            {paymentMethod === "TRANSFER" && (
+              <div className="mt-2 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                💡 Khi chọn chuyển khoản, hệ thống sẽ tự động tạo mã QR với số tiền còn lại
+              </div>
+            )}
           </div>
+
+          {/* QR Code Display */}
+          {qrData && qrData.qrImageUrl && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              <div className="text-[12px] font-semibold text-slate-700 text-center">
+                Mã QR thanh toán
+              </div>
+              <div className="flex justify-center">
+                <img
+                  src={qrData.qrImageUrl}
+                  alt="QR Code"
+                  className="w-48 h-48 border border-slate-200 rounded-lg"
+                />
+              </div>
+              <div className="text-center text-[11px] text-slate-600">
+                <div className="font-medium mb-1">Số tiền: {fmtVND(amount)} đ</div>
+                {qrData.expiresAt && (
+                  <div className="text-amber-600">
+                    Mã QR hết hạn: {new Date(qrData.expiresAt).toLocaleString("vi-VN")}
+                  </div>
+                )}
+              </div>
+              {qrData.qrText && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(qrData.qrText);
+                      alert("Đã sao chép mã QR vào bộ nhớ tạm");
+                    }}
+                    className="text-[11px] text-sky-600 hover:text-sky-700 underline"
+                  >
+                    Sao chép mã QR
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Ghi chú */}
           <div>
