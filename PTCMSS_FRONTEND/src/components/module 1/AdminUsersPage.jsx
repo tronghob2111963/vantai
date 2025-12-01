@@ -10,7 +10,7 @@ const cls = (...a) => a.filter(Boolean).join(" ");
 
 function StatusBadge({ value }) {
   const map = {
-    ACTIVE: "bg-amber-50 text-amber-700 border-amber-300",
+    ACTIVE: "bg-sky-50 text-sky-700 border-sky-300",
     INACTIVE: "bg-slate-100 text-slate-600 border-slate-300",
   };
   const label = value === "ACTIVE" ? "Hoạt động" : "Vô hiệu hóa";
@@ -321,13 +321,13 @@ export default function AdminUsersPage() {
 
         {/* Manager View Notice */}
         {isManagerView && (
-          <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
-            <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <ShieldCheck className="h-4 w-4 text-amber-700" />
+          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl px-4 py-3 flex items-start gap-3">
+            <div className="h-8 w-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="h-4 w-4 text-sky-700" />
             </div>
             <div className="flex-1">
-              <div className="font-semibold text-amber-800 text-sm mb-1">Chế độ Manager</div>
-              <div className="text-sm text-amber-700">
+              <div className="font-semibold text-sky-800 text-sm mb-1">Chế độ Manager</div>
+              <div className="text-sm text-sky-800">
                 {managerBranchLoading
                   ? "Đang xác định chi nhánh phụ trách..."
                   : branchFilterValue
@@ -500,8 +500,8 @@ export default function AdminUsersPage() {
                             <button
                               onClick={() => onToggle(u.id)}
                               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-all active:scale-[0.98] ${u.status === "ACTIVE"
-                                ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                                 }`}
                             >
                               {u.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}

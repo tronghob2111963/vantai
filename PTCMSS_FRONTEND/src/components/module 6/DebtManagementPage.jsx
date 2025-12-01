@@ -541,7 +541,7 @@ function PromiseModal({ debt, onClose, onSet }) {
                     <div className="flex gap-2">
                         <button
                             onClick={() => onSet(debt.invoiceId, date)}
-                            className="flex-1 bg-[#EDC531] text-white px-3 py-2 rounded"
+                            className="flex-1 bg-sky-600 text-white px-3 py-2 rounded"
                         >
                             Xác nhận
                         </button>

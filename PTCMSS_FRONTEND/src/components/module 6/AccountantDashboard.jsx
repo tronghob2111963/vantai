@@ -303,7 +303,7 @@ function ConfirmModal({
                                     : undefined
                             )
                         }
-                        className="rounded-md bg-[#EDC531] hover:bg-amber-500 text-white px-3 py-2 text-sm font-medium shadow-sm transition-colors"
+                        className="rounded-md bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 text-sm font-medium shadow-sm transition-colors"
                     >
                         Xác nhận
                     </button>
@@ -896,7 +896,7 @@ function QueueTable({
                                                 }
                                             )
                                         }
-                                        className="inline-flex items-center gap-1 rounded-md border border-[#EDC531] bg-white px-2.5 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 shadow-sm transition-colors"
+                                        className="inline-flex items-center gap-1 rounded-md border border-sky-500 bg-white px-2.5 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 shadow-sm transition-colors"
                                     >
                                         <Check className="h-3.5 w-3.5" />
                                         <span>
@@ -1150,7 +1150,7 @@ function QueueTable({
                                 .size ===
                             0
                         }
-                        className="inline-flex items-center gap-1 rounded-md border border-[#EDC531] bg-white px-2.5 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-1 rounded-md border border-sky-500 bg-white px-2.5 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Check className="h-3.5 w-3.5" />
                         Duyệt đã chọn

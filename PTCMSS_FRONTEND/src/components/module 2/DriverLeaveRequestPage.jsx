@@ -316,7 +316,7 @@ export default function DriverLeaveRequestPage() {
                         className={cls(
                             "rounded-lg px-4 py-2 text-sm font-medium inline-flex items-center gap-2 shadow-sm",
                             canSubmit
-                                ? "bg-[#EDC531] hover:bg-amber-500 text-white"
+                                ? "bg-sky-600 hover:bg-sky-500 text-white"
                                 : "bg-slate-200 text-slate-500 cursor-not-allowed"
                         )}
                     >

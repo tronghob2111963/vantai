@@ -57,7 +57,7 @@ function Toasts({ toasts }) {
                     className={cls(
                         "rounded-md px-3 py-2 text-sm shadow border",
                         t.kind === "success" &&
-                        "bg-amber-50 border-amber-300 text-amber-700",
+                        "bg-sky-50 border-sky-300 text-sky-800",
                         t.kind === "error" &&
                         "bg-rose-50 border-rose-300 text-rose-700",
                         t.kind === "info" &&
@@ -630,8 +630,8 @@ export default function SystemSettingsPage() {
 
                     {/* footer save bar */}
                     {hasChanges && (
-                        <div className="px-6 py-4 border-t border-slate-200 bg-gradient-to-r from-amber-50 to-yellow-50 flex flex-wrap items-center gap-3 justify-between">
-                            <div className="text-sm text-amber-800 font-medium flex items-center gap-2">
+                        <div className="px-6 py-4 border-t border-slate-200 bg-gradient-to-r from-sky-50 to-blue-50 flex flex-wrap items-center gap-3 justify-between">
+                            <div className="text-sm text-sky-800 font-medium flex items-center gap-2">
                                 <Info className="h-4 w-4" />
                                 <span>{dirtyPayload.length} thay đổi chưa lưu</span>
                             </div>

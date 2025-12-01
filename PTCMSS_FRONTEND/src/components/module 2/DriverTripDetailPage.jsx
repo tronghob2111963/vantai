@@ -122,7 +122,7 @@ function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
           </button>
           <button
             onClick={onConfirm}
-            className="rounded-lg bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white shadow-sm"
+            className="rounded-lg bg-sky-600 hover:bg-sky-500 px-3 py-2 text-sm font-medium text-white shadow-sm"
           >
             Xác nhận
           </button>
@@ -498,7 +498,7 @@ export default function DriverTripDetailPage() {
                   onClick={requestStatusChange}
                   disabled={actionLoading || detailLoading}
                   className={cls(
-                    "rounded-xl text-white font-semibold text-sm px-4 py-2 shadow-[0_12px_24px_rgba(16,185,129,0.35)] transition-colors bg-gradient-to-r from-[#EDC531] to-amber-500 hover:from-amber-500 hover:to-emerald-400",
+                    "rounded-xl text-white font-semibold text-sm px-4 py-2 shadow-[0_12px_24px_rgba(16,185,129,0.35)] transition-colors bg-gradient-to-r from-sky-600 to-blue-500 hover:from-blue-500 hover:to-emerald-400",
                     actionLoading || detailLoading ? "opacity-60 cursor-not-allowed" : ""
                   )}
                 >

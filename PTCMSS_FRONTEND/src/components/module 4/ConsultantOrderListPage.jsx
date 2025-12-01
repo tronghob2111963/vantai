@@ -1671,7 +1671,7 @@ function OrderFormModal({
                                 onClick={saveChanges}
                                 disabled={saving}
                                 type="button"
-                                className="rounded-md bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="rounded-md bg-sky-600 hover:bg-sky-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving
                                     ? "Đang lưu..."
@@ -1694,7 +1694,7 @@ function OrderFormModal({
                                     onClick={submitPending}
                                     disabled={saving}
                                     type="button"
-                                    className="rounded-md bg-[#EDC531] hover:bg-amber-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="rounded-md bg-sky-600 hover:bg-sky-500 px-3 py-2 text-[13px] text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {saving
                                         ? "Đang gửi..."

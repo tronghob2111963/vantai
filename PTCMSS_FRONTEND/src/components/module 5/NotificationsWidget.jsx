@@ -554,7 +554,7 @@ export default function NotificationsWidget() {
                             disabled={working}
                             onClick={() => handleApprove(approval.id)}
                             className={cls(
-                                "inline-flex items-center gap-1.5 rounded-lg border-2 border-[#EDC531] bg-white text-amber-700 hover:bg-amber-50 hover:shadow-md px-3 py-1.5 text-[12px] font-semibold transition-all duration-200",
+                                "inline-flex items-center gap-1.5 rounded-lg border-2 border-sky-500 bg-white text-sky-700 hover:bg-sky-50 hover:shadow-md px-3 py-1.5 text-[12px] font-semibold transition-all duration-200",
                                 working ? "opacity-60 cursor-not-allowed" : "hover:scale-105"
                             )}
                             title="Duyệt"

@@ -946,7 +946,7 @@ export default function EditOrderPage() {
                         className={cls(
                             "rounded-md font-medium text-[13px] px-4 py-2 flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed",
                             canEdit
-                                ? "bg-[#EDC531] hover:bg-amber-500 text-white"
+                                ? "bg-sky-600 hover:bg-sky-500 text-white"
                                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
                         )}
                     >

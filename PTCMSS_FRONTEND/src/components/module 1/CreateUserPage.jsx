@@ -6,7 +6,7 @@ import { getAllBranchesForSelection } from "../../api/branches";
 import { listEmployeesByRole } from "../../api/employees";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 
-const BRAND_COLOR = "#EDC531";
+const BRAND_COLOR = "#0079BC";
 
 const ROLE_PRIORITY = {
   [ROLES.ADMIN]: 100,
@@ -278,11 +278,11 @@ export default function CreateUserPage() {
         </div>
 
         {isManager && (
-          <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
-            <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <Info className="h-4 w-4 text-amber-700" />
+          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl px-4 py-3 flex items-start gap-3">
+            <div className="h-8 w-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
+              <Info className="h-4 w-4 text-sky-700" />
             </div>
-            <div className="flex-1 text-sm text-amber-700">
+            <div className="flex-1 text-sm text-sky-800">
               {managerBranchLoading
                 ? "Đang xác định chi nhánh phụ trách..."
                 : managerBranchInfo.id
@@ -351,7 +351,7 @@ export default function CreateUserPage() {
                   placeholder={placeholder}
                   className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${errors[field]
                     ? "border-red-400 focus:border-red-500 focus:ring-red-200"
-                    : "border-slate-300 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20"
+                    : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
                     }`}
                 />
                 {errors[field] && (
@@ -373,7 +373,7 @@ export default function CreateUserPage() {
                 onChange={(e) => updateField("address", e.target.value)}
                 rows={3}
                 placeholder="Số nhà, đường, phường/xã..."
-                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20 resize-none"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 resize-none"
               />
             </div>
 
@@ -389,7 +389,7 @@ export default function CreateUserPage() {
                 disabled={isManager}
                 className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${errors.branchId
                   ? "border-red-400 focus:border-red-500 focus:ring-red-200"
-                  : "border-slate-300 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20"
+                  : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
                   } ${isManager ? "bg-slate-50 text-slate-500 cursor-not-allowed" : ""}`}
               >
                 <option value="">-- Chọn chi nhánh --</option>
@@ -419,7 +419,7 @@ export default function CreateUserPage() {
                   onChange={(e) => updateField("roleId", e.target.value)}
                   className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${errors.roleId
                     ? "border-red-400 focus:border-red-500 focus:ring-red-200"
-                    : "border-slate-300 focus:border-[#EDC531]/50 focus:ring-[#EDC531]/20"
+                    : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
                     }`}
                 >
                   <option value="">-- Chọn vai trò --</option>

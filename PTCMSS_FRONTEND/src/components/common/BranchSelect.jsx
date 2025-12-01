@@ -65,9 +65,9 @@ export default function BranchSelect({
                     value={value || ''}
                     onChange={handleChange}
                     disabled={disabled || loading}
-                    className={`w-full border rounded-lg px-3.5 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#EDC531]/20 ${error
+                    className={`w-full border rounded-lg px-3.5 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/20 ${error
                             ? 'border-rose-300 focus:border-rose-400'
-                            : 'border-slate-300 focus:border-[#EDC531]/50'
+                            : 'border-slate-300 focus:border-sky-500/50'
                         } ${disabled || loading
                             ? 'bg-slate-50 text-slate-500 cursor-not-allowed'
                             : 'bg-white'
@@ -83,7 +83,7 @@ export default function BranchSelect({
 
                 {loading && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="animate-spin h-4 w-4 border-2 border-[#EDC531] border-t-transparent rounded-full"></div>
+                        <div className="animate-spin h-4 w-4 border-2 border-sky-500 border-t-transparent rounded-full"></div>
                     </div>
                 )}
             </div>

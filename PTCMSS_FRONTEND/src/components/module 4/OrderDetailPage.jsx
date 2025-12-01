@@ -447,7 +447,7 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, i
             {/* Nút hành động */}
             <div className="grid grid-cols-2 gap-3">
                 <button
-                    className="rounded-lg bg-[#EDC531] hover:bg-amber-500 text-white font-medium text-[13px] px-4 py-2.5 shadow-sm flex items-center justify-center gap-2 transition-colors"
+                    className="rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-[13px] px-4 py-2.5 shadow-sm flex items-center justify-center gap-2 transition-colors"
                     onClick={onOpenDeposit}
                 >
                     <BadgeDollarSign className="h-4 w-4" />

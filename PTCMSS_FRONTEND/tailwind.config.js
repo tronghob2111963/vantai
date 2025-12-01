@@ -7,17 +7,18 @@ export default {
     theme: {
         extend: {
             colors: {
+                // Primary brand color: blue (quay lại tone xanh)
                 brand: {
-                    50: "#FEF9E7",
-                    100: "#FDF3D0",
-                    200: "#FCE7A1",
-                    300: "#FADB72",
-                    400: "#F8CF43",
-                    500: "#EDC531",  // Màu vàng chính
-                    600: "#D4AF1F",
-                    700: "#A68818",
-                    800: "#786211",
-                    900: "#4A3C0A",
+                    50: "#EFF6FF",
+                    100: "#DBEAFE",
+                    200: "#BFDBFE",
+                    300: "#93C5FD",
+                    400: "#60A5FA",
+                    500: "#3B82F6",
+                    600: "#2563EB",
+                    700: "#1D4ED8",
+                    800: "#1E40AF",
+                    900: "#1E3A8A",
                 },
                 surface: {
                     DEFAULT: "#FFFFFF",     // surface
