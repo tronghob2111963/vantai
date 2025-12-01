@@ -38,6 +38,12 @@ export function getDayOffHistory(driverId) {
   return apiFetch(`/api/drivers/${driverId}/dayoff`);
 }
 
+export function cancelDayOffRequest(driverId, dayOffId) {
+  return apiFetch(`/api/drivers/${driverId}/dayoff/${dayOffId}`, {
+    method: "DELETE",
+  });
+}
+
 export function startTrip(driverId, tripId) {
   return apiFetch(`/api/drivers/${driverId}/trips/${tripId}/start`, { method: "POST" });
 }
