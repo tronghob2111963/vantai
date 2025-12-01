@@ -29,8 +29,14 @@ import {
  */
 
 const cls = (...a) => a.filter(Boolean).join(" ");
-const fmtVND = (n) =>
-  new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(n || 0)));
+const fmtVND = (n) => {
+  const num = Math.max(0, Number(n || 0));
+  // Format với số thập phân nếu có, tối đa 2 chữ số sau dấu phẩy
+  return new Intl.NumberFormat("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
 
 export default function TripPaymentRequestModal({
   open,
@@ -153,8 +159,20 @@ export default function TripPaymentRequestModal({
 
   if (!open) return null;
 
-  const cleanDigits = (s) => String(s || "").replace(/[^0-9]/g, "");
-  const amount = Number(cleanDigits(amountStr || ""));
+  // Clean input: chỉ giữ số và dấu chấm (cho số thập phân)
+  const cleanDigits = (s) => {
+    const str = String(s || "");
+    // Loại bỏ tất cả ký tự không phải số hoặc dấu chấm
+    let cleaned = str.replace(/[^0-9.]/g, "");
+    // Chỉ giữ 1 dấu chấm đầu tiên
+    const parts = cleaned.split(".");
+    if (parts.length > 2) {
+      cleaned = parts[0] + "." + parts.slice(1).join("");
+    }
+    return cleaned;
+  };
+  
+  const amount = Number(cleanDigits(amountStr || "") || 0);
   const valid = amount > 0 && amount <= calculatedRemainingAmount.amount && paymentMethod && !calculatedRemainingAmount.isOverLimit;
 
   async function handleSubmit() {

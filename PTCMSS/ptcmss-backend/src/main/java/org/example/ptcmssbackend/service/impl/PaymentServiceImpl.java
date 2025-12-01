@@ -11,10 +11,10 @@ import org.example.ptcmssbackend.entity.Invoices;
 import org.example.ptcmssbackend.enums.InvoiceStatus;
 import org.example.ptcmssbackend.enums.InvoiceType;
 import org.example.ptcmssbackend.enums.PaymentStatus;
-import org.example.ptcmssbackend.enums.PaymentConfirmationStatus;
 import org.example.ptcmssbackend.repository.BookingRepository;
 import org.example.ptcmssbackend.repository.EmployeeRepository;
 import org.example.ptcmssbackend.repository.InvoiceRepository;
+import org.example.ptcmssbackend.repository.PaymentHistoryRepository;
 import org.example.ptcmssbackend.service.PaymentService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -34,6 +34,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final BookingRepository bookingRepository;
     private final InvoiceRepository invoiceRepository;
+    private final PaymentHistoryRepository paymentHistoryRepository;
     private final EmployeeRepository employeeRepository;
     private final QrPaymentProperties qrPaymentProperties;
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
@@ -148,8 +149,25 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public List<PaymentResponse> getPaymentHistory(Integer bookingId) {
-        return invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(bookingId).stream()
-                .map(this::mapInvoice)
+        // Lấy tất cả invoices của booking
+        List<Invoices> invoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(bookingId);
+        
+        // Với mỗi invoice, lấy payment_history và map thành PaymentResponse
+        return invoices.stream()
+                .flatMap(invoice -> {
+                    // Lấy tất cả payment_history của invoice này
+                    List<org.example.ptcmssbackend.entity.PaymentHistory> paymentHistories = 
+                            paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(invoice.getId());
+                    
+                    // Nếu có payment_history, trả về payment_history (để có confirmationStatus)
+                    if (!paymentHistories.isEmpty()) {
+                        return paymentHistories.stream()
+                                .map(ph -> mapPaymentHistory(ph, invoice));
+                    } else {
+                        // Nếu không có payment_history, trả về invoice (cho backward compatibility)
+                        return java.util.stream.Stream.of(mapInvoice(invoice));
+                    }
+                })
                 .collect(Collectors.toList());
     }
 
@@ -221,6 +239,25 @@ public class PaymentServiceImpl implements PaymentService {
                 .paymentStatus(invoice.getPaymentStatus() != null ? invoice.getPaymentStatus().name() : null)
                 .note(invoice.getNote())
                 .createdAt(invoice.getCreatedAt())
+                .build();
+    }
+
+    /**
+     * Map PaymentHistory to PaymentResponse (có thêm confirmationStatus và paymentId)
+     */
+    private PaymentResponse mapPaymentHistory(org.example.ptcmssbackend.entity.PaymentHistory ph, Invoices invoice) {
+        return PaymentResponse.builder()
+                .invoiceId(invoice.getId())
+                .bookingId(invoice.getBooking() != null ? invoice.getBooking().getId() : null)
+                .amount(ph.getAmount())
+                .deposit(Boolean.TRUE.equals(invoice.getIsDeposit()))
+                .paymentMethod(ph.getPaymentMethod())
+                .paymentStatus(invoice.getPaymentStatus() != null ? invoice.getPaymentStatus().name() : null)
+                .note(ph.getNote() != null ? ph.getNote() : invoice.getNote())
+                .createdAt(ph.getCreatedAt() != null ? ph.getCreatedAt() : invoice.getCreatedAt())
+                // Thêm các field từ payment_history
+                .paymentId(ph.getId())
+                .confirmationStatus(ph.getConfirmationStatus() != null ? ph.getConfirmationStatus().name() : null)
                 .build();
     }
 }
