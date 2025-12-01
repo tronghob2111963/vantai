@@ -82,11 +82,6 @@ public class PaymentServiceImpl implements PaymentService {
         }
         Invoices saved = invoiceRepository.save(invoice);
 
-        String descriptionPrefix = appSettingService.getValue(AppSettingService.QR_DESCRIPTION_PREFIX);
-        String description = StringUtils.hasText(note)
-                ? note
-                : String.format("%s-%d", descriptionPrefix, bookingId);
-
         // Create Pending Payment History for QR Request
         PaymentHistory history = new PaymentHistory();
         history.setInvoice(saved);
@@ -100,6 +95,11 @@ public class PaymentServiceImpl implements PaymentService {
             history.setCreatedBy(employee);
         }
         paymentHistoryRepository.save(history);
+
+        String descriptionPrefix = appSettingService.getValue(AppSettingService.QR_DESCRIPTION_PREFIX);
+        String description = StringUtils.hasText(note)
+                ? note
+                : String.format("%s-%d", descriptionPrefix, bookingId);
 
         String qrText = buildQrText(amount, description);
         String qrImageUrl = buildQrImageUrl(amount, description);

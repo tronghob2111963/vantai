@@ -82,11 +82,6 @@ public class PaymentServiceImpl implements PaymentService {
         }
         Invoices saved = invoiceRepository.save(invoice);
 
-        String descriptionPrefix = appSettingService.getValue(AppSettingService.QR_DESCRIPTION_PREFIX);
-        String description = StringUtils.hasText(note)
-                ? note
-                : String.format("%s-%d", descriptionPrefix, bookingId);
-
         // Create Pending Payment History for QR Request
         PaymentHistory history = new PaymentHistory();
         history.setInvoice(saved);
@@ -100,6 +95,11 @@ public class PaymentServiceImpl implements PaymentService {
             history.setCreatedBy(employee);
         }
         paymentHistoryRepository.save(history);
+
+        String descriptionPrefix = appSettingService.getValue(AppSettingService.QR_DESCRIPTION_PREFIX);
+        String description = StringUtils.hasText(note)
+                ? note
+                : String.format("%s-%d", descriptionPrefix, bookingId);
 
         String qrText = buildQrText(amount, description);
         String qrImageUrl = buildQrImageUrl(amount, description);
@@ -136,8 +136,7 @@ public class PaymentServiceImpl implements PaymentService {
         Bookings booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
 
-        // Create invoice with UNPAID status initially (waiting for confirmation)
-        Invoices invoice = buildInvoiceSkeleton(booking, request.getAmount(), Boolean.TRUE.equals(request.getDeposit()), PaymentStatus.UNPAID);
+        Invoices invoice = buildInvoiceSkeleton(booking, request.getAmount(), Boolean.TRUE.equals(request.getDeposit()), PaymentStatus.PAID);
         invoice.setPaymentMethod(StringUtils.hasText(request.getPaymentMethod()) ? request.getPaymentMethod() : "CASH");
         invoice.setNote(request.getNote());
         if (employeeId != null) {
@@ -146,21 +145,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
         Invoices saved = invoiceRepository.save(invoice);
 
-        // Create Pending Payment History
-        PaymentHistory history = new PaymentHistory();
-        history.setInvoice(saved);
-        history.setPaymentDate(Instant.now());
-        history.setAmount(request.getAmount());
-        history.setPaymentMethod(StringUtils.hasText(request.getPaymentMethod()) ? request.getPaymentMethod() : "CASH");
-        history.setConfirmationStatus(PaymentConfirmationStatus.PENDING);
-        history.setNote(request.getNote());
-        if (employeeId != null) {
-            Employees employee = employeeRepository.findById(employeeId).orElse(null);
-            history.setCreatedBy(employee);
-        }
-        paymentHistoryRepository.save(history);
-
-        // Send WebSocket notifications for payment request
+        // Send WebSocket notifications for payment
         try {
             String customerName = booking.getCustomer() != null ? booking.getCustomer().getFullName() : "Khách hàng";
             String bookingCode = "ORD-" + bookingId;
@@ -168,13 +153,28 @@ public class PaymentServiceImpl implements PaymentService {
 
             // Global notification
             webSocketNotificationService.sendGlobalNotification(
-                    "Yêu cầu " + paymentType.toLowerCase() + " mới",
-                    String.format("Có yêu cầu %s %s cho đơn %s - %s cần xác nhận",
-                            paymentType.toLowerCase(),
+                    paymentType + " thành công",
+                    String.format("%s %s cho đơn %s - %s",
+                            paymentType,
                             formatAmount(request.getAmount()),
                             bookingCode,
                             customerName),
-                    "INFO"
+                    "SUCCESS"
+            );
+
+            // Payment update notification
+            webSocketNotificationService.sendPaymentUpdate(
+                    saved.getId(),
+                    bookingId,
+                    "PAID",
+                    String.format("%s đã được ghi nhận", paymentType)
+            );
+
+            // Booking update notification
+            webSocketNotificationService.sendBookingUpdate(
+                    bookingId,
+                    "PAYMENT_RECEIVED",
+                    String.format("Đã nhận %s %s", paymentType.toLowerCase(), formatAmount(request.getAmount()))
             );
         } catch (Exception e) {
             log.warn("Failed to send WebSocket notification for payment", e);

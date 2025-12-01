@@ -142,9 +142,9 @@ public class AnalyticsService {
 
                 String sql = "SELECT " +
                                 "b.branchId, b.branchName, b.location, " +
-                                "COALESCE(SUM(CASE WHEN i.type = 'INCOME' AND i.paymentStatus = 'PAID' THEN i.amount ELSE 0 END), 0) as revenue, " +
+                                "COALESCE(SUM(CASE WHEN i.type = 'INCOME' THEN i.amount ELSE 0 END), 0) as revenue, " +
                                 "COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' THEN i.amount ELSE 0 END), 0) as expense, " +
-                                "COALESCE(SUM(CASE WHEN i.type = 'INCOME' AND i.paymentStatus = 'PAID' THEN i.amount ELSE 0 END), 0) - " +
+                                "COALESCE(SUM(CASE WHEN i.type = 'INCOME' THEN i.amount ELSE 0 END), 0) - " +
                                 "COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' THEN i.amount ELSE 0 END), 0) as netProfit, "
                                 +
                                 "COUNT(DISTINCT bk.bookingId) as totalBookings, " +
@@ -287,7 +287,7 @@ public class AnalyticsService {
 
                 // Query total revenue & expense for branch
                 String financialSql = "SELECT " +
-                                "COALESCE(SUM(CASE WHEN type = 'INCOME' AND paymentStatus = 'PAID' THEN amount ELSE 0 END), 0) as totalRevenue, " +
+                                "COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as totalRevenue, " +
                                 "COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as totalExpense " +
                                 "FROM invoices " +
                                 "WHERE status = 'ACTIVE' AND branchId = ? AND invoiceDate BETWEEN ? AND ?";
@@ -371,9 +371,9 @@ public class AnalyticsService {
         public List<RevenueTrendDTO> getBranchRevenueTrend(Integer branchId) {
                 String sql = "SELECT " +
                                 "DATE_FORMAT(invoiceDate, '%Y-%m') as month, " +
-                                "SUM(CASE WHEN type = 'INCOME' AND paymentStatus = 'PAID' THEN amount ELSE 0 END) as revenue, " +
+                                "SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) as revenue, " +
                                 "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as expense, " +
-                                "SUM(CASE WHEN type = 'INCOME' AND paymentStatus = 'PAID' THEN amount ELSE 0 END) - " +
+                                "SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) - " +
                                 "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as netProfit " +
                                 "FROM invoices " +
                                 "WHERE status = 'ACTIVE' AND branchId = ? AND invoiceDate >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) "
@@ -628,7 +628,7 @@ public class AnalyticsService {
                                         "t.endLocation, " +
                                         "COUNT(DISTINCT t.tripId) as tripCount, " +
                                         "COALESCE(SUM(t.distance), 0) as totalDistance, " +
-                                        "COALESCE(SUM(CASE WHEN i.type = 'INCOME' AND i.paymentStatus = 'PAID' THEN i.amount ELSE 0 END), 0) as totalRevenue "
+                                        "COALESCE(SUM(CASE WHEN i.type = 'INCOME' THEN i.amount ELSE 0 END), 0) as totalRevenue "
                                         +
                                         "FROM trips t " +
                                         "INNER JOIN bookings bk ON t.bookingId = bk.bookingId " +
