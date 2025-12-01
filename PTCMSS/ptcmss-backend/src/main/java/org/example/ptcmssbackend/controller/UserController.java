@@ -21,8 +21,13 @@ import org.example.ptcmssbackend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.example.ptcmssbackend.entity.Employees;
+import org.example.ptcmssbackend.repository.EmployeeRepository;
+import org.example.ptcmssbackend.repository.UsersRepository;
 
 import java.util.List;
 
@@ -34,6 +39,8 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final EmployeeRepository employeeRepository;
+    private final UsersRepository usersRepository;
 
     @Operation(summary = "Tạo người dùng mới", description = "Tạo tài khoản cho nhân viên. Sau này sẽ gửi email thiết lập mật khẩu.")
     @ApiResponse(responseCode = "200", description = "Tạo thành công",
@@ -57,6 +64,65 @@ public class UserController {
             @Valid @RequestBody UpdateUserRequest request) {
         try{
             log.info("updateUser: {}", request);
+            
+            // Kiểm tra quyền: Manager chỉ được update nhân viên cùng chi nhánh
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() instanceof Users) {
+                Users currentUser = (Users) authentication.getPrincipal();
+                String currentUserRole = currentUser.getRole() != null ? currentUser.getRole().getRoleName().toUpperCase() : "";
+                
+                // Nếu là Manager, kiểm tra chi nhánh
+                if ("MANAGER".equals(currentUserRole)) {
+                    try {
+                        // Lấy chi nhánh của Manager
+                        Employees managerEmployee = employeeRepository.findByUserId(currentUser.getId()).orElse(null);
+                        if (managerEmployee == null || managerEmployee.getBranch() == null) {
+                            log.warn("Manager {} has no branch assigned", currentUser.getId());
+                            return new ResponseError(HttpStatus.FORBIDDEN.value(), "Manager chưa được gán chi nhánh. Vui lòng liên hệ Admin.");
+                        }
+                        Integer managerBranchId = managerEmployee.getBranch().getId();
+                        log.info("Manager {} belongs to branch {}", currentUser.getId(), managerBranchId);
+                        
+                        // Lấy target user entity
+                        Users targetUser = usersRepository.findById(id).orElse(null);
+                        if (targetUser == null) {
+                            log.warn("Target user {} not found", id);
+                            return new ResponseError(HttpStatus.NOT_FOUND.value(), "Không tìm thấy người dùng.");
+                        }
+                        
+                        // Kiểm tra target user có phải Manager hoặc Admin không
+                        String targetRole = targetUser.getRole() != null ? targetUser.getRole().getRoleName().toUpperCase() : "";
+                        if ("ADMIN".equals(targetRole) || "MANAGER".equals(targetRole)) {
+                            log.warn("Manager {} attempted to update {} user {}", currentUser.getId(), targetRole, id);
+                            return new ResponseError(HttpStatus.FORBIDDEN.value(), "Manager không được phép cập nhật tài khoản Admin hoặc Manager khác.");
+                        }
+                        
+                        // Lấy chi nhánh của target user
+                        Employees targetEmployee = employeeRepository.findByUserId(id).orElse(null);
+                        if (targetEmployee == null || targetEmployee.getBranch() == null) {
+                            log.warn("Target user {} has no branch assigned", id);
+                            return new ResponseError(HttpStatus.FORBIDDEN.value(), "Người dùng này chưa được gán chi nhánh.");
+                        }
+                        Integer targetBranchId = targetEmployee.getBranch().getId();
+                        log.info("Target user {} belongs to branch {}", id, targetBranchId);
+                        
+                        // Kiểm tra cùng chi nhánh - CHỈ CHẶN nếu KHÁC chi nhánh
+                        if (!managerBranchId.equals(targetBranchId)) {
+                            log.warn("Manager {} (branch {}) attempted to update user {} (branch {}) - DIFFERENT branch", 
+                                    currentUser.getId(), managerBranchId, id, targetBranchId);
+                            return new ResponseError(HttpStatus.FORBIDDEN.value(), "Manager chỉ được phép cập nhật nhân viên thuộc chi nhánh của mình.");
+                        }
+                        
+                        // Nếu cùng chi nhánh, cho phép update
+                        log.info("Manager {} (branch {}) updating user {} (branch {}) - SAME branch, ALLOWED", 
+                                currentUser.getId(), managerBranchId, id, targetBranchId);
+                    } catch (Exception e) {
+                        log.error("Error validating manager permission for user update", e);
+                        return new ResponseError(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi kiểm tra quyền: " + e.getMessage());
+                    }
+                }
+            }
+            
             return new ResponseData<>(HttpStatus.OK.value(), "Update user successfully", userService.updateUser(id, request));
         } catch (Exception e) {
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());

@@ -296,48 +296,88 @@ export default function UserDetailPage() {
               <h2 className="text-base font-bold text-slate-900">Thông tin cá nhân</h2>
             </div>
 
-            {/* Full Name - View Only */}
+            {/* Full Name - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <User className="h-4 w-4 text-slate-400" />
                 <span>Họ và tên</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
-                {fullName || "—"}
-              </div>
+              <input
+                type="text"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  updateField("fullName", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập họ và tên"
+              />
+              {errors.fullName && (
+                <div className="text-xs text-red-600 mt-1">{errors.fullName}</div>
+              )}
             </div>
 
-            {/* Email - View Only */}
+            {/* Email - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <Mail className="h-4 w-4 text-slate-400" />
                 <span>Email</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
-                {email || "—"}
-              </div>
+              <input
+                type="email"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  updateField("email", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập email"
+              />
+              {errors.email && (
+                <div className="text-xs text-red-600 mt-1">{errors.email}</div>
+              )}
             </div>
 
-            {/* Phone - View Only */}
+            {/* Phone - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <Phone className="h-4 w-4 text-slate-400" />
                 <span>Số điện thoại</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600">
-                {phone || "—"}
-              </div>
+              <input
+                type="tel"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  updateField("phone", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập số điện thoại"
+              />
+              {errors.phone && (
+                <div className="text-xs text-red-600 mt-1">{errors.phone}</div>
+              )}
             </div>
 
-            {/* Address - View Only */}
+            {/* Address - Editable */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <MapPin className="h-4 w-4 text-slate-400" />
                 <span>Địa chỉ</span>
               </label>
-              <div className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-slate-50 text-slate-600 min-h-[60px]">
-                {address || "—"}
-              </div>
+              <textarea
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500 min-h-[60px] resize-y"
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  updateField("address", e.target.value);
+                }}
+                disabled={!canEditTarget}
+                placeholder="Nhập địa chỉ"
+              />
             </div>
           </div>
 
