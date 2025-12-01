@@ -47,6 +47,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final org.example.ptcmssbackend.service.EmailService emailService;
     private final org.example.ptcmssbackend.repository.NotificationRepository notificationRepository;
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
+    private final TripRepository tripRepository;
+    private final TripDriverRepository tripDriverRepository;
 
     @Override
     @Transactional
@@ -548,7 +550,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 invoiceRepository.save(invoice);
             }
 
-            // Send WebSocket notifications to Consultant (người tạo payment request)
+            // Send WebSocket notifications to Driver (người tạo payment request)
             try {
                 Integer bookingId = invoice != null && invoice.getBooking() != null ? invoice.getBooking().getId() : null;
                 String amountFormatted = formatAmount(payment.getAmount());
@@ -558,21 +560,56 @@ public class InvoiceServiceImpl implements InvoiceService {
                     ? "Thanh toán đã được duyệt" 
                     : "Thanh toán đã bị từ chối";
                 
-                // Gửi notification đến Consultant (người tạo payment request)
-                if (payment.getCreatedBy() != null && payment.getCreatedBy().getUser() != null) {
-                    Integer consultantUserId = payment.getCreatedBy().getUser().getId();
+                // Gửi notification đến Driver (người tạo payment request)
+                // Ưu tiên: invoice.getRequestedBy() (driver) > driver từ booking > payment.getCreatedBy() (employee)
+                Integer driverUserId = null;
+                
+                // Cách 1: Từ invoice.requestedBy (nếu có)
+                if (invoice != null && invoice.getRequestedBy() != null && invoice.getRequestedBy().getEmployee() != null 
+                    && invoice.getRequestedBy().getEmployee().getUser() != null) {
+                    driverUserId = invoice.getRequestedBy().getEmployee().getUser().getId();
+                }
+                // Cách 2: Tìm driver từ booking (driver được assign cho trip của booking)
+                else if (bookingId != null && invoice != null && invoice.getBooking() != null) {
+                    try {
+                        // Tìm trips của booking
+                        List<Trips> trips = tripRepository.findByBooking_Id(bookingId);
+                        if (trips != null && !trips.isEmpty()) {
+                            // Lấy trip đầu tiên và tìm driver
+                            Trips firstTrip = trips.get(0);
+                            List<TripDrivers> tripDrivers = tripDriverRepository.findByTripId(firstTrip.getId());
+                            if (tripDrivers != null && !tripDrivers.isEmpty()) {
+                                TripDrivers tripDriver = tripDrivers.get(0);
+                                if (tripDriver.getDriver() != null && tripDriver.getDriver().getEmployee() != null
+                                    && tripDriver.getDriver().getEmployee().getUser() != null) {
+                                    driverUserId = tripDriver.getDriver().getEmployee().getUser().getId();
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("[InvoiceService] Could not find driver from booking: {}", e.getMessage());
+                    }
+                }
+                // Cách 3: Fallback - từ payment.getCreatedBy() (employee)
+                if (driverUserId == null && payment.getCreatedBy() != null && payment.getCreatedBy().getUser() != null) {
+                    driverUserId = payment.getCreatedBy().getUser().getId();
+                }
+                
+                if (driverUserId != null) {
                     String notificationMessage = String.format("Yêu cầu thanh toán %s cho đơn #%d %s", 
                         amountFormatted,
                         bookingId != null ? bookingId : "N/A",
                         statusText);
                     
                     webSocketNotificationService.sendUserNotification(
-                        consultantUserId,
+                        driverUserId,
                         notificationTitle,
                         notificationMessage,
                         notificationType
                     );
-                    log.info("[InvoiceService] Sent payment confirmation notification to consultant userId: {}", consultantUserId);
+                    log.info("[InvoiceService] Sent payment confirmation notification to driver/employee userId: {}", driverUserId);
+                } else {
+                    log.warn("[InvoiceService] Could not find driver/user to send payment confirmation notification for paymentId: {}", payment.getId());
                 }
                 
                 // Gửi payment update qua global channel (cho các role khác như Coordinator, Manager)
