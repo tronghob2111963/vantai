@@ -376,7 +376,7 @@ function QuoteInfoCard({ quote }) {
 }
 
 /* 4. Thanh toán / Cọc */
-function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr }) {
+function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, isConsultant = false }) {
     const remain = Math.max(0, Number(payment.remaining || 0));
     const paid = Math.max(0, Number(payment.paid || 0));
 
@@ -418,8 +418,31 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr })
                 </div>
             )}
 
-            {/* Nút hành động - Ẩn với Accountant */}
-            {/* Kế toán chỉ xem, không được tạo thanh toán */}
+            {/* Nút hành động */}
+            <div className="grid grid-cols-2 gap-3">
+                <button
+                    className="rounded-lg bg-[#EDC531] hover:bg-amber-500 text-white font-medium text-[13px] px-4 py-2.5 shadow-sm flex items-center justify-center gap-2 transition-colors"
+                    onClick={onOpenDeposit}
+                >
+                    <BadgeDollarSign className="h-4 w-4" />
+                    <span>{isConsultant ? "Yêu cầu đặt cọc" : "Ghi nhận thanh toán"}</span>
+                </button>
+
+                <button
+                    type="button"
+                    className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-[13px] px-4 py-2.5 shadow-sm flex items-center justify-center gap-2 transition-colors"
+                    onClick={onGenerateQr}
+                >
+                    <QrCode className="h-4 w-4 text-sky-600" />
+                    <span>Tạo QR</span>
+                </button>
+            </div>
+
+            <div className="text-[11px] text-slate-500 text-center leading-relaxed px-2">
+                {isConsultant 
+                    ? "Tạo yêu cầu thu cọc/thanh toán để kế toán xác nhận, hoặc gửi QR cho khách."
+                    : "Ghi nhận tiền mặt/chuyển khoản hoặc gửi mã QR để khách tự thanh toán."}
+            </div>
 
             {/* Lịch sử thanh toán */}
             <div className="border-t border-slate-200 pt-4 space-y-3">
@@ -1101,7 +1124,7 @@ export default function OrderDetailPage() {
                         )}
                 </div>
 
-                {/* Bỏ bảng thanh toán summary - không cần thiết */}
+                {/* Bỏ bảng thanh toán summary - thông tin đã có trong PaymentInfoCard */}
             </div>
 
             {/* BODY GRID */}
@@ -1112,14 +1135,15 @@ export default function OrderDetailPage() {
                 <TripInfoCard trip={order.trip} />
             </div>
 
-            <div className={`grid ${(isConsultant || isAccountant) ? 'xl:grid-cols-1' : 'xl:grid-cols-2'} gap-5 mb-5`}>
+            <div className={`grid ${isAccountant ? 'xl:grid-cols-1' : 'xl:grid-cols-2'} gap-5 mb-5`}>
                 <QuoteInfoCard quote={order.quote} />
-                {!isConsultant && !isAccountant && (
+                {!isAccountant && (
                     <PaymentInfoCard
                         payment={order.payment}
                         history={paymentHistory}
                         onOpenDeposit={openDeposit}
                         onGenerateQr={openQrModal}
+                        isConsultant={isConsultant}
                     />
                 )}
             </div>
@@ -1171,8 +1195,8 @@ export default function OrderDetailPage() {
                 />
             )}
 
-            {/* Payment modals - ẩn với Consultant và Accountant */}
-            {!isConsultant && !isAccountant && (
+            {/* Payment modals - ẩn với Accountant */}
+            {!isAccountant && (
                 <>
                     <QrPaymentModal
                         open={qrModalOpen}

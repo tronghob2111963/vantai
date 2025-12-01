@@ -198,7 +198,7 @@ public class InvoiceController {
 
     @Operation(summary = "Ghi nhận thanh toán", description = "Ghi nhận một khoản thanh toán cho hóa đơn (có thể thanh toán nhiều lần)")
     @PostMapping("/{invoiceId}/payments")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','DRIVER','CONSULTANT')")
     public ResponseEntity<ApiResponse<PaymentHistoryResponse>> recordPayment(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId,
             @Valid @RequestBody RecordPaymentRequest request) {
@@ -223,7 +223,7 @@ public class InvoiceController {
 
     @Operation(summary = "Lịch sử thanh toán", description = "Lấy danh sách tất cả các khoản thanh toán của một hóa đơn")
     @GetMapping("/{invoiceId}/payments")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT','CONSULTANT','DRIVER')")
     public ResponseEntity<ApiResponse<List<PaymentHistoryResponse>>> getPaymentHistory(
             @Parameter(description = "ID của hóa đơn") @PathVariable Integer invoiceId) {
         log.info("[InvoiceController] Getting payment history for invoice: {}", invoiceId);

@@ -623,7 +623,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     @Transactional
     public void checkAndUpdateOverdueInvoicesAfter48h() {
-        // Tính thời điểm cutoff: 48h trước hiện tại
+        // Tí   nh thời điểm cutoff: 48h trước hiện tại
         Instant cutoffTime = Instant.now().minus(48, java.time.temporal.ChronoUnit.HOURS);
         
         log.info("[InvoiceService] Checking invoices with completed trips older than 48h (cutoff: {})", cutoffTime);
