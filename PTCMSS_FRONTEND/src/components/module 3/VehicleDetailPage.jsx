@@ -768,6 +768,9 @@ export default function VehicleDetailPage() {
     const [loadingExpenses, setLoadingExpenses] = React.useState(false);
     const [loadingMaintenance, setLoadingMaintenance] = React.useState(false);
 
+    // tab state (moved before useEffect that uses it)
+    const [activeTab, setActiveTab] = React.useState("PROFILE");
+
     // Load trips data
     const loadTrips = React.useCallback(async () => {
         if (!vehicleId || loadingTrips) return;
@@ -876,9 +879,6 @@ export default function VehicleDetailPage() {
             return dateB - dateA; // Newest first
         });
     }, [expensesData, maintenanceData]);
-
-    // tab state
-    const [activeTab, setActiveTab] = React.useState("PROFILE");
 
     // form state for PROFILE tab
     const [vehicleForm, setVehicleForm] = React.useState(initialVehicle);

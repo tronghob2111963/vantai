@@ -609,6 +609,18 @@ export default function NotificationsDashboard() {
                                 Hủy
                             </button>
                             <button
+                                onClick={() => {
+                                    // Từ chối yêu cầu nghỉ phép
+                                    setShowConflictDialog(false);
+                                    setDialogType("reject");
+                                    setDialogNote(`Từ chối do tài xế đã có ${conflictingTrips.length} chuyến được gán trong khoảng thời gian nghỉ phép`);
+                                    setDialogOpen(true);
+                                }}
+                                className="px-4 py-2 border border-rose-300 rounded-lg bg-white text-rose-700 hover:bg-rose-50 text-sm font-medium"
+                            >
+                                Từ chối yêu cầu nghỉ phép
+                            </button>
+                            <button
                                 onClick={handleUnassignConflictingTrips}
                                 disabled={checkingTrips}
                                 className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
