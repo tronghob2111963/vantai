@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-    CarFront, Calendar, Shield, ArrowLeft, Save, X, Loader2, 
+    CarFront, Calendar, Shield, ArrowLeft, Save, X, Loader2,
     AlertCircle, CheckCircle2, Edit2, MapPin, Gauge
 } from "lucide-react";
 import { getVehicle, updateVehicle } from "../../api/vehicles";
@@ -23,10 +23,11 @@ export default function CoordinatorVehicleDetailPage() {
         status: "",
     });
 
-    // Vehicle status options
+    // Vehicle status options - Coordinator KHÔNG được chuyển sang "Đang sử dụng"
+    // Trạng thái "Đang sử dụng" chỉ được cập nhật tự động bởi hệ thống khi xe được gán vào chuyến
     const STATUS_OPTIONS = [
         { value: "AVAILABLE", label: "Sẵn sàng" },
-        { value: "IN_USE", label: "Đang sử dụng" },
+        // { value: "INUSE", label: "Đang sử dụng" }, // REMOVED: Coordinator không được chọn
         { value: "MAINTENANCE", label: "Bảo trì" },
         { value: "INACTIVE", label: "Không hoạt động" },
     ];
@@ -58,6 +59,16 @@ export default function CoordinatorVehicleDetailPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
+            // VALIDATION: Coordinator không được chuyển xe sang trạng thái "Đang sử dụng"
+            if (formData.status === "INUSE") {
+                setToast({
+                    type: "error",
+                    message: "Điều phối viên không được phép chuyển xe sang trạng thái 'Đang sử dụng'. Trạng thái này chỉ được cập nhật tự động khi xe được gán vào chuyến."
+                });
+                setSaving(false);
+                return;
+            }
+
             // Build update request - keep existing data and update only editable fields
             const updateData = {
                 licensePlate: vehicle?.licensePlate,
@@ -72,12 +83,16 @@ export default function CoordinatorVehicleDetailPage() {
                 insuranceExpiry: formData.insuranceExpiry || null,
                 status: formData.status || vehicle?.status,
             };
-            
-            await updateVehicle(vehicleId, updateData);
+
+            console.log("[CoordinatorVehicleDetail] Updating vehicle:", vehicleId, updateData);
+            const response = await updateVehicle(vehicleId, updateData);
+            console.log("[CoordinatorVehicleDetail] Update response:", response);
+
             setToast({ type: "success", message: "Cập nhật thành công" });
             setEditing(false);
             loadVehicle();
         } catch (err) {
+            console.error("[CoordinatorVehicleDetail] Update error:", err);
             setToast({ type: "error", message: err?.message || "Cập nhật thất bại" });
         } finally {
             setSaving(false);
@@ -142,9 +157,8 @@ export default function CoordinatorVehicleDetailPage() {
             <div className="max-w-4xl mx-auto">
                 {/* Toast */}
                 {toast && (
-                    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-                        toast.type === "success" ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
-                    }`}>
+                    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${toast.type === "success" ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
+                        }`}>
                         {toast.type === "success" ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                         <span>{toast.message}</span>
                         <button onClick={() => setToast(null)} className="ml-2">
@@ -277,27 +291,40 @@ export default function CoordinatorVehicleDetailPage() {
                                 <Shield className="h-5 w-5 text-slate-400" />
                                 <span className="text-slate-600 min-w-[100px]">Trạng thái:</span>
                                 {editing ? (
-                                    <select
-                                        value={formData.status}
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                    >
-                                        <option value="">-- Chọn trạng thái --</option>
-                                        {STATUS_OPTIONS.map(opt => (
-                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                        ))}
-                                    </select>
+                                    <div className="flex-1">
+                                        <select
+                                            value={formData.status}
+                                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                            disabled={vehicle?.status === "INUSE"}
+                                        >
+                                            <option value="">-- Chọn trạng thái --</option>
+                                            {STATUS_OPTIONS.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                            {/* Hiển thị trạng thái hiện tại nếu là INUSE (nhưng disabled) */}
+                                            {vehicle?.status === "INUSE" && (
+                                                <option value="INUSE">Đang sử dụng (không thể thay đổi)</option>
+                                            )}
+                                        </select>
+                                        {vehicle?.status === "INUSE" && (
+                                            <p className="text-xs text-amber-600 mt-1">
+                                                ⚠️ Xe đang trong chuyến, không thể thay đổi trạng thái
+                                            </p>
+                                        )}
+                                    </div>
                                 ) : (
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        vehicle?.status === "AVAILABLE"
-                                            ? "bg-green-50 text-green-700"
-                                            : vehicle?.status === "IN_USE"
-                                                ? "bg-blue-50 text-blue-700"
-                                                : vehicle?.status === "MAINTENANCE"
-                                                    ? "bg-orange-50 text-orange-700"
-                                                    : "bg-slate-100 text-slate-600"
-                                    }`}>
-                                        {STATUS_OPTIONS.find(o => o.value === vehicle?.status)?.label || vehicle?.status || "—"}
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${vehicle?.status === "AVAILABLE"
+                                        ? "bg-green-50 text-green-700"
+                                        : vehicle?.status === "INUSE"
+                                            ? "bg-blue-50 text-blue-700"
+                                            : vehicle?.status === "MAINTENANCE"
+                                                ? "bg-orange-50 text-orange-700"
+                                                : "bg-slate-100 text-slate-600"
+                                        }`}>
+                                        {vehicle?.status === "INUSE"
+                                            ? "Đang sử dụng"
+                                            : STATUS_OPTIONS.find(o => o.value === vehicle?.status)?.label || vehicle?.status || "—"}
                                     </span>
                                 )}
                             </div>

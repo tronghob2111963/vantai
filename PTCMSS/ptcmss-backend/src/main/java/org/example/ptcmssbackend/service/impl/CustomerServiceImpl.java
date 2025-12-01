@@ -114,16 +114,45 @@ public class CustomerServiceImpl implements CustomerService {
     }
     
     @Override
-    public Page<CustomerResponse> listCustomers(String keyword, Integer branchId, LocalDate fromDate, LocalDate toDate, int page, int size) {
-        log.info("[CustomerService] List customers - keyword={}, branchId={}, from={}, to={}, page={}, size={}", 
-                keyword, branchId, fromDate, toDate, page, size);
+    public Page<CustomerResponse> listCustomers(String keyword, Integer branchId, Integer userId, LocalDate fromDate, LocalDate toDate, int page, int size) {
+        log.info("[CustomerService] List customers - keyword={}, branchId={}, userId={}, from={}, to={}, page={}, size={}", 
+                keyword, branchId, userId, fromDate, toDate, page, size);
+        
+        // Nếu có userId, kiểm tra xem user có phải là MANAGER không
+        // Nếu là MANAGER, tự động filter theo chi nhánh của manager
+        Integer effectiveBranchId = branchId;
+        if (userId != null && effectiveBranchId == null) {
+            log.info("[CustomerService] Checking user role for userId={}", userId);
+            Employees employee = employeeRepository.findByUserId(userId).orElse(null);
+            if (employee != null) {
+                log.info("[CustomerService] Found employee: employeeId={}, branchId={}", employee.getEmployeeId(), 
+                        employee.getBranch() != null ? employee.getBranch().getId() : null);
+                if (employee.getBranch() != null) {
+                    // Kiểm tra role của user
+                    if (employee.getUser() != null && employee.getUser().getRole() != null) {
+                        String role = employee.getUser().getRole().getRoleName();
+                        log.info("[CustomerService] User role: {}", role);
+                        if ("MANAGER".equals(role)) {
+                            effectiveBranchId = employee.getBranch().getId();
+                            log.info("[CustomerService] Manager detected - auto filtering by branchId={}", effectiveBranchId);
+                        }
+                    } else {
+                        log.warn("[CustomerService] User or role is null for employee employeeId={}", employee.getEmployeeId());
+                    }
+                }
+            } else {
+                log.warn("[CustomerService] No employee found for userId={}", userId);
+            }
+        } else {
+            log.info("[CustomerService] Skipping role check - userId={}, effectiveBranchId={}", userId, effectiveBranchId);
+        }
         
         Instant fromInstant = fromDate != null ? fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
         Instant toInstant = toDate != null ? toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
         
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         
-        Page<Customers> customersPage = customerRepository.findWithFilters(keyword, branchId, fromInstant, toInstant, pageable);
+        Page<Customers> customersPage = customerRepository.findWithFilters(keyword, effectiveBranchId, fromInstant, toInstant, pageable);
         
         return customersPage.map(this::toResponse);
     }

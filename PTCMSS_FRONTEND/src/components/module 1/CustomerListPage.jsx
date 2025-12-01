@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Users, Search, Calendar, Building2, RefreshCw, Mail, Phone, StickyNote } from "lucide-react";
 import { listCustomers } from "../../api/customers";
 import { listBranches } from "../../api/branches";
+import { getEmployeeByUserId } from "../../api/employees";
+import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
 
 function cls(...classes) {
@@ -25,22 +27,55 @@ export default function CustomerListPage() {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
+    // User info
+    const currentRole = getCurrentRole();
+    const currentUserId = getStoredUserId();
+    const isManager = currentRole === ROLES.MANAGER;
+
+    // Manager's branch info
+    const [managerBranchId, setManagerBranchId] = useState(null);
+    const [managerBranchName, setManagerBranchName] = useState("");
+
     // Filters
     const [keyword, setKeyword] = useState("");
     const [branchId, setBranchId] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [dateError, setDateError] = useState("");
-    
+
     // Pagination
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
     const pageSize = 10;
-    
+
     // Branches for filter dropdown
     const [branches, setBranches] = useState([]);
+
+    // Load Manager's branch info
+    useEffect(() => {
+        if (!isManager || !currentUserId) return;
+
+        (async () => {
+            try {
+                const resp = await getEmployeeByUserId(currentUserId);
+                const emp = resp?.data || resp;
+                if (emp?.branchId) {
+                    setManagerBranchId(emp.branchId);
+                    setManagerBranchName(emp.branchName || "");
+                    // Tự động set branchId filter cho manager
+                    setBranchId(String(emp.branchId));
+                    console.log("[CustomerListPage] Manager branch loaded:", {
+                        branchId: emp.branchId,
+                        branchName: emp.branchName
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading manager branch:", err);
+            }
+        })();
+    }, [isManager, currentUserId]);
 
     // Load branches for filter
     useEffect(() => {
@@ -74,23 +109,36 @@ export default function CustomerListPage() {
         if (fromDate && toDate && new Date(toDate) < new Date(fromDate)) {
             return;
         }
-        
+
         try {
             setLoading(true);
             setError(null);
-            
+
+            console.log("[CustomerListPage] Fetching customers with:", {
+                keyword: keyword.trim() || undefined,
+                branchId: branchId || undefined,
+                fromDate: fromDate || undefined,
+                toDate: toDate || undefined,
+                userId: currentUserId || undefined,
+                isManager,
+                currentRole,
+                page,
+                size: pageSize,
+            });
+
             const response = await listCustomers({
                 keyword: keyword.trim() || undefined,
                 branchId: branchId || undefined,
                 fromDate: fromDate || undefined,
                 toDate: toDate || undefined,
+                userId: currentUserId || undefined,
                 page,
                 size: pageSize,
             });
-            
+
             const data = response?.data || response || {};
             const content = data?.content || [];
-            
+
             setCustomers(Array.isArray(content) ? content : []);
             setTotalPages(data?.totalPages || 1);
             setTotalElements(data?.totalElements || 0);
@@ -101,7 +149,7 @@ export default function CustomerListPage() {
         } finally {
             setLoading(false);
         }
-    }, [keyword, branchId, fromDate, toDate, page]);
+    }, [keyword, branchId, fromDate, toDate, page, currentUserId]);
 
     useEffect(() => {
         fetchCustomers();
@@ -159,7 +207,11 @@ export default function CustomerListPage() {
                         <div>
                             <h1 className="text-2xl font-bold text-slate-900">Danh sách khách hàng</h1>
                             <p className="text-sm text-slate-600">
-                                Quản lý thông tin khách hàng • Tổng: {totalElements} khách hàng
+                                {isManager && managerBranchName ? (
+                                    <>Chi nhánh: <span className="font-medium text-slate-700">{managerBranchName}</span> • Tổng: {totalElements} khách hàng</>
+                                ) : (
+                                    <>Quản lý thông tin khách hàng • Tổng: {totalElements} khách hàng</>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -181,25 +233,27 @@ export default function CustomerListPage() {
                                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0079BC]/30 focus:border-[#0079BC]"
                                 />
                             </div>
-                            
-                            {/* Branch */}
-                            <div className="relative">
-                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                <select
-                                    value={branchId}
-                                    onChange={(e) => setBranchId(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0079BC]/30 focus:border-[#0079BC] appearance-none"
-                                >
-                                    <option value="">Tất cả chi nhánh</option>
-                                    {branches.map((b) => (
-                                        <option key={b.id || b.branchId} value={b.id || b.branchId}>
-                                            {b.name || b.branchName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+
+                            {/* Branch - Hidden for Manager */}
+                            {!isManager && (
+                                <div className="relative">
+                                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    <select
+                                        value={branchId}
+                                        onChange={(e) => setBranchId(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0079BC]/30 focus:border-[#0079BC] appearance-none"
+                                    >
+                                        <option value="">Tất cả chi nhánh</option>
+                                        {branches.map((b) => (
+                                            <option key={b.id || b.branchId} value={b.id || b.branchId}>
+                                                {b.name || b.branchName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
-                        
+
                         {/* Row 2: Date range + Buttons */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             {/* From Date */}
@@ -211,14 +265,14 @@ export default function CustomerListPage() {
                                     onChange={handleFromDateChange}
                                     className={cls(
                                         "w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2",
-                                        dateError 
-                                            ? "border-red-300 bg-red-50 focus:ring-red-200 focus:border-red-400" 
+                                        dateError
+                                            ? "border-red-300 bg-red-50 focus:ring-red-200 focus:border-red-400"
                                             : "border-slate-200 bg-slate-50 focus:ring-[#0079BC]/30 focus:border-[#0079BC]"
                                     )}
                                     placeholder="Từ ngày"
                                 />
                             </div>
-                            
+
                             {/* To Date */}
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -229,14 +283,14 @@ export default function CustomerListPage() {
                                     min={fromDate || undefined}
                                     className={cls(
                                         "w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2",
-                                        dateError 
-                                            ? "border-red-300 bg-red-50 focus:ring-red-200 focus:border-red-400" 
+                                        dateError
+                                            ? "border-red-300 bg-red-50 focus:ring-red-200 focus:border-red-400"
                                             : "border-slate-200 bg-slate-50 focus:ring-[#0079BC]/30 focus:border-[#0079BC]"
                                     )}
                                     placeholder="Đến ngày"
                                 />
                             </div>
-                            
+
                             {/* Buttons */}
                             <div className="flex gap-2 md:col-span-2 justify-end">
                                 <button
@@ -251,8 +305,8 @@ export default function CustomerListPage() {
                                     disabled={!!dateError}
                                     className={cls(
                                         "px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2",
-                                        dateError 
-                                            ? "bg-slate-400 cursor-not-allowed" 
+                                        dateError
+                                            ? "bg-slate-400 cursor-not-allowed"
                                             : "bg-[#0079BC] hover:bg-[#006699]"
                                     )}
                                 >
@@ -356,7 +410,7 @@ export default function CustomerListPage() {
                                                     </div>
                                                 </div>
                                             </td>
-                                            
+
                                             {/* Email */}
                                             <td className="px-4 py-3">
                                                 {customer.email ? (
@@ -368,7 +422,7 @@ export default function CustomerListPage() {
                                                     <span className="text-sm text-slate-400">—</span>
                                                 )}
                                             </td>
-                                            
+
                                             {/* Phone */}
                                             <td className="px-4 py-3">
                                                 {customer.phone ? (
@@ -380,14 +434,14 @@ export default function CustomerListPage() {
                                                     <span className="text-sm text-slate-400">—</span>
                                                 )}
                                             </td>
-                                            
+
                                             {/* Branch */}
                                             <td className="px-4 py-3">
                                                 <span className="text-sm text-slate-700">
                                                     {customer.branchName || "—"}
                                                 </span>
                                             </td>
-                                            
+
                                             {/* Note */}
                                             <td className="px-4 py-3">
                                                 {customer.note ? (
@@ -399,7 +453,7 @@ export default function CustomerListPage() {
                                                     <span className="text-sm text-slate-400">—</span>
                                                 )}
                                             </td>
-                                            
+
                                             {/* Created At */}
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -413,7 +467,7 @@ export default function CustomerListPage() {
                             </tbody>
                         </table>
                     </div>
-                    
+
                     {/* Pagination */}
                     <div className="border-t border-slate-200 px-4 py-3 flex items-center justify-between">
                         <div className="text-sm text-slate-600">
@@ -429,7 +483,7 @@ export default function CustomerListPage() {
                     </div>
                 </div>
             </div>
-            
+
 
         </div>
     );

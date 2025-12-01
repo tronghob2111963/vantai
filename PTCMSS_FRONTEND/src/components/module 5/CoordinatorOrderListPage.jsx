@@ -26,9 +26,13 @@ export default function CoordinatorOrderListPage() {
     const [branchLoading, setBranchLoading] = useState(true);
     const [branchError, setBranchError] = useState("");
 
-    // Time filter
+    // Time filter - Default to last 30 days instead of just today
     const today = new Date().toISOString().slice(0, 10);
-    const [startDate, setStartDate] = useState(today);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const defaultStartDate = thirtyDaysAgo.toISOString().slice(0, 10);
+    
+    const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(today);
 
     // Load branch for scoped users
@@ -48,18 +52,27 @@ export default function CoordinatorOrderListPage() {
             setBranchLoading(true);
             setBranchError("");
             try {
+                console.log("[CoordinatorOrderListPage] Loading branch for userId:", userId);
                 const resp = await getBranchByUserId(Number(userId));
+                console.log("[CoordinatorOrderListPage] Branch response:", resp);
                 if (cancelled) return;
-                const id = resp?.branchId ?? resp?.id ?? null;
-                const name = resp?.branchName ?? resp?.name ?? "";
+                
+                // Try multiple possible response formats
+                const id = resp?.branchId ?? resp?.id ?? resp?.data?.branchId ?? resp?.data?.id ?? null;
+                const name = resp?.branchName ?? resp?.name ?? resp?.data?.branchName ?? resp?.data?.name ?? "";
+                
+                console.log("[CoordinatorOrderListPage] Extracted branchId:", id, "branchName:", name);
+                
                 if (id) {
                     setBranchId(id);
                     setBranchName(name);
                 } else {
+                    console.error("[CoordinatorOrderListPage] Branch ID not found in response:", resp);
                     setBranchError("Không tìm thấy chi nhánh phụ trách");
                 }
             } catch (err) {
                 if (cancelled) return;
+                console.error("[CoordinatorOrderListPage] Error loading branch:", err);
                 setBranchError(err?.message || "Không tải được thông tin chi nhánh");
             } finally {
                 if (!cancelled) setBranchLoading(false);
@@ -87,8 +100,12 @@ export default function CoordinatorOrderListPage() {
             };
 
             // Add branchId for scoped users
+            // Ensure branchId is a number for proper API filtering
             if (isBranchScoped && branchId) {
-                params.branchId = branchId;
+                params.branchId = Number(branchId);
+                console.log("[CoordinatorOrderListPage] Filtering by branchId:", params.branchId, "(type:", typeof params.branchId, ")");
+            } else if (isBranchScoped && !branchId) {
+                console.warn("[CoordinatorOrderListPage] Warning: Coordinator should have branchId but it's missing. Fetching without branch filter.");
             }
 
             // Add filter for assigned/unassigned
@@ -98,16 +115,60 @@ export default function CoordinatorOrderListPage() {
                 params.hasTrip = false;
             }
 
-            console.log("[CoordinatorOrderListPage] Fetching with params:", params);
+            console.log("[CoordinatorOrderListPage] Fetching orders with params:", params);
             const response = await pageBookings(params);
-            console.log("[CoordinatorOrderListPage] Response:", response);
+            console.log("[CoordinatorOrderListPage] Orders response:", response);
+            console.log("[CoordinatorOrderListPage] Total orders found:", response?.totalElements ?? response?.content?.length ?? 0);
 
             // Handle different response formats
-            const content = response?.content ?? response?.items ?? response ?? [];
-            const total = response?.totalPages ?? Math.ceil((response?.totalElements ?? content.length) / pageSize) ?? 1;
+            // Backend returns: { success, message, data: { items, totalPages, totalElements } }
+            let content = response?.data?.items ?? response?.content ?? response?.items ?? response ?? [];
+            const totalElements = response?.data?.totalElements ?? response?.totalElements ?? content.length;
+            const totalPagesFromBackend = response?.data?.totalPages ?? response?.totalPages;
+
+            // Debug: Log field names of first order
+            if (content.length > 0) {
+                console.log("[CoordinatorOrderListPage] Available fields:", Object.keys(content[0]));
+                console.log("[CoordinatorOrderListPage] Sample order data:", {
+                    id: content[0].id,
+                    customerName: content[0].customerName,
+                    customerPhone: content[0].customerPhone,
+                    pickupLocation: content[0].pickupLocation,
+                    dropoffLocation: content[0].dropoffLocation,
+                    departureDate: content[0].departureDate,
+                    tripId: content[0].tripId,
+                    // Try alternative field names
+                    pickup_location: content[0].pickup_location,
+                    dropoff_location: content[0].dropoff_location,
+                    departure_date: content[0].departure_date,
+                    startLocation: content[0].startLocation,
+                    endLocation: content[0].endLocation,
+                    startDate: content[0].startDate,
+                });
+            }
+
+            // Client-side filter for assigned/unassigned status
+            // Backend doesn't support hasTrip parameter yet
+            if (filterStatus === "ASSIGNED") {
+                content = content.filter(order => order.tripId != null && order.tripId !== "");
+            } else if (filterStatus === "UNASSIGNED") {
+                content = content.filter(order => order.tripId == null || order.tripId === "");
+            }
+
+            // Use backend total pages if no filter, otherwise calculate from filtered content
+            const filteredTotal = filterStatus === "ALL"
+                ? (totalPagesFromBackend || Math.ceil(totalElements / pageSize) || 1)
+                : Math.ceil(content.length / pageSize) || 1;
 
             setOrders(Array.isArray(content) ? content : []);
-            setTotalPages(total);
+            setTotalPages(filteredTotal);
+            
+            if (Array.isArray(content) && content.length === 0) {
+                console.log("[CoordinatorOrderListPage] No orders found. Check if:");
+                console.log("  - BranchId is correct:", branchId);
+                console.log("  - Date range is appropriate");
+                console.log("  - Filter status is correct:", filterStatus);
+            }
         } catch (error) {
             console.error("[CoordinatorOrderListPage] Error fetching orders:", error);
             setOrders([]);
@@ -230,9 +291,20 @@ export default function CoordinatorOrderListPage() {
                                         setCurrentPage(1);
                                     }}
                                     className="px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                    title="Xóa filter thời gian"
+                                    title="Xóa filter thời gian (lấy tất cả đơn)"
                                 >
                                     <X className="h-4 w-4" />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setStartDate(defaultStartDate);
+                                        setEndDate(today);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="px-3 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                    title="Reset về 30 ngày gần đây"
+                                >
+                                    Reset
                                 </button>
                             </div>
 
@@ -350,17 +422,35 @@ export default function CoordinatorOrderListPage() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <div className="text-sm font-medium text-slate-900">{order.customerName}</div>
-                                                <div className="text-xs text-slate-500">{order.customerPhone}</div>
+                                                <div className="text-sm font-medium text-slate-900">
+                                                    {order.customerName || order.customer?.name || "—"}
+                                                </div>
+                                                <div className="text-xs text-slate-500">
+                                                    {order.customerPhone || order.customer?.phone || "—"}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="text-sm text-slate-700">
-                                                    <div className="truncate max-w-xs">{order.pickupLocation}</div>
-                                                    <div className="text-xs text-slate-500 truncate max-w-xs">→ {order.dropoffLocation}</div>
+                                                    {order.routeSummary ? (
+                                                        <div className="truncate max-w-xs" title={order.routeSummary}>
+                                                            {order.routeSummary}
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="truncate max-w-xs">
+                                                                {order.pickupLocation || order.pickup_location || order.startLocation || order.start_location || "—"}
+                                                            </div>
+                                                            <div className="text-xs text-slate-500 truncate max-w-xs">
+                                                                → {order.dropoffLocation || order.dropoff_location || order.endLocation || order.end_location || "—"}
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-slate-700">
-                                                {new Date(order.departureDate).toLocaleDateString("vi-VN")}
+                                                {order.startDate || order.departureDate || order.departure_date || order.start_date
+                                                    ? new Date(order.startDate || order.departureDate || order.departure_date || order.start_date).toLocaleDateString("vi-VN")
+                                                    : "—"}
                                             </td>
                                             <td className="px-4 py-3">{getStatusBadge(order.status)}</td>
                                             <td className="px-4 py-3">

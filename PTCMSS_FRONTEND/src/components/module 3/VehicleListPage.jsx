@@ -81,14 +81,16 @@ function Toasts({ toasts }) {
 /* -------------------------------- */
 const VEHICLE_STATUS = {
     AVAILABLE: "AVAILABLE",
-    ON_TRIP: "ON_TRIP",
+    INUSE: "INUSE",
     MAINTENANCE: "MAINTENANCE",
+    INACTIVE: "INACTIVE",
 };
 
 const STATUS_LABEL = {
     AVAILABLE: "Sẵn sàng",
-    ON_TRIP: "Đang chạy",
+    INUSE: "Đang sử dụng",
     MAINTENANCE: "Bảo trì",
+    INACTIVE: "Không hoạt động",
 };
 
 function VehicleStatusBadge({ status }) {
@@ -102,11 +104,17 @@ function VehicleStatusBadge({ status }) {
         IconEl = (
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
         );
-    } else if (status === "ON_TRIP") {
+    } else if (status === "INUSE") {
         clsColor =
             "bg-sky-50 text-sky-700 border-sky-200";
         IconEl = (
             <CarFront className="h-3.5 w-3.5 text-sky-600" />
+        );
+    } else if (status === "INACTIVE") {
+        clsColor =
+            "bg-gray-50 text-gray-700 border-gray-200";
+        IconEl = (
+            <X className="h-3.5 w-3.5 text-gray-600" />
         );
     } else {
         clsColor =
@@ -404,8 +412,9 @@ function CreateVehicleModal({
                                 )}
                             >
                                 <option value="AVAILABLE">Sẵn sàng</option>
-                                <option value="ON_TRIP">Đang chạy</option>
+                                <option value="INUSE">Đang sử dụng</option>
                                 <option value="MAINTENANCE">Bảo trì</option>
+                                <option value="INACTIVE">Không hoạt động</option>
                             </select>
                         </div>
 
@@ -430,10 +439,10 @@ function CreateVehicleModal({
                                 {categories
                                     .filter((c) => c.status === "ACTIVE")
                                     .map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name} ({c.seats} chỗ)
-                                    </option>
-                                ))}
+                                        <option key={c.id} value={c.id}>
+                                            {c.name} ({c.seats} chỗ)
+                                        </option>
+                                    ))}
                             </select>
                         </div>
 
@@ -563,6 +572,7 @@ function EditVehicleModal({
     branches,
     categories,
     isManager = false,
+    readOnly = false, // Add readOnly prop for Accountant view
 }) {
     const [status, setStatus] = React.useState("");
     const [branchId, setBranchId] = React.useState("");
@@ -662,24 +672,31 @@ function EditVehicleModal({
 
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Trạng thái xe mới{" "}
-                                <span className="text-red-500">*</span>
+                                Trạng thái xe{readOnly ? "" : " mới"}{" "}
+                                {!readOnly && <span className="text-red-500">*</span>}
                             </div>
-                            <select
-                                value={status}
-                                onChange={(e) =>
-                                    setStatus(e.target.value)
-                                }
-                                className={cls(
-                                    "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
-                                    "border-slate-300 bg-white shadow-sm",
-                                    "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
-                                )}
-                            >
-                                <option value="AVAILABLE">Sẵn sàng</option>
-                                <option value="ON_TRIP">Đang chạy</option>
-                                <option value="MAINTENANCE">Bảo trì</option>
-                            </select>
+                            {readOnly ? (
+                                <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-[13px] text-slate-700 font-medium shadow-inner">
+                                    {STATUS_LABEL[status] || status}
+                                </div>
+                            ) : (
+                                <select
+                                    value={status}
+                                    onChange={(e) =>
+                                        setStatus(e.target.value)
+                                    }
+                                    className={cls(
+                                        "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
+                                        "border-slate-300 bg-white shadow-sm",
+                                        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                                    )}
+                                >
+                                    <option value="AVAILABLE">Sẵn sàng</option>
+                                    <option value="INUSE">Đang sử dụng</option>
+                                    <option value="MAINTENANCE">Bảo trì</option>
+                                    <option value="INACTIVE">Không hoạt động</option>
+                                </select>
+                            )}
                         </div>
 
                         {/* model - READONLY */}
@@ -712,15 +729,15 @@ function EditVehicleModal({
                             </div>
                         </div>
 
-                        {/* branch - Manager có thể chuyển xe sang chi nhánh khác */}
+                        {/* branch - Manager có thể chuyển xe sang chi nhánh khác, Accountant chỉ xem */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
                                 Chi nhánh{" "}
-                                {isManager && (
+                                {isManager && !readOnly && (
                                     <span className="text-sky-600">(Có thể chuyển)</span>
                                 )}
                             </div>
-                            {isManager ? (
+                            {isManager && !readOnly ? (
                                 <select
                                     value={branchId}
                                     onChange={(e) => setBranchId(e.target.value)}
@@ -747,27 +764,35 @@ function EditVehicleModal({
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1 flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-slate-400" />
-                                <span>Hạn đăng kiểm (ngày trong tương lai)</span>
+                                <span>Hạn đăng kiểm{!readOnly && " (ngày trong tương lai)"}</span>
                             </div>
-                            <input
-                                type="date"
-                                value={regDueDate || ""}
-                                min={today}
-                                onChange={(e) =>
-                                    setRegDueDate(e.target.value)
-                                }
-                                className={cls(
-                                    "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
-                                    regDueDate && !isRegDueDateValid
-                                        ? "border-red-400 bg-red-50"
-                                        : "border-slate-300 bg-white shadow-sm",
-                                    "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
-                                )}
-                            />
-                            {regDueDate && !isRegDueDateValid && (
-                                <div className="text-[11px] text-red-500 mt-1">
-                                    Hạn đăng kiểm phải là ngày trong tương lai
+                            {readOnly ? (
+                                <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-[13px] text-slate-700 font-medium shadow-inner">
+                                    {regDueDate || "—"}
                                 </div>
+                            ) : (
+                                <>
+                                    <input
+                                        type="date"
+                                        value={regDueDate || ""}
+                                        min={today}
+                                        onChange={(e) =>
+                                            setRegDueDate(e.target.value)
+                                        }
+                                        className={cls(
+                                            "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
+                                            regDueDate && !isRegDueDateValid
+                                                ? "border-red-400 bg-red-50"
+                                                : "border-slate-300 bg-white shadow-sm",
+                                            "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                                        )}
+                                    />
+                                    {regDueDate && !isRegDueDateValid && (
+                                        <div className="text-[11px] text-red-500 mt-1">
+                                            Hạn đăng kiểm phải là ngày trong tương lai
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
 
@@ -777,18 +802,24 @@ function EditVehicleModal({
                                 <Calendar className="h-4 w-4 text-slate-400" />
                                 <span>Hết hạn bảo hiểm xe TNDS</span>
                             </div>
-                            <input
-                                type="date"
-                                value={insDueDate || ""}
-                                onChange={(e) =>
-                                    setInsDueDate(e.target.value)
-                                }
-                                className={cls(
-                                    "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
-                                    "border-slate-300 bg-white shadow-sm",
-                                    "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
-                                )}
-                            />
+                            {readOnly ? (
+                                <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-[13px] text-slate-700 font-medium shadow-inner">
+                                    {insDueDate || "—"}
+                                </div>
+                            ) : (
+                                <input
+                                    type="date"
+                                    value={insDueDate || ""}
+                                    onChange={(e) =>
+                                        setInsDueDate(e.target.value)
+                                    }
+                                    className={cls(
+                                        "w-full rounded-md border px-3 py-2 text-[13px] text-slate-700 outline-none",
+                                        "border-slate-300 bg-white shadow-sm",
+                                        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                                    )}
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -807,16 +838,19 @@ function EditVehicleModal({
                     >
                         Đóng
                     </button>
-                    <button
-                        onClick={handleSubmit}
-                        className={cls(
-                            "inline-flex items-center gap-2 rounded-md px-3 py-2 font-medium text-white shadow-sm",
-                            "bg-sky-600 hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                        )}
-                    >
-                        <Wrench className="h-4 w-4" />
-                        Lưu Thay Đổi
-                    </button>
+                    {/* Chỉ hiển thị nút Lưu khi không phải readOnly (Accountant) */}
+                    {!readOnly && (
+                        <button
+                            onClick={handleSubmit}
+                            className={cls(
+                                "inline-flex items-center gap-2 rounded-md px-3 py-2 font-medium text-white shadow-sm",
+                                "bg-sky-600 hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                            )}
+                        >
+                            <Wrench className="h-4 w-4" />
+                            Lưu Thay Đổi
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -913,8 +947,9 @@ function FilterBar({
                     >
                         <option value="">Tất cả trạng thái</option>
                         <option value="AVAILABLE">Sẵn sàng</option>
-                        <option value="ON_TRIP">Đang chạy</option>
+                        <option value="INUSE">Đang sử dụng</option>
                         <option value="MAINTENANCE">Bảo trì</option>
+                        <option value="INACTIVE">Không hoạt động</option>
                     </select>
                 </div>
 
@@ -985,6 +1020,7 @@ function VehicleTable({
     setSortDir,
     totalPages,
     onClickDetail,
+    isAccountant = false,
 }) {
     const headerCell = (key, label) => (
         <th
@@ -1083,7 +1119,7 @@ function VehicleTable({
                                     )}
                                 >
                                     <Wrench className="h-3.5 w-3.5 text-sky-600" />
-                                    <span>Chi tiết / Sửa</span>
+                                    <span>{isAccountant ? "Chi tiết" : "Chi tiết / Sửa"}</span>
                                 </button>
                             </td>
                         </tr>
@@ -1200,7 +1236,7 @@ const MOCK_VEHICLES = [
         seats: 16,
         branch_id: "HP",
         branch_name: "Hải Phòng",
-        status: VEHICLE_STATUS.ON_TRIP,
+        status: VEHICLE_STATUS.INUSE,
         reg_due_date: "2025-11-20",
         ins_due_date: "2025-11-30",
         model: "Solati",
@@ -1242,7 +1278,7 @@ const MOCK_VEHICLES = [
         seats: 4,
         branch_id: "HN",
         branch_name: "Hà Nội",
-        status: VEHICLE_STATUS.ON_TRIP,
+        status: VEHICLE_STATUS.INUSE,
         reg_due_date: "2025-10-05",
         ins_due_date: "2025-10-20",
         model: "City",
@@ -1261,6 +1297,7 @@ export default function VehicleListPage() {
     const currentRole = React.useMemo(() => getCurrentRole(), []);
     const currentUserId = React.useMemo(() => getStoredUserId(), []);
     const isManager = currentRole === ROLES.MANAGER;
+    const isAccountant = currentRole === ROLES.ACCOUNTANT;
 
     // Manager's branch info
     const [managerBranchId, setManagerBranchId] = React.useState(null);
@@ -1289,7 +1326,7 @@ export default function VehicleListPage() {
     // Load Manager's branch
     React.useEffect(() => {
         if (!isManager || !currentUserId) return;
-        
+
         (async () => {
             try {
                 const resp = await getEmployeeByUserId(currentUserId);
@@ -1346,8 +1383,8 @@ export default function VehicleListPage() {
     const filteredSorted = React.useMemo(() => {
         const q = searchPlate.trim().toLowerCase();
         // Manager chỉ xem xe trong chi nhánh của mình
-        const bf = isManager && managerBranchId 
-            ? String(managerBranchId) 
+        const bf = isManager && managerBranchId
+            ? String(managerBranchId)
             : (branchFilter ? String(branchFilter) : "");
         const cf = categoryFilter ? String(categoryFilter) : "";
 
@@ -1422,14 +1459,14 @@ export default function VehicleListPage() {
     const handleCreateSubmit = async (payload) => {
         // Kiểm tra trùng biển số
         const plateToCheck = (payload.license_plate || payload.licensePlate || "").trim().toUpperCase();
-        const isDuplicate = vehicles.some(v => 
+        const isDuplicate = vehicles.some(v =>
             v.license_plate?.toUpperCase().replace(/[.\s-]/g, "") === plateToCheck.replace(/[.\s-]/g, "")
         );
         if (isDuplicate) {
             push("Biển số xe đã tồn tại trong hệ thống!", "error");
             return;
         }
-        
+
         try {
             const created = await createVehicle(payload);
             setVehicles((prev) => [mapVehicle(created), ...prev]);
@@ -1526,7 +1563,7 @@ export default function VehicleListPage() {
                     loadingRefresh={loadingRefresh}
                     onRefresh={handleRefresh}
                     showBranchFilter={!isManager}
-                    showCreateButton={true}
+                    showCreateButton={!isAccountant}
                     createButtonPosition="left"
                 />
             </div>
@@ -1556,6 +1593,7 @@ export default function VehicleListPage() {
                     setSortDir={setSortDir}
                     totalPages={totalPages}
                     onClickDetail={handleClickDetail}
+                    isAccountant={isAccountant}
                 />
             </div>
 
@@ -1579,6 +1617,7 @@ export default function VehicleListPage() {
                 branches={branches}
                 categories={categories}
                 isManager={isManager}
+                readOnly={isAccountant}
             />
         </div>
     );

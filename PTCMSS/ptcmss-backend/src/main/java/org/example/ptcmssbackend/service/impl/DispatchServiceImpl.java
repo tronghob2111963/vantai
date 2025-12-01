@@ -63,6 +63,8 @@ public class DispatchServiceImpl implements DispatchService {
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     private final SystemSettingService systemSettingService;
     private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
+    private final org.example.ptcmssbackend.repository.InvoiceRepository invoiceRepository;
+    private final org.example.ptcmssbackend.repository.PaymentHistoryRepository paymentHistoryRepository;
 
     // =========================================================
     // 1) PENDING TRIPS (QUEUE)
@@ -547,6 +549,26 @@ public class DispatchServiceImpl implements DispatchService {
 
         Bookings booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + request.getBookingId()));
+
+        // Check booking phải có đặt cọc (payment_history CONFIRMED) mới được gán tài xế/xe
+        List<org.example.ptcmssbackend.entity.Invoices> depositInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(booking.getId()).stream()
+                .filter(inv -> Boolean.TRUE.equals(inv.getIsDeposit()))
+                .collect(java.util.stream.Collectors.toList());
+        
+        boolean hasConfirmedDeposit = false;
+        for (var inv : depositInvoices) {
+            // Check có payment_history CONFIRMED cho invoice này không
+            var payments = paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(inv.getId());
+            if (payments != null && payments.stream().anyMatch(p -> 
+                    p.getConfirmationStatus() == org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED)) {
+                hasConfirmedDeposit = true;
+                break;
+            }
+        }
+        
+        if (!hasConfirmedDeposit) {
+            throw new RuntimeException("Đơn hàng chưa đặt cọc hoặc cọc chưa được xác nhận. Vui lòng thu cọc và chờ kế toán xác nhận trước khi xếp lịch điều phối.");
+        }
 
         List<Trips> trips = tripRepository.findByBooking_Id(booking.getId());
         if (trips.isEmpty()) {

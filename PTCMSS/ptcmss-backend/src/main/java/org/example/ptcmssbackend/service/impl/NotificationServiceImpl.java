@@ -499,6 +499,11 @@ public class NotificationServiceImpl implements NotificationService {
                 DriverDayOff dayOff = driverDayOffRepository.findById(history.getRelatedEntityId())
                         .orElse(null);
                 if (dayOff != null) {
+                    // KIỂM TRA CONFLICT VỚI LỊCH TRÌNH KHI APPROVE
+                    if (approved) {
+                        checkDriverScheduleConflict(dayOff);
+                    }
+                    
                     dayOff.setStatus(approved ? DriverDayOffStatus.APPROVED : DriverDayOffStatus.REJECTED);
                     // ApprovedBy trong DriverDayOff là Employees, cần tìm employee từ user
                     if (history.getApprovedBy() != null) {
@@ -863,5 +868,59 @@ public class NotificationServiceImpl implements NotificationService {
         
         notificationRepository.delete(notification);
         log.info("[Notification] Deleted notification {} for user {}", notificationId, userId);
+    }
+    
+    /**
+     * Kiểm tra xem tài xế có lịch trình trong khoảng thời gian nghỉ không
+     * Nếu có, throw exception để yêu cầu xếp tài xế thay thế
+     */
+    private void checkDriverScheduleConflict(DriverDayOff dayOff) {
+        if (dayOff.getDriver() == null) {
+            return;
+        }
+        
+        Integer driverId = dayOff.getDriver().getId();
+        java.time.LocalDate startDate = dayOff.getStartDate();
+        java.time.LocalDate endDate = dayOff.getEndDate();
+        
+        log.info("[DayOff] Checking schedule conflict for driver {} from {} to {}", 
+            driverId, startDate, endDate);
+        
+        // Chuyển LocalDate sang Instant để query
+        java.time.Instant startInstant = startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+        java.time.Instant endInstant = endDate.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+        
+        // Tìm các chuyến đi của tài xế trong khoảng thời gian nghỉ
+        List<org.example.ptcmssbackend.entity.TripDrivers> conflictTrips = 
+            tripDriverRepository.findConflictingTrips(driverId, startInstant, endInstant);
+        
+        if (!conflictTrips.isEmpty()) {
+            StringBuilder message = new StringBuilder();
+            message.append(String.format(
+                "⚠️ CẢNH BÁO: Tài xế đã được lên lịch %d chuyến trong thời gian nghỉ (%s đến %s).\n\n",
+                conflictTrips.size(), startDate, endDate
+            ));
+            
+            message.append("Danh sách chuyến bị conflict:\n");
+            for (org.example.ptcmssbackend.entity.TripDrivers td : conflictTrips) {
+                if (td.getTrip() != null) {
+                    message.append(String.format(
+                        "- Chuyến #%d: %s → %s (Ngày: %s)\n",
+                        td.getTrip().getId(),
+                        td.getTrip().getStartLocation(),
+                        td.getTrip().getEndLocation(),
+                        td.getTrip().getStartTime() != null 
+                            ? td.getTrip().getStartTime().toString().substring(0, 10)
+                            : "N/A"
+                    ));
+                }
+            }
+            
+            message.append("\n❌ Vui lòng xếp tài xế thay thế trước khi phê duyệt nghỉ phép!");
+            
+            throw new RuntimeException(message.toString());
+        }
+        
+        log.info("[DayOff] No schedule conflict found for driver {}", driverId);
     }
 }

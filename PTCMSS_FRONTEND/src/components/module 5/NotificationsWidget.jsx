@@ -26,12 +26,15 @@ import {
     MapPin,
     Phone,
     ChevronRight,
+    CarFront,
 } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import { getBranchByUserId } from "../../api/branches";
 import { apiFetch } from "../../api/http";
 import { useNotifications } from "../../hooks/useNotifications";
 import { getBookingsPendingDeposit, pageBookings } from "../../api/bookings";
+import { getDriverSchedule } from "../../api/drivers";
+import { unassignTrip } from "../../api/dispatch";
 
 /**
  * NotificationsWidget – Hiển thị cảnh báo & yêu cầu chờ duyệt
@@ -287,6 +290,96 @@ export default function NotificationsWidget() {
     };
 
     const handleApprove = async (historyId) => {
+        // Find the approval to check if it's a day off request
+        const approval = dashboard?.pendingApprovals?.find(a => a.id === historyId);
+        
+        // If it's a driver day off request, check for conflicting trips first
+        if (approval?.approvalType === "DRIVER_DAY_OFF" && approval?.details) {
+            const driverId = approval.details.driverId || approval.driverId || approval.requestedByUserId;
+            const startDate = approval.details.startDate;
+            const endDate = approval.details.endDate || startDate;
+            
+            if (driverId && startDate) {
+                try {
+                    // Get driver schedule
+                    const schedule = await getDriverSchedule(driverId);
+                    const scheduleList = Array.isArray(schedule) ? schedule : [];
+                    
+                    // Parse date range
+                    const leaveStart = new Date(startDate);
+                    const leaveEnd = new Date(endDate);
+                    leaveStart.setHours(0, 0, 0, 0);
+                    leaveEnd.setHours(23, 59, 59, 999);
+                    
+                    // Find conflicting trips
+                    const conflicts = scheduleList.filter(trip => {
+                        const tripDate = new Date(trip.startTime || trip.start_time);
+                        if (isNaN(tripDate.getTime())) return false;
+                        
+                        const status = trip.status || trip.tripStatus;
+                        if (status === "COMPLETED" || status === "CANCELLED") return false;
+                        
+                        return tripDate >= leaveStart && tripDate <= leaveEnd;
+                    });
+                    
+                    if (conflicts.length > 0) {
+                        const confirmMsg = `⚠️ Cảnh báo: Tài xế có ${conflicts.length} chuyến trong ngày nghỉ.\n\n` +
+                            `Các chuyến xung đột:\n` +
+                            conflicts.map((t, i) => `  ${i + 1}. Chuyến #${t.tripId || t.trip_id || t.id} - ${new Date(t.startTime || t.start_time).toLocaleDateString('vi-VN')}`).join('\n') +
+                            `\n\nBạn có muốn:\n` +
+                            `1. Hủy gán các chuyến và duyệt nghỉ phép?\n` +
+                            `2. Từ chối yêu cầu nghỉ phép?\n` +
+                            `3. Hủy thao tác?`;
+                        
+                        const choice = confirm(confirmMsg + "\n\nNhấn OK để hủy gán và duyệt, Cancel để từ chối.");
+                        
+                        if (choice) {
+                            // Unassign conflicting trips
+                            const unassignNote = `Hủy gán do tài xế nghỉ phép từ ${startDate} đến ${endDate}`;
+                            try {
+                                await Promise.all(conflicts.map(trip => {
+                                    const tripId = trip.tripId || trip.trip_id || trip.id;
+                                    if (!tripId) return Promise.resolve();
+                                    return unassignTrip(tripId, unassignNote).catch(err => {
+                                        console.error(`Failed to unassign trip ${tripId}:`, err);
+                                        return null;
+                                    });
+                                }));
+                            } catch (err) {
+                                console.error("Failed to unassign trips:", err);
+                                alert("Không thể hủy gán một số chuyến. Vui lòng thử lại.");
+                                return;
+                            }
+                        } else {
+                            // User chose to reject
+                            const rejectNote = prompt("Lý do từ chối (tài xế có chuyến trong ngày nghỉ):");
+                            if (rejectNote === null) return;
+                            
+                            setIdBusy(`approval-${historyId}`, true);
+                            try {
+                                await apiFetch(`/api/notifications/approvals/${historyId}/reject`, {
+                                    method: "POST",
+                                    body: { userId: Number(userId), note: rejectNote },
+                                });
+                                alert("Đã từ chối yêu cầu");
+                                fetchAll();
+                            } catch (err) {
+                                console.error("Failed to reject:", err);
+                                alert("Không thể từ chối");
+                            } finally {
+                                setIdBusy(`approval-${historyId}`, false);
+                            }
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to check driver trips:", err);
+                    // Continue with approval even if check fails
+                }
+            }
+        }
+        
+        // Proceed with normal approval
         const note = prompt("Ghi chú phê duyệt (tùy chọn):");
         if (note === null) return;
 
@@ -502,11 +595,40 @@ export default function NotificationsWidget() {
     // Calculate unread count (alerts not acknowledged + pending approvals)
     const unreadAlerts = alerts.filter(a => !a.isAcknowledged).length;
     
-    // For DRIVER role, use WebSocket unreadCount (personal notifications)
+    // For DRIVER role, use filtered WebSocket unreadCount (only driver-relevant notifications)
     // For CONSULTANT role, use pending deposit bookings count
     // For other roles, use alerts + pending count (dashboard notifications)
     const badgeCount = role === ROLES.DRIVER 
-        ? unreadCount  // WebSocket notifications for driver
+        ? wsNotifications.filter(n => {
+            // Filter: chỉ đếm thông báo liên quan đến tài xế
+            const driverNotificationTypes = [
+                'TRIP_ASSIGNED', 'TRIP_ASSIGNMENT', 'ASSIGN_TRIP', // Chuyến mới được nhận
+                'EXPENSE_APPROVED', 'EXPENSE_REJECTED', 'EXPENSE_REQUEST_APPROVED', 'EXPENSE_REQUEST_REJECTED', // Duyệt chi phí
+                'PAYMENT_APPROVED', 'PAYMENT_REJECTED', 'PAYMENT_REQUEST_APPROVED', 'PAYMENT_REQUEST_REJECTED', // Duyệt thanh toán
+                'LEAVE_APPROVED', 'LEAVE_REJECTED', 'LEAVE_APPROVAL', 'DRIVER_DAY_OFF_APPROVED', 'DRIVER_DAY_OFF_REJECTED', // Duyệt nghỉ phép
+            ];
+            // Chỉ đếm thông báo chưa đọc
+            if (n.read) return false;
+            // Nếu có type, kiểm tra type
+            if (n.type) {
+                return driverNotificationTypes.some(t => n.type.includes(t) || t.includes(n.type));
+            }
+            // Nếu không có type nhưng có message, kiểm tra message
+            if (n.message) {
+                const msg = n.message.toLowerCase();
+                return msg.includes('chuyến') || 
+                       msg.includes('chi phí') || 
+                       msg.includes('thanh toán') || 
+                       msg.includes('nghỉ phép') ||
+                       msg.includes('duyệt') ||
+                       msg.includes('trip') ||
+                       msg.includes('expense') ||
+                       msg.includes('payment') ||
+                       msg.includes('leave');
+            }
+            // Nếu không có type và message không rõ, đếm nếu từ user-specific channel
+            return true; // Đếm tất cả từ /topic/notifications/{userId}
+        }).length
         : role === ROLES.CONSULTANT
             ? pendingDepositBookings.length  // Pending deposit for consultant
             : (unreadAlerts + pending.length + pendingDepositBookings.length);
@@ -776,12 +898,39 @@ export default function NotificationsWidget() {
 
                         {/* Content */}
                         {role === ROLES.DRIVER ? (
-                            // Driver view - Only show WebSocket notifications
+                            // Driver view - Only show relevant notifications
                             <div className="min-h-[300px] max-h-[calc(85vh-80px)] overflow-y-auto text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
                                 <SectionHeader
                                     icon={<Bell className="h-4 w-4" />}
                                     title="Thông báo của bạn"
-                                    count={wsNotifications.length}
+                                    count={wsNotifications.filter(n => {
+                                        // Filter: chỉ hiển thị thông báo liên quan đến tài xế
+                                        const driverNotificationTypes = [
+                                            'TRIP_ASSIGNED', 'TRIP_ASSIGNMENT', 'ASSIGN_TRIP', // Chuyến mới được nhận
+                                            'EXPENSE_APPROVED', 'EXPENSE_REJECTED', 'EXPENSE_REQUEST_APPROVED', 'EXPENSE_REQUEST_REJECTED', // Duyệt chi phí
+                                            'PAYMENT_APPROVED', 'PAYMENT_REJECTED', 'PAYMENT_REQUEST_APPROVED', 'PAYMENT_REQUEST_REJECTED', // Duyệt thanh toán
+                                            'LEAVE_APPROVED', 'LEAVE_REJECTED', 'LEAVE_APPROVAL', 'DRIVER_DAY_OFF_APPROVED', 'DRIVER_DAY_OFF_REJECTED', // Duyệt nghỉ phép
+                                        ];
+                                        // Nếu có type, kiểm tra type
+                                        if (n.type) {
+                                            return driverNotificationTypes.some(t => n.type.includes(t) || t.includes(n.type));
+                                        }
+                                        // Nếu không có type nhưng có message, kiểm tra message
+                                        if (n.message) {
+                                            const msg = n.message.toLowerCase();
+                                            return msg.includes('chuyến') || 
+                                                   msg.includes('chi phí') || 
+                                                   msg.includes('thanh toán') || 
+                                                   msg.includes('nghỉ phép') ||
+                                                   msg.includes('duyệt') ||
+                                                   msg.includes('trip') ||
+                                                   msg.includes('expense') ||
+                                                   msg.includes('payment') ||
+                                                   msg.includes('leave');
+                                        }
+                                        // Nếu không có type và message không rõ, chỉ hiển thị nếu từ user-specific channel
+                                        return true; // Hiển thị tất cả từ /topic/notifications/{userId}
+                                    }).length}
                                 />
                                 
                                 {/* Connection Status for Driver */}
@@ -801,74 +950,135 @@ export default function NotificationsWidget() {
                                     </div>
                                 </div>
 
-                                {wsNotifications.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
-                                        <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                            <Inbox className="h-8 w-8 text-slate-400" />
-                                        </div>
-                                        <div className="text-sm font-medium text-slate-600 mb-1">Không có thông báo mới</div>
-                                        <div className="text-xs text-slate-500">Bạn sẽ nhận được thông báo khi có cập nhật!</div>
-                                    </div>
-                                )}
+                                {/* Filter notifications for Driver */}
+                                {(() => {
+                                    const driverNotifications = wsNotifications.filter(n => {
+                                        // Filter: chỉ hiển thị thông báo liên quan đến tài xế
+                                        const driverNotificationTypes = [
+                                            'TRIP_ASSIGNED', 'TRIP_ASSIGNMENT', 'ASSIGN_TRIP', // Chuyến mới được nhận
+                                            'EXPENSE_APPROVED', 'EXPENSE_REJECTED', 'EXPENSE_REQUEST_APPROVED', 'EXPENSE_REQUEST_REJECTED', // Duyệt chi phí
+                                            'PAYMENT_APPROVED', 'PAYMENT_REJECTED', 'PAYMENT_REQUEST_APPROVED', 'PAYMENT_REQUEST_REJECTED', // Duyệt thanh toán
+                                            'LEAVE_APPROVED', 'LEAVE_REJECTED', 'LEAVE_APPROVAL', 'DRIVER_DAY_OFF_APPROVED', 'DRIVER_DAY_OFF_REJECTED', // Duyệt nghỉ phép
+                                        ];
+                                        // Nếu có type, kiểm tra type
+                                        if (n.type) {
+                                            return driverNotificationTypes.some(t => n.type.includes(t) || t.includes(n.type));
+                                        }
+                                        // Nếu không có type nhưng có message, kiểm tra message
+                                        if (n.message) {
+                                            const msg = n.message.toLowerCase();
+                                            return msg.includes('chuyến') || 
+                                                   msg.includes('chi phí') || 
+                                                   msg.includes('thanh toán') || 
+                                                   msg.includes('nghỉ phép') ||
+                                                   msg.includes('duyệt') ||
+                                                   msg.includes('trip') ||
+                                                   msg.includes('expense') ||
+                                                   msg.includes('payment') ||
+                                                   msg.includes('leave');
+                                        }
+                                        // Nếu không có type và message không rõ, chỉ hiển thị nếu từ user-specific channel
+                                        return true; // Hiển thị tất cả từ /topic/notifications/{userId}
+                                    });
 
-                                {wsNotifications.map((notif) => (
-                                    <div 
-                                        key={notif.id} 
-                                        className={cls(
-                                            "flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 transition-colors cursor-pointer group",
-                                            notif.read 
-                                                ? "bg-slate-50/50 hover:bg-slate-100/50" 
-                                                : "bg-white hover:bg-sky-50/50"
-                                        )}
-                                        onClick={() => {
-                                            if (!notif.read) {
-                                                markAsRead(notif.id);
+                                    if (driverNotifications.length === 0) {
+                                        return (
+                                            <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+                                                <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                                                    <Inbox className="h-8 w-8 text-slate-400" />
+                                                </div>
+                                                <div className="text-sm font-medium text-slate-600 mb-1">Không có thông báo mới</div>
+                                                <div className="text-xs text-slate-500">Bạn sẽ nhận được thông báo khi có chuyến mới, duyệt chi phí/thanh toán, hoặc duyệt nghỉ phép!</div>
+                                            </div>
+                                        );
+                                    }
+
+                                    return driverNotifications.map((notif) => {
+                                        // Determine icon and color based on notification type
+                                        let Icon = Bell;
+                                        let iconBg = notif.read ? "bg-slate-100" : "bg-sky-50";
+                                        let iconColor = notif.read ? "text-slate-400" : "text-sky-600";
+                                        
+                                        if (notif.type) {
+                                            if (notif.type.includes('TRIP') || notif.type.includes('ASSIGN')) {
+                                                Icon = CarFront;
+                                                iconBg = notif.read ? "bg-amber-50" : "bg-amber-100";
+                                                iconColor = notif.read ? "text-amber-500" : "text-amber-600";
+                                            } else if (notif.type.includes('EXPENSE')) {
+                                                Icon = DollarSign;
+                                                iconBg = notif.read ? "bg-emerald-50" : "bg-emerald-100";
+                                                iconColor = notif.read ? "text-emerald-500" : "text-emerald-600";
+                                            } else if (notif.type.includes('PAYMENT')) {
+                                                Icon = CreditCard;
+                                                iconBg = notif.read ? "bg-blue-50" : "bg-blue-100";
+                                                iconColor = notif.read ? "text-blue-500" : "text-blue-600";
+                                            } else if (notif.type.includes('LEAVE') || notif.type.includes('DAY_OFF')) {
+                                                Icon = CalendarDays;
+                                                iconBg = notif.read ? "bg-purple-50" : "bg-purple-100";
+                                                iconColor = notif.read ? "text-purple-500" : "text-purple-600";
                                             }
-                                        }}
-                                    >
-                                        <div className={cls(
-                                            "mt-0.5 p-2 rounded-lg shadow-sm",
-                                            notif.read ? "bg-slate-100" : "bg-sky-50"
-                                        )}>
-                                            <Bell className={cls(
-                                                "h-4 w-4",
-                                                notif.read ? "text-slate-400" : "text-sky-600"
-                                            )} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className={cls(
-                                                "text-sm mb-1",
-                                                notif.read 
-                                                    ? "font-medium text-slate-600" 
-                                                    : "font-semibold text-slate-900"
-                                            )}>
-                                                {notif.title}
-                                                {!notif.read && (
-                                                    <span className="ml-2 inline-block h-2 w-2 rounded-full bg-sky-500"></span>
+                                        }
+
+                                        return (
+                                            <div 
+                                                key={notif.id} 
+                                                className={cls(
+                                                    "flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 transition-colors cursor-pointer group",
+                                                    notif.read 
+                                                        ? "bg-slate-50/50 hover:bg-slate-100/50" 
+                                                        : "bg-white hover:bg-sky-50/50"
                                                 )}
+                                                onClick={() => {
+                                                    if (!notif.read) {
+                                                        markAsRead(notif.id);
+                                                    }
+                                                }}
+                                            >
+                                                <div className={cls(
+                                                    "mt-0.5 p-2 rounded-lg shadow-sm",
+                                                    iconBg
+                                                )}>
+                                                    <Icon className={cls(
+                                                        "h-4 w-4",
+                                                        iconColor
+                                                    )} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className={cls(
+                                                        "text-sm mb-1",
+                                                        notif.read 
+                                                            ? "font-medium text-slate-600" 
+                                                            : "font-semibold text-slate-900"
+                                                    )}>
+                                                        {notif.title}
+                                                        {!notif.read && (
+                                                            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-sky-500"></span>
+                                                        )}
+                                                    </div>
+                                                    <div className={cls(
+                                                        "text-xs leading-relaxed",
+                                                        notif.read ? "text-slate-500" : "text-slate-600"
+                                                    )}>
+                                                        {notif.message}
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-400 mt-1">
+                                                        {new Date(notif.timestamp).toLocaleString('vi-VN')}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        clearNotification(notif.id);
+                                                    }}
+                                                    className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="Xóa thông báo"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </button>
                                             </div>
-                                            <div className={cls(
-                                                "text-xs leading-relaxed",
-                                                notif.read ? "text-slate-500" : "text-slate-600"
-                                            )}>
-                                                {notif.message}
-                                            </div>
-                                            <div className="text-[10px] text-slate-400 mt-1">
-                                                {new Date(notif.timestamp).toLocaleString('vi-VN')}
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                clearNotification(notif.id);
-                                            }}
-                                            className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                                            title="Xóa thông báo"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                ))}
+                                        );
+                                    });
+                                })()}
                             </div>
                         ) : role === ROLES.CONSULTANT ? (
                             // Consultant view - Show pending deposit bookings

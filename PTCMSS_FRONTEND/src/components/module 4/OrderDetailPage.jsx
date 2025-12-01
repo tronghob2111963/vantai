@@ -7,7 +7,8 @@ import {
     listBookingPayments,
     generateBookingQrPayment,
 } from "../../api/bookings";
-import { getCurrentRole, ROLES } from "../../utils/session";
+import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
+import AssignDriverDialog from "../module 5/AssignDriverDialog";
 import {
     ClipboardList,
     User,
@@ -375,7 +376,7 @@ function QuoteInfoCard({ quote }) {
 }
 
 /* 4. Thanh toán / Cọc */
-function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr }) {
+function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, isConsultant = false }) {
     const remain = Math.max(0, Number(payment.remaining || 0));
     const paid = Math.max(0, Number(payment.paid || 0));
 
@@ -424,7 +425,7 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr })
                     onClick={onOpenDeposit}
                 >
                     <BadgeDollarSign className="h-4 w-4" />
-                    <span>Ghi nhận thanh toán</span>
+                    <span>{isConsultant ? "Yêu cầu đặt cọc" : "Ghi nhận thanh toán"}</span>
                 </button>
 
                 <button
@@ -438,7 +439,9 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr })
             </div>
 
             <div className="text-[11px] text-slate-500 text-center leading-relaxed px-2">
-                Ghi nhận tiền mặt/chuyển khoản hoặc gửi mã QR để khách tự thanh toán.
+                {isConsultant 
+                    ? "Tạo yêu cầu thu cọc/thanh toán để kế toán xác nhận, hoặc gửi QR cho khách."
+                    : "Ghi nhận tiền mặt/chuyển khoản hoặc gửi mã QR để khách tự thanh toán."}
             </div>
 
             {/* Lịch sử thanh toán */}
@@ -768,7 +771,7 @@ function QrPaymentModal({
 }
 
 /* 5. Điều phối */
-function DispatchInfoCard({ dispatch }) {
+function DispatchInfoCard({ dispatch, onAssignClick, showAssignButton = false }) {
     const hasAssign =
         dispatch &&
         (dispatch.driver_name ||
@@ -786,13 +789,20 @@ function DispatchInfoCard({ dispatch }) {
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[12px] text-amber-800 flex items-start gap-2 leading-relaxed">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                     <div>
-                        Chưa gán tài
-                        xế/xe. Đơn đang
-                        chờ điều phối
-                        hoặc chưa xác
-                        nhận.
+                        Chưa gán tài xế/xe. Đơn đang chờ điều phối hoặc chưa xác nhận.
                     </div>
                 </div>
+
+                {/* Button gán chuyến cho Coordinator */}
+                {showAssignButton && (
+                    <button
+                        onClick={onAssignClick}
+                        className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Truck className="h-4 w-4" />
+                        Gán chuyến
+                    </button>
+                )}
             </div>
         );
     }
@@ -875,15 +885,18 @@ function DispatchInfoCard({ dispatch }) {
 export default function OrderDetailPage() {
     const { toasts, push } = useToasts();
     const { orderId } = useParams();
-    
-    // Check role - ẩn phần thanh toán cho Consultant
+
+    // Check role - ẩn phần thanh toán cho Consultant và Accountant
     const currentRole = React.useMemo(() => getCurrentRole(), []);
     const isConsultant = currentRole === ROLES.CONSULTANT;
+    const isAccountant = currentRole === ROLES.ACCOUNTANT;
+    const isCoordinator = currentRole === ROLES.COORDINATOR;
 
     const [order, setOrder] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     const [paymentHistory, setPaymentHistory] = React.useState([]);
     const [qrModalOpen, setQrModalOpen] = React.useState(false);
+    const [assignDialogOpen, setAssignDialogOpen] = React.useState(false);
 
     const mapBookingToOrder = (b) => {
         if (!b) return null;
@@ -905,6 +918,7 @@ export default function OrderDetailPage() {
                 email: b.customer?.email || '',
             },
             trip: {
+                id: firstTrip.id || firstTrip.tripId || null,
                 pickup: firstTrip.startLocation || '',
                 dropoff: firstTrip.endLocation || '',
                 pickup_time: firstTrip.startTime || '',
@@ -928,6 +942,7 @@ export default function OrderDetailPage() {
                 vehicle_plate: firstTrip.vehicleLicensePlate || '',
             },
             notes_internal: b.note || '',
+            branch_name: b.branchName || b.branch?.name || '',
         };
     };
 
@@ -972,6 +987,19 @@ export default function OrderDetailPage() {
 
     const openQrModal = () => {
         setQrModalOpen(true);
+    };
+
+    const openAssignDialog = () => {
+        setAssignDialogOpen(true);
+    };
+
+    const handleAssignSuccess = async () => {
+        try {
+            await fetchOrder();
+            push("Đã gán chuyến thành công", "success");
+        } catch (e) {
+            push("Không thể tải lại dữ liệu", "error");
+        }
     };
 
     // callback khi ghi nhận thanh toán thành công (DepositModal đã xử lý API call)
@@ -1096,54 +1124,7 @@ export default function OrderDetailPage() {
                         )}
                 </div>
 
-                {/* thanh toán summary box */}
-                <div className="w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 text-sm shadow-sm">
-                    <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                        <DollarSign className="h-3.5 w-3.5 text-amber-600" />
-                        Tình trạng thanh toán
-                    </div>
-
-                    <div className="flex items-baseline justify-between">
-                        <div className="text-[12px] text-slate-500">
-                            Giá chốt
-                        </div>
-                        <div className="font-semibold text-slate-900 tabular-nums">
-                            {fmtVND(finalPrice)}
-                        </div>
-                    </div>
-
-                    <div className="flex items-baseline justify-between">
-                        <div className="text-[12px] text-slate-500">
-                            Đã thu
-                        </div>
-                        <div className="font-semibold text-amber-600 tabular-nums flex items-center gap-1">
-                            <DollarSign className="h-3.5 w-3.5 text-amber-600" />
-                            <span>{fmtVND(paid)}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-baseline justify-between">
-                        <div className="text-[12px] text-slate-500">
-                            Còn lại
-                        </div>
-                        <div className="font-semibold text-amber-600 tabular-nums flex items-center gap-1">
-                            <DollarSign className="h-3.5 w-3.5 text-amber-600" />
-                            <span>
-                                {fmtVND(remain)}
-                            </span>
-                        </div>
-                    </div>
-
-                    <button
-                        className="w-full rounded-md bg-[#EDC531] hover:bg-amber-500 text-white font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2"
-                        onClick={openDeposit}
-                    >
-                        <BadgeDollarSign className="h-4 w-4" />
-                        <span>
-                            Ghi nhận thanh toán
-                        </span>
-                    </button>
-                </div>
+                {/* Bỏ bảng thanh toán summary - thông tin đã có trong PaymentInfoCard */}
             </div>
 
             {/* BODY GRID */}
@@ -1154,19 +1135,24 @@ export default function OrderDetailPage() {
                 <TripInfoCard trip={order.trip} />
             </div>
 
-            <div className="grid xl:grid-cols-2 gap-5 mb-5">
+            <div className={`grid ${isAccountant ? 'xl:grid-cols-1' : 'xl:grid-cols-2'} gap-5 mb-5`}>
                 <QuoteInfoCard quote={order.quote} />
-                <PaymentInfoCard
-                    payment={order.payment}
-                    history={paymentHistory}
-                    onOpenDeposit={openDeposit}
-                    onGenerateQr={openQrModal}
-                />
+                {!isAccountant && (
+                    <PaymentInfoCard
+                        payment={order.payment}
+                        history={paymentHistory}
+                        onOpenDeposit={openDeposit}
+                        onGenerateQr={openQrModal}
+                        isConsultant={isConsultant}
+                    />
+                )}
             </div>
 
             <div className="grid xl:grid-cols-2 gap-5">
                 <DispatchInfoCard
                     dispatch={order.dispatch}
+                    onAssignClick={openAssignDialog}
+                    showAssignButton={isCoordinator}
                 />
 
                 {/* ghi chú nội bộ */}
@@ -1191,47 +1177,69 @@ export default function OrderDetailPage() {
                 </div>
             </div>
 
-            {/* Payment modals */}
-            <QrPaymentModal
-                open={qrModalOpen}
-                bookingCode={order.code}
-                customerName={order.customer.name}
-                defaultAmount={remain}
-                onClose={() => setQrModalOpen(false)}
-                onGenerate={handleQrGenerate}
-            />
+            {/* Assign Driver Dialog - cho Coordinator */}
+            {isCoordinator && order && (
+                <AssignDriverDialog
+                    open={assignDialogOpen}
+                    order={{
+                        id: order.id,
+                        bookingId: order.id,
+                        tripId: order.trip?.id,
+                        code: order.code,
+                        pickup_time: order.trip?.pickup_time,
+                        vehicle_type: order.trip?.vehicle_category,
+                        branch_name: order.branch_name,
+                    }}
+                    onClose={() => setAssignDialogOpen(false)}
+                    onAssigned={handleAssignSuccess}
+                />
+            )}
 
-            {/* Deposit / Payment modal */}
-            <DepositModal
-                open={depositOpen}
-                context={{
-                    type: "order",
-                    id: order.id,
-                    branchId: order.branchId,
-                    customerId: order.customerId,
-                    title:
-                        order.customer.name +
-                        " · " +
-                        order.trip.pickup +
-                        " → " +
-                        order.trip.dropoff,
-                }}
-                /* Tổng & Đã trả truyền cho modal light */
-                totals={{
-                    total: order.quote.final_price,
-                    paid: order.payment.paid,
-                }}
-                /* Số mặc định = phần còn lại */
-                defaultAmount={Math.max(
-                    0,
-                    order.quote.final_price -
-                    order.payment.paid
-                )}
-                modeLabel="Thanh toán"
-                allowOverpay={false}
-                onClose={() => setDepositOpen(false)}
-                onSubmitted={handleDepositSubmitted}
-            />
+            {/* Payment modals - ẩn với Accountant */}
+            {!isAccountant && (
+                <>
+                    <QrPaymentModal
+                        open={qrModalOpen}
+                        bookingCode={order.code}
+                        customerName={order.customer.name}
+                        defaultAmount={remain}
+                        onClose={() => setQrModalOpen(false)}
+                        onGenerate={handleQrGenerate}
+                    />
+
+                    {/* Deposit / Payment modal */}
+                    <DepositModal
+                        open={depositOpen}
+                        context={{
+                            type: "order",
+                            id: order.id,
+                            branchId: order.branchId,
+                            customerId: order.customerId,
+                            title:
+                                order.customer.name +
+                                " · " +
+                                order.trip.pickup +
+                                " → " +
+                                order.trip.dropoff,
+                        }}
+                        /* Tổng & Đã trả truyền cho modal light */
+                        totals={{
+                            total: order.quote.final_price,
+                            paid: order.payment.paid,
+                        }}
+                        /* Số mặc định = phần còn lại */
+                        defaultAmount={Math.max(
+                            0,
+                            order.quote.final_price -
+                            order.payment.paid
+                        )}
+                        modeLabel="Thanh toán"
+                        allowOverpay={false}
+                        onClose={() => setDepositOpen(false)}
+                        onSubmitted={handleDepositSubmitted}
+                    />
+                </>
+            )}
         </div>
     );
 }

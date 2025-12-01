@@ -27,13 +27,21 @@ export default function CoordinatorDriverDetailPage() {
         status: "",
     });
 
-    // Driver status options
+    // Driver status options - Coordinator CHỈ được chuyển ACTIVE và INACTIVE
+    // Các trạng thái khác (ON_TRIP, OFF_DUTY) được cập nhật tự động bởi hệ thống
     const STATUS_OPTIONS = [
-        { value: "AVAILABLE", label: "Sẵn sàng" },
-        { value: "ON_TRIP", label: "Đang chạy" },
-        { value: "OFF_DUTY", label: "Nghỉ" },
+        { value: "ACTIVE", label: "Hoạt động" },
         { value: "INACTIVE", label: "Không hoạt động" },
     ];
+
+    // Tất cả trạng thái có thể có (để hiển thị)
+    const ALL_STATUS_LABELS = {
+        "ACTIVE": "Hoạt động",
+        "AVAILABLE": "Sẵn sàng",
+        "ON_TRIP": "Đang chạy",
+        "OFF_DUTY": "Nghỉ",
+        "INACTIVE": "Không hoạt động",
+    };
 
     // License class options
     const LICENSE_CLASS_OPTIONS = ["A1", "A2", "B1", "B2", "C", "D", "E", "F"];
@@ -69,11 +77,24 @@ export default function CoordinatorDriverDetailPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
+            // VALIDATION: Coordinator chỉ được chuyển tài xế sang ACTIVE hoặc INACTIVE
+            const allowedStatuses = ["ACTIVE", "INACTIVE"];
+            if (formData.status && !allowedStatuses.includes(formData.status)) {
+                setToast({
+                    type: "error",
+                    message: "Điều phối viên chỉ được phép chuyển tài xế sang trạng thái 'Hoạt động' hoặc 'Không hoạt động'."
+                });
+                setSaving(false);
+                return;
+            }
+
+            console.log("[CoordinatorDriverDetail] Updating driver:", driverId, formData);
             await updateDriverProfile(driverId, formData);
             setToast({ type: "success", message: "Cập nhật thành công" });
             setEditing(false);
             loadDriverProfile();
         } catch (err) {
+            console.error("[CoordinatorDriverDetail] Update error:", err);
             setToast({ type: "error", message: err?.message || "Cập nhật thất bại" });
         } finally {
             setSaving(false);
@@ -137,9 +158,8 @@ export default function CoordinatorDriverDetailPage() {
             <div className="max-w-4xl mx-auto">
                 {/* Toast */}
                 {toast && (
-                    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
-                        toast.type === "success" ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
-                    }`}>
+                    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${toast.type === "success" ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
+                        }`}>
                         {toast.type === "success" ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                         <span>{toast.message}</span>
                         <button onClick={() => setToast(null)} className="ml-2">
@@ -312,25 +332,37 @@ export default function CoordinatorDriverDetailPage() {
                                 <Shield className="h-5 w-5 text-slate-400" />
                                 <span className="text-slate-600 min-w-[140px]">Trạng thái:</span>
                                 {editing ? (
-                                    <select
-                                        value={formData.status}
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                    >
-                                        <option value="">-- Chọn trạng thái --</option>
-                                        {STATUS_OPTIONS.map(opt => (
-                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                        ))}
-                                    </select>
+                                    <div className="flex-1">
+                                        <select
+                                            value={formData.status}
+                                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                            disabled={driver?.status === "ON_TRIP"}
+                                        >
+                                            <option value="">-- Chọn trạng thái --</option>
+                                            {STATUS_OPTIONS.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                        {driver?.status === "ON_TRIP" && (
+                                            <p className="text-xs text-amber-600 mt-1">
+                                                ⚠️ Tài xế đang trong chuyến, không thể thay đổi trạng thái
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            💡 Chỉ có thể chuyển sang: Hoạt động hoặc Không hoạt động
+                                        </p>
+                                    </div>
                                 ) : (
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        driver?.status === "AVAILABLE" || driver?.status === "ACTIVE"
-                                            ? "bg-green-50 text-green-700"
-                                            : driver?.status === "ON_TRIP"
-                                                ? "bg-blue-50 text-blue-700"
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${driver?.status === "AVAILABLE" || driver?.status === "ACTIVE"
+                                        ? "bg-green-50 text-green-700"
+                                        : driver?.status === "ON_TRIP"
+                                            ? "bg-blue-50 text-blue-700"
+                                            : driver?.status === "OFF_DUTY"
+                                                ? "bg-amber-50 text-amber-700"
                                                 : "bg-slate-100 text-slate-600"
-                                    }`}>
-                                        {STATUS_OPTIONS.find(o => o.value === driver?.status)?.label || driver?.status || "—"}
+                                        }`}>
+                                        {ALL_STATUS_LABELS[driver?.status] || driver?.status || "—"}
                                     </span>
                                 )}
                             </div>
