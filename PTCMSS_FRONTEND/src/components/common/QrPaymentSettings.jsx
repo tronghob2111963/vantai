@@ -1,5 +1,5 @@
 import React from "react";
-import { QrCode, Save, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
+import { QrCode, Save, RefreshCw, AlertCircle, CheckCircle2, RefreshCcw } from "lucide-react";
 import { getQrSettings, updateQrSettings } from "../../api/settings";
 
 /**
@@ -24,11 +24,44 @@ export default function QrPaymentSettings() {
   const [errors, setErrors] = React.useState({});
   const [successMsg, setSuccessMsg] = React.useState("");
   const [errorMsg, setErrorMsg] = React.useState("");
+  const [banks, setBanks] = React.useState([]);
+  const [bankError, setBankError] = React.useState("");
+  const [bankLoading, setBankLoading] = React.useState(false);
 
   // Load settings on mount
   React.useEffect(() => {
     loadSettings();
+    loadBanks();
   }, []);
+  const loadBanks = async () => {
+    try {
+      setBankLoading(true);
+      setBankError("");
+
+      const resp = await fetch("https://api.vietqr.io/v2/banks");
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`);
+      }
+      const payload = await resp.json();
+      if (payload?.code !== "00" || !Array.isArray(payload?.data)) {
+        throw new Error("Dữ liệu ngân hàng không hợp lệ");
+      }
+      const sorted = [...payload.data].sort((a, b) =>
+        (a.shortName || a.name || "").localeCompare(b.shortName || b.name || "")
+      );
+      setBanks(sorted);
+    } catch (err) {
+      console.error("Failed to load VietQR banks", err);
+      setBankError("Không thể tải danh sách ngân hàng VietQR. Bạn vẫn có thể nhập mã thủ công.");
+    } finally {
+      setBankLoading(false);
+    }
+  };
+
+  const handleBankSelect = (bin) => {
+    handleInputChange("bankCode", bin || "");
+  };
+
 
   const loadSettings = async () => {
     try {
@@ -205,6 +238,47 @@ export default function QrPaymentSettings() {
 
       {/* Form */}
       <div className="space-y-4">
+        {/* Bank Selector */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Ngân hàng <span className="text-red-500">*</span>
+          </label>
+          <div className="flex gap-2">
+            <select
+              value={settings.bankCode && banks.find((b) => b.bin === settings.bankCode) ? settings.bankCode : ""}
+              onChange={(e) => handleBankSelect(e.target.value)}
+              className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                errors.bankCode
+                  ? "border-red-300 focus:ring-red-200"
+                  : "border-slate-300 focus:ring-emerald-200"
+              }`}
+            >
+              <option value="">
+                {bankLoading ? "Đang tải danh sách..." : "Chọn ngân hàng từ VietQR"}
+              </option>
+              {banks.map((bank) => (
+                <option key={bank.bin} value={bank.bin}>
+                  {bank.shortName || bank.name} ({bank.bin})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={loadBanks}
+              className="px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 text-slate-600"
+              title="Tải lại danh sách ngân hàng từ VietQR"
+            >
+              {bankLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+            </button>
+          </div>
+          {bankError && (
+            <p className="mt-1 text-sm text-amber-600">{bankError}</p>
+          )}
+          <p className="mt-1 text-xs text-slate-500">
+            Dữ liệu lấy trực tiếp từ VietQR API. Chọn tên ngân hàng, hệ thống sẽ tự điền mã.
+          </p>
+        </div>
+
         {/* Bank Code */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -213,19 +287,17 @@ export default function QrPaymentSettings() {
           <input
             type="text"
             value={settings.bankCode}
-            onChange={(e) => handleInputChange("bankCode", e.target.value)}
             placeholder="VD: 970403 (Sacombank)"
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-              errors.bankCode
-                ? "border-red-300 focus:ring-red-200"
-                : "border-slate-300 focus:ring-emerald-200"
+            readOnly
+            className={`w-full px-3 py-2 border rounded-lg bg-slate-50 text-slate-700 ${
+              errors.bankCode ? "border-red-300" : "border-slate-300"
             }`}
           />
           {errors.bankCode && (
             <p className="mt-1 text-sm text-red-600">{errors.bankCode}</p>
           )}
           <p className="mt-1 text-xs text-slate-500">
-            Mã ngân hàng theo chuẩn VietQR (6-10 ký tự số)
+            Mã ngân hàng theo chuẩn VietQR (6-10 ký tự số) – tự sinh theo ngân hàng đã chọn, không chỉnh tay.
           </p>
         </div>
 
