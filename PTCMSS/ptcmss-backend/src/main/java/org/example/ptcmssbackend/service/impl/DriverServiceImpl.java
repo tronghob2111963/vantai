@@ -44,6 +44,7 @@ public class DriverServiceImpl implements DriverService {
     private final BranchesRepository branchRepository;
     private final EmployeeRepository employeeRepository;
     private final ApprovalService approvalService;
+    private final DriverRatingsRepository driverRatingsRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -91,12 +92,24 @@ public class DriverServiceImpl implements DriverService {
             trips = tripDriverRepository.findAllByDriverId(driverId);
         }
         return trips.stream()
-                .map(td -> new DriverScheduleResponse(
-                        td.getTrip().getId(),
-                        td.getTrip().getStartLocation(),
-                        td.getTrip().getEndLocation(),
-                        td.getTrip().getStartTime(),
-                        td.getTrip().getStatus()))
+                .map(td -> {
+                    var trip = td.getTrip();
+                    // Lấy rating nếu có
+                    var ratingOpt = driverRatingsRepository.findByTrip_Id(trip.getId());
+                    var rating = ratingOpt.map(r -> r.getOverallRating()).orElse(null);
+                    var ratingComment = ratingOpt.map(r -> r.getComment()).orElse(null);
+                    
+                    return DriverScheduleResponse.builder()
+                            .tripId(trip.getId())
+                            .startLocation(trip.getStartLocation())
+                            .endLocation(trip.getEndLocation())
+                            .startTime(trip.getStartTime())
+                            .endTime(trip.getEndTime())
+                            .status(trip.getStatus())
+                            .rating(rating)
+                            .ratingComment(ratingComment)
+                            .build();
+                })
                 .toList();
     }
 

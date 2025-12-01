@@ -108,9 +108,10 @@ export default function DriverTripsListPage() {
                         startLocation: trip.startLocation || trip.start_location || "—",
                         endLocation: trip.endLocation || trip.end_location || "—",
                         startTime: trip.startTime || trip.start_time,
-                        endTime: trip.endTime || trip.end_time,
+                        endTime: trip.endTime || trip.end_time || null,
                         status: trip.status || "SCHEDULED",
-                        rating: trip.rating || 0,
+                        rating: trip.rating ? Number(trip.rating) : 0,
+                        ratingComment: trip.ratingComment || trip.rating_comment || "",
                     }))
                     : [];
 
