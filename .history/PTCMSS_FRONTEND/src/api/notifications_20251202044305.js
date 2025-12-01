@@ -49,7 +49,7 @@ export function markNotificationRead(notificationId) {
 export function markAllNotificationsRead(userId) {
   return apiFetch(`/api/notifications/read-all`, {
     method: "PUT",
-    body: { userId: Number(userId) },
+    body: { userId },
   });
 }
 
