@@ -60,6 +60,6 @@ public class InvoiceResponse {
     private String sentToEmail;
     
     private String note;
-    // private String img; // Removed
+    private String img;
 }
 

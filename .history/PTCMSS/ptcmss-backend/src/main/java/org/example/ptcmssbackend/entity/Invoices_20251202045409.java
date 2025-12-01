@@ -93,6 +93,10 @@ public class Invoices {
     private Instant createdAt;
 
     @Size(max = 255)
+    @Column(name = "img")
+    private String img;
+
+    @Size(max = 255)
     @Column(name = "note")
     private String note;
 

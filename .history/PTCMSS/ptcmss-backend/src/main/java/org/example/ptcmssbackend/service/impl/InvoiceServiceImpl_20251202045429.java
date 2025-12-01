@@ -105,11 +105,11 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setDueDate(request.getDueDate());
         }
 
-        // Bank transfer info - Removed from Invoice entity, stored in PaymentHistory
-        // invoice.setBankName(request.getBankName());
-        // invoice.setBankAccount(request.getBankAccount());
-        // invoice.setReferenceNumber(request.getReferenceNumber());
-        // invoice.setCashierName(request.getCashierName());
+        // Bank transfer info
+        invoice.setBankName(request.getBankName());
+        invoice.setBankAccount(request.getBankAccount());
+        invoice.setReferenceNumber(request.getReferenceNumber());
+        invoice.setCashierName(request.getCashierName());
 
         // Generate invoice number
         LocalDate invoiceDate = invoice.getInvoiceDate() != null
@@ -178,7 +178,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Update fields
         if (request.getAmount() != null) invoice.setAmount(request.getAmount());
-        // if (request.getSubtotal() != null) invoice.setSubtotal(request.getSubtotal()); // Removed
+        if (request.getSubtotal() != null) invoice.setSubtotal(request.getSubtotal());
         if (request.getVatAmount() != null) invoice.setVatAmount(request.getVatAmount());
         if (request.getPaymentMethod() != null) invoice.setPaymentMethod(request.getPaymentMethod());
         if (request.getPaymentTerms() != null) invoice.setPaymentTerms(request.getPaymentTerms());
@@ -405,7 +405,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         response.setCostType(invoice.getCostType());
         response.setIsDeposit(invoice.getIsDeposit());
         response.setAmount(invoice.getAmount());
-        // response.setSubtotal(invoice.getSubtotal()); // Removed
+        response.setSubtotal(invoice.getSubtotal());
         response.setVatAmount(invoice.getVatAmount());
         response.setPaymentMethod(invoice.getPaymentMethod());
         response.setPaymentStatus(invoice.getPaymentStatus().toString());
@@ -414,11 +414,11 @@ public class InvoiceServiceImpl implements InvoiceService {
         response.setDueDate(invoice.getDueDate());
         response.setInvoiceDate(invoice.getInvoiceDate());
         response.setCreatedAt(invoice.getCreatedAt());
-        // response.setBankName(invoice.getBankName()); // Removed
-        // response.setBankAccount(invoice.getBankAccount()); // Removed
-        // response.setReferenceNumber(invoice.getReferenceNumber()); // Removed
-        // response.setCashierName(invoice.getCashierName()); // Removed
-        // response.setReceiptNumber(invoice.getReceiptNumber()); // Removed
+        response.setBankName(invoice.getBankName());
+        response.setBankAccount(invoice.getBankAccount());
+        response.setReferenceNumber(invoice.getReferenceNumber());
+        response.setCashierName(invoice.getCashierName());
+        response.setReceiptNumber(invoice.getReceiptNumber());
         response.setPromiseToPayDate(invoice.getPromiseToPayDate());
         response.setDebtLabel(invoice.getDebtLabel());
         response.setContactNote(invoice.getContactNote());
@@ -427,7 +427,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         response.setSentAt(invoice.getSentAt());
         response.setSentToEmail(invoice.getSentToEmail());
         response.setNote(invoice.getNote());
-        // response.setImg(invoice.getImg()); // Removed
+        response.setImg(invoice.getImg());
 
         // Calculate balance
         // Chỉ tính các payment đã được xác nhận (CONFIRMED)

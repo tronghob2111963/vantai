@@ -37,14 +37,14 @@ public class CreateInvoiceRequest {
 
     private LocalDate dueDate;
 
-    // Bank transfer info - Removed
-    // private String bankName;
-    // private String bankAccount;
-    // private String referenceNumber;
+    // Bank transfer info
+    private String bankName;
+    private String bankAccount;
+    private String referenceNumber;
 
-    // Cash info - Removed
-    // private String cashierName;
-    // private String receiptNumber;
+    // Cash info
+    private String cashierName;
+    private String receiptNumber;
 
     private String note;
 

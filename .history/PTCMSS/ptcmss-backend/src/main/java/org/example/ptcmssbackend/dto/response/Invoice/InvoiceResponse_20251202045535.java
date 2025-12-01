@@ -31,12 +31,12 @@ public class InvoiceResponse {
     private Instant invoiceDate;
     private Instant createdAt;
     
-    // Payment info - Removed
-    // private String bankName;
-    // private String bankAccount;
-    // private String referenceNumber;
-    // private String cashierName;
-    // private String receiptNumber;
+    // Payment info
+    private String bankName;
+    private String bankAccount;
+    private String referenceNumber;
+    private String cashierName;
+    private String receiptNumber;
     
     // Balance
     private BigDecimal paidAmount;
@@ -60,6 +60,6 @@ public class InvoiceResponse {
     private String sentToEmail;
     
     private String note;
-    // private String img; // Removed
+    private String img;
 }
 
