@@ -749,13 +749,7 @@ function InvoiceTable({
                                         {iv.invoice_no || `INV-${iv.id}`}
                                     </td>
                                     <td className="px-3 py-2 text-sm text-gray-800">
-                                        <div>{iv.customer || "—"}</div>
-                                        {iv.customerPhone && (
-                                            <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                                                <Phone className="h-3 w-3" />
-                                                {iv.customerPhone}
-                                            </div>
-                                        )}
+                                        {iv.customer || "—"}
                                     </td>
                                     <td className="px-3 py-2 text-sm text-gray-800">
                                         {iv.order_code || "—"}
@@ -1387,7 +1381,6 @@ export default function InvoiceManagement() {
             invoice_no: iv.invoiceNumber || `INV-${iv.invoiceId}`,
             customer: iv.customerName || "—",
             customerEmail: iv.customerEmail,
-            customerPhone: iv.customerPhone || iv.customer_phone,
             order_code: iv.bookingId ? `ORD-${iv.bookingId}` : "—",
             total: Number(iv.amount || 0),
             paid: Number(iv.paidAmount || 0),

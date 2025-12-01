@@ -1387,7 +1387,7 @@ export default function InvoiceManagement() {
             invoice_no: iv.invoiceNumber || `INV-${iv.invoiceId}`,
             customer: iv.customerName || "—",
             customerEmail: iv.customerEmail,
-            customerPhone: iv.customerPhone || iv.customer_phone,
+            customerPhone: iv.customerPhone,
             order_code: iv.bookingId ? `ORD-${iv.bookingId}` : "—",
             total: Number(iv.amount || 0),
             paid: Number(iv.paidAmount || 0),
