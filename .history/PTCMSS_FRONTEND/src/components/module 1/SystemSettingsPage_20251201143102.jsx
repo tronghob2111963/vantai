@@ -650,11 +650,6 @@ export default function SystemSettingsPage() {
                 </div>
             </div>
 
-            {/* QR Payment Settings Section */}
-            <div className="mt-6">
-                <QrPaymentSettings />
-            </div>
-
             {/* Loading indicator */}
             {initialLoading && (
                 <div className="text-center py-8 text-slate-500 text-sm">

@@ -38,7 +38,6 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final EmployeeRepository employeeRepository;
     private final QrPaymentProperties qrPaymentProperties;
-    private final AppSettingService appSettingService;
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
 
     @Override
@@ -80,10 +79,9 @@ public class PaymentServiceImpl implements PaymentService {
         }
         Invoices saved = invoiceRepository.save(invoice);
 
-        String descriptionPrefix = appSettingService.getValue(AppSettingService.QR_DESCRIPTION_PREFIX);
         String description = StringUtils.hasText(note)
                 ? note
-                : String.format("%s-%d", descriptionPrefix, bookingId);
+                : String.format("%s-%d", qrPaymentProperties.getDescriptionPrefix(), bookingId);
 
         String qrText = buildQrText(amount, description);
         String qrImageUrl = buildQrImageUrl(amount, description);
@@ -199,8 +197,8 @@ public class PaymentServiceImpl implements PaymentService {
     private String buildQrText(BigDecimal amount, String description) {
         // VietQR format: bank_code|account_number|amount|description
         // This will be used by VietQR API to generate proper EMVCo QR code
-        String bank = valueOrEmpty(appSettingService.getValue(AppSettingService.QR_BANK_CODE));
-        String account = valueOrEmpty(appSettingService.getValue(AppSettingService.QR_ACCOUNT_NUMBER));
+        String bank = valueOrEmpty(qrPaymentProperties.getBankCode());
+        String account = valueOrEmpty(qrPaymentProperties.getAccountNumber());
         String amountStr = amount.stripTrailingZeros().toPlainString();
 
         // Return simple format that VietQR image URL will handle
@@ -215,9 +213,9 @@ public class PaymentServiceImpl implements PaymentService {
                 ? qrPaymentProperties.getTemplate()
                 : "compact";
 
-        String bank = valueOrEmpty(appSettingService.getValue(AppSettingService.QR_BANK_CODE));
-        String account = valueOrEmpty(appSettingService.getValue(AppSettingService.QR_ACCOUNT_NUMBER));
-        String accountName = valueOrEmpty(appSettingService.getValue(AppSettingService.QR_ACCOUNT_NAME));
+        String bank = valueOrEmpty(qrPaymentProperties.getBankCode());
+        String account = valueOrEmpty(qrPaymentProperties.getAccountNumber());
+        String accountName = valueOrEmpty(qrPaymentProperties.getAccountName());
 
         // URL encode parameters
         String encodedInfo = URLEncoder.encode(description, StandardCharsets.UTF_8);
