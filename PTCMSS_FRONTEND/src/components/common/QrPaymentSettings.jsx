@@ -203,22 +203,9 @@ export default function QrPaymentSettings() {
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <QrCode className="h-5 w-5 text-emerald-600" />
-          <h3 className="text-lg font-semibold text-slate-900">Cấu hình thanh toán QR</h3>
-        </div>
-        {metadata.source && (
-          <span
-            className={`text-xs px-2 py-1 rounded ${
-              metadata.source === "database"
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-slate-100 text-slate-600"
-            }`}
-          >
-            {metadata.source === "database" ? "Từ database" : "Từ config"}
-          </span>
-        )}
+      <div className="flex items-center gap-3 mb-6">
+        <QrCode className="h-5 w-5 text-emerald-600" />
+        <h3 className="text-lg font-semibold text-slate-900">Cấu hình thanh toán QR</h3>
       </div>
 
       {/* Messages */}
