@@ -252,27 +252,18 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
                         <div className="text-[12px] text-slate-600 mb-1">
                             Danh mục xe
                         </div>
-                        {readOnly ? (
-                            <input
-                                className="rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-[13px] text-slate-500 font-medium cursor-not-allowed w-full"
-                                value={form.category_name || "—"}
-                                readOnly
-                                disabled
-                            />
-                        ) : (
-                            <select
-                                className={selectCls}
-                                value={form.category_id}
-                                onChange={handleChange("category_id")}
-                                disabled={readOnly}
-                            >
-                                {form._categoryOptions.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name.includes('chỗ') ? c.name : `${c.name} (${c.seats} chỗ)`}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
+                        <select
+                            className={selectCls}
+                            value={form.category_id}
+                            onChange={handleChange("category_id")}
+                            disabled={readOnly}
+                        >
+                            {form._categoryOptions.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name.includes('chỗ') ? c.name : `${c.name} (${c.seats} chỗ)`}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Chi nhánh */}
@@ -280,27 +271,18 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
                         <div className="text-[12px] text-slate-600 mb-1">
                             Chi nhánh quản lý
                         </div>
-                        {readOnly ? (
-                            <input
-                                className="rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-[13px] text-slate-500 font-medium cursor-not-allowed w-full"
-                                value={form.branch_name || "—"}
-                                readOnly
-                                disabled
-                            />
-                        ) : (
-                            <select
-                                className={selectCls}
-                                value={form.branch_id}
-                                onChange={handleChange("branch_id")}
-                                disabled={readOnly}
-                            >
-                                {form._branchOptions.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
+                        <select
+                            className={selectCls}
+                            value={form.branch_id}
+                            onChange={handleChange("branch_id")}
+                            disabled={readOnly}
+                        >
+                            {form._branchOptions.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                    {b.name}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Trạng thái xe */}
@@ -750,11 +732,10 @@ export default function VehicleDetailPage() {
     React.useEffect(() => {
         (async () => {
             try {
-                // Skip loading categories/branches lists for read-only roles to avoid 403 errors
                 const [v, brData, catData] = await Promise.all([
                     getVehicle(vehicleId),
-                    isReadOnly ? Promise.resolve({ content: [] }) : listBranches({ size: 1000 }).catch(() => ({ content: [] })),
-                    isReadOnly ? Promise.resolve([]) : listVehicleCategories().catch(() => []),
+                    listBranches({ size: 1000 }).catch(() => ({ content: [] })),
+                    listVehicleCategories().catch(() => []),
                 ]);
                 const brs = Array.isArray(brData) ? brData : (brData?.items || brData?.content || []);
                 const mapped = {
