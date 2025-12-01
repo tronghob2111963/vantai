@@ -126,7 +126,7 @@ export default function TripPaymentRequestModal({
       const history = await listBookingPayments(bookingId);
       setPaymentHistory(Array.isArray(history) ? history : []);
     } catch (err) {
-      console.error("Error loading payment history:", err);
+      console.error("Lỗi khi tải lịch sử thanh toán:", err);
       setPaymentHistory([]);
     } finally {
       setHistoryLoading(false);
@@ -146,10 +146,10 @@ export default function TripPaymentRequestModal({
       // Reload payment history
       await loadPaymentHistory();
 
-      // Show success message (you can use a toast library here)
-      alert("Đã xóa yêu cầu thanh toán");
+      // Hiển thị thông báo thành công
+      alert("Đã xóa yêu cầu thanh toán thành công");
     } catch (err) {
-      console.error("Error deleting payment:", err);
+      console.error("Lỗi khi xóa yêu cầu thanh toán:", err);
       const errorMsg = err?.data?.message || err?.message || "Không thể xóa yêu cầu thanh toán";
       alert(errorMsg);
     } finally {
@@ -259,7 +259,7 @@ export default function TripPaymentRequestModal({
       setNotes("");
       setError("");
     } catch (err) {
-      console.error("Error creating payment request:", err);
+      console.error("Lỗi khi tạo yêu cầu thanh toán:", err);
       setError(
         err?.data?.message || err?.message || "Không thể gửi yêu cầu thanh toán. Vui lòng thử lại."
       );
@@ -524,7 +524,7 @@ export default function TripPaymentRequestModal({
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(qrData.qrText);
-                      alert("Đã sao chép mã QR vào clipboard");
+                      alert("Đã sao chép mã QR vào bộ nhớ tạm");
                     }}
                     className="text-[11px] text-sky-600 hover:text-sky-700 underline"
                   >
