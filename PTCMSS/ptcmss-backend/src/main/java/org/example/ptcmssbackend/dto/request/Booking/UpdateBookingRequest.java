@@ -22,10 +22,6 @@ public class UpdateBookingRequest {
     
     private Boolean isWeekend; // Có phải cuối tuần không
     
-    private Integer additionalPickupPoints; // Số điểm đón thêm
-    
-    private Integer additionalDropoffPoints; // Số điểm trả thêm
-    
     // Thông tin chuyến đi
     @Valid
     private List<TripRequest> trips;

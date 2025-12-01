@@ -104,9 +104,6 @@ public class BookingServiceImpl implements BookingService {
             List<Integer> quantities = request.getVehicles().stream()
                     .map(VehicleDetailRequest::getQuantity)
                     .collect(Collectors.toList());
-            Integer additionalPoints = (request.getAdditionalPickupPoints() != null ? request.getAdditionalPickupPoints() : 0) +
-                    (request.getAdditionalDropoffPoints() != null ? request.getAdditionalDropoffPoints() : 0);
-            
             // Lấy startTime và endTime từ trips để check chuyến trong ngày
             Instant startTime = null;
             Instant endTime = null;
@@ -124,7 +121,6 @@ public class BookingServiceImpl implements BookingService {
                     request.getHireTypeId(),
                     request.getIsHoliday(),
                     request.getIsWeekend(),
-                    additionalPoints,
                     startTime,
                     endTime
             );
@@ -165,12 +161,6 @@ public class BookingServiceImpl implements BookingService {
         }
         if (request.getIsWeekend() != null) {
             booking.setIsWeekend(request.getIsWeekend());
-        }
-        if (request.getAdditionalPickupPoints() != null) {
-            booking.setAdditionalPickupPoints(request.getAdditionalPickupPoints());
-        }
-        if (request.getAdditionalDropoffPoints() != null) {
-            booking.setAdditionalDropoffPoints(request.getAdditionalDropoffPoints());
         }
 
         booking = bookingRepository.save(booking);
@@ -292,9 +282,6 @@ public class BookingServiceImpl implements BookingService {
             List<Integer> quantities = request.getVehicles().stream()
                     .map(VehicleDetailRequest::getQuantity)
                     .collect(Collectors.toList());
-            Integer additionalPoints = (request.getAdditionalPickupPoints() != null ? request.getAdditionalPickupPoints() : 0) +
-                    (request.getAdditionalDropoffPoints() != null ? request.getAdditionalDropoffPoints() : 0);
-            
             // Lấy startTime và endTime từ trips để check chuyến trong ngày
             Instant startTime = null;
             Instant endTime = null;
@@ -319,7 +306,6 @@ public class BookingServiceImpl implements BookingService {
                     request.getHireTypeId() != null ? request.getHireTypeId() : (booking.getHireType() != null ? booking.getHireType().getId() : null),
                     request.getIsHoliday() != null ? request.getIsHoliday() : (booking.getIsHoliday() != null ? booking.getIsHoliday() : false),
                     request.getIsWeekend() != null ? request.getIsWeekend() : (booking.getIsWeekend() != null ? booking.getIsWeekend() : false),
-                    additionalPoints,
                     startTime,
                     endTime
             );
@@ -328,18 +314,12 @@ public class BookingServiceImpl implements BookingService {
             booking.setEstimatedCost(request.getEstimatedCost());
         }
         
-        // Update các field mới
+        // Update các flag ngày lễ/cuối tuần
         if (request.getIsHoliday() != null) {
             booking.setIsHoliday(request.getIsHoliday());
         }
         if (request.getIsWeekend() != null) {
             booking.setIsWeekend(request.getIsWeekend());
-        }
-        if (request.getAdditionalPickupPoints() != null) {
-            booking.setAdditionalPickupPoints(request.getAdditionalPickupPoints());
-        }
-        if (request.getAdditionalDropoffPoints() != null) {
-            booking.setAdditionalDropoffPoints(request.getAdditionalDropoffPoints());
         }
         
         // Update discount và totalCost
@@ -666,7 +646,6 @@ public class BookingServiceImpl implements BookingService {
                 null, // hireTypeId - sẽ được xác định từ booking
                 false, // isHoliday
                 false, // isWeekend
-                0, // additionalPoints
                 null, // startTime
                 null // endTime
         );
@@ -692,7 +671,6 @@ public class BookingServiceImpl implements BookingService {
             Integer hireTypeId,
             Boolean isHoliday,
             Boolean isWeekend,
-            Integer additionalPoints,
             Instant startTime,
             Instant endTime
     ) {
@@ -703,7 +681,6 @@ public class BookingServiceImpl implements BookingService {
         // Lấy cấu hình từ SystemSettings
         BigDecimal holidaySurchargeRate = getSystemSettingDecimal("HOLIDAY_SURCHARGE_RATE", new BigDecimal("0.25"));
         BigDecimal weekendSurchargeRate = getSystemSettingDecimal("WEEKEND_SURCHARGE_RATE", new BigDecimal("0.20"));
-        BigDecimal additionalPointSurchargeRate = getSystemSettingDecimal("ADDITIONAL_POINT_SURCHARGE_RATE", new BigDecimal("0.05"));
         BigDecimal roundTripMultiplier = getSystemSettingDecimal("ROUND_TRIP_MULTIPLIER", new BigDecimal("1.5"));
         int interProvinceDistanceKm = getSystemSettingInt("INTER_PROVINCE_DISTANCE_KM", 100);
         
@@ -859,14 +836,6 @@ public class BookingServiceImpl implements BookingService {
             if (surchargeRate.compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal surcharge = basePrice.multiply(surchargeRate);
                 basePrice = basePrice.add(surcharge);
-            }
-            
-            // Phụ phí địa điểm phát sinh
-            if (additionalPoints != null && additionalPoints > 0) {
-                BigDecimal additionalPointFee = basePrice
-                        .multiply(additionalPointSurchargeRate)
-                        .multiply(BigDecimal.valueOf(additionalPoints));
-                basePrice = basePrice.add(additionalPointFee);
             }
             
             // Nhân với số lượng xe

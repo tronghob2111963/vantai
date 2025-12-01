@@ -27,10 +27,6 @@ public class CreateBookingRequest {
     
     private Boolean isWeekend; // Có phải cuối tuần không
     
-    private Integer additionalPickupPoints; // Số điểm đón thêm
-    
-    private Integer additionalDropoffPoints; // Số điểm trả thêm
-    
     // Thông tin chuyến đi
     @Valid
     private List<TripRequest> trips; // Có thể có nhiều chuyến (ví dụ: đi và về)
