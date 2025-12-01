@@ -27,6 +27,7 @@ import {
     Phone,
     ChevronRight,
     CarFront,
+    CheckCircle,
 } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import { getBranchByUserId } from "../../api/branches";
@@ -630,7 +631,34 @@ export default function NotificationsWidget() {
             return true; // Đếm tất cả từ /topic/notifications/{userId}
         }).length
         : role === ROLES.CONSULTANT
-            ? pendingDepositBookings.length  // Pending deposit for consultant
+            ? pendingDepositBookings.length + wsNotifications.filter(n => {
+                // Consultant nhận thông báo khi kế toán duyệt payment request
+                if (n.read) return false;
+                // Filter payment approval/rejection notifications
+                const paymentNotificationTypes = [
+                    'PAYMENT_APPROVED', 'PAYMENT_REJECTED', 
+                    'PAYMENT_REQUEST_APPROVED', 'PAYMENT_REQUEST_REJECTED',
+                    'PAYMENT_UPDATE'
+                ];
+                // Kiểm tra type
+                if (n.type) {
+                    return paymentNotificationTypes.some(t => 
+                        n.type.includes(t) || t.includes(n.type) || 
+                        n.type === 'PAYMENT_UPDATE'
+                    );
+                }
+                // Kiểm tra message
+                if (n.message) {
+                    const msg = n.message.toLowerCase();
+                    return msg.includes('thanh toán') || 
+                           msg.includes('payment') ||
+                           msg.includes('duyệt') ||
+                           msg.includes('approve') ||
+                           msg.includes('reject');
+                }
+                // Nếu từ user-specific channel và có liên quan đến payment
+                return n.data?.paymentId || n.data?.requestId;
+            }).length
             : (unreadAlerts + pending.length + pendingDepositBookings.length);
 
     // Helper to format time remaining
@@ -1081,8 +1109,118 @@ export default function NotificationsWidget() {
                                 })()}
                             </div>
                         ) : role === ROLES.CONSULTANT ? (
-                            // Consultant view - Show pending deposit bookings
+                            // Consultant view - Show pending deposit bookings + payment approval notifications
                             <div className="min-h-[300px] max-h-[calc(85vh-80px)] overflow-y-auto text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+                                {/* Payment Approval Notifications Section */}
+                                {(() => {
+                                    const paymentNotifications = wsNotifications.filter(n => {
+                                        if (n.read) return false;
+                                        const paymentNotificationTypes = [
+                                            'PAYMENT_APPROVED', 'PAYMENT_REJECTED', 
+                                            'PAYMENT_REQUEST_APPROVED', 'PAYMENT_REQUEST_REJECTED',
+                                            'PAYMENT_UPDATE'
+                                        ];
+                                        if (n.type) {
+                                            return paymentNotificationTypes.some(t => 
+                                                n.type.includes(t) || t.includes(n.type) || 
+                                                n.type === 'PAYMENT_UPDATE'
+                                            );
+                                        }
+                                        if (n.message) {
+                                            const msg = n.message.toLowerCase();
+                                            return msg.includes('thanh toán') || 
+                                                   msg.includes('payment') ||
+                                                   msg.includes('duyệt') ||
+                                                   msg.includes('approve') ||
+                                                   msg.includes('reject');
+                                        }
+                                        return n.data?.paymentId || n.data?.requestId;
+                                    });
+                                    
+                                    return paymentNotifications.length > 0 ? (
+                                        <>
+                                            <SectionHeader
+                                                icon={<DollarSign className="h-4 w-4 text-green-600" />}
+                                                title="Duyệt thanh toán"
+                                                count={paymentNotifications.length}
+                                            />
+                                            {paymentNotifications.map((notif) => {
+                                                const isApproved = notif.type?.includes('APPROVED') || 
+                                                                  notif.message?.toLowerCase().includes('duyệt') ||
+                                                                  notif.message?.toLowerCase().includes('approve');
+                                                const isRejected = notif.type?.includes('REJECTED') || 
+                                                                  notif.message?.toLowerCase().includes('từ chối') ||
+                                                                  notif.message?.toLowerCase().includes('reject');
+                                                
+                                                return (
+                                                    <div
+                                                        key={notif.id}
+                                                        className={cls(
+                                                            "mx-4 mt-3 px-4 py-3 rounded-lg border shadow-sm",
+                                                            isApproved && "bg-green-50 border-green-200",
+                                                            isRejected && "bg-red-50 border-red-200",
+                                                            !isApproved && !isRejected && "bg-slate-50 border-slate-200"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    {isApproved ? (
+                                                                        <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                                                                    ) : isRejected ? (
+                                                                        <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+                                                                    ) : (
+                                                                        <Info className="h-4 w-4 text-slate-600 shrink-0" />
+                                                                    )}
+                                                                    <span className={cls(
+                                                                        "text-xs font-semibold",
+                                                                        isApproved && "text-green-700",
+                                                                        isRejected && "text-red-700",
+                                                                        !isApproved && !isRejected && "text-slate-700"
+                                                                    )}>
+                                                                        {isApproved ? "Đã duyệt" : isRejected ? "Đã từ chối" : "Cập nhật thanh toán"}
+                                                                    </span>
+                                                                </div>
+                                                                <div className={cls(
+                                                                    "text-sm leading-5",
+                                                                    isApproved && "text-green-800",
+                                                                    isRejected && "text-red-800",
+                                                                    !isApproved && !isRejected && "text-slate-700"
+                                                                )}>
+                                                                    {notif.message || notif.title || "Cập nhật thanh toán"}
+                                                                </div>
+                                                                {notif.timestamp && (
+                                                                    <div className="text-xs text-slate-500 mt-1">
+                                                                        {new Date(notif.timestamp).toLocaleString('vi-VN')}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                {!notif.read && (
+                                                                    <button
+                                                                        onClick={() => markAsRead(notif.id)}
+                                                                        className="p-1 rounded hover:bg-white/50 transition-colors"
+                                                                        title="Đánh dấu đã đọc"
+                                                                    >
+                                                                        <Check className="h-3.5 w-3.5 text-slate-400" />
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => clearNotification(notif.id)}
+                                                                    className="p-1 rounded hover:bg-white/50 transition-colors"
+                                                                    title="Xóa"
+                                                                >
+                                                                    <X className="h-3.5 w-3.5 text-slate-400" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </>
+                                    ) : null;
+                                })()}
+                                
                                 <SectionHeader
                                     icon={<CreditCard className="h-4 w-4 text-amber-600" />}
                                     title="Đơn chưa đặt cọc"

@@ -1683,7 +1683,7 @@ public class BookingServiceImpl implements BookingService {
                         .vehicleCategoryId(vd.getVehicleCategory().getId())
                         .categoryName(vd.getVehicleCategory().getCategoryName())
                         .quantity(vd.getQuantity())
-                        .capacity(null) // TODO: Lấy từ Vehicles nếu có
+                        .capacity(vd.getVehicleCategory().getSeats()) // Lấy số chỗ từ VehicleCategory
                         .build()).collect(Collectors.toList()))
                 .paidAmount(paidAmount)
                 .remainingAmount(remainingAmount)

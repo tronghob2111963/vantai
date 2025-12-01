@@ -396,7 +396,8 @@ export default function CreateOrderPage() {
     /* --- Part 4: báo giá --- */
     const [estPriceSys, setEstPriceSys] =
         React.useState(0); // giá gợi ý system
-    const [discount, setDiscount] = React.useState(0);
+    const [discountPercent, setDiscountPercent] = React.useState(0); // phần trăm giảm giá (0-100)
+    const [discount, setDiscount] = React.useState(0); // số tiền giảm (VND) - tính từ phần trăm
     const [discountReason, setDiscountReason] =
         React.useState("");
     const [quotedPrice, setQuotedPrice] = React.useState(0);
@@ -408,6 +409,18 @@ export default function CreateOrderPage() {
     const [distanceKm, setDistanceKm] = React.useState("");
     const [calculatingDistance, setCalculatingDistance] = React.useState(false);
     const [distanceError, setDistanceError] = React.useState("");
+
+    // Tự động tính discount và quotedPrice khi discountPercent hoặc estPriceSys thay đổi
+    React.useEffect(() => {
+        const discountAmount = Math.round((estPriceSys * discountPercent) / 100);
+        setDiscount(discountAmount);
+        
+        // Tự động cập nhật giá báo khách nếu chưa được chỉnh sửa thủ công
+        if (!quotedPriceTouched) {
+            const newQuotedPrice = Math.max(0, estPriceSys - discountAmount);
+            setQuotedPrice(newQuotedPrice);
+        }
+    }, [discountPercent, estPriceSys, quotedPriceTouched]);
 
     // Các field mới cho logic tính giá
     const [isHoliday, setIsHoliday] = React.useState(false);
@@ -470,10 +483,19 @@ export default function CreateOrderPage() {
                 setDistanceKm(parsedDistance.toFixed(2));
             }
         }
-        setDiscount(Number(booking.discountAmount || 0));
         setQuotedPrice(Number(booking.totalCost || 0));
         setQuotedPriceTouched(false);
-        setEstPriceSys(Number(booking.estimatedCost || 0));
+        const savedEstPrice = Number(booking.estimatedCost || 0);
+        setEstPriceSys(savedEstPrice);
+        const savedDiscount = Number(booking.discountAmount || 0);
+        // Tính phần trăm giảm giá từ số tiền đã lưu
+        if (savedEstPrice > 0) {
+            const percent = (savedDiscount / savedEstPrice) * 100;
+            setDiscountPercent(Math.min(100, Math.max(0, percent)));
+        } else {
+            setDiscountPercent(0);
+        }
+        // discount sẽ được tính tự động bởi useEffect từ discountPercent
     }, []);
     const handleApplyRecentBooking = React.useCallback(async () => {
         if (!recentBookingSuggestion?.id) return;
@@ -1470,24 +1492,42 @@ export default function CreateOrderPage() {
                             <div className="md:col-span-1">
                                 <div className={labelCls}>
                                     <Percent className="h-3.5 w-3.5 text-slate-400" />
-                                    <span>Giảm giá (VND)</span>
+                                    <span>Giảm giá (%)</span>
                                 </div>
                                 <input
-                                    value={discount}
-                                    onChange={(e) =>
-                                        setDiscount(
-                                            numOnly(
-                                                e.target
-                                                    .value
-                                            )
-                                        )
-                                    }
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                    value={discountPercent === 0 ? "" : discountPercent}
+                                    onChange={(e) => {
+                                        const inputValue = e.target.value;
+                                        // Nếu input rỗng, set về 0
+                                        if (inputValue === "" || inputValue === null || inputValue === undefined) {
+                                            setDiscountPercent(0);
+                                            return;
+                                        }
+                                        // Loại bỏ số 0 đầu tiên không cần thiết (ví dụ: "010" -> "10")
+                                        const cleanedValue = inputValue.replace(/^0+/, "") || "0";
+                                        const value = parseFloat(cleanedValue) || 0;
+                                        const clampedValue = Math.min(100, Math.max(0, value));
+                                        setDiscountPercent(clampedValue);
+                                    }}
+                                    onBlur={(e) => {
+                                        // Khi blur, nếu giá trị rỗng thì set về 0
+                                        if (e.target.value === "" || e.target.value === null) {
+                                            setDiscountPercent(0);
+                                        }
+                                    }}
                                     className={cls(
                                         inputCls,
                                         "tabular-nums"
                                     )}
                                     placeholder="0"
                                 />
+                                <div className="text-[11px] text-slate-500 mt-1">
+                                    Số tiền giảm: <span className="font-semibold text-amber-600">{fmtVND(discount)} đ</span>
+                                </div>
                                 <input
                                     value={
                                         discountReason

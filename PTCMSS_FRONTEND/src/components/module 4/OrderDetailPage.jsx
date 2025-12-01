@@ -204,12 +204,41 @@ function CustomerInfoCard({ customer }) {
 }
 
 /* 2. Thông tin lịch trình */
-function TripInfoCard({ trip }) {
+function TripInfoCard({ trip, hireTypeName, useHighway }) {
+    // Format chi tiết xe: "1×Xe 45 chỗ, 2×Xe 16 chỗ"
+    const vehicleDetailsText = trip.vehicle_details && trip.vehicle_details.length > 0
+        ? trip.vehicle_details.map(v => `${v.quantity}×${v.name}`).join(", ")
+        : (trip.vehicle_category ? `${trip.vehicle_count || 1}×${trip.vehicle_category}` : "—");
+    
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-4 shadow-sm">
             <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
                 <MapPin className="h-4 w-4 text-amber-600" />
                 Thông tin lịch trình
+            </div>
+
+            {/* Hình thức thuê & Thông tin chung */}
+            <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
+                <div className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-sky-600" />
+                    <span className="text-slate-600">Hình thức:</span>
+                    <span className="font-semibold text-sky-700">
+                        {hireTypeName || "—"}
+                    </span>
+                </div>
+                {trip.distance > 0 && (
+                    <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-slate-500" />
+                        <span className="text-slate-600">Khoảng cách:</span>
+                        <span className="font-medium text-slate-900">{trip.distance} km</span>
+                    </div>
+                )}
+                {useHighway && (
+                    <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4 text-emerald-600" />
+                        <span className="font-medium text-emerald-700">Có đi cao tốc</span>
+                    </div>
+                )}
             </div>
 
             <div className="grid lg:grid-cols-[1fr_auto] gap-6">
@@ -237,11 +266,9 @@ function TripInfoCard({ trip }) {
                                 <div className="mt-1 flex items-center gap-1 text-[12px] text-slate-500">
                                     <Clock className="h-3.5 w-3.5 text-slate-400" />
                                     <span>
-                                        Giờ đón:{" "}
+                                        Thời gian đi:{" "}
                                         <span className="font-medium text-slate-900 tabular-nums">
-                                            {fmtDateTime(
-                                                trip.pickup_time
-                                            )}
+                                            {fmtDateTime(trip.pickup_time)}
                                         </span>
                                     </span>
                                 </div>
@@ -260,11 +287,9 @@ function TripInfoCard({ trip }) {
                                 <div className="mt-1 flex items-center gap-1 text-[12px] text-slate-500">
                                     <Clock className="h-3.5 w-3.5 text-slate-400" />
                                     <span>
-                                        Dự kiến đến:{" "}
+                                        Thời gian về:{" "}
                                         <span className="font-medium text-slate-900 tabular-nums">
-                                            {fmtDateTime(
-                                                trip.dropoff_eta
-                                            )}
+                                            {fmtDateTime(trip.dropoff_eta)}
                                         </span>
                                     </span>
                                 </div>
@@ -272,30 +297,31 @@ function TripInfoCard({ trip }) {
                         </div>
                     </div>
 
-                    {/* meta box */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-wrap gap-4 text-[13px] text-slate-700">
+                    {/* meta box - Thông tin xe */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2 text-[13px] text-slate-700">
                         <div className="flex items-center gap-2">
                             <Users className="h-4 w-4 text-slate-500" />
                             <span>
-                                Hành khách:{" "}
+                                Sức chứa:{" "}
                                 <span className="font-medium text-slate-900">
-                                    {trip.pax_count ??
-                                        "—"}
+                                    {trip.pax_count > 0 ? `${trip.pax_count} chỗ` : "—"}
                                 </span>
                             </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <CarFront className="h-4 w-4 text-amber-600" />
-                            <span className="text-slate-700">
-                                {trip.vehicle_category ||
-                                    "—"}{" "}
-                                ·{" "}
-                                {trip.vehicle_count
-                                    ? trip.vehicle_count +
-                                    " xe"
-                                    : "—"}
-                            </span>
+                        <div className="flex items-start gap-2">
+                            <CarFront className="h-4 w-4 text-amber-600 mt-0.5" />
+                            <div>
+                                <span className="text-slate-600">Xe: </span>
+                                <span className="font-medium text-slate-900">
+                                    {vehicleDetailsText}
+                                </span>
+                                {trip.vehicle_count > 0 && (
+                                    <span className="text-slate-500 ml-1">
+                                        ({trip.vehicle_count} xe)
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -903,6 +929,18 @@ export default function OrderDetailPage() {
         const firstTrip = Array.isArray(b.trips) && b.trips.length ? b.trips[0] : {};
         const vehicleCount = Array.isArray(b.vehicles) ? b.vehicles.reduce((sum, v) => sum + (v.quantity || 0), 0) : 0;
         const vehicleCategory = Array.isArray(b.vehicles) && b.vehicles.length ? b.vehicles[0].categoryName : "";
+        // Tính tổng sức chứa từ vehicles
+        const totalCapacity = Array.isArray(b.vehicles) 
+            ? b.vehicles.reduce((sum, v) => sum + ((v.capacity || 0) * (v.quantity || 1)), 0) 
+            : 0;
+        // Chi tiết các loại xe
+        const vehicleDetails = Array.isArray(b.vehicles) 
+            ? b.vehicles.map(v => ({
+                name: v.categoryName || '',
+                quantity: v.quantity || 1,
+                capacity: v.capacity || 0,
+            }))
+            : [];
         const discount = Number(b.discountAmount || 0);
         const basePrice = Number(b.estimatedCost || 0);
         const finalPrice = Number(b.totalCost || 0);
@@ -923,10 +961,15 @@ export default function OrderDetailPage() {
                 dropoff: firstTrip.endLocation || '',
                 pickup_time: firstTrip.startTime || '',
                 dropoff_eta: firstTrip.endTime || '',
-                pax_count: 0,
+                pax_count: totalCapacity, // Tổng sức chứa
                 vehicle_category: vehicleCategory,
                 vehicle_count: vehicleCount,
+                vehicle_details: vehicleDetails, // Chi tiết các loại xe
+                distance: firstTrip.distance || null,
             },
+            // Thông tin hình thức thuê
+            hireTypeName: b.hireTypeName || '',
+            useHighway: b.useHighway || false,
             quote: {
                 base_price: basePrice,
                 discount_amount: discount,
@@ -1132,7 +1175,11 @@ export default function OrderDetailPage() {
                 <CustomerInfoCard
                     customer={order.customer}
                 />
-                <TripInfoCard trip={order.trip} />
+                <TripInfoCard 
+                    trip={order.trip} 
+                    hireTypeName={order.hireTypeName}
+                    useHighway={order.useHighway}
+                />
             </div>
 
             <div className={`grid ${isAccountant ? 'xl:grid-cols-1' : 'xl:grid-cols-2'} gap-5 mb-5`}>

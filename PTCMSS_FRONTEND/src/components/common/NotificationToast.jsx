@@ -12,6 +12,7 @@ export default function NotificationToast() {
   const [visibleNotifications, setVisibleNotifications] = useState([]);
   const role = getCurrentRole();
   const isDriver = role === ROLES.DRIVER;
+  const isConsultant = role === ROLES.CONSULTANT;
 
   useEffect(() => {
     // Only show unread notifications that should show toast (not from DB load)
@@ -51,8 +52,38 @@ export default function NotificationToast() {
       });
     }
     
+    // For Consultant role, filter to show payment approval/rejection notifications
+    if (isConsultant) {
+      const paymentNotificationTypes = [
+        'PAYMENT_APPROVED', 'PAYMENT_REJECTED', 
+        'PAYMENT_REQUEST_APPROVED', 'PAYMENT_REQUEST_REJECTED',
+        'PAYMENT_UPDATE'
+      ];
+      
+      unread = unread.filter(n => {
+        // Nếu có type, kiểm tra type
+        if (n.type) {
+          return paymentNotificationTypes.some(t => 
+            n.type.includes(t) || t.includes(n.type) || 
+            n.type === 'PAYMENT_UPDATE'
+          );
+        }
+        // Nếu không có type nhưng có message, kiểm tra message
+        if (n.message) {
+          const msg = n.message.toLowerCase();
+          return msg.includes('thanh toán') || 
+                 msg.includes('payment') ||
+                 msg.includes('duyệt') ||
+                 msg.includes('approve') ||
+                 msg.includes('reject');
+        }
+        // Nếu từ user-specific channel và có liên quan đến payment
+        return n.data?.paymentId || n.data?.requestId;
+      });
+    }
+    
     setVisibleNotifications(unread.slice(0, 3)); // Max 3 toasts
-  }, [notifications, isDriver]);
+  }, [notifications, isDriver, isConsultant]);
 
   const handleDismiss = (notificationId) => {
     clearNotification(notificationId);

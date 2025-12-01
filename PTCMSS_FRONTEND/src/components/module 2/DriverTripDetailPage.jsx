@@ -592,8 +592,12 @@ export default function DriverTripDetailPage() {
             remainingAmount={trip?.remaining_amount}
             customerName={trip?.customer_name}
             onClose={() => setPaymentOpen(false)}
-            onSubmitted={({ amount, paymentMethod }) => {
+            onSubmitted={async ({ amount, paymentMethod }) => {
               pushToast(`Đã gửi yêu cầu thanh toán ${fmtVND(amount)}đ (${paymentMethod === "CASH" ? "Tiền mặt" : "Chuyển khoản"})`, "success");
+              // Reload trip detail để cập nhật remaining amount
+              if (trip?.id) {
+                await loadTripDetail(trip.id, { silent: true });
+              }
             }}
           />
         </>

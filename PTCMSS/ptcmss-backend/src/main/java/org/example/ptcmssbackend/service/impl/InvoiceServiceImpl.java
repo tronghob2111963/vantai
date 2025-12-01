@@ -15,6 +15,8 @@ import org.example.ptcmssbackend.enums.InvoiceStatus;
 import org.example.ptcmssbackend.enums.InvoiceType;
 import org.example.ptcmssbackend.enums.PaymentStatus;
 import org.example.ptcmssbackend.enums.PaymentConfirmationStatus;
+import org.example.ptcmssbackend.exception.InvoiceException;
+import org.example.ptcmssbackend.exception.PaymentException;
 import org.example.ptcmssbackend.exception.ResourceNotFoundException;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.InvoiceService;
@@ -44,6 +46,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final org.example.ptcmssbackend.service.EmailService emailService;
     private final org.example.ptcmssbackend.repository.NotificationRepository notificationRepository;
+    private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
 
     @Override
     @Transactional
@@ -168,7 +171,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Don't allow update if already paid
         if (invoice.getPaymentStatus() == PaymentStatus.PAID) {
-            throw new org.example.ptcmssbackend.exception.InvoiceException("Cannot update paid invoice");
+            throw new InvoiceException("Cannot update paid invoice");
         }
 
         // Update fields
@@ -237,7 +240,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         BigDecimal balance = calculateBalance(invoiceId);
         if (request.getAmount().compareTo(balance) > 0) {
-            throw new org.example.ptcmssbackend.exception.PaymentException(
+            throw new PaymentException(
                     "Payment amount (" + request.getAmount() + ") exceeds balance (" + balance + ")");
         }
 
@@ -545,6 +548,52 @@ public class InvoiceServiceImpl implements InvoiceService {
                 invoiceRepository.save(invoice);
             }
 
+            // Send WebSocket notifications to Consultant (người tạo payment request)
+            try {
+                Integer bookingId = invoice != null && invoice.getBooking() != null ? invoice.getBooking().getId() : null;
+                String amountFormatted = formatAmount(payment.getAmount());
+                String statusText = confirmationStatus == PaymentConfirmationStatus.CONFIRMED ? "đã được duyệt" : "đã bị từ chối";
+                String notificationType = confirmationStatus == PaymentConfirmationStatus.CONFIRMED ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED";
+                String notificationTitle = confirmationStatus == PaymentConfirmationStatus.CONFIRMED 
+                    ? "Thanh toán đã được duyệt" 
+                    : "Thanh toán đã bị từ chối";
+                
+                // Gửi notification đến Consultant (người tạo payment request)
+                if (payment.getCreatedBy() != null && payment.getCreatedBy().getUser() != null) {
+                    Integer consultantUserId = payment.getCreatedBy().getUser().getId();
+                    String notificationMessage = String.format("Yêu cầu thanh toán %s cho đơn #%d %s", 
+                        amountFormatted,
+                        bookingId != null ? bookingId : "N/A",
+                        statusText);
+                    
+                    webSocketNotificationService.sendUserNotification(
+                        consultantUserId,
+                        notificationTitle,
+                        notificationMessage,
+                        notificationType
+                    );
+                    log.info("[InvoiceService] Sent payment confirmation notification to consultant userId: {}", consultantUserId);
+                }
+                
+                // Gửi payment update qua global channel (cho các role khác như Coordinator, Manager)
+                if (invoice != null) {
+                    String paymentUpdateMessage = String.format("Thanh toán %s đã %s", 
+                        amountFormatted,
+                        statusText);
+                    
+                    webSocketNotificationService.sendPaymentUpdate(
+                        invoice.getId(),
+                        bookingId,
+                        confirmationStatus.name(),
+                        paymentUpdateMessage
+                    );
+                    log.info("[InvoiceService] Sent payment update notification for invoice: {}", invoice.getId());
+                }
+            } catch (Exception e) {
+                log.warn("[InvoiceService] Failed to send WebSocket notification for payment confirmation", e);
+                // Không throw exception để không ảnh hưởng đến flow chính
+            }
+
             return mapToPaymentHistoryResponse(payment);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Trạng thái xác nhận không hợp lệ: " + status + ". Phải là CONFIRMED hoặc REJECTED");
@@ -586,6 +635,11 @@ public class InvoiceServiceImpl implements InvoiceService {
             case "NET_60": return 60;
             default: return 7;
         }
+    }
+    
+    private String formatAmount(BigDecimal amount) {
+        if (amount == null) return "0đ";
+        return String.format("%,dđ", amount.longValue());
     }
     
     @Override
