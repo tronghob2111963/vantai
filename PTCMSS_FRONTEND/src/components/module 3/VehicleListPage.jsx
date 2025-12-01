@@ -1485,64 +1485,7 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
     const [editOpen, setEditOpen] = React.useState(false);
     const [editingVehicle, setEditingVehicle] = React.useState(null);
     
-    // Check vehicle availability when time filter is set (for Consultant)
-    React.useEffect(() => {
-        if (!isConsultant || !timeFilterStart || !timeFilterEnd || !managerBranchId) {
-            setVehicleAvailability({});
-            return;
-        }
-        
-        const checkAvailability = async () => {
-            const availabilityMap = {};
-            const startTime = new Date(timeFilterStart + "T00:00:00").toISOString();
-            const endTime = new Date(timeFilterEnd + "T23:59:59").toISOString();
-            
-            // Group vehicles by category to avoid duplicate API calls
-            const categoryMap = new Map();
-            filteredSorted.forEach(vehicle => {
-                if (!categoryMap.has(vehicle.category_id)) {
-                    categoryMap.set(vehicle.category_id, []);
-                }
-                categoryMap.get(vehicle.category_id).push(vehicle);
-            });
-            
-            // Check availability for each unique category
-            for (const [categoryId, vehiclesInCategory] of categoryMap.entries()) {
-                try {
-                    const result = await checkVehicleAvailability({
-                        branchId: managerBranchId,
-                        categoryId: categoryId,
-                        startTime,
-                        endTime,
-                        quantity: 1,
-                    });
-                    
-                    // Apply result to all vehicles in this category
-                    const isAvailable = result?.ok || false;
-                    vehiclesInCategory.forEach(vehicle => {
-                        availabilityMap[vehicle.id] = {
-                            available: isAvailable,
-                            reason: result?.message || "",
-                        };
-                    });
-                } catch (err) {
-                    console.error(`Error checking availability for category ${categoryId}:`, err);
-                    vehiclesInCategory.forEach(vehicle => {
-                        availabilityMap[vehicle.id] = {
-                            available: false,
-                            reason: "Lỗi kiểm tra",
-                        };
-                    });
-                }
-            }
-            
-            setVehicleAvailability(availabilityMap);
-        };
-        
-        checkAvailability();
-    }, [isConsultant, timeFilterStart, timeFilterEnd, managerBranchId, filteredSorted]);
-
-    // filter + sort data
+    // filter + sort data (moved before useEffect that uses it)
     const filteredSorted = React.useMemo(() => {
         const q = searchPlate.trim().toLowerCase();
         // Manager chỉ xem xe trong chi nhánh của mình
