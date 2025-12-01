@@ -4,6 +4,7 @@ import { listVehicles, createVehicle, updateVehicle, listVehicleCategories } fro
 import { listBranches } from "../../api/branches";
 import { getEmployeeByUserId } from "../../api/employees";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
+import { checkVehicleAvailability } from "../../api/bookings";
 import {
     CarFront,
     PlusCircle,
@@ -877,6 +878,12 @@ function FilterBar({
     showBranchFilter = true, // Add prop to control branch filter visibility
     showCreateButton = true, // Add prop to control create button visibility
     createButtonPosition = "left", // "left" or "right"
+    // Time filter for Consultant
+    isConsultant = false,
+    timeFilterStart = "",
+    setTimeFilterStart = () => {},
+    timeFilterEnd = "",
+    setTimeFilterEnd = () => {},
 }) {
     return (
         <div className="flex flex-col lg:flex-row lg:flex-wrap gap-3 text-[13px] text-slate-700">
@@ -963,6 +970,64 @@ function FilterBar({
                         className="bg-transparent outline-none text-[13px] placeholder:text-slate-400 text-slate-700 flex-1"
                     />
                 </div>
+                
+                {/* Time filter for Consultant - Check vehicle availability */}
+                {isConsultant && (
+                    <>
+                        <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white shadow-sm px-3 py-2 min-w-[160px]">
+                            <Calendar className="h-4 w-4 text-slate-400" />
+                            <input
+                                type="date"
+                                value={timeFilterStart}
+                                onChange={(e) => {
+                                    const newStart = e.target.value;
+                                    setTimeFilterStart(newStart);
+                                    // Nếu ngày end < ngày start mới, reset end
+                                    if (timeFilterEnd && newStart && timeFilterEnd < newStart) {
+                                        setTimeFilterEnd("");
+                                    }
+                                }}
+                                max={timeFilterEnd || undefined}
+                                placeholder="Từ ngày"
+                                className="bg-transparent outline-none text-[13px] text-slate-700 flex-1"
+                                title="Từ ngày"
+                            />
+                        </div>
+                        <span className="text-slate-400 text-[13px]">→</span>
+                        <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white shadow-sm px-3 py-2 min-w-[160px]">
+                            <Calendar className="h-4 w-4 text-slate-400" />
+                            <input
+                                type="date"
+                                value={timeFilterEnd}
+                                onChange={(e) => {
+                                    const newEnd = e.target.value;
+                                    // Validate: end phải >= start
+                                    if (timeFilterStart && newEnd && newEnd < timeFilterStart) {
+                                        // Không cho phép chọn ngày end < start (browser sẽ tự động ngăn chặn với min attribute)
+                                        return;
+                                    }
+                                    setTimeFilterEnd(newEnd);
+                                }}
+                                min={timeFilterStart || undefined}
+                                placeholder="Đến ngày"
+                                className="bg-transparent outline-none text-[13px] text-slate-700 flex-1"
+                                title="Đến ngày"
+                            />
+                        </div>
+                        {(timeFilterStart || timeFilterEnd) && (
+                            <button
+                                onClick={() => {
+                                    setTimeFilterStart("");
+                                    setTimeFilterEnd("");
+                                }}
+                                className="rounded-md border border-slate-300 bg-white hover:bg-slate-100 text-[13px] text-slate-700 px-3 py-2 flex items-center gap-2"
+                                title="Xóa filter thời gian"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </>
+                )}
 
                 {/* Làm mới */}
                 <button
@@ -1021,6 +1086,10 @@ function VehicleTable({
     totalPages,
     onClickDetail,
     isAccountant = false,
+    isConsultant = false,
+    vehicleAvailability = {},
+    timeFilterStart = "",
+    timeFilterEnd = "",
 }) {
     const headerCell = (key, label) => (
         <th
@@ -1093,7 +1162,30 @@ function VehicleTable({
 
                             {/* Trạng thái */}
                             <td className="px-3 py-2 whitespace-nowrap">
-                                <VehicleStatusBadge status={v.status} />
+                                <div className="flex flex-col gap-1">
+                                    <VehicleStatusBadge status={v.status} />
+                                    {/* Availability badge for Consultant with time filter */}
+                                    {isConsultant && timeFilterStart && timeFilterEnd && vehicleAvailability[v.id] && (
+                                        <span className={cls(
+                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                            vehicleAvailability[v.id].available
+                                                ? "bg-green-50 text-green-700 border border-green-200"
+                                                : "bg-orange-50 text-orange-700 border border-orange-200"
+                                        )}>
+                                            {vehicleAvailability[v.id].available ? (
+                                                <>
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Rảnh
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    Bận
+                                                </>
+                                            )}
+                                        </span>
+                                    )}
+                                </div>
                             </td>
 
                             {/* Hạn đăng kiểm */}
@@ -1108,19 +1200,25 @@ function VehicleTable({
 
                             {/* Action */}
                             <td className="px-3 py-2 whitespace-nowrap">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        onClickDetail && onClickDetail(v)
-                                    }
-                                    className={cls(
-                                        "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[12px] font-medium shadow-sm",
-                                        "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
-                                    )}
-                                >
-                                    <Wrench className="h-3.5 w-3.5 text-sky-600" />
-                                    <span>{isAccountant ? "Chi tiết" : "Chi tiết / Sửa"}</span>
-                                </button>
+                                {/* Consultant: Ẩn button Chi tiết/Sửa */}
+                                {!isConsultant && (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            onClickDetail && onClickDetail(v)
+                                        }
+                                        className={cls(
+                                            "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[12px] font-medium shadow-sm",
+                                            "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                                        )}
+                                    >
+                                        <Wrench className="h-3.5 w-3.5 text-sky-600" />
+                                        <span>{isAccountant ? "Chi tiết" : "Chi tiết / Sửa"}</span>
+                                    </button>
+                                )}
+                                {isConsultant && (
+                                    <span className="text-[11px] text-slate-400 italic">Chỉ xem</span>
+                                )}
                             </td>
                         </tr>
                     ))}
@@ -1289,7 +1387,7 @@ const MOCK_VEHICLES = [
 /* -------------------------------- */
 /* MAIN PAGE                        */
 /* -------------------------------- */
-export default function VehicleListPage() {
+export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
     const { toasts, push } = useToasts();
     const navigate = useNavigate();
 
@@ -1298,6 +1396,9 @@ export default function VehicleListPage() {
     const currentUserId = React.useMemo(() => getStoredUserId(), []);
     const isManager = currentRole === ROLES.MANAGER;
     const isAccountant = currentRole === ROLES.ACCOUNTANT;
+    const isConsultant = currentRole === ROLES.CONSULTANT;
+    // readOnly mode: Consultant và Accountant chỉ được xem, không được thêm/sửa/xóa
+    const isReadOnly = readOnlyProp || isAccountant || isConsultant;
 
     // Manager's branch info
     const [managerBranchId, setManagerBranchId] = React.useState(null);
@@ -1308,6 +1409,11 @@ export default function VehicleListPage() {
     const [categoryFilter, setCategoryFilter] = React.useState("");
     const [statusFilter, setStatusFilter] = React.useState("");
     const [searchPlate, setSearchPlate] = React.useState("");
+    
+    // Time filter for Consultant (to check vehicle availability)
+    const [timeFilterStart, setTimeFilterStart] = React.useState("");
+    const [timeFilterEnd, setTimeFilterEnd] = React.useState("");
+    const [vehicleAvailability, setVehicleAvailability] = React.useState({}); // { vehicleId: { available: boolean, reason: string } }
 
     // refresh state
     const [loadingRefresh, setLoadingRefresh] = React.useState(false);
@@ -1323,9 +1429,9 @@ export default function VehicleListPage() {
     const [branches, setBranches] = React.useState([]);
     const [categories, setCategories] = React.useState([]);
 
-    // Load Manager's branch
+    // Load user's branch (Manager, Consultant, Accountant)
     React.useEffect(() => {
-        if (!isManager || !currentUserId) return;
+        if ((!isManager && !isConsultant && !isAccountant) || !currentUserId) return;
 
         (async () => {
             try {
@@ -1334,13 +1440,13 @@ export default function VehicleListPage() {
                 if (emp?.branchId) {
                     setManagerBranchId(emp.branchId);
                     setManagerBranchName(emp.branchName || "");
-                    setBranchFilter(String(emp.branchId)); // Auto filter by manager's branch
+                    setBranchFilter(String(emp.branchId)); // Auto filter by user's branch
                 }
             } catch (err) {
-                console.error("Error loading manager branch:", err);
+                console.error("Error loading user branch:", err);
             }
         })();
-    }, [isManager, currentUserId]);
+    }, [isManager, isConsultant, isAccountant, currentUserId]);
 
     // helper map backend -> UI
     const mapVehicle = React.useCallback((v) => ({
@@ -1378,6 +1484,63 @@ export default function VehicleListPage() {
     const [createOpen, setCreateOpen] = React.useState(false);
     const [editOpen, setEditOpen] = React.useState(false);
     const [editingVehicle, setEditingVehicle] = React.useState(null);
+    
+    // Check vehicle availability when time filter is set (for Consultant)
+    React.useEffect(() => {
+        if (!isConsultant || !timeFilterStart || !timeFilterEnd || !managerBranchId) {
+            setVehicleAvailability({});
+            return;
+        }
+        
+        const checkAvailability = async () => {
+            const availabilityMap = {};
+            const startTime = new Date(timeFilterStart + "T00:00:00").toISOString();
+            const endTime = new Date(timeFilterEnd + "T23:59:59").toISOString();
+            
+            // Group vehicles by category to avoid duplicate API calls
+            const categoryMap = new Map();
+            filteredSorted.forEach(vehicle => {
+                if (!categoryMap.has(vehicle.category_id)) {
+                    categoryMap.set(vehicle.category_id, []);
+                }
+                categoryMap.get(vehicle.category_id).push(vehicle);
+            });
+            
+            // Check availability for each unique category
+            for (const [categoryId, vehiclesInCategory] of categoryMap.entries()) {
+                try {
+                    const result = await checkVehicleAvailability({
+                        branchId: managerBranchId,
+                        categoryId: categoryId,
+                        startTime,
+                        endTime,
+                        quantity: 1,
+                    });
+                    
+                    // Apply result to all vehicles in this category
+                    const isAvailable = result?.ok || false;
+                    vehiclesInCategory.forEach(vehicle => {
+                        availabilityMap[vehicle.id] = {
+                            available: isAvailable,
+                            reason: result?.message || "",
+                        };
+                    });
+                } catch (err) {
+                    console.error(`Error checking availability for category ${categoryId}:`, err);
+                    vehiclesInCategory.forEach(vehicle => {
+                        availabilityMap[vehicle.id] = {
+                            available: false,
+                            reason: "Lỗi kiểm tra",
+                        };
+                    });
+                }
+            }
+            
+            setVehicleAvailability(availabilityMap);
+        };
+        
+        checkAvailability();
+    }, [isConsultant, timeFilterStart, timeFilterEnd, managerBranchId, filteredSorted]);
 
     // filter + sort data
     const filteredSorted = React.useMemo(() => {
@@ -1562,9 +1725,15 @@ export default function VehicleListPage() {
                     onClickCreate={handleCreateNew}
                     loadingRefresh={loadingRefresh}
                     onRefresh={handleRefresh}
-                    showBranchFilter={!isManager}
-                    showCreateButton={!isAccountant}
+                    showBranchFilter={!isManager && !isConsultant && !isAccountant}
+                    showCreateButton={!isReadOnly}
                     createButtonPosition="left"
+                    // Time filter for Consultant
+                    isConsultant={isConsultant}
+                    timeFilterStart={timeFilterStart}
+                    setTimeFilterStart={setTimeFilterStart}
+                    timeFilterEnd={timeFilterEnd}
+                    setTimeFilterEnd={setTimeFilterEnd}
                 />
             </div>
 
@@ -1594,6 +1763,10 @@ export default function VehicleListPage() {
                     totalPages={totalPages}
                     onClickDetail={handleClickDetail}
                     isAccountant={isAccountant}
+                    isConsultant={isConsultant}
+                    vehicleAvailability={vehicleAvailability}
+                    timeFilterStart={timeFilterStart}
+                    timeFilterEnd={timeFilterEnd}
                 />
             </div>
 
