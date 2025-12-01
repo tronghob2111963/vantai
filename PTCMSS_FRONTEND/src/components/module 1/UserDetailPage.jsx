@@ -18,6 +18,7 @@ export default function UserDetailPage() {
   const [isCurrentUserManager, setIsCurrentUserManager] = React.useState(false);
   const [canEditTarget, setCanEditTarget] = React.useState(true);
   const [targetRoleName, setTargetRoleName] = React.useState("");
+  const [canEditStatus, setCanEditStatus] = React.useState(false);
 
   // Thông tin cá nhân (view-only)
   const [fullName, setFullName] = React.useState("");
@@ -74,10 +75,12 @@ export default function UserDetailPage() {
         
         // Check permission
         let finalPermission = false;
+        let statusPermission = false;
         
         if (isAdminLocal) {
           // Admin có thể sửa tất cả
           finalPermission = true;
+          statusPermission = true;
         } else if (editingSelf) {
           // Tự sửa mình (trừ Admin)
           finalPermission = !isTargetAdmin;
@@ -90,6 +93,10 @@ export default function UserDetailPage() {
               const managerBranchId = emp?.branchId ? Number(emp.branchId) : null;
               if (managerBranchId && targetBranchId && managerBranchId === targetBranchId) {
                 finalPermission = true;
+                const manageableRoles = ["DRIVER", "CUSTOMER", "CLIENT", "KHACH", "KHÁCH"];
+                if (manageableRoles.includes(targetRole) || targetRole.includes("DRIVER") || targetRole.includes("CUSTOMER")) {
+                  statusPermission = true;
+                }
               }
             } catch (err) {
               console.error("Error checking manager branch:", err);
@@ -98,6 +105,7 @@ export default function UserDetailPage() {
         }
         
         setCanEditTarget(Boolean(finalPermission));
+        setCanEditStatus(Boolean(statusPermission));
         if (!finalPermission) {
           setGeneralError("Bạn không có quyền chỉnh sửa tài khoản này. Vui lòng liên hệ Admin.");
         } else {
@@ -444,7 +452,7 @@ export default function UserDetailPage() {
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <Info className="h-4 w-4 text-slate-400" />
                 <span>Trạng thái</span>
-                {isCurrentUserManager && (
+                {isCurrentUserManager && !canEditStatus && (
                   <span className="text-xs text-amber-600">(Không thể thay đổi)</span>
                 )}
               </label>
@@ -452,7 +460,7 @@ export default function UserDetailPage() {
                 className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20 disabled:bg-slate-100 disabled:text-slate-500"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                disabled={!canEditTarget || isCurrentUserManager}
+                disabled={!canEditTarget || !canEditStatus}
               >
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="INACTIVE">INACTIVE</option>

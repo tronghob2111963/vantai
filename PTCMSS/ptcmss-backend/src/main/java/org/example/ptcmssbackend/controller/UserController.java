@@ -173,7 +173,7 @@ public class UserController {
 
     @Operation(summary = "Kích hoạt / Vô hiệu hóa tài khoản", description = "Đổi trạng thái người dùng ACTIVE ↔ INACTIVE.")
     @PatchMapping("/{id}/toggle-status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseData<String> toggleStatus(
             @Parameter(description = "ID người dùng") @PathVariable Integer id) {
        try{
