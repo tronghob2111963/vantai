@@ -202,11 +202,10 @@ function TabBar({ active, setActive }) {
 }
 
 /* ---------------- Tab 1: Hồ sơ xe ---------------- */
-function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
+function VehicleProfileTab({ form, setForm, onSave, dirty }) {
     const numericOnly = (s) => s.replace(/[^0-9]/g, "");
 
     const handleChange = (field) => (e) => {
-        if (readOnly) return;
         const val = e.target.value;
         if (field === "year") {
             setForm((f) => ({ ...f, [field]: numericOnly(val) }));
@@ -218,15 +217,13 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
     const inputCls = cls(
         "w-full rounded-md border px-3 py-2 text-[13px] outline-none shadow-sm",
         "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400",
-        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20",
-        readOnly && "bg-slate-100 text-slate-500 cursor-not-allowed"
+        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
     );
 
     const selectCls = cls(
         "w-full rounded-md border px-3 py-2 text-[13px] outline-none shadow-sm",
         "border-slate-300 bg-white text-slate-700",
-        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20",
-        readOnly && "bg-slate-100 text-slate-500 cursor-not-allowed"
+        "focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
     );
 
     return (
@@ -252,27 +249,17 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
                         <div className="text-[12px] text-slate-600 mb-1">
                             Danh mục xe
                         </div>
-                        {readOnly ? (
-                            <input
-                                className="rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-[13px] text-slate-500 font-medium cursor-not-allowed w-full"
-                                value={form.category_name || "—"}
-                                readOnly
-                                disabled
-                            />
-                        ) : (
-                            <select
-                                className={selectCls}
-                                value={form.category_id}
-                                onChange={handleChange("category_id")}
-                                disabled={readOnly}
-                            >
-                                {form._categoryOptions.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name.includes('chỗ') ? c.name : `${c.name} (${c.seats} chỗ)`}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
+                        <select
+                            className={selectCls}
+                            value={form.category_id}
+                            onChange={handleChange("category_id")}
+                        >
+                            {form._categoryOptions.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name.includes('chỗ') ? c.name : `${c.name} (${c.seats} chỗ)`}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Chi nhánh */}
@@ -280,27 +267,17 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
                         <div className="text-[12px] text-slate-600 mb-1">
                             Chi nhánh quản lý
                         </div>
-                        {readOnly ? (
-                            <input
-                                className="rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-[13px] text-slate-500 font-medium cursor-not-allowed w-full"
-                                value={form.branch_name || "—"}
-                                readOnly
-                                disabled
-                            />
-                        ) : (
-                            <select
-                                className={selectCls}
-                                value={form.branch_id}
-                                onChange={handleChange("branch_id")}
-                                disabled={readOnly}
-                            >
-                                {form._branchOptions.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
+                        <select
+                            className={selectCls}
+                            value={form.branch_id}
+                            onChange={handleChange("branch_id")}
+                        >
+                            {form._branchOptions.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                    {b.name}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Trạng thái xe */}
@@ -312,7 +289,6 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
                             className={selectCls}
                             value={form.status}
                             onChange={handleChange("status")}
-                            disabled={readOnly}
                         >
                             <option value="AVAILABLE">Sẵn sàng</option>
                             <option value="MAINTENANCE">Bảo trì</option>
@@ -383,7 +359,6 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
                             className={selectCls}
                             value={form.ins_due_date || ""}
                             onChange={handleChange("ins_due_date")}
-                            disabled={readOnly}
                         />
                     </div>
                 </div>
@@ -425,23 +400,21 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false }) {
             </div>
 
             {/* save button row */}
-            {!readOnly && (
-                <div className="flex justify-end">
-                    <button
-                        disabled={!dirty}
-                        onClick={onSave}
-                        className={cls(
-                            "inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13px] font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20",
-                            dirty
-                                ? "bg-sky-600 hover:bg-sky-500 text-white"
-                                : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                        )}
-                    >
-                        <Save className="h-4 w-4" />
-                        <span>Lưu thay đổi</span>
-                    </button>
-                </div>
-            )}
+            <div className="flex justify-end">
+                <button
+                    disabled={!dirty}
+                    onClick={onSave}
+                    className={cls(
+                        "inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13px] font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20",
+                        dirty
+                            ? "bg-sky-600 hover:bg-sky-500 text-white"
+                            : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                    )}
+                >
+                    <Save className="h-4 w-4" />
+                    <span>Lưu thay đổi</span>
+                </button>
+            </div>
 
             {/* dev note */}
             {/* <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500 shadow-sm">
@@ -750,11 +723,10 @@ export default function VehicleDetailPage() {
     React.useEffect(() => {
         (async () => {
             try {
-                // Skip loading categories/branches lists for read-only roles to avoid 403 errors
                 const [v, brData, catData] = await Promise.all([
                     getVehicle(vehicleId),
-                    isReadOnly ? Promise.resolve({ content: [] }) : listBranches({ size: 1000 }).catch(() => ({ content: [] })),
-                    isReadOnly ? Promise.resolve([]) : listVehicleCategories().catch(() => []),
+                    listBranches({ size: 1000 }).catch(() => ({ content: [] })),
+                    listVehicleCategories().catch(() => []),
                 ]);
                 const brs = Array.isArray(brData) ? brData : (brData?.items || brData?.content || []);
                 const mapped = {
@@ -1009,7 +981,6 @@ export default function VehicleDetailPage() {
                     setForm={setVehicleForm}
                     onSave={handleSaveProfile}
                     dirty={dirty}
-                    readOnly={isReadOnly}
                 />
             ) : null}
 
