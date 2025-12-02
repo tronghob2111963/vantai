@@ -658,8 +658,7 @@ public class BookingServiceImpl implements BookingService {
      * 
      * 1. TÍNH THEO CHIỀU:
      *    a. Một chiều: CT = Số_km × PricePerKm + baseFee
-     *    b. Hai chiều (cùng ngày): CT = Số_km × PricePerKm × 1.5 + baseFee
-     *    c. Hai chiều (khác ngày): CT = Số_km × PricePerKm × 2.0 + baseFee
+     *    b. Hai chiều: CT = Số_km × PricePerKm × 1.5 + baseFee
      * 
      * 2. TÍNH THEO NGÀY:
      *    a. Trong tỉnh / nội thành (TP): CT = sameDayFixedPrice + baseFee

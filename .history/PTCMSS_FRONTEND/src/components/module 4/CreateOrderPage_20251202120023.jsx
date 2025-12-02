@@ -1729,21 +1729,11 @@ export default function CreateOrderPage() {
                                                     className="flex-1 bg-white border border-slate-300 rounded-md px-3 py-2 text-[13px] text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-[#0079BC]/20"
                                                 >
                                                     <option value="">-- Chọn loại xe --</option>
-                                                    {categories.map((c) => {
-                                                        // Disable nếu loại xe này đã được chọn ở selection khác
-                                                        const isAlreadySelected = vehicleSelections.some((v, i) => 
-                                                            i !== index && v.categoryId === c.id
-                                                        );
-                                                        return (
-                                                            <option 
-                                                                key={c.id} 
-                                                                value={c.id}
-                                                                disabled={isAlreadySelected}
-                                                            >
-                                                                {c.name} ({c.seats} chỗ) {isAlreadySelected ? '(đã chọn)' : ''}
-                                                            </option>
-                                                        );
-                                                    })}
+                                                    {categories.map((c) => (
+                                                        <option key={c.id} value={c.id}>
+                                                            {c.name} ({c.seats} chỗ)
+                                                        </option>
+                                                    ))}
                                                 </select>
                                                 
                                                 {/* Số lượng */}
