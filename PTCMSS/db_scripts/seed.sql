@@ -125,7 +125,8 @@ INSERT IGNORE INTO vehicles (vehicleId, categoryId, branchId, licensePlate, mode
 (8,3,3,'51B-222.22','Hyundai County','Hyundai',29,2022,'2022-03-01','2026-03-01','2029-03-01',61000,'AVAILABLE'),
 (9,5,3,'51C-333.33','Thaco Mobihome','Thaco',40,2021,'2021-03-01','2026-03-01','2029-03-01',120000,'MAINTENANCE');
 
--- Drivers (12: 4 per branch)
+-- Drivers (11: 4 HN, 4 DN, 3 HCM - vì chỉ có 28 users/employees)
+-- Note: HCM chỉ có 3 driver vì userId 25-28 là 4 driver nhưng employeeId 25 là Driver HCM A
 INSERT IGNORE INTO drivers (driverId, employeeId, branchId, licenseNumber, licenseClass, licenseExpiry, healthCheckDate, rating, priorityLevel, note, status, createdAt) VALUES
 (1,7,1,'HN-D001','D','2028-12-31','2025-06-01',4.80,1,NULL,'AVAILABLE',NOW()),
 (2,8,1,'HN-D002','E','2027-11-30','2025-07-01',4.90,2,NULL,'AVAILABLE',NOW()),
@@ -135,10 +136,10 @@ INSERT IGNORE INTO drivers (driverId, employeeId, branchId, licenseNumber, licen
 (6,17,2,'DN-D002','E','2027-09-09','2025-04-01',4.75,2,NULL,'INACTIVE',NOW()),
 (7,18,2,'DN-D003','D','2029-07-07','2025-10-01',4.95,1,NULL,'AVAILABLE',NOW()),
 (8,19,2,'DN-D004','E','2026-04-04','2025-02-01',4.60,3,NULL,'AVAILABLE',NOW()),
-(9,26,3,'HCM-D001','D','2028-12-12','2025-06-15',4.88,1,NULL,'AVAILABLE',NOW()),
-(10,27,3,'HCM-D002','E','2027-10-10','2025-07-10',4.92,2,NULL,'AVAILABLE',NOW()),
-(11,28,3,'HCM-D003','D','2029-08-08','2025-08-20',4.66,3,NULL,'ON_TRIP',NOW()),
-(12,29,3,'HCM-D004','E','2026-06-06','2025-03-10',4.74,2,NULL,'AVAILABLE',NOW());
+(9,25,3,'HCM-D001','D','2028-12-12','2025-06-15',4.88,1,NULL,'AVAILABLE',NOW()),
+(10,26,3,'HCM-D002','E','2027-10-10','2025-07-10',4.92,2,NULL,'AVAILABLE',NOW()),
+(11,27,3,'HCM-D003','D','2029-08-08','2025-08-20',4.66,3,NULL,'ON_TRIP',NOW()),
+(12,28,3,'HCM-D004','E','2026-06-06','2025-03-10',4.74,2,NULL,'AVAILABLE',NOW());
 
 -- Customers (6)
 INSERT IGNORE INTO customers (customerId, fullName, phone, email, address, note, createdAt, createdBy, status) VALUES
@@ -160,6 +161,19 @@ INSERT IGNORE INTO bookings (bookingId, customerId, branchId, consultantId, hire
 (7,1,1,3,2,1,NOW(),2200000.00,1000000.00,2200000.00,180.00,240,'CANCELLED','HN-NB 2 chiều',NOW(),NOW(),0,0),
 (8,2,3,21,1,0,NOW(),900000.00,450000.00,900000.00,20.00,40,'CONFIRMED','Trong nội thành',NOW(),NOW(),0,1),
 (9,3,2,13,5,1,NOW(),1200000.00,600000.00,1200000.00,40.00,60,'COMPLETED','Đón sân bay',NOW(),NOW(),0,0);
+
+-- Booking Vehicle Details (chi tiết loại xe cho mỗi booking)
+-- Schema: booking_vehicle_details(bookingId, vehicleCategoryId, quantity)
+INSERT IGNORE INTO booking_vehicle_details (bookingId, vehicleCategoryId, quantity) VALUES
+(1,3,1),  -- Booking 1: 1 xe 29 chỗ
+(2,2,1),  -- Booking 2: 1 xe 16 chỗ
+(3,1,1),  -- Booking 3: 1 xe 9 chỗ Limousine
+(4,4,2),  -- Booking 4: 2 xe 45 chỗ (hợp đồng định kỳ)
+(5,3,1),  -- Booking 5: 1 xe 29 chỗ
+(6,5,1),  -- Booking 6: 1 xe giường nằm (tour)
+(7,2,1),  -- Booking 7: 1 xe 16 chỗ
+(8,1,1),  -- Booking 8: 1 xe 9 chỗ Limousine
+(9,1,1);  -- Booking 9: 1 xe 9 chỗ Limousine
 
 -- Trips (12)
 INSERT IGNORE INTO trips (tripId, bookingId, useHighway, startTime, endTime, startLocation, endLocation, distance, startLatitude, startLongitude, endLatitude, endLongitude, estimatedDuration, actualDuration, routeData, trafficStatus, incidentalCosts, status) VALUES

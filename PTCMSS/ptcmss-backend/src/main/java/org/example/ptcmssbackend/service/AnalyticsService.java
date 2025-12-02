@@ -731,6 +731,66 @@ public class AnalyticsService {
         }
 
         /**
+         * Get top vehicle categories by usage (số lần được đặt)
+         */
+        public List<Map<String, Object>> getTopVehicleCategories(String period, Integer limit) {
+                Map<String, LocalDateTime> dates = getPeriodDates(period);
+                LocalDateTime startDate = dates.get("start");
+                LocalDateTime endDate = dates.get("end");
+                
+                String sql = """
+                        SELECT 
+                            vcp.categoryId,
+                            vcp.categoryName,
+                            vcp.seats,
+                            COUNT(DISTINCT b.bookingId) as bookingCount,
+                            (SELECT COALESCE(SUM(bvd2.quantity), 0) 
+                             FROM booking_vehicle_details bvd2 
+                             INNER JOIN bookings b2 ON bvd2.bookingId = b2.bookingId
+                             WHERE bvd2.vehicleCategoryId = vcp.categoryId
+                               AND b2.bookingDate BETWEEN ? AND ?
+                               AND b2.status NOT IN ('CANCELLED', 'DRAFT')
+                            ) as totalVehiclesBooked,
+                            (SELECT COALESCE(SUM(CASE WHEN t2.status = 'COMPLETED' THEN t2.distance ELSE 0 END), 0)
+                             FROM trips t2
+                             INNER JOIN bookings b3 ON t2.bookingId = b3.bookingId
+                             INNER JOIN booking_vehicle_details bvd3 ON b3.bookingId = bvd3.bookingId
+                             WHERE bvd3.vehicleCategoryId = vcp.categoryId
+                               AND b3.bookingDate BETWEEN ? AND ?
+                               AND b3.status NOT IN ('CANCELLED', 'DRAFT')
+                            ) as totalKm,
+                            (SELECT COUNT(DISTINCT t3.tripId)
+                             FROM trips t3
+                             INNER JOIN bookings b4 ON t3.bookingId = b4.bookingId
+                             INNER JOIN booking_vehicle_details bvd4 ON b4.bookingId = bvd4.bookingId
+                             WHERE bvd4.vehicleCategoryId = vcp.categoryId
+                               AND b4.bookingDate BETWEEN ? AND ?
+                               AND b4.status NOT IN ('CANCELLED', 'DRAFT')
+                            ) as tripCount
+                        FROM vehicle_category_pricing vcp
+                        INNER JOIN booking_vehicle_details bvd ON vcp.categoryId = bvd.vehicleCategoryId
+                        INNER JOIN bookings b ON bvd.bookingId = b.bookingId 
+                            AND b.bookingDate BETWEEN ? AND ?
+                            AND b.status NOT IN ('CANCELLED', 'DRAFT')
+                        WHERE vcp.status = 'ACTIVE'
+                        GROUP BY vcp.categoryId, vcp.categoryName, vcp.seats
+                        HAVING bookingCount > 0
+                        ORDER BY bookingCount DESC, totalVehiclesBooked DESC
+                        LIMIT ?
+                        """;
+                
+                return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
+                        "categoryId", rs.getInt("categoryId"),
+                        "categoryName", rs.getString("categoryName"),
+                        "seats", rs.getInt("seats"),
+                        "bookingCount", rs.getLong("bookingCount"),
+                        "totalVehiclesBooked", rs.getLong("totalVehiclesBooked"),
+                        "totalKm", rs.getBigDecimal("totalKm"),
+                        "tripCount", rs.getLong("tripCount")
+                ), startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, limit != null ? limit : 5);
+        }
+
+        /**
          * Helper: Get date range for period
          */
         private Map<String, LocalDateTime> getPeriodDates(String period) {
