@@ -743,16 +743,35 @@ public class AnalyticsService {
                             vcp.categoryId,
                             vcp.categoryName,
                             vcp.seats,
-                            COUNT(DISTINCT bvd.bookingId) as bookingCount,
-                            COALESCE(SUM(bvd.quantity), 0) as totalVehiclesBooked,
-                            COALESCE(SUM(CASE WHEN t.status = 'COMPLETED' THEN t.distance ELSE 0 END), 0) as totalKm,
-                            COUNT(DISTINCT CASE WHEN t.tripId IS NOT NULL THEN t.tripId END) as tripCount
+                            COUNT(DISTINCT b.bookingId) as bookingCount,
+                            (SELECT COALESCE(SUM(bvd2.quantity), 0) 
+                             FROM booking_vehicle_details bvd2 
+                             INNER JOIN bookings b2 ON bvd2.bookingId = b2.bookingId
+                             WHERE bvd2.vehicleCategoryId = vcp.categoryId
+                               AND b2.bookingDate BETWEEN ? AND ?
+                               AND b2.status NOT IN ('CANCELLED', 'DRAFT')
+                            ) as totalVehiclesBooked,
+                            (SELECT COALESCE(SUM(CASE WHEN t2.status = 'COMPLETED' THEN t2.distance ELSE 0 END), 0)
+                             FROM trips t2
+                             INNER JOIN bookings b3 ON t2.bookingId = b3.bookingId
+                             INNER JOIN booking_vehicle_details bvd3 ON b3.bookingId = bvd3.bookingId
+                             WHERE bvd3.vehicleCategoryId = vcp.categoryId
+                               AND b3.bookingDate BETWEEN ? AND ?
+                               AND b3.status NOT IN ('CANCELLED', 'DRAFT')
+                            ) as totalKm,
+                            (SELECT COUNT(DISTINCT t3.tripId)
+                             FROM trips t3
+                             INNER JOIN bookings b4 ON t3.bookingId = b4.bookingId
+                             INNER JOIN booking_vehicle_details bvd4 ON b4.bookingId = bvd4.bookingId
+                             WHERE bvd4.vehicleCategoryId = vcp.categoryId
+                               AND b4.bookingDate BETWEEN ? AND ?
+                               AND b4.status NOT IN ('CANCELLED', 'DRAFT')
+                            ) as tripCount
                         FROM vehicle_category_pricing vcp
                         INNER JOIN booking_vehicle_details bvd ON vcp.categoryId = bvd.vehicleCategoryId
                         INNER JOIN bookings b ON bvd.bookingId = b.bookingId 
                             AND b.bookingDate BETWEEN ? AND ?
                             AND b.status NOT IN ('CANCELLED', 'DRAFT')
-                        LEFT JOIN trips t ON b.bookingId = t.bookingId
                         WHERE vcp.status = 'ACTIVE'
                         GROUP BY vcp.categoryId, vcp.categoryName, vcp.seats
                         HAVING bookingCount > 0
@@ -768,7 +787,7 @@ public class AnalyticsService {
                         "totalVehiclesBooked", rs.getLong("totalVehiclesBooked"),
                         "totalKm", rs.getBigDecimal("totalKm"),
                         "tripCount", rs.getLong("tripCount")
-                ), startDate, endDate, limit != null ? limit : 5);
+                ), startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, limit != null ? limit : 5);
         }
 
         /**
