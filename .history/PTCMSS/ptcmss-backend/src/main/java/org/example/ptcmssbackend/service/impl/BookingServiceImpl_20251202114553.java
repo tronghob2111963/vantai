@@ -236,10 +236,8 @@ public class BookingServiceImpl implements BookingService {
         Bookings booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
         
-        // Chỉ cho phép update khi status là DRAFT, PENDING hoặc CONFIRMED
-        if (booking.getStatus() != BookingStatus.DRAFT && 
-            booking.getStatus() != BookingStatus.PENDING && 
-            booking.getStatus() != BookingStatus.CONFIRMED) {
+        // Chỉ cho phép update khi status là PENDING hoặc CONFIRMED
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
             throw new RuntimeException("Không thể cập nhật đơn hàng với trạng thái: " + booking.getStatus());
         }
         
@@ -1330,12 +1328,6 @@ public class BookingServiceImpl implements BookingService {
                 td.setDriverRole("Main Driver");
                 td.setNote(request.getNote());
                 tripDriverRepository.save(td);
-                
-                // Update trip status to ASSIGNED
-                if (trip.getStatus() == TripStatus.SCHEDULED) {
-                    trip.setStatus(TripStatus.ASSIGNED);
-                    tripRepository.save(trip);
-                }
             }
         }
 
@@ -1379,12 +1371,6 @@ public class BookingServiceImpl implements BookingService {
                     tv.setAssignedAt(java.time.Instant.now());
                     tv.setNote(request.getNote());
                     tripVehicleRepository.save(tv);
-                    
-                    // Update trip status to ASSIGNED
-                    if (trip.getStatus() == TripStatus.SCHEDULED) {
-                        trip.setStatus(TripStatus.ASSIGNED);
-                        tripRepository.save(trip);
-                    }
                 }
             }
         }
@@ -1509,10 +1495,8 @@ public class BookingServiceImpl implements BookingService {
                 Trips trip = tv.getTrip();
                 if (trip == null || trip.getStatus() == null) continue;
                 
-                // Chỉ xét SCHEDULED, ASSIGNED hoặc ONGOING
-                if (trip.getStatus() != TripStatus.SCHEDULED && 
-                    trip.getStatus() != TripStatus.ASSIGNED &&
-                    trip.getStatus() != TripStatus.ONGOING) {
+                // Chỉ xét SCHEDULED hoặc ONGOING
+                if (trip.getStatus() != TripStatus.SCHEDULED && trip.getStatus() != TripStatus.ONGOING) {
                     continue;
                 }
                 

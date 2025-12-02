@@ -1379,12 +1379,6 @@ public class BookingServiceImpl implements BookingService {
                     tv.setAssignedAt(java.time.Instant.now());
                     tv.setNote(request.getNote());
                     tripVehicleRepository.save(tv);
-                    
-                    // Update trip status to ASSIGNED
-                    if (trip.getStatus() == TripStatus.SCHEDULED) {
-                        trip.setStatus(TripStatus.ASSIGNED);
-                        tripRepository.save(trip);
-                    }
                 }
             }
         }

@@ -137,13 +137,8 @@ public class DispatchServiceImpl implements DispatchService {
         Instant from = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant to = today.plusDays(7).atStartOfDay(ZoneId.systemDefault()).toInstant(); // 7 ngày tới
         
-        // Lấy tất cả trips SCHEDULED và ASSIGNED trong khoảng thời gian
-        List<Trips> scheduledTrips = tripRepository.findByStatusAndStartTimeBetween(TripStatus.SCHEDULED, from, to);
-        List<Trips> assignedTrips = tripRepository.findByStatusAndStartTimeBetween(TripStatus.ASSIGNED, from, to);
-        
-        List<Trips> trips = new ArrayList<>();
-        trips.addAll(scheduledTrips);
-        trips.addAll(assignedTrips);
+        // Lấy tất cả trips SCHEDULED trong khoảng thời gian
+        List<Trips> trips = tripRepository.findByStatusAndStartTimeBetween(TripStatus.SCHEDULED, from, to);
         
         List<PendingTripResponse> result = new ArrayList<>();
         

@@ -84,13 +84,7 @@ public class DispatchServiceImpl implements DispatchService {
     public List<PendingTripResponse> getPendingTrips(Integer branchId, Instant from, Instant to) {
         log.info("[Dispatch] Loading pending trips for branch {} from {} to {}", branchId, from, to);
 
-        // Lấy các trip có status SCHEDULED hoặc ASSIGNED (ASSIGNED có thể có 1 phần đã gán)
-        List<Trips> scheduledTrips = tripRepository.findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.SCHEDULED, from, to);
-        List<Trips> assignedTrips = tripRepository.findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.ASSIGNED, from, to);
-        
-        List<Trips> trips = new ArrayList<>();
-        trips.addAll(scheduledTrips);
-        trips.addAll(assignedTrips);
+        List<Trips> trips = tripRepository.findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.SCHEDULED, from, to);
 
         List<PendingTripResponse> result = new ArrayList<>();
 
@@ -137,13 +131,8 @@ public class DispatchServiceImpl implements DispatchService {
         Instant from = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant to = today.plusDays(7).atStartOfDay(ZoneId.systemDefault()).toInstant(); // 7 ngày tới
         
-        // Lấy tất cả trips SCHEDULED và ASSIGNED trong khoảng thời gian
-        List<Trips> scheduledTrips = tripRepository.findByStatusAndStartTimeBetween(TripStatus.SCHEDULED, from, to);
-        List<Trips> assignedTrips = tripRepository.findByStatusAndStartTimeBetween(TripStatus.ASSIGNED, from, to);
-        
-        List<Trips> trips = new ArrayList<>();
-        trips.addAll(scheduledTrips);
-        trips.addAll(assignedTrips);
+        // Lấy tất cả trips SCHEDULED trong khoảng thời gian
+        List<Trips> trips = tripRepository.findByStatusAndStartTimeBetween(TripStatus.SCHEDULED, from, to);
         
         List<PendingTripResponse> result = new ArrayList<>();
         
