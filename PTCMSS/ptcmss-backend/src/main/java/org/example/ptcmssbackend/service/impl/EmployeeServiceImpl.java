@@ -258,4 +258,27 @@ public class EmployeeServiceImpl implements EmployeeService {
     public Employees findByUserId(Integer userId) {
         return employeeRepository.findByUserId(userId).orElse(null);
     }
+
+    @Override
+    public List<Employees> findAvailableManagers(Integer excludeBranchId) {
+        // Lấy tất cả managers
+        List<Employees> allManagers = findByRoleName("Manager");
+        
+        // Lấy danh sách chi nhánh
+        List<org.example.ptcmssbackend.entity.Branches> branches = branchesRepository.findAll();
+        
+        // Lọc ra managers chưa được gán hoặc đang quản lý chi nhánh excludeBranchId
+        return allManagers.stream()
+                .filter(manager -> {
+                    // Tìm chi nhánh có manager này
+                    boolean isAssigned = branches.stream()
+                            .anyMatch(branch -> 
+                                branch.getManager() != null && 
+                                branch.getManager().getEmployeeId().equals(manager.getEmployeeId()) &&
+                                (excludeBranchId == null || !branch.getId().equals(excludeBranchId))
+                            );
+                    return !isAssigned;
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

@@ -14,4 +14,7 @@ public interface BranchesRepository extends JpaRepository<Branches, Integer> {
     boolean existsByBranchNameIgnoreCase(String branchName);
     
     boolean existsByBranchNameIgnoreCaseAndIdNot(String branchName, Integer id);
+    
+    // Tìm chi nhánh theo manager employeeId
+    Branches findByManager_EmployeeId(Integer employeeId);
 }

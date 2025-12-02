@@ -72,3 +72,9 @@ export function createEmployeeWithUser(req) {
 export function getEmployeeByUserId(userId) {
   return apiFetch(`/api/employees/user/${userId}`);
 }
+
+// GET /api/employees/available-managers - Lấy danh sách managers chưa được gán cho chi nhánh
+export function getAvailableManagers(excludeBranchId = null) {
+  const params = excludeBranchId ? `?excludeBranchId=${excludeBranchId}` : '';
+  return apiFetch(`/api/employees/available-managers${params}`);
+}

@@ -67,6 +67,13 @@ public class BranchServiceImpl implements BranchService {
         if (request.getManagerId() != null) {
             Employees manager = employeeRepository.findByUserId(request.getManagerId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy employee tương ứng với userId: " + request.getManagerId()));
+            
+            // Kiểm tra manager đã được gán cho chi nhánh khác chưa
+            Branches existingBranch = branchesRepository.findByManager_EmployeeId(manager.getEmployeeId());
+            if (existingBranch != null) {
+                throw new RuntimeException("Quản lý này đã được gán cho chi nhánh: " + existingBranch.getBranchName());
+            }
+            
             branch.setManager(manager);
         }
         branch.setStatus(BranchStatus.ACTIVE);
@@ -120,6 +127,13 @@ public class BranchServiceImpl implements BranchService {
         if (request.getManagerId() != null) {
             Employees manager = employeeRepository.findByUserId(request.getManagerId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy employee tương ứng với userId: " + request.getManagerId()));
+            
+            // Kiểm tra manager đã được gán cho chi nhánh khác chưa (trừ chi nhánh hiện tại)
+            Branches existingBranch = branchesRepository.findByManager_EmployeeId(manager.getEmployeeId());
+            if (existingBranch != null && !existingBranch.getId().equals(id)) {
+                throw new RuntimeException("Quản lý này đã được gán cho chi nhánh: " + existingBranch.getBranchName());
+            }
+            
             branch.setManager(manager);
         }
         branchesRepository.save(branch);
