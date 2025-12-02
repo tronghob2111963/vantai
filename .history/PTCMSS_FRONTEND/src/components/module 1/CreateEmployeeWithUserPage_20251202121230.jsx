@@ -100,9 +100,8 @@ export default function CreateEmployeeWithUserPage() {
 
         // Driver validation: yêu cầu số bằng lái
         const selectedRole = roles.find(r => String(r.id) === String(form.roleId));
-        const isDriverRole = selectedRole?.roleName?.toUpperCase().includes("DRIVER") || 
-                             selectedRole?.roleName?.toLowerCase().includes("tài xế") ||
-                             selectedRole?.description?.toLowerCase().includes("tài xế");
+        const isDriverRole = selectedRole?.name?.toUpperCase().includes("DRIVER") || 
+                             selectedRole?.name?.toLowerCase().includes("tài xế");
         
         if (isDriverRole && (!form.licenseNumber || form.licenseNumber.trim().length === 0)) {
             newErrors.licenseNumber = "Số bằng lái là bắt buộc đối với tài xế";
@@ -171,17 +170,14 @@ export default function CreateEmployeeWithUserPage() {
             
             // Thêm licenseNumber nếu là Driver
             const selectedRole = roles.find(r => String(r.id) === String(form.roleId));
-            const isDriverRole = selectedRole?.roleName?.toUpperCase().includes("DRIVER") || 
-                                 selectedRole?.roleName?.toLowerCase().includes("tài xế") ||
-                                 selectedRole?.description?.toLowerCase().includes("tài xế");
+            const isDriverRole = selectedRole?.name?.toUpperCase().includes("DRIVER") || 
+                                 selectedRole?.name?.toLowerCase().includes("tài xế");
             
-            if (isDriverRole) {
-                requestData.licenseNumber = form.licenseNumber?.trim() || "";
+            if (isDriverRole && form.licenseNumber?.trim()) {
+                requestData.licenseNumber = form.licenseNumber.trim();
             }
             
             console.log("Creating employee with user:", requestData);
-            console.log("Selected role:", selectedRole);
-            console.log("Is driver role:", isDriverRole);
 
             const response = await createEmployeeWithUser(requestData);
             console.log("Create response:", response);
@@ -498,47 +494,6 @@ export default function CreateEmployeeWithUserPage() {
                                 </div>
                             )}
                         </div>
-
-                        {/* Số bằng lái - Hiển thị khi chọn vai trò Tài xế */}
-                        {(() => {
-                            const selectedRole = roles.find(r => String(r.id) === String(form.roleId));
-                            const isDriverRole = selectedRole?.roleName?.toUpperCase().includes("DRIVER") || 
-                                                 selectedRole?.roleName?.toLowerCase().includes("tài xế") ||
-                                                 selectedRole?.description?.toLowerCase().includes("tài xế");
-                            
-                            if (!isDriverRole) return null;
-                            
-                            return (
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                        <Shield className="h-4 w-4 text-slate-400" />
-                                        <span>Số bằng lái xe</span>
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        className={`w-full border rounded-lg px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 ${
-                                            errors.licenseNumber 
-                                                ? "border-red-400 focus:border-red-500 focus:ring-red-200" 
-                                                : "border-slate-300 focus:border-[#0079BC]/50 focus:ring-[#0079BC]/20"
-                                        }`}
-                                        value={form.licenseNumber}
-                                        onChange={(e) => updateField("licenseNumber", e.target.value)}
-                                        placeholder="Ví dụ: 012345678"
-                                    />
-                                    {errors.licenseNumber && (
-                                        <div className="text-xs text-red-600 mt-1.5 flex items-center gap-1.5">
-                                            <AlertCircle className="h-3.5 w-3.5" />
-                                            <span>{errors.licenseNumber}</span>
-                                        </div>
-                                    )}
-                                    <div className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
-                                        <Info className="h-3.5 w-3.5" />
-                                        <span>Số bằng lái là bắt buộc đối với tài xế</span>
-                                    </div>
-                                </div>
-                            );
-                        })()}
 
                         {/* Trạng thái */}
                         <div className="space-y-2">

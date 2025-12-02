@@ -100,9 +100,8 @@ export default function CreateEmployeeWithUserPage() {
 
         // Driver validation: yêu cầu số bằng lái
         const selectedRole = roles.find(r => String(r.id) === String(form.roleId));
-        const isDriverRole = selectedRole?.roleName?.toUpperCase().includes("DRIVER") || 
-                             selectedRole?.roleName?.toLowerCase().includes("tài xế") ||
-                             selectedRole?.description?.toLowerCase().includes("tài xế");
+        const isDriverRole = selectedRole?.name?.toUpperCase().includes("DRIVER") || 
+                             selectedRole?.name?.toLowerCase().includes("tài xế");
         
         if (isDriverRole && (!form.licenseNumber || form.licenseNumber.trim().length === 0)) {
             newErrors.licenseNumber = "Số bằng lái là bắt buộc đối với tài xế";
@@ -171,17 +170,14 @@ export default function CreateEmployeeWithUserPage() {
             
             // Thêm licenseNumber nếu là Driver
             const selectedRole = roles.find(r => String(r.id) === String(form.roleId));
-            const isDriverRole = selectedRole?.roleName?.toUpperCase().includes("DRIVER") || 
-                                 selectedRole?.roleName?.toLowerCase().includes("tài xế") ||
-                                 selectedRole?.description?.toLowerCase().includes("tài xế");
+            const isDriverRole = selectedRole?.name?.toUpperCase().includes("DRIVER") || 
+                                 selectedRole?.name?.toLowerCase().includes("tài xế");
             
-            if (isDriverRole) {
-                requestData.licenseNumber = form.licenseNumber?.trim() || "";
+            if (isDriverRole && form.licenseNumber?.trim()) {
+                requestData.licenseNumber = form.licenseNumber.trim();
             }
             
             console.log("Creating employee with user:", requestData);
-            console.log("Selected role:", selectedRole);
-            console.log("Is driver role:", isDriverRole);
 
             const response = await createEmployeeWithUser(requestData);
             console.log("Create response:", response);
@@ -502,9 +498,8 @@ export default function CreateEmployeeWithUserPage() {
                         {/* Số bằng lái - Hiển thị khi chọn vai trò Tài xế */}
                         {(() => {
                             const selectedRole = roles.find(r => String(r.id) === String(form.roleId));
-                            const isDriverRole = selectedRole?.roleName?.toUpperCase().includes("DRIVER") || 
-                                                 selectedRole?.roleName?.toLowerCase().includes("tài xế") ||
-                                                 selectedRole?.description?.toLowerCase().includes("tài xế");
+                            const isDriverRole = selectedRole?.name?.toUpperCase().includes("DRIVER") || 
+                                                 selectedRole?.name?.toLowerCase().includes("tài xế");
                             
                             if (!isDriverRole) return null;
                             

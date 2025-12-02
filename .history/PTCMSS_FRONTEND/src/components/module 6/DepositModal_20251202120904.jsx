@@ -200,13 +200,15 @@ export default function DepositModal({
     };
 
     // Format hiển thị trong input
-    // Input đã disabled nên luôn format đẹp với dấu phân cách
-    const displayAmount = amountStr
-        ? new Intl.NumberFormat("vi-VN", {
-            maximumFractionDigits: 0,  // Không hiển thị số thập phân
-            minimumFractionDigits: 0
-        }).format(Number(amountStr))
-        : "";
+    // Nếu đang focus thì hiển thị số thuần, nếu blur thì format có dấu phân cách
+    const displayAmount = isInputFocused 
+        ? amountStr  // Hiển thị số thuần khi đang nhập
+        : (amountStr
+            ? new Intl.NumberFormat("vi-VN", {
+                maximumFractionDigits: 2,
+                minimumFractionDigits: 0
+            }).format(Number(amountStr))
+            : "");
 
     // chọn preset % (30 / 50)
     const applyPresetPercent = (ratio) => {
@@ -458,9 +460,12 @@ export default function DepositModal({
 
                         <input
                             value={displayAmount}
-                            readOnly
+                            onChange={handleManualAmountChange}
+                            onFocus={() => setIsInputFocused(true)}
+                            onBlur={() => setIsInputFocused(false)}
+                            inputMode="numeric"
                             disabled
-                            className="w-full bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 tabular-nums text-slate-900 font-medium shadow-sm cursor-not-allowed"
+                            className="w-full bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 tabular-nums text-slate-600 shadow-sm outline-none placeholder-slate-400 cursor-not-allowed"
                             placeholder="Chọn gợi ý bên dưới"
                         />
 

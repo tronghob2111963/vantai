@@ -199,11 +199,10 @@ export default function DepositModal({
         setDate(todayISO());
     };
 
-    // Format hiển thị trong input
-    // Input đã disabled nên luôn format đẹp với dấu phân cách
+    // Format hiển thị trong input với dấu phân cách (hỗ trợ số thập phân)
     const displayAmount = amountStr
         ? new Intl.NumberFormat("vi-VN", {
-            maximumFractionDigits: 0,  // Không hiển thị số thập phân
+            maximumFractionDigits: 2,
             minimumFractionDigits: 0
         }).format(Number(amountStr))
         : "";
@@ -458,10 +457,10 @@ export default function DepositModal({
 
                         <input
                             value={displayAmount}
-                            readOnly
-                            disabled
-                            className="w-full bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 tabular-nums text-slate-900 font-medium shadow-sm cursor-not-allowed"
-                            placeholder="Chọn gợi ý bên dưới"
+                            onChange={handleManualAmountChange}
+                            inputMode="numeric"
+                            className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 tabular-nums text-slate-900 shadow-sm outline-none placeholder-slate-400"
+                            placeholder="Nhập số tiền"
                         />
 
                         {/* Preset row */}

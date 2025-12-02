@@ -559,7 +559,7 @@ function OrdersTable({
 
                             {/* Trạng thái - Vietnamese labels */}
                             <td className="px-3 py-2 text-[13px] whitespace-nowrap">
-                                <OrderStatusPill status={o.status} order={o} />
+                                <OrderStatusPill status={o.status} />
                             </td>
 
                             {/* Actions - Always show "Chi tiết", hide "Sửa" for Manager/Accountant */}
@@ -711,7 +711,7 @@ function OrderDetailModal({ open, order, onClose }) {
                         <div className="flex flex-wrap items-center gap-2 text-[15px] font-semibold text-slate-900">
                             <ClipboardList className="h-5 w-5 text-sky-600" />
                             <span>Đơn hàng {order.code}</span>
-                            <OrderStatusPill status={order.status} order={order} />
+                            <OrderStatusPill status={order.status} />
                         </div>
 
                         <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-3">
@@ -1251,7 +1251,6 @@ function OrderFormModal({
                                             initialOrder?.status ||
                                             "DRAFT"
                                         }
-                                        order={initialOrder}
                                     />
                                 </>
                             ) : (

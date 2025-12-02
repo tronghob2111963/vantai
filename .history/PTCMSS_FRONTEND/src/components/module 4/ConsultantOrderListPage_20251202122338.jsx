@@ -1251,7 +1251,6 @@ function OrderFormModal({
                                             initialOrder?.status ||
                                             "DRAFT"
                                         }
-                                        order={initialOrder}
                                     />
                                 </>
                             ) : (
