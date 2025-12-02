@@ -43,6 +43,7 @@ const fmtDateTime = (isoLike) => {
 
 const STATUS_FROM_BACKEND = {
   SCHEDULED: "NOT_STARTED",
+  ASSIGNED: "NOT_STARTED", // ASSIGNED = đã phân xe/tài xế, nhưng vẫn chưa bắt đầu
   ONGOING: "IN_PROGRESS",
   COMPLETED: "COMPLETED",
 };

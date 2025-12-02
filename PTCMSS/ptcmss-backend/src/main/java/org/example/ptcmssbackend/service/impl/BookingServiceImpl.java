@@ -1594,6 +1594,31 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
+        // Send notification to driver when assigned
+        if (request.getDriverId() != null) {
+            try {
+                Drivers driver = driverRepository.findById(request.getDriverId()).orElse(null);
+                if (driver != null && driver.getEmployee() != null && driver.getEmployee().getUser() != null) {
+                    Integer userId = driver.getEmployee().getUser().getId();
+                    String bookingCode = "ORD-" + booking.getId();
+                    String customerName = booking.getCustomer() != null ? booking.getCustomer().getFullName() : "Khách hàng";
+                    
+                    webSocketNotificationService.sendUserNotification(
+                            userId,
+                            "Chuyến mới được gán",
+                            String.format("Bạn được gán %d chuyến cho đơn %s - %s",
+                                    targetTripIds.size(),
+                                    bookingCode,
+                                    customerName),
+                            "INFO"
+                    );
+                    log.info("[Booking] Sent notification to driver {} for assigned trips", request.getDriverId());
+                }
+            } catch (Exception e) {
+                log.warn("[Booking] Failed to send notification to driver: {}", e.getMessage());
+            }
+        }
+
         return getById(bookingId);
     }
 

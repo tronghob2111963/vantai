@@ -27,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,13 +53,48 @@ public class DriverServiceImpl implements DriverService {
     public DriverDashboardResponse getDashboard(Integer driverId) {
         log.info("[DriverDashboard] Fetching dashboard for driver {}", driverId);
         var driverTrips = tripDriverRepository.findAllByDriverId(driverId);
+        
+        // Lấy ngày hôm nay để ưu tiên chuyến hôm nay
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        
         return driverTrips.stream()
-                .filter(td -> td.getTrip().getStatus() == TripStatus.SCHEDULED
-                        || td.getTrip().getStatus() == TripStatus.ONGOING)
+                .filter(td -> {
+                    TripStatus status = td.getTrip().getStatus();
+                    // Bao gồm SCHEDULED, ASSIGNED (đã phân xe), và ONGOING
+                    return status == TripStatus.SCHEDULED 
+                            || status == TripStatus.ASSIGNED 
+                            || status == TripStatus.ONGOING;
+                })
+                .sorted((td1, td2) -> {
+                    // Ưu tiên: 1) Chuyến hôm nay, 2) Chuyến sớm nhất
+                    var trip1 = td1.getTrip();
+                    var trip2 = td2.getTrip();
+                    
+                    Instant start1 = trip1.getStartTime();
+                    Instant start2 = trip2.getStartTime();
+                    
+                    if (start1 == null && start2 == null) return 0;
+                    if (start1 == null) return 1;
+                    if (start2 == null) return -1;
+                    
+                    LocalDate date1 = start1.atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate date2 = start2.atZone(ZoneId.systemDefault()).toLocalDate();
+                    
+                    boolean isToday1 = date1.equals(today);
+                    boolean isToday2 = date2.equals(today);
+                    
+                    // Ưu tiên chuyến hôm nay
+                    if (isToday1 && !isToday2) return -1;
+                    if (!isToday1 && isToday2) return 1;
+                    
+                    // Nếu cùng ngày hoặc cả hai không phải hôm nay, sắp xếp theo thời gian
+                    return start1.compareTo(start2);
+                })
                 .findFirst()
                 .map(td -> {
                     var trip = td.getTrip();
-                    log.info("[DriverDashboard] Trip ID: {}, Distance: {}", trip.getId(), trip.getDistance());
+                    log.info("[DriverDashboard] Trip ID: {}, Status: {}, StartTime: {}", 
+                            trip.getId(), trip.getStatus(), trip.getStartTime());
                     
                     var booking = trip.getBooking();
                     log.info("[DriverDashboard] Booking: {}", booking != null ? booking.getId() : "null");
@@ -299,9 +336,10 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeException("Tài xế không được phân công cho chuyến đi này");
         }
 
-        // chỉ cho start từ trạng thái SCHEDULED
-        if (trip.getStatus() != TripStatus.SCHEDULED) {
-            throw new RuntimeException("Chuyến đi không ở trạng thái ĐÃ LÊN LỊCH");
+        // Cho phép start từ trạng thái SCHEDULED hoặc ASSIGNED
+        // (ASSIGNED = đã phân xe/tài xế, SCHEDULED = đã lên lịch nhưng chưa phân)
+        if (trip.getStatus() != TripStatus.SCHEDULED && trip.getStatus() != TripStatus.ASSIGNED) {
+            throw new RuntimeException("Chuyến đi không ở trạng thái ĐÃ LÊN LỊCH hoặc ĐÃ PHÂN XE");
         }
 
         trip.setStatus(TripStatus.ONGOING);
