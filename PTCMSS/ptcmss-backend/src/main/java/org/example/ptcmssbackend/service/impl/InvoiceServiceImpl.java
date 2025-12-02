@@ -89,7 +89,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setAmount(request.getAmount());
         invoice.setSubtotal(request.getSubtotal());
         invoice.setVatAmount(request.getVatAmount() != null ? request.getVatAmount() : BigDecimal.ZERO);
-        invoice.setPaymentMethod(request.getPaymentMethod());
         invoice.setPaymentTerms(request.getPaymentTerms() != null ? request.getPaymentTerms() : "NET_7");
         invoice.setPaymentStatus(PaymentStatus.UNPAID);
         invoice.setStatus(InvoiceStatus.ACTIVE);
@@ -104,12 +103,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         } else {
             invoice.setDueDate(request.getDueDate());
         }
-
-        // Bank transfer info
-        invoice.setBankName(request.getBankName());
-        invoice.setBankAccount(request.getBankAccount());
-        invoice.setReferenceNumber(request.getReferenceNumber());
-        invoice.setCashierName(request.getCashierName());
 
         // Generate invoice number
         LocalDate invoiceDate = invoice.getInvoiceDate() != null
@@ -180,7 +173,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (request.getAmount() != null) invoice.setAmount(request.getAmount());
         if (request.getSubtotal() != null) invoice.setSubtotal(request.getSubtotal());
         if (request.getVatAmount() != null) invoice.setVatAmount(request.getVatAmount());
-        if (request.getPaymentMethod() != null) invoice.setPaymentMethod(request.getPaymentMethod());
         if (request.getPaymentTerms() != null) invoice.setPaymentTerms(request.getPaymentTerms());
         if (request.getDueDate() != null) invoice.setDueDate(request.getDueDate());
         if (request.getNote() != null) invoice.setNote(request.getNote());
@@ -407,18 +399,12 @@ public class InvoiceServiceImpl implements InvoiceService {
         response.setAmount(invoice.getAmount());
         response.setSubtotal(invoice.getSubtotal());
         response.setVatAmount(invoice.getVatAmount());
-        response.setPaymentMethod(invoice.getPaymentMethod());
         response.setPaymentStatus(invoice.getPaymentStatus().toString());
         response.setStatus(invoice.getStatus().toString());
         response.setPaymentTerms(invoice.getPaymentTerms());
         response.setDueDate(invoice.getDueDate());
         response.setInvoiceDate(invoice.getInvoiceDate());
         response.setCreatedAt(invoice.getCreatedAt());
-        response.setBankName(invoice.getBankName());
-        response.setBankAccount(invoice.getBankAccount());
-        response.setReferenceNumber(invoice.getReferenceNumber());
-        response.setCashierName(invoice.getCashierName());
-        response.setReceiptNumber(invoice.getReceiptNumber());
         response.setPromiseToPayDate(invoice.getPromiseToPayDate());
         response.setDebtLabel(invoice.getDebtLabel());
         response.setContactNote(invoice.getContactNote());

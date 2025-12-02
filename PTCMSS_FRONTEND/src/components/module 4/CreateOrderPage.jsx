@@ -1270,16 +1270,22 @@ export default function CreateOrderPage() {
                     {/* Đặt đơn */}
                     <button
                         onClick={submitOrder}
-                        disabled={loadingSubmit || loadingBranch || !branchId}
+                        disabled={loadingSubmit || loadingBranch || !branchId || (availabilityInfo && !availabilityInfo.ok)}
                         type="button"
-                        className="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={cls(
+                            "rounded-md font-medium text-[13px] px-4 py-2 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed",
+                            availabilityInfo && !availabilityInfo.ok
+                                ? "bg-slate-400 text-white cursor-not-allowed"
+                                : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                        )}
+                        title={availabilityInfo && !availabilityInfo.ok ? "Không thể đặt đơn: Hết xe trong khung giờ này" : "Đặt đơn hàng"}
                     >
                         {loadingSubmit ? (
                             <Loader2 className="h-4 w-4 animate-spin text-white" />
                         ) : (
                             <Send className="h-4 w-4 text-white" />
                         )}
-                        <span>Đặt đơn</span>
+                        <span>{availabilityInfo && !availabilityInfo.ok ? "Hết xe" : "Đặt đơn"}</span>
                     </button>
                 </div>
             </div>
@@ -1720,70 +1726,105 @@ export default function CreateOrderPage() {
                                 <div className="space-y-2 mt-1">
                                     {vehicleSelections.map((selection, index) => {
                                         const cat = categories.find(c => c.id === selection.categoryId);
+                                        // Kiểm tra loại xe này có hết không (từ availabilityInfo.results)
+                                        const thisVehicleResult = availabilityInfo?.results?.find(r => r.categoryId === selection.categoryId);
+                                        const isOutOfStock = thisVehicleResult && !thisVehicleResult.ok;
+                                        
                                         return (
-                                            <div key={index} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
-                                                {/* Select loại xe */}
-                                                <select
-                                                    value={selection.categoryId}
-                                                    onChange={(e) => updateVehicleSelection(index, 'categoryId', e.target.value)}
-                                                    className="flex-1 bg-white border border-slate-300 rounded-md px-3 py-2 text-[13px] text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-[#0079BC]/20"
-                                                >
-                                                    <option value="">-- Chọn loại xe --</option>
-                                                    {categories.map((c) => {
-                                                        // Disable nếu loại xe này đã được chọn ở selection khác
-                                                        const isAlreadySelected = vehicleSelections.some((v, i) => 
-                                                            i !== index && v.categoryId === c.id
-                                                        );
-                                                        return (
-                                                            <option 
-                                                                key={c.id} 
-                                                                value={c.id}
-                                                                disabled={isAlreadySelected}
-                                                            >
-                                                                {c.name} ({c.seats} chỗ) {isAlreadySelected ? '(đã chọn)' : ''}
-                                                            </option>
-                                                        );
-                                                    })}
-                                                </select>
-                                                
-                                                {/* Số lượng */}
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-[12px] text-slate-500 whitespace-nowrap">SL:</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateVehicleSelection(index, 'quantity', Math.max(1, selection.quantity - 1))}
-                                                        className="px-2 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
-                                                        disabled={selection.quantity <= 1}
+                                            <div key={index} className={cls(
+                                                "p-2 rounded-lg border",
+                                                isOutOfStock 
+                                                    ? "bg-red-50 border-red-300" 
+                                                    : "bg-slate-50 border-slate-200"
+                                            )}>
+                                                {/* Row 1: Select + Số lượng + Số chỗ + Nút xóa */}
+                                                <div className="flex items-center gap-2">
+                                                    {/* Select loại xe */}
+                                                    <select
+                                                        value={selection.categoryId}
+                                                        onChange={(e) => updateVehicleSelection(index, 'categoryId', e.target.value)}
+                                                        className={cls(
+                                                            "flex-1 border rounded-md px-3 py-2 text-[13px] shadow-sm outline-none focus:ring-2",
+                                                            isOutOfStock
+                                                                ? "bg-red-50 border-red-300 text-red-700 focus:ring-red-200"
+                                                                : "bg-white border-slate-300 text-slate-900 focus:ring-[#0079BC]/20"
+                                                        )}
                                                     >
-                                                        <Minus className="h-3 w-3" />
-                                                    </button>
-                                                    <span className="w-8 text-center text-[13px] font-medium">{selection.quantity}</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateVehicleSelection(index, 'quantity', selection.quantity + 1)}
-                                                        className="px-2 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50"
-                                                    >
-                                                        <Plus className="h-3 w-3" />
-                                                    </button>
+                                                        <option value="">-- Chọn loại xe --</option>
+                                                        {categories.map((c) => {
+                                                            // Disable nếu loại xe này đã được chọn ở selection khác
+                                                            const isAlreadySelected = vehicleSelections.some((v, i) => 
+                                                                i !== index && v.categoryId === c.id
+                                                            );
+                                                            // Kiểm tra loại xe này có hết không
+                                                            const catResult = availabilityInfo?.results?.find(r => r.categoryId === c.id);
+                                                            const catOutOfStock = catResult && !catResult.ok;
+                                                            
+                                                            return (
+                                                                <option 
+                                                                    key={c.id} 
+                                                                    value={c.id}
+                                                                    disabled={isAlreadySelected}
+                                                                    className={catOutOfStock ? "text-red-600" : ""}
+                                                                >
+                                                                    {c.name} ({c.seats} chỗ) {isAlreadySelected ? '(đã chọn)' : ''}{catOutOfStock ? ' ⚠️ HẾT XE' : ''}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                    
+                                                    {/* Số lượng */}
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[12px] text-slate-500 whitespace-nowrap">SL:</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateVehicleSelection(index, 'quantity', Math.max(1, selection.quantity - 1))}
+                                                            className="px-2 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
+                                                            disabled={selection.quantity <= 1}
+                                                        >
+                                                            <Minus className="h-3 w-3" />
+                                                        </button>
+                                                        <span className="w-8 text-center text-[13px] font-medium">{selection.quantity}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateVehicleSelection(index, 'quantity', selection.quantity + 1)}
+                                                            className="px-2 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50"
+                                                        >
+                                                            <Plus className="h-3 w-3" />
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    {/* Hiện số chỗ */}
+                                                    {cat && (
+                                                        <span className={cls(
+                                                            "text-[11px] whitespace-nowrap",
+                                                            isOutOfStock ? "text-red-600 font-medium" : "text-slate-500"
+                                                        )}>
+                                                            = {cat.seats * selection.quantity} chỗ
+                                                        </span>
+                                                    )}
+                                                    
+                                                    {/* Nút xóa */}
+                                                    {vehicleSelections.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeVehicleSelection(index)}
+                                                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                                            title="Xóa loại xe này"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                                 
-                                                {/* Hiện số chỗ */}
-                                                {cat && (
-                                                    <span className="text-[11px] text-slate-500 whitespace-nowrap">
-                                                        = {cat.seats * selection.quantity} chỗ
-                                                    </span>
-                                                )}
-                                                
-                                                {/* Nút xóa */}
-                                                {vehicleSelections.length > 1 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeVehicleSelection(index)}
-                                                        className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                                        title="Xóa loại xe này"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
+                                                {/* Row 2: Badge hết xe (nếu có) */}
+                                                {isOutOfStock && (
+                                                    <div className="mt-2 flex items-center">
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-red-100 text-red-700 border border-red-200">
+                                                            <CarFront className="h-3.5 w-3.5" />
+                                                            {cat?.name}: Hết xe ({thisVehicleResult?.busyCount || 0}/{thisVehicleResult?.totalCandidates || 0} đang bận) ({thisVehicleResult?.availableCount || 0} xe)
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
                                         );

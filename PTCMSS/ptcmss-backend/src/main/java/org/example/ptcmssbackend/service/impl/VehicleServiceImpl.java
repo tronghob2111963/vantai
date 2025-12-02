@@ -213,7 +213,6 @@ public class VehicleServiceImpl implements VehicleService {
                         .invoiceId(inv.getId())
                         .costType(inv.getCostType())
                         .amount(inv.getAmount())
-                        .paymentMethod(inv.getPaymentMethod())
                         .paymentStatus(inv.getPaymentStatus() != null ? inv.getPaymentStatus().name() : null)
                         .note(inv.getNote())
                         .invoiceDate(inv.getInvoiceDate())
@@ -239,7 +238,6 @@ public class VehicleServiceImpl implements VehicleService {
                 .map(inv -> VehicleMaintenanceResponse.builder()
                         .invoiceId(inv.getId())
                         .amount(inv.getAmount())
-                        .paymentMethod(inv.getPaymentMethod())
                         .paymentStatus(inv.getPaymentStatus() != null ? inv.getPaymentStatus().name() : null)
                         .note(inv.getNote())
                         .invoiceDate(inv.getInvoiceDate())
@@ -270,7 +268,6 @@ public class VehicleServiceImpl implements VehicleService {
         invoice.setType(InvoiceType.EXPENSE);
         invoice.setCostType("maintenance");
         invoice.setAmount(request.getAmount());
-        invoice.setPaymentMethod(request.getPaymentMethod());
         invoice.setPaymentStatus(PaymentStatus.UNPAID);
         invoice.setNote(request.getNote() != null ? request.getNote() : 
                 "Bảo trì xe " + vehicle.getLicensePlate());
@@ -280,7 +277,6 @@ public class VehicleServiceImpl implements VehicleService {
         return VehicleMaintenanceResponse.builder()
                 .invoiceId(saved.getId())
                 .amount(saved.getAmount())
-                .paymentMethod(saved.getPaymentMethod())
                 .paymentStatus(saved.getPaymentStatus() != null ? saved.getPaymentStatus().name() : null)
                 .note(saved.getNote())
                 .invoiceDate(saved.getInvoiceDate())
@@ -315,7 +311,6 @@ public class VehicleServiceImpl implements VehicleService {
         invoice.setType(InvoiceType.EXPENSE);
         invoice.setCostType(request.getCostType());
         invoice.setAmount(request.getAmount());
-        invoice.setPaymentMethod(request.getPaymentMethod());
         invoice.setPaymentStatus(PaymentStatus.UNPAID);
         invoice.setNote(request.getNote() != null ? request.getNote() : 
                 "Chi phí " + request.getCostType() + " cho xe " + vehicle.getLicensePlate());
@@ -326,7 +321,6 @@ public class VehicleServiceImpl implements VehicleService {
                 .invoiceId(saved.getId())
                 .costType(saved.getCostType())
                 .amount(saved.getAmount())
-                .paymentMethod(saved.getPaymentMethod())
                 .paymentStatus(saved.getPaymentStatus() != null ? saved.getPaymentStatus().name() : null)
                 .note(saved.getNote())
                 .invoiceDate(saved.getInvoiceDate())

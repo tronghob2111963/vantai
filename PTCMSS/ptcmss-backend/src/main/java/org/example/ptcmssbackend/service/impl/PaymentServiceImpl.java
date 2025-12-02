@@ -74,7 +74,6 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         Invoices invoice = buildInvoiceSkeleton(booking, amount, Boolean.TRUE.equals(deposit), PaymentStatus.UNPAID);
-        invoice.setPaymentMethod("QR");
         invoice.setNote(note);
         if (employeeId != null) {
             Employees employee = employeeRepository.findById(employeeId).orElse(null);
@@ -138,7 +137,6 @@ public class PaymentServiceImpl implements PaymentService {
 
         // Create invoice with UNPAID status initially (waiting for confirmation)
         Invoices invoice = buildInvoiceSkeleton(booking, request.getAmount(), Boolean.TRUE.equals(request.getDeposit()), PaymentStatus.UNPAID);
-        invoice.setPaymentMethod(StringUtils.hasText(request.getPaymentMethod()) ? request.getPaymentMethod() : "CASH");
         invoice.setNote(request.getNote());
         if (employeeId != null) {
             Employees employee = employeeRepository.findById(employeeId).orElse(null);
@@ -276,7 +274,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .bookingId(invoice.getBooking() != null ? invoice.getBooking().getId() : null)
                 .amount(invoice.getAmount())
                 .deposit(Boolean.TRUE.equals(invoice.getIsDeposit()))
-                .paymentMethod(invoice.getPaymentMethod())
                 .paymentStatus(invoice.getPaymentStatus() != null ? invoice.getPaymentStatus().name() : null)
                 .note(invoice.getNote())
                 .createdAt(invoice.getCreatedAt())

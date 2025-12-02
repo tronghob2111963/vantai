@@ -21,6 +21,7 @@ public class TripResponse {
     // Thông tin điều phối (nếu đã gán)
     private Integer driverId;
     private String driverName;
+    private String driverPhone;
     private Integer vehicleId;
     private String vehicleLicensePlate;
 }

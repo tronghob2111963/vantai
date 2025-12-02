@@ -530,7 +530,6 @@ public class BookingServiceImpl implements BookingService {
                 depositLossInvoice.setType(org.example.ptcmssbackend.enums.InvoiceType.INCOME);
                 depositLossInvoice.setIsDeposit(false); // Không phải tiền cọc, mà là tiền mất do hủy
                 depositLossInvoice.setAmount(depositLossAmount);
-                depositLossInvoice.setPaymentMethod("AUTO"); // Tự động (không cần thanh toán)
                 depositLossInvoice.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
                 depositLossInvoice.setStatus(org.example.ptcmssbackend.enums.InvoiceStatus.ACTIVE);
                 depositLossInvoice.setNote(String.format("Tiền mất cọc do hủy đơn (%.0f%% tiền cọc)", 
@@ -1273,7 +1272,6 @@ public class BookingServiceImpl implements BookingService {
         if (matchingUnpaidInvoice != null) {
             // Cập nhật invoice UNPAID thành PAID
             inv = matchingUnpaidInvoice;
-            inv.setPaymentMethod(request.getPaymentMethod());
             inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
             if (request.getNote() != null && !request.getNote().isEmpty()) {
                 inv.setNote(request.getNote());
@@ -1290,7 +1288,6 @@ public class BookingServiceImpl implements BookingService {
             inv.setType(org.example.ptcmssbackend.enums.InvoiceType.INCOME);
             inv.setIsDeposit(Boolean.TRUE.equals(request.getDeposit()));
             inv.setAmount(request.getAmount());
-            inv.setPaymentMethod(request.getPaymentMethod());
             inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
             inv.setStatus(org.example.ptcmssbackend.enums.InvoiceStatus.ACTIVE);
             inv.setNote(request.getNote());
@@ -1627,6 +1624,8 @@ public class BookingServiceImpl implements BookingService {
             Integer vehicleId = null;
             String vehicleLicensePlate = null;
             
+            String driverPhone = null;
+            
             // Tìm driver và vehicle từ TripDrivers và TripVehicles
             List<TripDrivers> tripDrivers = tripDriverRepository.findByTripId(trip.getId());
             if (!tripDrivers.isEmpty()) {
@@ -1634,6 +1633,7 @@ public class BookingServiceImpl implements BookingService {
                 driverId = td.getDriver().getId();
                 if (td.getDriver().getEmployee() != null && td.getDriver().getEmployee().getUser() != null) {
                     driverName = td.getDriver().getEmployee().getUser().getFullName();
+                    driverPhone = td.getDriver().getEmployee().getUser().getPhone();
                 }
             }
             
@@ -1656,6 +1656,7 @@ public class BookingServiceImpl implements BookingService {
                     .status(trip.getStatus() != null ? trip.getStatus().name() : null)
                     .driverId(driverId)
                     .driverName(driverName)
+                    .driverPhone(driverPhone)
                     .vehicleId(vehicleId)
                     .vehicleLicensePlate(vehicleLicensePlate)
                     .build();
