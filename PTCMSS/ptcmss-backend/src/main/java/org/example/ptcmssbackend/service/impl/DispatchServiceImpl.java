@@ -1121,9 +1121,17 @@ public class DispatchServiceImpl implements DispatchService {
                 }).collect(Collectors.toList());
 
         // Tính số tiền còn lại cần thanh toán
+        // Sử dụng cùng logic với BookingServiceImpl để đảm bảo nhất quán
+        // Tính paidAmount từ payment_history đã CONFIRMED (giống như BookingService)
         java.math.BigDecimal totalCost = booking.getTotalCost() != null ? booking.getTotalCost() : java.math.BigDecimal.ZERO;
-        java.math.BigDecimal depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount() : java.math.BigDecimal.ZERO;
-        java.math.BigDecimal remainingAmount = totalCost.subtract(depositAmount);
+        java.math.BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(booking.getId());
+        if (paidAmount == null) paidAmount = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal remainingAmount = totalCost.subtract(paidAmount);
+        if (remainingAmount.compareTo(java.math.BigDecimal.ZERO) < 0) {
+            remainingAmount = java.math.BigDecimal.ZERO;
+        }
+        // depositAmount = paidAmount (để nhất quán với BookingService)
+        java.math.BigDecimal depositAmount = paidAmount;
 
         // Lấy rating nếu có
         var ratingOpt = driverRatingsRepository.findByTrip_Id(trip.getId());

@@ -416,17 +416,17 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, i
 
             {/* Số liệu tóm tắt */}
             <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex flex-col gap-1">
-                    <div className="text-[11px] uppercase tracking-wide font-medium text-amber-700">Đã thu</div>
-                    <div className="text-lg font-bold tabular-nums text-amber-700 flex items-center gap-1">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-col gap-1">
+                    <div className="text-[11px] uppercase tracking-wide font-medium text-emerald-700">Đã thu</div>
+                    <div className="text-lg font-bold tabular-nums text-emerald-700 flex items-center gap-1">
                         <DollarSign className="h-4 w-4" />
                         <span>{fmtVND(paid)}</span>
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex flex-col gap-1">
-                    <div className="text-[11px] uppercase tracking-wide font-medium text-amber-700">Còn lại</div>
-                    <div className="text-lg font-bold tabular-nums text-amber-700 flex items-center gap-1">
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 flex flex-col gap-1">
+                    <div className="text-[11px] uppercase tracking-wide font-medium text-rose-700">Còn lại</div>
+                    <div className="text-lg font-bold tabular-nums text-rose-700 flex items-center gap-1">
                         <DollarSign className="h-4 w-4" />
                         <span>{fmtVND(remain)}</span>
                     </div>

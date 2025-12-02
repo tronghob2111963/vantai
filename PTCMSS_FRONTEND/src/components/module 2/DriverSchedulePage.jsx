@@ -653,17 +653,18 @@ export default function DriverSchedulePage() {
             const hireType = trip.hireType || "";
             const hireTypeName = trip.hireTypeName || "";
             
+            const routeLabel = 
+              (trip.startLocation || trip.start_location || "—") +
+              " → " +
+              (trip.endLocation || trip.end_location || "—");
+            
             // Kiểm tra nếu là chuyến 2 chiều và ngày đi khác ngày về
             const isRoundTrip = hireType === "ROUND_TRIP";
+            const isDailyOrMultiDay = hireType === "DAILY" || hireType === "MULTI_DAY";
             const differentDays = startDateStr && endDateStr && startDateStr !== endDateStr;
             
             if (isRoundTrip && differentDays) {
-              // Tạo 2 records: 1 cho ngày đi, 1 cho ngày về
-              const routeLabel = 
-                (trip.startLocation || trip.start_location || "—") +
-                " → " +
-                (trip.endLocation || trip.end_location || "—");
-              
+              // Chuyến 2 chiều: Tạo 2 records: 1 cho ngày đi, 1 cho ngày về
               // Record cho ngày đi
               tripRecords.push({
                 date: startDateStr,
@@ -687,16 +688,48 @@ export default function DriverSchedulePage() {
                 hireType: hireType,
                 hireTypeName: hireTypeName,
               });
+            } else if (isDailyOrMultiDay && differentDays) {
+              // Chuyến theo ngày: Tạo records cho tất cả các ngày từ ngày bắt đầu đến ngày kết thúc
+              const startDate = new Date(startDateStr);
+              const endDate = new Date(endDateStr);
+              
+              // Tạo record cho từng ngày
+              for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const currentDateStr = toYMD(d);
+                const isFirstDay = currentDateStr === startDateStr;
+                const isLastDay = currentDateStr === endDateStr;
+                
+                // Title khác nhau cho ngày đầu, ngày cuối, và các ngày giữa
+                let title = routeLabel;
+                if (isFirstDay && isLastDay) {
+                  // Chỉ 1 ngày
+                  title = routeLabel;
+                } else if (isFirstDay) {
+                  title = `Bắt đầu: ${routeLabel}`;
+                } else if (isLastDay) {
+                  title = `Kết thúc: ${routeLabel}`;
+                } else {
+                  title = `Tiếp tục: ${routeLabel}`;
+                }
+                
+                tripRecords.push({
+                  date: currentDateStr,
+                  type: "TRIP",
+                  title: title,
+                  time: isFirstDay ? (start ? String(start).slice(11, 16) : "") : "",
+                  pickup: trip.startLocation || trip.start_location || "",
+                  trip_id: trip.tripId || trip.trip_id,
+                  hireType: hireType,
+                  hireTypeName: hireTypeName,
+                });
+              }
             } else {
               // Chuyến 1 chiều hoặc cùng ngày: chỉ tạo 1 record
               if (startDateStr) {
                 tripRecords.push({
                   date: startDateStr,
                   type: "TRIP",
-                  title:
-                    (trip.startLocation || trip.start_location || "—") +
-                    " → " +
-                    (trip.endLocation || trip.end_location || "—"),
+                  title: routeLabel,
                   time: start ? String(start).slice(11, 16) : "",
                   pickup: trip.startLocation || trip.start_location || "",
                   trip_id: trip.tripId || trip.trip_id,
