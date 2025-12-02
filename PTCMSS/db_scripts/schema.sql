@@ -140,8 +140,6 @@ CREATE TABLE `bookings` (
   `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
   `isHoliday` tinyint(1) DEFAULT '0' COMMENT 'Có phải ngày lễ không',
   `isWeekend` tinyint(1) DEFAULT '0' COMMENT 'Có phải cuối tuần không',
-  `additionalPickupPoints` int DEFAULT '0' COMMENT 'Số điểm đón thêm so với ban đầu',
-  `additionalDropoffPoints` int DEFAULT '0' COMMENT 'Số điểm trả thêm so với ban đầu',
   PRIMARY KEY (`bookingId`),
   KEY `fk_book_cons` (`consultantId`),
   KEY `IX_Bookings_BranchId` (`branchId`),
@@ -161,7 +159,7 @@ CREATE TABLE `bookings` (
 
 LOCK TABLES `bookings` WRITE;
 /*!40000 ALTER TABLE `bookings` DISABLE KEYS */;
-INSERT INTO `bookings` VALUES (1,2,1,5,2,1,'2025-11-12 11:23:08',3500000.00,1000000.00,3800000.00,NULL,NULL,'COMPLETED','Đoàn 25 khách, đi Hà Nội - Hạ Long 2 chiều','2025-11-12 11:23:08','2025-11-12 11:23:08',0,0,0,0),(2,4,3,6,5,1,'2025-11-12 11:23:08',1200000.00,500000.00,1200000.00,NULL,NULL,'CONFIRMED','Đón sân bay TSN về Quận 7 (16 chỗ)','2025-11-12 11:23:08','2025-12-02 03:55:10',0,0,0,0),(3,1,1,5,4,0,'2025-11-12 11:23:08',25000000.00,10000000.00,0.00,NULL,NULL,'INPROGRESS','Hợp đồng đưa đón nhân viên KCN Thăng Long T11/2025','2025-11-12 11:23:08','2025-12-02 03:55:10',0,0,0,0),(4,3,2,6,3,1,'2025-11-12 11:23:08',15000000.00,500000.00,0.00,NULL,NULL,'PENDING','Thuê xe 45 chỗ đi 3N2Đ Đà Nẵng - Huế - Hội An','2025-11-12 11:23:08','2025-11-24 18:13:53',0,0,0,0),(5,5,1,5,1,1,'2025-11-12 11:23:08',1000000.00,1000000.00,1000000.00,NULL,NULL,'CONFIRMED','Thuê 1 chiều xe Limo (9 chỗ) đi Nội Bài','2025-11-12 11:23:08','2025-12-02 03:55:10',0,0,0,0),(8,8,1,1,NULL,0,'2025-11-21 17:35:52',811646.68,0.00,811646.68,NULL,NULL,'CONFIRMED',NULL,'2025-11-21 17:35:52','2025-11-26 16:08:14',0,0,0,0),(9,8,1,1,NULL,0,'2025-11-24 10:15:32',3519205.55,0.00,3519205.55,NULL,NULL,'COMPLETED',NULL,'2025-11-24 10:15:32','2025-12-02 01:24:19',0,0,0,0),(10,8,1,5,NULL,0,'2025-11-27 21:03:41',67741800.00,0.00,67741800.00,4516.12,NULL,'PENDING',NULL,'2025-11-27 21:03:41','2025-12-02 03:55:10',0,0,0,0),(11,8,1,5,2,0,'2025-11-27 21:19:56',30617062.50,0.00,30617062.50,NULL,NULL,'PENDING','đón ở hgj','2025-11-27 21:19:56','2025-11-28 04:19:55',1,0,0,0),(12,8,1,6,2,0,'2025-11-29 04:22:35',77808350.00,0.00,77808350.00,NULL,NULL,'PENDING',NULL,'2025-11-29 04:22:35','2025-11-29 11:22:34',0,0,0,0),(13,8,1,6,2,0,'2025-11-30 17:37:56',69181850.00,0.00,69181850.00,NULL,NULL,'CANCELLED','nhớ chạy cẩn thận','2025-11-30 17:37:56','2025-12-01 02:38:22',0,0,0,0),(14,8,1,5,1,0,'2025-11-30 18:23:46',8096000.00,0.00,8096000.00,NULL,NULL,'CANCELLED',NULL,'2025-11-30 18:23:46','2025-12-01 02:41:23',0,0,0,0),(15,8,1,6,1,0,'2025-11-30 19:45:30',17538200.00,0.00,17538200.00,NULL,NULL,'COMPLETED','222','2025-11-30 19:45:30','2025-12-02 03:55:10',0,0,0,0),(16,8,1,6,1,0,'2025-12-01 19:46:04',132847200.00,0.00,132847200.00,NULL,NULL,'PENDING','OK ','2025-12-01 19:46:04','2025-12-02 02:46:03',0,0,0,0),(17,8,1,6,1,0,'2025-12-01 19:48:26',4575200.00,0.00,4575200.00,NULL,NULL,'PENDING',NULL,'2025-12-01 19:48:26','2025-12-02 02:48:25',0,0,0,0),(18,8,1,6,1,0,'2025-12-01 19:51:44',1202000.00,0.00,1202000.00,NULL,NULL,'PENDING',NULL,'2025-12-01 19:51:44','2025-12-02 02:51:44',0,0,0,0),(19,8,1,6,1,0,'2025-12-01 19:58:01',1452800.00,0.00,1452800.00,NULL,NULL,'DRAFT',NULL,'2025-12-01 19:58:01','2025-12-02 02:58:00',0,0,0,0);
+INSERT INTO `bookings` VALUES (1,2,1,5,2,1,'2025-11-12 11:23:08',3500000.00,1000000.00,3800000.00,NULL,NULL,'COMPLETED','Đoàn 25 khách, đi Hà Nội - Hạ Long 2 chiều','2025-11-12 11:23:08','2025-11-12 11:23:08',0,0),(2,4,3,6,5,1,'2025-11-12 11:23:08',1200000.00,500000.00,1200000.00,NULL,NULL,'CONFIRMED','Đón sân bay TSN về Quận 7 (16 chỗ)','2025-11-12 11:23:08','2025-12-02 03:55:10',0,0),(3,1,1,5,4,0,'2025-11-12 11:23:08',25000000.00,10000000.00,0.00,NULL,NULL,'INPROGRESS','Hợp đồng đưa đón nhân viên KCN Thăng Long T11/2025','2025-11-12 11:23:08','2025-12-02 03:55:10',0,0),(4,3,2,6,3,1,'2025-11-12 11:23:08',15000000.00,500000.00,0.00,NULL,NULL,'PENDING','Thuê xe 45 chỗ đi 3N2Đ Đà Nẵng - Huế - Hội An','2025-11-12 11:23:08','2025-11-24 18:13:53',0,0),(5,5,1,5,1,1,'2025-11-12 11:23:08',1000000.00,1000000.00,1000000.00,NULL,NULL,'CONFIRMED','Thuê 1 chiều xe Limo (9 chỗ) đi Nội Bài','2025-11-12 11:23:08','2025-12-02 03:55:10',0,0),(8,8,1,1,NULL,0,'2025-11-21 17:35:52',811646.68,0.00,811646.68,NULL,NULL,'CONFIRMED',NULL,'2025-11-21 17:35:52','2025-11-26 16:08:14',0,0),(9,8,1,1,NULL,0,'2025-11-24 10:15:32',3519205.55,0.00,3519205.55,NULL,NULL,'COMPLETED',NULL,'2025-11-24 10:15:32','2025-12-02 01:24:19',0,0),(10,8,1,5,NULL,0,'2025-11-27 21:03:41',67741800.00,0.00,67741800.00,4516.12,NULL,'PENDING',NULL,'2025-11-27 21:03:41','2025-12-02 03:55:10',0,0),(11,8,1,5,2,0,'2025-11-27 21:19:56',30617062.50,0.00,30617062.50,NULL,NULL,'PENDING','đón ở hgj','2025-11-27 21:19:56','2025-11-28 04:19:55',1,0),(12,8,1,6,2,0,'2025-11-29 04:22:35',77808350.00,0.00,77808350.00,NULL,NULL,'PENDING',NULL,'2025-11-29 04:22:35','2025-11-29 11:22:34',0,0),(13,8,1,6,2,0,'2025-11-30 17:37:56',69181850.00,0.00,69181850.00,NULL,NULL,'CANCELLED','nhớ chạy cẩn thận','2025-11-30 17:37:56','2025-12-01 02:38:22',0,0),(14,8,1,5,1,0,'2025-11-30 18:23:46',8096000.00,0.00,8096000.00,NULL,NULL,'CANCELLED',NULL,'2025-11-30 18:23:46','2025-12-01 02:41:23',0,0),(15,8,1,6,1,0,'2025-11-30 19:45:30',17538200.00,0.00,17538200.00,NULL,NULL,'COMPLETED','222','2025-11-30 19:45:30','2025-12-02 03:55:10',0,0),(16,8,1,6,1,0,'2025-12-01 19:46:04',132847200.00,0.00,132847200.00,NULL,NULL,'PENDING','OK ','2025-12-01 19:46:04','2025-12-02 02:46:03',0,0),(17,8,1,6,1,0,'2025-12-01 19:48:26',4575200.00,0.00,4575200.00,NULL,NULL,'PENDING',NULL,'2025-12-01 19:48:26','2025-12-02 02:48:25',0,0),(18,8,1,6,1,0,'2025-12-01 19:51:44',1202000.00,0.00,1202000.00,NULL,NULL,'PENDING',NULL,'2025-12-01 19:51:44','2025-12-02 02:51:44',0,0),(19,8,1,6,1,0,'2025-12-01 19:58:01',1452800.00,0.00,1452800.00,NULL,NULL,'DRAFT',NULL,'2025-12-01 19:58:01','2025-12-02 02:58:00',0,0);
 /*!40000 ALTER TABLE `bookings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -411,30 +409,6 @@ LOCK TABLES `employees` WRITE;
 /*!40000 ALTER TABLE `employees` DISABLE KEYS */;
 INSERT INTO `employees` VALUES (1,1,1,1,'ACTIVE'),(2,2,1,2,'INACTIVE'),(3,3,2,2,'ACTIVE'),(4,4,3,2,'ACTIVE'),(5,5,1,3,'ACTIVE'),(6,6,1,3,'ACTIVE'),(7,7,1,5,'ACTIVE'),(8,8,1,4,'ACTIVE'),(9,9,1,4,'ACTIVE'),(10,10,2,4,'ACTIVE'),(11,11,3,4,'ACTIVE'),(12,12,1,4,'ACTIVE'),(13,13,2,4,'ACTIVE'),(14,14,3,4,'ACTIVE'),(15,15,3,2,'ACTIVE'),(16,16,2,2,'ACTIVE'),(17,17,1,2,'ACTIVE'),(18,18,2,2,'ACTIVE'),(19,19,1,2,'ACTIVE'),(20,20,3,6,'ACTIVE'),(21,21,1,6,'ACTIVE'),(22,22,1,2,'INACTIVE'),(33,33,4,4,'ACTIVE');
 /*!40000 ALTER TABLE `employees` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `expense_request_attachments`
---
-
-DROP TABLE IF EXISTS `expense_request_attachments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `expense_request_attachments` (
-  `expenseRequestId` int NOT NULL,
-  `fileUrl` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  KEY `FKgjxq6bf6u84jyf7k07w0vuldw` (`expenseRequestId`),
-  CONSTRAINT `FKgjxq6bf6u84jyf7k07w0vuldw` FOREIGN KEY (`expenseRequestId`) REFERENCES `expense_requests` (`expenseRequestId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `expense_request_attachments`
---
-
-LOCK TABLES `expense_request_attachments` WRITE;
-/*!40000 ALTER TABLE `expense_request_attachments` DISABLE KEYS */;
-/*!40000 ALTER TABLE `expense_request_attachments` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -952,44 +926,6 @@ LOCK TABLES `trip_incidents` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `trip_route_cache`
---
-
-DROP TABLE IF EXISTS `trip_route_cache`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `trip_route_cache` (
-  `cacheId` int NOT NULL AUTO_INCREMENT,
-  `startLocation` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `endLocation` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `distance` decimal(10,2) NOT NULL COMMENT 'Distance in kilometers',
-  `duration` int NOT NULL COMMENT 'Duration in minutes',
-  `startLatitude` decimal(10,8) DEFAULT NULL,
-  `startLongitude` decimal(11,8) DEFAULT NULL,
-  `endLatitude` decimal(10,8) DEFAULT NULL,
-  `endLongitude` decimal(11,8) DEFAULT NULL,
-  `routeData` json DEFAULT NULL,
-  `trafficStatus` enum('LIGHT','MODERATE','HEAVY','UNKNOWN') COLLATE utf8mb4_unicode_ci DEFAULT 'UNKNOWN' COMMENT 'Traffic status when cached',
-  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `expiresAt` datetime NOT NULL DEFAULT ((now() + interval 7 day)),
-  `hitCount` int DEFAULT '0' COMMENT 'Number of times this cache was used',
-  `lastUsedAt` datetime DEFAULT NULL COMMENT 'Last time this cache was used',
-  PRIMARY KEY (`cacheId`),
-  KEY `IX_Cache_Locations` (`startLocation`(100),`endLocation`(100)),
-  KEY `IX_Cache_Expires` (`expiresAt`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Cache SerpAPI route calculations';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `trip_route_cache`
---
-
-LOCK TABLES `trip_route_cache` WRITE;
-/*!40000 ALTER TABLE `trip_route_cache` DISABLE KEYS */;
-/*!40000 ALTER TABLE `trip_route_cache` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `trip_vehicles`
 --
 
@@ -1117,10 +1053,9 @@ SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
 /*!50001 CREATE VIEW `v_drivermonthlyperformance` AS SELECT 
  1 AS `driverId`,
- 1 AS `year`,
  1 AS `month`,
- 1 AS `tripsCount`,
- 1 AS `minutesOnTrip`*/;
+ 1 AS `trips_count`,
+ 1 AS `total_km`*/;
 SET character_set_client = @saved_cs_client;
 
 --
@@ -1132,14 +1067,10 @@ DROP TABLE IF EXISTS `v_popularroutes`;
 SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
 /*!50001 CREATE VIEW `v_popularroutes` AS SELECT 
- 1 AS `startLocation`,
- 1 AS `endLocation`,
- 1 AS `cacheEntryCount`,
- 1 AS `avgDistance`,
- 1 AS `avgDuration`,
- 1 AS `totalCacheHits`,
- 1 AS `lastUsed`,
- 1 AS `lastCached`*/;
+ 1 AS `route_start`,
+ 1 AS `route_end`,
+ 1 AS `times`,
+ 1 AS `total_km`*/;
 SET character_set_client = @saved_cs_client;
 
 --
@@ -1152,20 +1083,13 @@ SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
 /*!50001 CREATE VIEW `v_tripdistanceanalytics` AS SELECT 
  1 AS `tripId`,
- 1 AS `bookingId`,
- 1 AS `branchId`,
- 1 AS `branchName`,
- 1 AS `startLocation`,
- 1 AS `endLocation`,
  1 AS `distance`,
- 1 AS `estimatedDuration`,
- 1 AS `actualDuration`,
- 1 AS `durationVariancePercent`,
- 1 AS `trafficStatus`,
- 1 AS `tripStatus`,
+ 1 AS `useHighway`,
  1 AS `startTime`,
  1 AS `endTime`,
- 1 AS `actualTripDuration`*/;
+ 1 AS `hireTypeId`,
+ 1 AS `branchId`,
+ 1 AS `bookingStatus`*/;
 SET character_set_client = @saved_cs_client;
 
 --
@@ -1257,8 +1181,8 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_drivermonthlyperformance` AS select `d`.`driverId` AS `driverId`,year(`t`.`startTime`) AS `year`,month(`t`.`startTime`) AS `month`,count(distinct `td`.`tripId`) AS `tripsCount`,sum((case when ((`td`.`startTime` is not null) and (`td`.`endTime` is not null)) then timestampdiff(MINUTE,`td`.`startTime`,`td`.`endTime`) else 0 end)) AS `minutesOnTrip` from ((`trip_drivers` `td` join `drivers` `d` on((`d`.`driverId` = `td`.`driverId`))) join `trips` `t` on((`t`.`tripId` = `td`.`tripId`))) group by `d`.`driverId`,year(`t`.`startTime`),month(`t`.`startTime`) */;
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY INVOKER */
+/*!50001 VIEW `v_drivermonthlyperformance` AS select `d`.`driverId` AS `driverId`,date_format(`t`.`startTime`,'%Y-%m') AS `month`,count(`t`.`tripId`) AS `trips_count`,sum(`t`.`distance`) AS `total_km` from (((`drivers` `d` join `employees` `e` on((`e`.`employeeId` = `d`.`employeeId`))) join `bookings` `b` on((`b`.`branchId` = `d`.`branchId`))) left join `trips` `t` on((`t`.`bookingId` = `b`.`bookingId`))) group by `d`.`driverId`,date_format(`t`.`startTime`,'%Y-%m') */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -1275,8 +1199,8 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_popularroutes` AS select `trc`.`startLocation` AS `startLocation`,`trc`.`endLocation` AS `endLocation`,count(0) AS `cacheEntryCount`,avg(`trc`.`distance`) AS `avgDistance`,avg(`trc`.`duration`) AS `avgDuration`,sum(`trc`.`hitCount`) AS `totalCacheHits`,max(`trc`.`lastUsedAt`) AS `lastUsed`,max(`trc`.`createdAt`) AS `lastCached` from `trip_route_cache` `trc` where (`trc`.`createdAt` >= (now() - interval 30 day)) group by `trc`.`startLocation`,`trc`.`endLocation` having (sum(`trc`.`hitCount`) > 0) order by `totalCacheHits` desc,`lastUsed` desc limit 100 */;
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY INVOKER */
+/*!50001 VIEW `v_popularroutes` AS select `t`.`startLocation` AS `route_start`,`t`.`endLocation` AS `route_end`,count(0) AS `times`,sum(`t`.`distance`) AS `total_km` from `trips` `t` where ((`t`.`startLocation` is not null) and (`t`.`endLocation` is not null)) group by `t`.`startLocation`,`t`.`endLocation` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -1293,8 +1217,8 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_tripdistanceanalytics` AS select `t`.`tripId` AS `tripId`,`t`.`bookingId` AS `bookingId`,`b`.`branchId` AS `branchId`,`br`.`branchName` AS `branchName`,`t`.`startLocation` AS `startLocation`,`t`.`endLocation` AS `endLocation`,`t`.`distance` AS `distance`,`t`.`estimatedDuration` AS `estimatedDuration`,`t`.`actualDuration` AS `actualDuration`,(case when ((`t`.`actualDuration` is not null) and (`t`.`estimatedDuration` is not null)) then round((((`t`.`actualDuration` - `t`.`estimatedDuration`) / `t`.`estimatedDuration`) * 100),2) else NULL end) AS `durationVariancePercent`,`t`.`trafficStatus` AS `trafficStatus`,`t`.`status` AS `tripStatus`,`t`.`startTime` AS `startTime`,`t`.`endTime` AS `endTime`,timestampdiff(MINUTE,`t`.`startTime`,`t`.`endTime`) AS `actualTripDuration` from ((`trips` `t` join `bookings` `b` on((`t`.`bookingId` = `b`.`bookingId`))) join `branches` `br` on((`b`.`branchId` = `br`.`branchId`))) where (`t`.`distance` is not null) */;
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY INVOKER */
+/*!50001 VIEW `v_tripdistanceanalytics` AS select `t`.`tripId` AS `tripId`,`t`.`distance` AS `distance`,`t`.`useHighway` AS `useHighway`,`t`.`startTime` AS `startTime`,`t`.`endTime` AS `endTime`,`b`.`hireTypeId` AS `hireTypeId`,`b`.`branchId` AS `branchId`,`b`.`status` AS `bookingStatus` from (`trips` `t` join `bookings` `b` on((`b`.`bookingId` = `t`.`bookingId`))) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -1308,4 +1232,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 13:57:31
+-- Dump completed on 2025-12-02 14:41:59
