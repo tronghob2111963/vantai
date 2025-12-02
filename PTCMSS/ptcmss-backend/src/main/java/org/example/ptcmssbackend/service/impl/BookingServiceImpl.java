@@ -1624,6 +1624,8 @@ public class BookingServiceImpl implements BookingService {
             Integer vehicleId = null;
             String vehicleLicensePlate = null;
             
+            String driverPhone = null;
+            
             // Tìm driver và vehicle từ TripDrivers và TripVehicles
             List<TripDrivers> tripDrivers = tripDriverRepository.findByTripId(trip.getId());
             if (!tripDrivers.isEmpty()) {
@@ -1631,6 +1633,7 @@ public class BookingServiceImpl implements BookingService {
                 driverId = td.getDriver().getId();
                 if (td.getDriver().getEmployee() != null && td.getDriver().getEmployee().getUser() != null) {
                     driverName = td.getDriver().getEmployee().getUser().getFullName();
+                    driverPhone = td.getDriver().getEmployee().getUser().getPhone();
                 }
             }
             
@@ -1653,6 +1656,7 @@ public class BookingServiceImpl implements BookingService {
                     .status(trip.getStatus() != null ? trip.getStatus().name() : null)
                     .driverId(driverId)
                     .driverName(driverName)
+                    .driverPhone(driverPhone)
                     .vehicleId(vehicleId)
                     .vehicleLicensePlate(vehicleLicensePlate)
                     .build();

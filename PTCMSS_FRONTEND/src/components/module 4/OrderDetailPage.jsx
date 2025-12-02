@@ -997,7 +997,7 @@ export default function OrderDetailPage() {
             },
             dispatch: {
                 driver_name: firstTrip.driverName || '',
-                driver_phone: '',
+                driver_phone: firstTrip.driverPhone || '',
                 vehicle_plate: firstTrip.vehicleLicensePlate || '',
             },
             notes_internal: b.note || '',
