@@ -191,10 +191,9 @@ public class DispatchServiceImpl implements DispatchService {
         Bookings booking = trip.getBooking();
         Integer branchId = booking.getBranch().getId();
         
-        // Get vehicle type from booking vehicle details
-        List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
-        String vehicleType = bookingVehicles != null && !bookingVehicles.isEmpty()
-            ? bookingVehicles.get(0).getVehicleCategory().getCategoryName()
+        // Get vehicle type from booking vehicles
+        String vehicleType = booking.getVehicles() != null && !booking.getVehicles().isEmpty()
+            ? booking.getVehicles().get(0).getCategoryName()
             : null;
         
         // Build trip summary

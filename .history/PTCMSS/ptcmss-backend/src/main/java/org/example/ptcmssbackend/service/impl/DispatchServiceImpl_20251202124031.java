@@ -191,12 +191,6 @@ public class DispatchServiceImpl implements DispatchService {
         Bookings booking = trip.getBooking();
         Integer branchId = booking.getBranch().getId();
         
-        // Get vehicle type from booking vehicle details
-        List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
-        String vehicleType = bookingVehicles != null && !bookingVehicles.isEmpty()
-            ? bookingVehicles.get(0).getVehicleCategory().getCategoryName()
-            : null;
-        
         // Build trip summary
         org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.TripSummary summary = 
             org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.TripSummary.builder()
@@ -211,7 +205,6 @@ public class DispatchServiceImpl implements DispatchService {
                 .startLocation(trip.getStartLocation())
                 .endLocation(trip.getEndLocation())
                 .hireType(booking.getHireType() != null ? booking.getHireType().getName() : null)
-                .vehicleType(vehicleType)
                 .bookingStatus(booking.getStatus())
                 .routeLabel(routeLabel(trip))
                 .build();

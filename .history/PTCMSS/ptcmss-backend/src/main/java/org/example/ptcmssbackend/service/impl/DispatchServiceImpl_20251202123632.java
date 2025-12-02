@@ -22,7 +22,6 @@ import org.example.ptcmssbackend.service.SystemSettingService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -191,12 +190,6 @@ public class DispatchServiceImpl implements DispatchService {
         Bookings booking = trip.getBooking();
         Integer branchId = booking.getBranch().getId();
         
-        // Get vehicle type from booking vehicle details
-        List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
-        String vehicleType = bookingVehicles != null && !bookingVehicles.isEmpty()
-            ? bookingVehicles.get(0).getVehicleCategory().getCategoryName()
-            : null;
-        
         // Build trip summary
         org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.TripSummary summary = 
             org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.TripSummary.builder()
@@ -211,7 +204,6 @@ public class DispatchServiceImpl implements DispatchService {
                 .startLocation(trip.getStartLocation())
                 .endLocation(trip.getEndLocation())
                 .hireType(booking.getHireType() != null ? booking.getHireType().getName() : null)
-                .vehicleType(vehicleType)
                 .bookingStatus(booking.getStatus())
                 .routeLabel(routeLabel(trip))
                 .build();
@@ -349,15 +341,7 @@ public class DispatchServiceImpl implements DispatchService {
             if (eligible) {
                 reasons.add(String.format("Số chuyến hôm nay: %d", tripsToday));
                 reasons.add(String.format("Số chuyến tuần này: %d", tripsThisWeek));
-                reasons.add(String.format("Số chuyến 3 ngày gần: %d", recentAssignments));
-                if (score == 0) {
-                    reasons.add("Điểm: 0 (chưa có chuyến nào - ưu tiên cao)");
-                } else {
-                    reasons.add(String.format("Điểm công bằng: %d (thấp = ưu tiên)", score));
-                }
-                if (d.getRating() != null && d.getRating().compareTo(BigDecimal.ZERO) > 0) {
-                    reasons.add(String.format("Đánh giá: %.1f⭐", d.getRating().doubleValue()));
-                }
+                reasons.add(String.format("Điểm công bằng: %d (thấp = ưu tiên)", score));
             }
             
             String driverName = extractDriverName(d);
@@ -390,7 +374,7 @@ public class DispatchServiceImpl implements DispatchService {
             }
             // If same score, prioritize by rating (higher is better)
             if (a.getRating() != null && b.getRating() != null) {
-                return b.getRating().compareTo(a.getRating());
+                return Double.compare(b.getRating(), a.getRating());
             }
             return 0;
         });
