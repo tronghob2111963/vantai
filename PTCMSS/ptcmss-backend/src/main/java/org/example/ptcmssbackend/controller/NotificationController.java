@@ -270,4 +270,42 @@ public class NotificationController {
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
         }
     }
+    
+    @Operation(
+            summary = "Xóa notification theo approval type",
+            description = "Xóa notification dựa trên approval type và relatedEntityId"
+    )
+    @DeleteMapping("/by-approval")
+    public ResponseData<String> deleteNotificationByApproval(
+            @RequestParam String approvalType,
+            @RequestParam Integer relatedEntityId,
+            @RequestParam Integer userId) {
+        try {
+            log.info("[Notification] Delete notification by approval - type: {}, relatedEntityId: {}, userId: {}", 
+                    approvalType, relatedEntityId, userId);
+            notificationService.deleteNotificationByApproval(approvalType, relatedEntityId, userId);
+            return new ResponseData<>(HttpStatus.OK.value(), "Notification deleted", null);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to delete notification by approval", e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
+    
+    @Operation(
+            summary = "Xóa/dismiss approval",
+            description = "Xóa approval history và notification liên quan"
+    )
+    @DeleteMapping("/approvals/{approvalHistoryId}")
+    public ResponseData<String> dismissApproval(
+            @PathVariable Integer approvalHistoryId,
+            @RequestParam Integer userId) {
+        try {
+            log.info("[Notification] Dismiss approval {} by user {}", approvalHistoryId, userId);
+            notificationService.dismissApproval(approvalHistoryId, userId);
+            return new ResponseData<>(HttpStatus.OK.value(), "Approval dismissed", null);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to dismiss approval {}", approvalHistoryId, e);
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
+    }
 }

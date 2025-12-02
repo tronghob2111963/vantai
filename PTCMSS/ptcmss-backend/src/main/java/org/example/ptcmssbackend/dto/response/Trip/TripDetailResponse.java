@@ -41,6 +41,8 @@ public class TripDetailResponse {
 
     // Thông tin từ Booking
     private String bookingNote;
+    private String hireType; // ONE_WAY, ROUND_TRIP, DAILY, MULTI_DAY
+    private String hireTypeName; // Tên hiển thị: "Một chiều", "Hai chiều", "Theo ngày", etc.
     private java.math.BigDecimal totalCost;
     private java.math.BigDecimal depositAmount;
     private java.math.BigDecimal remainingAmount;

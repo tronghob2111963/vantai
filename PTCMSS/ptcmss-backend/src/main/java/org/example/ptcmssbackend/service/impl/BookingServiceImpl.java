@@ -33,6 +33,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -190,14 +191,34 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 6. Tạo trips
+        // Tính tổng số xe cần thiết
+        int totalVehicleCount = 0;
+        if (request.getVehicles() != null && !request.getVehicles().isEmpty()) {
+            totalVehicleCount = request.getVehicles().stream()
+                    .mapToInt(v -> v.getQuantity() != null ? v.getQuantity() : 1)
+                    .sum();
+        }
+        
+        // Nếu có trips trong request, tạo trips theo request
+        // Nếu không có trips nhưng có vehicles với quantity > 1, tự động tạo nhiều trips
         if (request.getTrips() != null && !request.getTrips().isEmpty()) {
+            // Validate trips: endTime phải > startTime
+            for (TripRequest tripReq : request.getTrips()) {
+                if (tripReq.getStartTime() != null && tripReq.getEndTime() != null) {
+                    if (!tripReq.getEndTime().isAfter(tripReq.getStartTime())) {
+                        throw new RuntimeException("Thời gian về phải sau thời gian đi");
+                    }
+                }
+            }
+            
+            // Tạo trips từ request
             for (TripRequest tripReq : request.getTrips()) {
                 Trips trip = new Trips();
                 trip.setBooking(booking);
                 trip.setUseHighway(tripReq.getUseHighway() != null ? tripReq.getUseHighway() : booking.getUseHighway());
                 trip.setStartTime(tripReq.getStartTime());
-                // Don't set endTime when creating new trip - it will be set when trip is completed
-                // This avoids violating trips_chk_1 constraint (startTime < endTime)
+                // Set endTime nếu có (đã validate ở trên)
+                trip.setEndTime(tripReq.getEndTime());
                 trip.setStartLocation(tripReq.getStartLocation());
                 trip.setEndLocation(tripReq.getEndLocation());
                 if (tripReq.getDistance() != null && tripReq.getDistance() > 0) {
@@ -205,6 +226,44 @@ public class BookingServiceImpl implements BookingService {
                 }
                 trip.setStatus(TripStatus.SCHEDULED);
                 tripRepository.save(trip);
+            }
+            
+            // Nếu số trips trong request < tổng số xe, tạo thêm trips
+            int existingTripsCount = request.getTrips().size();
+            if (existingTripsCount < totalVehicleCount) {
+                TripRequest baseTrip = request.getTrips().get(0); // Dùng trip đầu tiên làm template
+                for (int i = existingTripsCount; i < totalVehicleCount; i++) {
+                    Trips trip = new Trips();
+                    trip.setBooking(booking);
+                    trip.setUseHighway(baseTrip.getUseHighway() != null ? baseTrip.getUseHighway() : booking.getUseHighway());
+                    trip.setStartTime(baseTrip.getStartTime());
+                    trip.setStartLocation(baseTrip.getStartLocation());
+                    trip.setEndLocation(baseTrip.getEndLocation());
+                    if (baseTrip.getDistance() != null && baseTrip.getDistance() > 0) {
+                        trip.setDistance(BigDecimal.valueOf(baseTrip.getDistance()));
+                    }
+                    trip.setStatus(TripStatus.SCHEDULED);
+                    tripRepository.save(trip);
+                    log.info("[Booking] Auto-created additional trip {} for booking {} (vehicle {}/{})", 
+                            trip.getId(), booking.getId(), i + 1, totalVehicleCount);
+                }
+            }
+        } else if (totalVehicleCount > 0) {
+            // Không có trips trong request nhưng có vehicles -> tạo trips tự động
+            // Lấy thông tin từ distance và vehicles để tạo trips
+            for (int i = 0; i < totalVehicleCount; i++) {
+                Trips trip = new Trips();
+                trip.setBooking(booking);
+                trip.setUseHighway(booking.getUseHighway());
+                // Sử dụng distance từ request nếu có
+                if (request.getDistance() != null && request.getDistance() > 0) {
+                    trip.setDistance(BigDecimal.valueOf(request.getDistance()));
+                }
+                trip.setStatus(TripStatus.SCHEDULED);
+                // Note: startTime, startLocation, endLocation sẽ được set sau khi có thông tin từ frontend
+                tripRepository.save(trip);
+                log.info("[Booking] Auto-created trip {} for booking {} (vehicle {}/{})", 
+                        trip.getId(), booking.getId(), i + 1, totalVehicleCount);
             }
         }
 
@@ -1342,15 +1401,127 @@ public class BookingServiceImpl implements BookingService {
 
         // Assign vehicle if provided
         if (request.getVehicleId() != null) {
-            Vehicles vehicle = vehicleRepository.findById(request.getVehicleId())
+            Vehicles primaryVehicle = vehicleRepository.findById(request.getVehicleId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy xe: " + request.getVehicleId()));
-            for (Integer tid : targetTripIds) {
+            
+            // Lấy thông tin về loại xe cần cho từng trip từ BookingVehicleDetails
+            List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+            
+            // Tạo danh sách categoryId cho từng trip (theo thứ tự)
+            List<Integer> requiredCategoryIds = new ArrayList<>();
+            for (BookingVehicleDetails bvd : bookingVehicles) {
+                Integer categoryId = bvd.getVehicleCategory() != null ? bvd.getVehicleCategory().getId() : null;
+                int quantity = bvd.getQuantity() != null ? bvd.getQuantity() : 1;
+                for (int q = 0; q < quantity; q++) {
+                    requiredCategoryIds.add(categoryId);
+                }
+            }
+            
+            // Nếu gán cho nhiều trips, cần tìm thêm xe cho các trips còn lại
+            List<Vehicles> assignedVehicles = new ArrayList<>();
+            assignedVehicles.add(primaryVehicle); // Xe đầu tiên
+            
+            // Tìm thêm xe cho các trips còn lại (nếu có nhiều trips)
+            if (targetTripIds.size() > 1) {
+                Integer branchId = booking.getBranch() != null ? booking.getBranch().getId() : null;
+                
+                // Tìm xe cho từng trip còn lại (từ trip thứ 2 trở đi)
+                for (int tripIdx = 1; tripIdx < targetTripIds.size(); tripIdx++) {
+                    // Lấy categoryId cần cho trip này (nếu có)
+                    Integer requiredCategoryId = tripIdx < requiredCategoryIds.size() 
+                            ? requiredCategoryIds.get(tripIdx) 
+                            : (primaryVehicle.getCategory() != null ? primaryVehicle.getCategory().getId() : null);
+                    
+                    // Tìm các xe cùng loại (nếu có yêu cầu), cùng branch, available
+                    List<Vehicles> availableVehicles = vehicleRepository.filterVehicles(
+                            requiredCategoryId, 
+                            branchId, 
+                            org.example.ptcmssbackend.enums.VehicleStatus.AVAILABLE
+                    );
+                    
+                    // Loại bỏ các xe đã được gán
+                    Set<Integer> alreadyAssignedIds = assignedVehicles.stream()
+                            .map(Vehicles::getId)
+                            .collect(java.util.stream.Collectors.toSet());
+                    availableVehicles = availableVehicles.stream()
+                            .filter(v -> !alreadyAssignedIds.contains(v.getId()))
+                            .collect(java.util.stream.Collectors.toList());
+                    
+                    // Kiểm tra từng xe có bận không trong thời gian của trip này
+                    final Integer currentTripId = targetTripIds.get(tripIdx);
+                    Trips currentTrip = trips.stream()
+                            .filter(t -> t.getId().equals(currentTripId))
+                            .findFirst()
+                            .orElse(null);
+                    
+                    Vehicles selectedVehicle = null;
+                    if (currentTrip != null && currentTrip.getStartTime() != null) {
+                        Instant tripEndTime = currentTrip.getEndTime() != null 
+                                ? currentTrip.getEndTime() 
+                                : currentTrip.getStartTime().plusSeconds(3600);
+                        
+                        for (Vehicles v : availableVehicles) {
+                            // Kiểm tra overlap
+                            List<org.example.ptcmssbackend.entity.TripVehicles> overlaps = 
+                                    tripVehicleRepository.findOverlapsForVehicle(
+                                            v.getId(), 
+                                            currentTrip.getStartTime(), 
+                                            tripEndTime
+                                    );
+                            
+                            // Loại bỏ các overlaps với trips đã bị cancel hoặc chính trip này
+                            boolean hasConflict = overlaps.stream().anyMatch(tv -> {
+                                Trips overlapTrip = tv.getTrip();
+                                return overlapTrip.getStatus() != TripStatus.CANCELLED
+                                        && !targetTripIds.contains(overlapTrip.getId());
+                            });
+                            
+                            if (!hasConflict) {
+                                selectedVehicle = v;
+                                break; // Tìm được xe phù hợp
+                            }
+                        }
+                    } else {
+                        // Nếu không có thời gian, lấy xe đầu tiên available
+                        if (!availableVehicles.isEmpty()) {
+                            selectedVehicle = availableVehicles.get(0);
+                        }
+                    }
+                    
+                    if (selectedVehicle != null) {
+                        assignedVehicles.add(selectedVehicle);
+                        log.info("[Booking] Found vehicle {} (category: {}) for trip {}", 
+                                selectedVehicle.getLicensePlate(), 
+                                selectedVehicle.getCategory() != null ? selectedVehicle.getCategory().getCategoryName() : "N/A",
+                                targetTripIds.get(tripIdx));
+                    } else {
+                        // Không tìm được xe phù hợp, dùng xe chính (fallback)
+                        log.warn("[Booking] No suitable vehicle found for trip {}. Will use primary vehicle.", 
+                                targetTripIds.get(tripIdx));
+                        assignedVehicles.add(primaryVehicle);
+                    }
+                }
+                
+                // Nếu không đủ xe, log warning
+                if (assignedVehicles.size() < targetTripIds.size()) {
+                    log.warn("[Booking] Not enough vehicles available. Need {} vehicles, found {}. Will reuse primary vehicle for remaining trips.", 
+                            targetTripIds.size(), assignedVehicles.size());
+                }
+            }
+            
+            // Gán xe cho từng trip
+            for (int i = 0; i < targetTripIds.size(); i++) {
+                Integer tid = targetTripIds.get(i);
+                Vehicles vehicleToAssign = i < assignedVehicles.size() 
+                        ? assignedVehicles.get(i) 
+                        : primaryVehicle; // Fallback: dùng xe chính nếu không đủ
+                
                 List<TripVehicles> olds = tripVehicleRepository.findByTripId(tid);
 
                 // Nếu đã gán đúng vehicle này rồi -> cập nhật note/assignedAt (idempotent)
                 TripVehicles same = null;
                 for (TripVehicles tvOld : olds) {
-                    if (tvOld.getVehicle() != null && tvOld.getVehicle().getId().equals(vehicle.getId())) {
+                    if (tvOld.getVehicle() != null && tvOld.getVehicle().getId().equals(vehicleToAssign.getId())) {
                         same = tvOld;
                         break;
                     }
@@ -1376,10 +1547,14 @@ public class BookingServiceImpl implements BookingService {
                     TripVehicles tv = new TripVehicles();
                     Trips trip = trips.stream().filter(t -> t.getId().equals(tid)).findFirst().orElseThrow();
                     tv.setTrip(trip);
-                    tv.setVehicle(vehicle);
+                    tv.setVehicle(vehicleToAssign);
                     tv.setAssignedAt(java.time.Instant.now());
-                    tv.setNote(request.getNote());
+                    tv.setNote(request.getNote() != null ? request.getNote() : 
+                            (targetTripIds.size() > 1 ? String.format("Xe %d/%d", i + 1, targetTripIds.size()) : null));
                     tripVehicleRepository.save(tv);
+                    
+                    log.info("[Booking] Assigned vehicle {} to trip {} ({}/{})", 
+                            vehicleToAssign.getLicensePlate(), tid, i + 1, targetTripIds.size());
                     
                     // Update trip status to ASSIGNED
                     if (trip.getStatus() == TripStatus.SCHEDULED) {
