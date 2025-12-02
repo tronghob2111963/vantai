@@ -848,7 +848,15 @@ public class DispatchServiceImpl implements DispatchService {
 
     @Override
     public AssignRespone reassign(AssignRequest request) {
-        // Thực chất là unassign rồi assign lại
+        log.info("[Dispatch] Reassigning - bookingId: {}, tripIds: {}, driverId: {}, vehicleId: {}", 
+                request.getBookingId(), request.getTripIds(), request.getDriverId(), request.getVehicleId());
+        
+        // Validate vehicle category if changing vehicle
+        if (request.getVehicleId() != null) {
+            validateVehicleCategoryForReassign(request);
+        }
+        
+        // Unassign current assignments
         if (request.getTripIds() != null && !request.getTripIds().isEmpty()) {
             for (Integer tid : request.getTripIds()) {
                 unassign(tid, request.getNote());
@@ -859,7 +867,90 @@ public class DispatchServiceImpl implements DispatchService {
                 unassign(t.getId(), request.getNote());
             }
         }
+        
+        // Assign with new driver/vehicle
         return assign(request);
+    }
+    
+    /**
+     * Validate that new vehicle belongs to same category as booking requirements
+     */
+    private void validateVehicleCategoryForReassign(AssignRequest request) {
+        try {
+            Vehicles newVehicle = vehicleRepository.findById(request.getVehicleId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy xe: " + request.getVehicleId()));
+            
+            Integer bookingId = request.getBookingId();
+            if (bookingId == null && request.getTripIds() != null && !request.getTripIds().isEmpty()) {
+                // Get booking from first trip
+                Trips trip = tripRepository.findById(request.getTripIds().get(0))
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến: " + request.getTripIds().get(0)));
+                bookingId = trip.getBooking().getId();
+            }
+            
+            if (bookingId == null) {
+                log.warn("[Dispatch] Cannot validate vehicle category - no bookingId");
+                return;
+            }
+            
+            // Get vehicle categories from booking
+            List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(bookingId);
+            if (bookingVehicles == null || bookingVehicles.isEmpty()) {
+                log.warn("[Dispatch] No vehicle details found for booking {}", bookingId);
+                return;
+            }
+            
+            // Check if new vehicle matches any required category
+            VehicleCategoryPricing newVehicleCategory = newVehicle.getCategory();
+            if (newVehicleCategory == null) {
+                throw new RuntimeException("Xe mới không có loại xe (category) được xác định");
+            }
+            
+            boolean matchesCategory = bookingVehicles.stream()
+                    .anyMatch(bv -> {
+                        VehicleCategoryPricing bookingCategory = bv.getVehicleCategory();
+                        if (bookingCategory == null) return false;
+                        
+                        // Same category ID
+                        if (bookingCategory.getId().equals(newVehicleCategory.getId())) {
+                            return true;
+                        }
+                        
+                        // Or same seats capacity (flexible matching)
+                        if (bookingCategory.getSeats() != null && newVehicleCategory.getSeats() != null) {
+                            return bookingCategory.getSeats().equals(newVehicleCategory.getSeats());
+                        }
+                        
+                        return false;
+                    });
+            
+            if (!matchesCategory) {
+                String requiredCategories = bookingVehicles.stream()
+                        .map(bv -> {
+                            VehicleCategoryPricing cat = bv.getVehicleCategory();
+                            return cat != null ? cat.getCategoryName() + " (" + cat.getSeats() + " chỗ)" : "N/A";
+                        })
+                        .collect(Collectors.joining(", "));
+                
+                throw new RuntimeException(String.format(
+                        "❌ Xe mới (%s - %s chỗ) không cùng loại với yêu cầu đơn hàng.\n" +
+                        "Loại xe yêu cầu: %s\n" +
+                        "Vui lòng chọn xe cùng loại (số chỗ ngồi tương đương).",
+                        newVehicleCategory.getCategoryName(),
+                        newVehicleCategory.getSeats(),
+                        requiredCategories
+                ));
+            }
+            
+            log.info("[Dispatch] Vehicle category validation passed for vehicle {} ({})", 
+                    newVehicle.getId(), newVehicleCategory.getCategoryName());
+            
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[Dispatch] Error validating vehicle category", e);
+            throw new RuntimeException("Lỗi khi kiểm tra loại xe: " + e.getMessage());
+        }
     }
 
     @Override

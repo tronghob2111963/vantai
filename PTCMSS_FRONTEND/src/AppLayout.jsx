@@ -108,6 +108,7 @@ import AdminBranchDetailPage from "./components/module 1/AdminBranchDetailPage.j
 import AdminUsersPage from "./components/module 1/AdminUsersPage.jsx";
 import CustomerListPage from "./components/module 1/CustomerListPage.jsx";
 import CreateUserPage from "./components/module 1/CreateUserPage.jsx";
+import CreateEmployeeWithUserPage from "./components/module 1/CreateEmployeeWithUserPage.jsx";
 import AdminManagersPage from "./components/module 1/AdminManagersPage.jsx";
 import UserDetailPage from "./components/module 1/UserDetailPage.jsx";
 import UpdateProfilePage from "./components/module 1/UpdateProfilePage.jsx";
@@ -587,7 +588,7 @@ export default function AppLayout() {
             path="/admin/users/new"
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER]}>
-                <CreateUserPage />
+                <CreateEmployeeWithUserPage />
               </ProtectedRoute>
             }
           />

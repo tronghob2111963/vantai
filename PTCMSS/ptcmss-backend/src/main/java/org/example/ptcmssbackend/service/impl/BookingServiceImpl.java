@@ -1388,6 +1388,35 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
         }
+        
+        // Update trip status to ASSIGNED when both driver and vehicle are assigned
+        for (Integer tid : targetTripIds) {
+            Trips trip = trips.stream().filter(t -> t.getId().equals(tid)).findFirst().orElseThrow();
+            List<TripDrivers> tripDrivers = tripDriverRepository.findByTripId(tid);
+            List<TripVehicles> tripVehicles = tripVehicleRepository.findByTripId(tid);
+            
+            // Set ASSIGNED if both driver and vehicle are assigned
+            if (!tripDrivers.isEmpty() && !tripVehicles.isEmpty()) {
+                trip.setStatus(TripStatus.ASSIGNED);
+                tripRepository.save(trip);
+            }
+        }
+        
+        // Update booking status to CONFIRMED if all trips are assigned
+        List<Trips> allTrips = tripRepository.findByBooking_Id(bookingId);
+        boolean allTripsAssigned = allTrips.stream().allMatch(trip -> {
+            List<TripDrivers> tds = tripDriverRepository.findByTripId(trip.getId());
+            List<TripVehicles> tvs = tripVehicleRepository.findByTripId(trip.getId());
+            return !tds.isEmpty() && !tvs.isEmpty();
+        });
+        
+        if (allTripsAssigned && !allTrips.isEmpty()) {
+            if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.QUOTATION_SENT) {
+                booking.setStatus(BookingStatus.CONFIRMED);
+                bookingRepository.save(booking);
+                log.info("[Booking] Updated booking {} status to CONFIRMED after assigning all trips", bookingId);
+            }
+        }
 
         return getById(bookingId);
     }
@@ -1699,6 +1728,13 @@ public class BookingServiceImpl implements BookingService {
                 PaymentStatus.PAID);
         if (paidAmount == null) paidAmount = BigDecimal.ZERO;
         
+        // Check if all trips are assigned (have both driver and vehicle)
+        boolean isAssigned = !trips.isEmpty() && trips.stream().allMatch(trip -> {
+            List<TripDrivers> drivers = tripDriverRepository.findByTripId(trip.getId());
+            List<TripVehicles> vehicles = tripVehicleRepository.findByTripId(trip.getId());
+            return !drivers.isEmpty() && !vehicles.isEmpty();
+        });
+        
         return BookingListResponse.builder()
                 .id(booking.getId())
                 .customerName(booking.getCustomer().getFullName())
@@ -1709,6 +1745,7 @@ public class BookingServiceImpl implements BookingService {
                 .depositAmount(booking.getDepositAmount())
                 .paidAmount(paidAmount)
                 .status(booking.getStatus() != null ? booking.getStatus().name() : null)
+                .isAssigned(isAssigned)
                 .createdAt(booking.getCreatedAt())
                 .consultantId(booking.getConsultant() != null ? booking.getConsultant().getEmployeeId() : null)
                 .consultantName(booking.getConsultant() != null && booking.getConsultant().getUser() != null
