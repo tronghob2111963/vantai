@@ -311,15 +311,16 @@ function TripInfoCard({ trip, hireTypeName, useHighway }) {
 
                         <div className="flex items-start gap-2">
                             <CarFront className="h-4 w-4 text-amber-600 mt-0.5" />
-                            <div>
-                                <span className="text-slate-600">Xe: </span>
-                                <span className="font-medium text-slate-900">
-                                    {vehicleDetailsText}
-                                </span>
-                                {trip.vehicle_count > 0 && (
-                                    <span className="text-slate-500 ml-1">
-                                        ({trip.vehicle_count} xe)
-                                    </span>
+                            <div className="flex flex-col">
+                                <span className="text-slate-600 mb-1">Xe: {trip.vehicle_count > 0 && <span className="text-slate-500">({trip.vehicle_count} xe)</span>}</span>
+                                {trip.vehicle_details && trip.vehicle_details.length > 0 ? (
+                                    trip.vehicle_details.map((v, idx) => (
+                                        <span key={idx} className="font-medium text-slate-900">
+                                            • {v.quantity}×{v.name}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="font-medium text-slate-900">{vehicleDetailsText || "—"}</span>
                                 )}
                             </div>
                         </div>
