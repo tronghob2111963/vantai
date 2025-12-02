@@ -744,9 +744,9 @@ public class AnalyticsService {
                             vcp.categoryName,
                             vcp.seats,
                             COUNT(DISTINCT bvd.bookingId) as bookingCount,
-                            SUM(bvd.quantity) as totalVehiclesBooked,
-                            COALESCE(SUM(t.distance), 0) as totalKm,
-                            COUNT(DISTINCT t.tripId) as tripCount
+                            COALESCE(SUM(bvd.quantity), 0) as totalVehiclesBooked,
+                            COALESCE(SUM(CASE WHEN t.status = 'COMPLETED' THEN t.distance ELSE 0 END), 0) as totalKm,
+                            COUNT(DISTINCT CASE WHEN t.tripId IS NOT NULL THEN t.tripId END) as tripCount
                         FROM vehicle_category_pricing vcp
                         INNER JOIN booking_vehicle_details bvd ON vcp.categoryId = bvd.vehicleCategoryId
                         INNER JOIN bookings b ON bvd.bookingId = b.bookingId 
