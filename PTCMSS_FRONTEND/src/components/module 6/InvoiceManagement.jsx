@@ -788,22 +788,26 @@ function InvoiceTable({
                                                 </button>
                                             )}
                                             
-                                            {/* Xác nhận thanh toán - cho Accountant khi có pending requests */}
-                                            {iv.status !== STATUS.PAID && isAccountant && iv.pendingPaymentCount > 0 && (
+                                            {/* Accountant: Xác nhận thanh toán khi có pending requests */}
+                                            {iv.status !== STATUS.PAID && isAccountant && (iv.pendingPaymentCount || 0) > 0 && (
                                                 <button
                                                     onClick={() => onRecordPayment(iv)}
                                                     className="rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
                                                 >
                                                     <CheckCircle className="h-3.5 w-3.5 text-blue-500" />
-                                                    <span>Xác nhận ({iv.pendingPaymentCount})</span>
+                                                    <span>Xác nhận ({(iv.pendingPaymentCount || 0)})</span>
                                                 </button>
                                             )}
                                             
-                                            {/* Accountant: Nếu không có pending request → hiện text chờ */}
-                                            {iv.status !== STATUS.PAID && isAccountant && iv.pendingPaymentCount === 0 && (
-                                                <span className="text-[10px] text-gray-400 italic px-2">
-                                                    Chờ yêu cầu TT
-                                                </span>
+                                            {/* Accountant: Luôn có thể ghi nhận trực tiếp (kể cả khi có pending) */}
+                                            {iv.status !== STATUS.PAID && isAccountant && (
+                                                <button
+                                                    onClick={() => onDirectRecord(iv)}
+                                                    className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"
+                                                >
+                                                    <BadgeDollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                                                    <span>Ghi nhận</span>
+                                                </button>
                                             )}
 
                                             {/* Xem lịch sử thanh toán */}
@@ -1404,6 +1408,23 @@ export default function InvoiceManagement() {
     const filtered = React.useMemo(() => {
         let base = [...transformedInvoices];
 
+        // Filter theo query (search)
+        if (query.trim()) {
+            const q = query.trim().toLowerCase();
+            base = base.filter((iv) => {
+                const invoiceNo = (iv.invoice_no || "").toLowerCase();
+                const customer = (iv.customer || "").toLowerCase();
+                const orderCode = (iv.order_code || "").toLowerCase();
+                return invoiceNo.includes(q) || customer.includes(q) || orderCode.includes(q);
+            });
+        }
+
+        // Filter theo status (nếu không ở debtMode)
+        if (!debtMode && statusFilter) {
+            base = base.filter((iv) => iv.status === statusFilter);
+        }
+
+        // Filter theo debtMode
         if (debtMode) {
             base = base.filter((iv) =>
                 iv.status === STATUS.UNPAID || iv.status === STATUS.OVERDUE
@@ -1412,7 +1433,7 @@ export default function InvoiceManagement() {
         }
 
         return base;
-    }, [transformedInvoices, debtMode]);
+    }, [transformedInvoices, debtMode, query, statusFilter]);
 
     const onRefresh = () => {
         loadInvoices();

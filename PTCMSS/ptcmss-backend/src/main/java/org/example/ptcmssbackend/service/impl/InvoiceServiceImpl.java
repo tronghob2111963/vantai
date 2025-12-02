@@ -127,7 +127,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public Page<InvoiceListResponse> getInvoices(
             Integer branchId, String type, String status, String paymentStatus,
-            LocalDate startDate, LocalDate endDate, Integer customerId, Pageable pageable) {
+            LocalDate startDate, LocalDate endDate, Integer customerId, String keyword, Pageable pageable) {
 
         InvoiceType invoiceType = null;
         if (type != null) {
@@ -145,6 +145,25 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         List<Invoices> invoices = invoiceRepository.findInvoicesWithFilters(
                 branchId, invoiceType, invoiceStatus, startInstant, endInstant, customerId, paymentStatusEnum);
+
+        // Filter by keyword if provided
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String keywordLower = keyword.trim().toLowerCase();
+            invoices = invoices.stream()
+                    .filter(inv -> {
+                        String invoiceNo = (inv.getInvoiceNumber() != null ? inv.getInvoiceNumber() : "").toLowerCase();
+                        String customerName = (inv.getCustomer() != null && inv.getCustomer().getFullName() != null 
+                                ? inv.getCustomer().getFullName() : "").toLowerCase();
+                        String bookingCode = "";
+                        if (inv.getBooking() != null && inv.getBooking().getId() != null) {
+                            bookingCode = ("ORD-" + inv.getBooking().getId()).toLowerCase();
+                        }
+                        return invoiceNo.contains(keywordLower) 
+                                || customerName.contains(keywordLower) 
+                                || bookingCode.contains(keywordLower);
+                    })
+                    .collect(Collectors.toList());
+        }
 
         // Manual pagination
         int start = (int) pageable.getOffset();
@@ -444,6 +463,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         response.setBranchName(invoice.getBranch().getBranchName());
         response.setCustomerId(invoice.getCustomer() != null ? invoice.getCustomer().getId() : null);
         response.setCustomerName(invoice.getCustomer() != null ? invoice.getCustomer().getFullName() : null);
+        response.setCustomerPhone(invoice.getCustomer() != null ? invoice.getCustomer().getPhone() : null);
         response.setCustomerEmail(invoice.getCustomer() != null ? invoice.getCustomer().getEmail() : null);
         response.setBookingId(invoice.getBooking() != null ? invoice.getBooking().getId() : null);
         response.setType(invoice.getType().toString());
@@ -464,6 +484,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                 response.setDaysOverdue((int) java.time.temporal.ChronoUnit.DAYS.between(invoice.getDueDate(), today));
             }
         }
+
+        // Đếm số payment requests đang chờ xác nhận
+        Integer pendingCount = paymentHistoryRepository.countPendingPaymentsByInvoiceId(invoice.getId());
+        response.setPendingPaymentCount(pendingCount != null ? pendingCount : 0);
 
         return response;
     }

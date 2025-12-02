@@ -10,6 +10,7 @@ import {
 import { recordPayment } from "../../api/invoices";
 import { createDeposit } from "../../api/deposits";
 import { getCookie } from "../../utils/cookies";
+import { getCurrentRole, ROLES } from "../../utils/session";
 
 /**
  * DepositModal (LIGHT THEME REWORK, FIXED PRESET CALC)
@@ -303,10 +304,13 @@ export default function DepositModal({
             } else {
                 // Record payment for invoice - Backend expects RecordPaymentRequest
                 // Driver/Consultant tạo payment với status PENDING → Kế toán xác nhận sau
+                // Accountant ghi nhận trực tiếp với status CONFIRMED
+                const role = getCurrentRole();
+                const isAccountant = role === ROLES.ACCOUNTANT || role === ROLES.ADMIN || role === ROLES.MANAGER;
                 const paymentPayload = {
                     amount,
                     paymentMethod: method,
-                    confirmationStatus: "PENDING", // Chờ Kế toán xác nhận
+                    confirmationStatus: isAccountant ? "CONFIRMED" : "PENDING", // Accountant xác nhận ngay, role khác chờ xác nhận
                     note: note || undefined,
                     createdBy: userId ? parseInt(userId) : undefined,
                 };
