@@ -231,12 +231,34 @@ INSERT IGNORE INTO driver_ratings (ratingId, attitudeRating, comment, compliance
 (1,5,'Lái xe an toàn, đúng giờ',5,4.80,5,NOW(),5,1,1,1,1),
 (2,4,'Phục vụ tốt',4,4.50,4,NOW(),4,2,9,20,2);
 
--- System Settings
+-- System Settings (19 settings đầy đủ)
 INSERT IGNORE INTO system_settings (settingId, settingKey, settingValue, effectiveStartDate, effectiveEndDate, valueType, category, description, updatedBy, updatedAt, status) VALUES
+-- Billing Settings
 (1,'VAT_RATE','0.08','2025-01-01',NULL,'decimal','Billing','Tỷ lệ VAT 8%',1,NOW(),'ACTIVE'),
+(5,'DEFAULT_DEPOSIT_PERCENT','0.50','2025-01-01',NULL,'decimal','Billing','Tỷ lệ đặt cọc mặc định (50% tổng tiền)',1,NOW(),'ACTIVE'),
+
+-- Booking Settings
 (2,'DEFAULT_HIGHWAY','true','2025-01-01',NULL,'boolean','Booking','Mặc định cao tốc',1,NOW(),'ACTIVE'),
+(6,'CANCELLATION_FULL_DEPOSIT_LOSS_HOURS','24','2025-01-01',NULL,'int','Booking','Số giờ trước khi bắt đầu để mất toàn bộ tiền cọc',1,NOW(),'ACTIVE'),
+(7,'CANCELLATION_PARTIAL_DEPOSIT_LOSS_HOURS','48','2025-01-01',NULL,'int','Booking','Số giờ trước khi bắt đầu để mất một phần tiền cọc',1,NOW(),'ACTIVE'),
+(8,'CANCELLATION_PARTIAL_DEPOSIT_PERCENT','0.30','2025-01-01',NULL,'decimal','Booking','Tỷ lệ mất cọc khi hủy trong khoảng thời gian (30%)',1,NOW(),'ACTIVE'),
+(9,'BOOKING_MAJOR_MODIFICATION_MIN_HOURS','72','2025-01-01',NULL,'int','Booking','Số giờ tối thiểu trước khi bắt đầu để sửa đổi lớn (72h = 3 ngày)',1,NOW(),'ACTIVE'),
+(10,'BOOKING_MINOR_MODIFICATION_MIN_HOURS','24','2025-01-01',NULL,'int','Booking','Số giờ tối thiểu trước khi bắt đầu để sửa đổi nhỏ (24h = 1 ngày)',1,NOW(),'ACTIVE'),
+(11,'SAME_DAY_TRIP_START_HOUR','6','2025-01-01',NULL,'int','Booking','Giờ bắt đầu để tính chuyến trong ngày (6h sáng)',1,NOW(),'ACTIVE'),
+(12,'SAME_DAY_TRIP_END_HOUR','23','2025-01-01',NULL,'int','Booking','Giờ kết thúc để tính chuyến trong ngày (23h tối)',1,NOW(),'ACTIVE'),
+
+-- Pricing Settings
+(4,'ROUND_TRIP_MULTIPLIER','1.5','2025-01-01',NULL,'decimal','Pricing','Hệ số 2 chiều',1,NOW(),'ACTIVE'),
+(13,'HOLIDAY_SURCHARGE_RATE','0.25','2025-01-01',NULL,'decimal','Pricing','Phụ thu ngày lễ (25%)',1,NOW(),'ACTIVE'),
+(14,'WEEKEND_SURCHARGE_RATE','0.20','2025-01-01',NULL,'decimal','Pricing','Phụ thu cuối tuần (20%)',1,NOW(),'ACTIVE'),
+(15,'INTER_PROVINCE_DISTANCE_KM','100','2025-01-01',NULL,'int','Pricing','Khoảng cách tối thiểu để tính liên tỉnh (km)',1,NOW(),'ACTIVE'),
+
+-- Driver Settings
 (3,'MAX_DRIVING_HOURS_PER_DAY','10','2025-01-01',NULL,'int','Driver','Tối đa giờ lái/ngày',1,NOW(),'ACTIVE'),
-(4,'ROUND_TRIP_MULTIPLIER','1.5','2025-01-01',NULL,'decimal','Pricing','Hệ số 2 chiều',1,NOW(),'ACTIVE');
+(16,'MAX_CONTINUOUS_DRIVING_HOURS','4','2025-01-01',NULL,'int','Driver','Tối đa giờ lái liên tục (4 giờ)',1,NOW(),'ACTIVE'),
+(17,'MAX_DRIVING_HOURS_PER_WEEK','48','2025-01-01',NULL,'int','Driver','Tối đa giờ lái/tuần (48 giờ)',1,NOW(),'ACTIVE'),
+(18,'MAX_DRIVER_LEAVE_DAYS','2','2025-01-01',NULL,'int','Driver','Số ngày nghỉ tối đa tài xế có thể xin (2 ngày)',1,NOW(),'ACTIVE'),
+(19,'SINGLE_DRIVER_MAX_DISTANCE_KM','300','2025-01-01',NULL,'int','Driver','Khoảng cách tối đa cho 1 tài xế (300km)',1,NOW(),'ACTIVE');
 
 -- App Settings (for VietQR)
 INSERT IGNORE INTO app_settings (id, description, setting_key, updated_at, updated_by, setting_value) VALUES
