@@ -139,6 +139,16 @@ export default function AssignDriverDialog({
     const canConfirm =
         driverId && vehicleId && !posting;
 
+    // Helper: Trích xuất message lỗi từ response
+    const extractErrorMessage = (err) => {
+        // Thử lấy message từ các cấu trúc response khác nhau
+        const msg = err?.response?.data?.message 
+            || err?.response?.data?.error 
+            || err?.message 
+            || "Lỗi không xác định";
+        return msg;
+    };
+
     // Gán thủ công
     const doAssignManual = async () => {
         if (
@@ -148,6 +158,7 @@ export default function AssignDriverDialog({
         )
             return;
         setPosting(true);
+        setError(""); // Clear previous error
         try {
             // Check if trip already has assignment (reassign) or new assignment
             const isReassign = order?.driverId || order?.vehicleId;
@@ -190,10 +201,9 @@ export default function AssignDriverDialog({
             }
             onClose?.();
         } catch (e) {
-            console.error(e);
-            alert(
-                "Gán chuyến thất bại. Vui lòng thử lại."
-            );
+            console.error("❌ Gán chuyến thất bại:", e);
+            const errorMsg = extractErrorMessage(e);
+            setError(`Gán chuyến thất bại: ${errorMsg}`);
         } finally {
             setPosting(false);
         }
@@ -203,6 +213,7 @@ export default function AssignDriverDialog({
     const doAssignAuto = async () => {
         if (!bookingId) return;
         setAutoPosting(true);
+        setError(""); // Clear previous error
         try {
             const result = await assignTrips({
                 bookingId: Number(bookingId),
@@ -218,10 +229,9 @@ export default function AssignDriverDialog({
             });
             onClose?.();
         } catch (e) {
-            console.error(e);
-            alert(
-                "Tự động gán thất bại. Vui lòng thử lại."
-            );
+            console.error("❌ Tự động gán thất bại:", e);
+            const errorMsg = extractErrorMessage(e);
+            setError(`Tự động gán thất bại: ${errorMsg}`);
         } finally {
             setAutoPosting(false);
         }
