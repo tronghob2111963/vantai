@@ -642,26 +642,71 @@ export default function DriverSchedulePage() {
         if (cancelled) return;
 
         // map dữ liệu backend -> format cho calendar
-        // Backend hiện trả: tripId, startTime, endTime, startLocation, endLocation, status, ...
-        const tripRecords =
-          Array.isArray(list)
-            ? list.map((trip) => {
-                const start = trip.startTime || trip.start_time || "";
-                const dateStr = start ? String(start).slice(0, 10) : null;
-
-                return {
-                  date: dateStr, // "YYYY-MM-DD"
+        // Backend hiện trả: tripId, startTime, endTime, startLocation, endLocation, status, hireType, hireTypeName, ...
+        const tripRecords = [];
+        if (Array.isArray(list)) {
+          for (const trip of list) {
+            const start = trip.startTime || trip.start_time || "";
+            const end = trip.endTime || trip.end_time || "";
+            const startDateStr = start ? String(start).slice(0, 10) : null;
+            const endDateStr = end ? String(end).slice(0, 10) : null;
+            const hireType = trip.hireType || "";
+            const hireTypeName = trip.hireTypeName || "";
+            
+            // Kiểm tra nếu là chuyến 2 chiều và ngày đi khác ngày về
+            const isRoundTrip = hireType === "ROUND_TRIP";
+            const differentDays = startDateStr && endDateStr && startDateStr !== endDateStr;
+            
+            if (isRoundTrip && differentDays) {
+              // Tạo 2 records: 1 cho ngày đi, 1 cho ngày về
+              const routeLabel = 
+                (trip.startLocation || trip.start_location || "—") +
+                " → " +
+                (trip.endLocation || trip.end_location || "—");
+              
+              // Record cho ngày đi
+              tripRecords.push({
+                date: startDateStr,
+                type: "TRIP",
+                title: `Đi: ${routeLabel}`,
+                time: start ? String(start).slice(11, 16) : "",
+                pickup: trip.startLocation || trip.start_location || "",
+                trip_id: trip.tripId || trip.trip_id,
+                hireType: hireType,
+                hireTypeName: hireTypeName,
+              });
+              
+              // Record cho ngày về
+              tripRecords.push({
+                date: endDateStr,
+                type: "TRIP",
+                title: `Về: ${routeLabel}`,
+                time: end ? String(end).slice(11, 16) : "",
+                pickup: trip.endLocation || trip.end_location || "",
+                trip_id: trip.tripId || trip.trip_id,
+                hireType: hireType,
+                hireTypeName: hireTypeName,
+              });
+            } else {
+              // Chuyến 1 chiều hoặc cùng ngày: chỉ tạo 1 record
+              if (startDateStr) {
+                tripRecords.push({
+                  date: startDateStr,
                   type: "TRIP",
                   title:
                     (trip.startLocation || trip.start_location || "—") +
                     " → " +
                     (trip.endLocation || trip.end_location || "—"),
-                  time: start ? String(start).slice(11, 16) : "", // HH:mm nếu ISO-like
+                  time: start ? String(start).slice(11, 16) : "",
                   pickup: trip.startLocation || trip.start_location || "",
                   trip_id: trip.tripId || trip.trip_id,
-                };
-              }).filter((r) => r.date)
-            : [];
+                  hireType: hireType,
+                  hireTypeName: hireTypeName,
+                });
+              }
+            }
+          }
+        }
 
         // Load day-off history
         let leaveRecords = [];

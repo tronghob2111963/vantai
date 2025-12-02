@@ -99,6 +99,15 @@ public class DriverServiceImpl implements DriverService {
                     var rating = ratingOpt.map(r -> r.getOverallRating()).orElse(null);
                     var ratingComment = ratingOpt.map(r -> r.getComment()).orElse(null);
                     
+                    // Lấy hireType từ booking
+                    var booking = trip.getBooking();
+                    String hireType = null;
+                    String hireTypeName = null;
+                    if (booking != null && booking.getHireType() != null) {
+                        hireType = booking.getHireType().getCode();
+                        hireTypeName = booking.getHireType().getName();
+                    }
+                    
                     return DriverScheduleResponse.builder()
                             .tripId(trip.getId())
                             .startLocation(trip.getStartLocation())
@@ -108,6 +117,8 @@ public class DriverServiceImpl implements DriverService {
                             .status(trip.getStatus())
                             .rating(rating)
                             .ratingComment(ratingComment)
+                            .hireType(hireType)
+                            .hireTypeName(hireTypeName)
                             .build();
                 })
                 .toList();
