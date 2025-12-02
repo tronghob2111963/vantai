@@ -62,5 +62,11 @@ public interface TripVehicleRepository extends JpaRepository<TripVehicles, Integ
      * Lấy danh sách TripVehicles theo tripId
      */
     List<TripVehicles> findByTrip_Id(Integer tripId);
+
+    /**
+     * Lấy danh sách TripVehicles theo nhiều tripIds
+     */
+    @Query("SELECT tv FROM TripVehicles tv JOIN FETCH tv.vehicle JOIN FETCH tv.trip WHERE tv.trip.id IN :tripIds")
+    List<TripVehicles> findByTrip_IdIn(@Param("tripIds") List<Integer> tripIds);
 }
 

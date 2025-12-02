@@ -31,5 +31,6 @@ public interface VehicleService {
     VehicleMaintenanceResponse createMaintenance(Integer vehicleId, CreateMaintenanceRequest request);
     VehicleExpenseResponse createExpense(Integer vehicleId, CreateExpenseRequest request);
     List<VehicleResponse> getVehiclesByBranch(Integer branchId);
+    List<VehicleResponse> getVehiclesByBranchAndDriver(Integer branchId, Integer driverId);
 }
 

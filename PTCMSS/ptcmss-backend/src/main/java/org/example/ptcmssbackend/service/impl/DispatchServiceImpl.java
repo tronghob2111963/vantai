@@ -1088,8 +1088,10 @@ public class DispatchServiceImpl implements DispatchService {
             }
         }
 
+        Integer vehicleId = null;
         if (!tvs.isEmpty()) {
             Vehicles v = tvs.get(0).getVehicle();
+            vehicleId = v.getId();
             vehiclePlate = v.getLicensePlate();
             vehicleModel = v.getModel();
         }
@@ -1140,6 +1142,7 @@ public class DispatchServiceImpl implements DispatchService {
                 .useHighway(trip.getUseHighway())
                 .driverName(driverName)
                 .driverPhone(driverPhone)
+                .vehicleId(vehicleId)
                 .vehiclePlate(vehiclePlate)
                 .vehicleModel(vehicleModel)
                 .status(trip.getStatus())
@@ -1364,15 +1367,37 @@ public class DispatchServiceImpl implements DispatchService {
                 continue;
             }
 
-            // 5) Fairness: số chuyến đã chạy trong ngày
-            long todayTrips = driverTrips.stream().filter(td -> {
+            // 5) Fairness scoring: số chuyến trong ngày
+            long tripsToday = driverTrips.stream().filter(td -> {
                 Trips t = td.getTrip();
                 if (t.getStartTime() == null) return false;
                 LocalDate dDate = t.getStartTime().atZone(ZoneId.systemDefault()).toLocalDate();
                 return dDate.equals(tripDate);
             }).count();
+            
+            // 6) Fairness: số chuyến trong tuần
+            LocalDate weekStart = tripDate.minusDays(tripDate.getDayOfWeek().getValue() - 1);
+            LocalDate weekEnd = weekStart.plusDays(6);
+            long tripsThisWeek = driverTrips.stream().filter(td -> {
+                Trips t = td.getTrip();
+                if (t.getStartTime() == null) return false;
+                LocalDate dDate = t.getStartTime().atZone(ZoneId.systemDefault()).toLocalDate();
+                return !dDate.isBefore(weekStart) && !dDate.isAfter(weekEnd);
+            }).count();
+            
+            // 7) Fairness: mức độ được gán gần đây (recent assignment)
+            long recentAssignments = driverTrips.stream().filter(td -> {
+                Trips t = td.getTrip();
+                if (t.getStartTime() == null) return false;
+                LocalDate dDate = t.getStartTime().atZone(ZoneId.systemDefault()).toLocalDate();
+                return !dDate.isBefore(tripDate.minusDays(3)); // 3 ngày gần đây
+            }).count();
+            
+            // Calculate fairness score (lower is better)
+            // Trọng số: ngày (40%), tuần (30%), gần đây (30%)
+            int fairnessScore = (int) (tripsToday * 40 + tripsThisWeek * 30 + recentAssignments * 30);
 
-            scored.add(new CandidateScore<>(d, (int) todayTrips));
+            scored.add(new CandidateScore<>(d, fairnessScore));
         }
 
         if (scored.isEmpty()) {
@@ -1441,17 +1466,40 @@ public class DispatchServiceImpl implements DispatchService {
             });
             if (overlap) continue;
 
-            // Tính score: số chuyến trong ngày + priorityLevel (ưu tiên priorityLevel cao)
-            long todayTrips = driverTrips.stream().filter(td -> {
+            // Tính score: fairness + priorityLevel (ưu tiên priorityLevel cao)
+            // Fairness: số chuyến trong ngày
+            long tripsToday = driverTrips.stream().filter(td -> {
                 Trips t = td.getTrip();
                 if (t.getStartTime() == null) return false;
                 LocalDate dDate = t.getStartTime().atZone(ZoneId.systemDefault()).toLocalDate();
                 return dDate.equals(tripDate);
             }).count();
             
+            // Fairness: số chuyến trong tuần
+            LocalDate weekStart = tripDate.minusDays(tripDate.getDayOfWeek().getValue() - 1);
+            LocalDate weekEnd = weekStart.plusDays(6);
+            long tripsThisWeek = driverTrips.stream().filter(td -> {
+                Trips t = td.getTrip();
+                if (t.getStartTime() == null) return false;
+                LocalDate dDate = t.getStartTime().atZone(ZoneId.systemDefault()).toLocalDate();
+                return !dDate.isBefore(weekStart) && !dDate.isAfter(weekEnd);
+            }).count();
+            
+            // Fairness: số chuyến 3 ngày gần đây
+            long recentAssignments = driverTrips.stream().filter(td -> {
+                Trips t = td.getTrip();
+                if (t.getStartTime() == null) return false;
+                LocalDate dDate = t.getStartTime().atZone(ZoneId.systemDefault()).toLocalDate();
+                return !dDate.isBefore(tripDate.minusDays(3)); // 3 ngày gần đây
+            }).count();
+            
+            // Calculate fairness score (lower is better)
+            // Trọng số: ngày (40%), tuần (30%), gần đây (30%)
+            int fairnessScore = (int) (tripsToday * 40 + tripsThisWeek * 30 + recentAssignments * 30);
+            
             // PriorityLevel cao hơn = tốt hơn, nên trừ đi để score thấp hơn
             int priorityScore = d.getPriorityLevel() != null ? (11 - d.getPriorityLevel()) : 5;
-            scored.add(new CandidateScore<>(d, (int) todayTrips + priorityScore));
+            scored.add(new CandidateScore<>(d, fairnessScore + priorityScore));
         }
 
         if (scored.isEmpty()) {

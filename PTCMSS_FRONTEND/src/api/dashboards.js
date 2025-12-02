@@ -149,6 +149,18 @@ export async function getBranchDriverPerformance(params = {}) {
 }
 
 /**
+ * Get vehicle booking performance for branch (vehicles ordered by booking count)
+ * @param {Object} params - { branchId, period, limit: 5 }
+ * @returns {Promise}
+ */
+export async function getBranchVehicleBookingPerformance(params = {}) {
+    const response = await axiosInstance.get("/api/v1/manager/analytics/vehicle-booking-performance", {
+        params: { limit: 5, ...params },
+    });
+    return response.data;
+}
+
+/**
  * Get vehicle utilization for branch
  * @param {Object} params - { branchId }
  * @returns {Promise}
