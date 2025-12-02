@@ -424,6 +424,39 @@ public class AnalyticsService {
         }
 
         /**
+         * Get vehicle booking performance for branch (vehicles ordered by booking count)
+         */
+        public List<Map<String, Object>> getVehicleBookingPerformance(Integer branchId, Integer limit, String period) {
+                Map<String, LocalDateTime> dates = getPeriodDates(period);
+                LocalDateTime startDate = dates.get("start");
+                LocalDateTime endDate = dates.get("end");
+
+                String sql = "SELECT " +
+                                "v.vehicleId, " +
+                                "v.licensePlate as vehicleName, " +
+                                "COUNT(DISTINCT bk.bookingId) as totalBookings, " +
+                                "COUNT(DISTINCT CASE WHEN bk.status = 'CONFIRMED' THEN bk.bookingId END) as confirmedBookings, " +
+                                "COUNT(DISTINCT CASE WHEN bk.status = 'COMPLETED' THEN bk.bookingId END) as completedBookings " +
+                                "FROM vehicles v " +
+                                "LEFT JOIN trip_vehicles tv ON v.vehicleId = tv.vehicleId " +
+                                "LEFT JOIN trips t ON tv.tripId = t.tripId " +
+                                "LEFT JOIN bookings bk ON t.bookingId = bk.bookingId " +
+                                "AND bk.bookingDate BETWEEN ? AND ? " +
+                                "WHERE v.branchId = ? AND v.status != 'INACTIVE' " +
+                                "GROUP BY v.vehicleId, v.licensePlate " +
+                                "HAVING totalBookings > 0 " +
+                                "ORDER BY totalBookings DESC, confirmedBookings DESC " +
+                                "LIMIT ?";
+
+                return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
+                                "vehicleId", rs.getInt("vehicleId"),
+                                "vehicleName", rs.getString("vehicleName"),
+                                "totalBookings", rs.getLong("totalBookings"),
+                                "confirmedBookings", rs.getLong("confirmedBookings"),
+                                "completedBookings", rs.getLong("completedBookings")), startDate, endDate, branchId, limit);
+        }
+
+        /**
          * Get vehicle utilization for branch
          */
         public Map<String, Object> getVehicleUtilization(Integer branchId) {

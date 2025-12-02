@@ -59,6 +59,7 @@ function normalizeTripDetail(payload) {
     dropoff_time: payload.endTime || payload.end_time || "",
     customer_name: payload.customerName || "",
     customer_phone: payload.customerPhone || "",
+    vehicle_id: payload.vehicleId || null,
     vehicle_plate: payload.vehiclePlate || "Chưa gán xe",
     vehicle_type: payload.vehicleModel || "",
     booking_note: payload.bookingNote || "",
@@ -387,6 +388,19 @@ export default function DriverTripDetailPage() {
   const isCompleted = trip?.status === "COMPLETED";
   const canUpdateStatus = isTripToday && !isTripFuture && !isCompleted;
 
+  // Cho phép báo cáo chi phí: chuyến đã bắt đầu (IN_PROGRESS hoặc COMPLETED) và trong vòng 7 ngày gần đây
+  const canReportExpense = React.useMemo(() => {
+    if (!trip?.pickup_time) return false;
+    const tripDate = new Date(trip.pickup_time);
+    const today = new Date();
+    const daysDiff = Math.floor((today - tripDate) / (1000 * 60 * 60 * 24));
+    
+    // Cho phép báo cáo chi phí nếu:
+    // 1. Chuyến đang IN_PROGRESS hoặc COMPLETED
+    // 2. Chuyến trong vòng 7 ngày gần đây (bao gồm cả tương lai)
+    return (trip.status === "IN_PROGRESS" || trip.status === "COMPLETED") && daysDiff >= -1 && daysDiff <= 7;
+  }, [trip?.pickup_time, trip?.status]);
+
   const requestStatusChange = () => {
     if (!stepInfo || actionLoading || detailLoading || !canUpdateStatus) return;
     setNextStatus(stepInfo.to);
@@ -527,8 +541,8 @@ export default function DriverTripDetailPage() {
                 </button>
               ) : null}
 
-              {/* Nút Báo cáo chi phí - chỉ khi HÔM NAY + chưa hoàn thành */}
-              {canUpdateStatus && (
+              {/* Nút Báo cáo chi phí - cho phép khi chuyến đã bắt đầu (IN_PROGRESS hoặc COMPLETED) trong vòng 7 ngày */}
+              {canReportExpense && (
                 <button
                   onClick={() => setExpenseOpen(true)}
                   className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm text-slate-700 px-4 py-2 flex items-center justify-center gap-2 shadow-sm"
@@ -625,6 +639,7 @@ export default function DriverTripDetailPage() {
             open={expenseOpen}
             tripId={trip?.id}
             tripLabel={tripRouteLabel}
+            vehicleId={trip?.vehicle_id}
             onClose={() => setExpenseOpen(false)}
             onSubmitted={handleExpenseSubmitted}
           />

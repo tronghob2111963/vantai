@@ -33,6 +33,7 @@ public class TripDetailResponse {
     private String driverName;
     private String driverPhone;
 
+    private Integer vehicleId;
     private String vehiclePlate;
     private String vehicleModel;
 

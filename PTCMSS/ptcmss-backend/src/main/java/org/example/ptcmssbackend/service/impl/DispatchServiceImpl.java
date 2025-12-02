@@ -1088,8 +1088,10 @@ public class DispatchServiceImpl implements DispatchService {
             }
         }
 
+        Integer vehicleId = null;
         if (!tvs.isEmpty()) {
             Vehicles v = tvs.get(0).getVehicle();
+            vehicleId = v.getId();
             vehiclePlate = v.getLicensePlate();
             vehicleModel = v.getModel();
         }
@@ -1140,6 +1142,7 @@ public class DispatchServiceImpl implements DispatchService {
                 .useHighway(trip.getUseHighway())
                 .driverName(driverName)
                 .driverPhone(driverPhone)
+                .vehicleId(vehicleId)
                 .vehiclePlate(vehiclePlate)
                 .vehicleModel(vehicleModel)
                 .status(trip.getStatus())

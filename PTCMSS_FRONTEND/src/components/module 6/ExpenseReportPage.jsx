@@ -1328,20 +1328,6 @@ export default function ExpenseReportPage() {
         };
     }, [isBranchLocked, currentUserId]);
 
-    // Reload vehicles when branchId changes (for Accountant/Manager/Consultant)
-    React.useEffect(() => {
-        if (isBranchLocked && branchId != null) {
-            (async () => {
-                try {
-                    const vehiclesData = await listVehicles({ branchId, size: 100 });
-                    setVehicles(normalizeVehicleOptions(vehiclesData));
-                } catch (err) {
-                    console.error("Error loading vehicles for branch:", err);
-                }
-            })();
-        }
-    }, [isBranchLocked, branchId]);
-
     // Load expense report
     const loadReport = React.useCallback(async () => {
         setLoading(true);

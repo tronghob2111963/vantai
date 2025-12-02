@@ -18,6 +18,9 @@ import org.example.ptcmssbackend.dto.response.common.PageResponse;
 import org.example.ptcmssbackend.repository.BranchesRepository;
 import org.example.ptcmssbackend.repository.InvoiceRepository;
 import org.example.ptcmssbackend.repository.TripVehicleRepository;
+import org.example.ptcmssbackend.repository.TripDriverRepository;
+import org.example.ptcmssbackend.entity.TripDrivers;
+import org.example.ptcmssbackend.entity.TripVehicles;
 import org.example.ptcmssbackend.repository.VehicleCategoryPricingRepository;
 import org.example.ptcmssbackend.repository.VehicleRepository;
 import org.example.ptcmssbackend.service.VehicleService;
@@ -44,6 +47,7 @@ public class VehicleServiceImpl implements VehicleService {
     private final BranchesRepository branchRepository;
     private final VehicleCategoryPricingRepository categoryRepository;
     private final TripVehicleRepository tripVehicleRepository;
+    private final TripDriverRepository tripDriverRepository;
     private final InvoiceRepository invoiceRepository;
 
     @Override
@@ -335,8 +339,50 @@ public class VehicleServiceImpl implements VehicleService {
         var branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh ID = " + branchId));
 
+        // Chỉ trả về xe đang ACTIVE (loại trừ INACTIVE) để Driver có thể chọn
         return vehicleRepository.findAllByBranchId(branchId)
                 .stream()
+                .filter(v -> v.getStatus() != VehicleStatus.INACTIVE)
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<VehicleResponse> getVehiclesByBranchAndDriver(Integer branchId, Integer driverId) {
+        var branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh ID = " + branchId));
+
+        // Lấy tất cả trips của driver
+        List<TripDrivers> tripDrivers = tripDriverRepository.findAllByDriverId(driverId);
+        
+        // Lấy tất cả tripIds mà driver đã lái
+        List<Integer> tripIds = tripDrivers.stream()
+                .map(td -> td.getTrip().getId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (tripIds.isEmpty()) {
+            return new ArrayList<>(); // Driver chưa có chuyến nào
+        }
+
+        // Lấy tất cả vehicles từ các trips đó
+        List<TripVehicles> tripVehicles = tripVehicleRepository.findByTrip_IdIn(tripIds);
+        
+        // Lấy DISTINCT vehicleIds
+        List<Integer> vehicleIds = tripVehicles.stream()
+                .map(tv -> tv.getVehicle().getId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (vehicleIds.isEmpty()) {
+            return new ArrayList<>(); // Không có xe nào
+        }
+
+        // Lấy vehicles theo IDs và filter theo branch và status
+        return vehicleRepository.findAllById(vehicleIds)
+                .stream()
+                .filter(v -> v.getBranch().getId().equals(branchId))
+                .filter(v -> v.getStatus() != VehicleStatus.INACTIVE)
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
