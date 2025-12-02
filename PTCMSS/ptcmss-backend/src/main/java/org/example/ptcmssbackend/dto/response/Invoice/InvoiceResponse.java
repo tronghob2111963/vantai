@@ -23,20 +23,12 @@ public class InvoiceResponse {
     private BigDecimal amount;
     private BigDecimal subtotal;
     private BigDecimal vatAmount;
-    private String paymentMethod;
     private String paymentStatus; // UNPAID, PAID, REFUNDED, OVERDUE
     private String status; // ACTIVE, CANCELLED
     private String paymentTerms;
     private LocalDate dueDate;
     private Instant invoiceDate;
     private Instant createdAt;
-    
-    // Payment info
-    private String bankName;
-    private String bankAccount;
-    private String referenceNumber;
-    private String cashierName;
-    private String receiptNumber;
     
     // Balance
     private BigDecimal paidAmount;

@@ -106,10 +106,8 @@ public class DepositServiceImpl implements DepositService {
         String notePrefix = Boolean.TRUE.equals(request.getIsDeposit()) ? "[Đặt cọc] " : "[Thu tiền] ";
         paymentHistory.setNote(notePrefix + (request.getNote() != null ? request.getNote() : ""));
         
-        paymentHistory.setCashierName(request.getCashierName());
-        
         // Generate receipt number
-        String receiptNum = request.getReceiptNumber();
+        String receiptNum = null;
         if (receiptNum == null || receiptNum.isEmpty()) {
             receiptNum = generateReceiptNumber(booking.getBranch().getId());
         }

@@ -530,7 +530,6 @@ public class BookingServiceImpl implements BookingService {
                 depositLossInvoice.setType(org.example.ptcmssbackend.enums.InvoiceType.INCOME);
                 depositLossInvoice.setIsDeposit(false); // Không phải tiền cọc, mà là tiền mất do hủy
                 depositLossInvoice.setAmount(depositLossAmount);
-                depositLossInvoice.setPaymentMethod("AUTO"); // Tự động (không cần thanh toán)
                 depositLossInvoice.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
                 depositLossInvoice.setStatus(org.example.ptcmssbackend.enums.InvoiceStatus.ACTIVE);
                 depositLossInvoice.setNote(String.format("Tiền mất cọc do hủy đơn (%.0f%% tiền cọc)", 
@@ -1273,7 +1272,6 @@ public class BookingServiceImpl implements BookingService {
         if (matchingUnpaidInvoice != null) {
             // Cập nhật invoice UNPAID thành PAID
             inv = matchingUnpaidInvoice;
-            inv.setPaymentMethod(request.getPaymentMethod());
             inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
             if (request.getNote() != null && !request.getNote().isEmpty()) {
                 inv.setNote(request.getNote());
@@ -1290,7 +1288,6 @@ public class BookingServiceImpl implements BookingService {
             inv.setType(org.example.ptcmssbackend.enums.InvoiceType.INCOME);
             inv.setIsDeposit(Boolean.TRUE.equals(request.getDeposit()));
             inv.setAmount(request.getAmount());
-            inv.setPaymentMethod(request.getPaymentMethod());
             inv.setPaymentStatus(org.example.ptcmssbackend.enums.PaymentStatus.PAID);
             inv.setStatus(org.example.ptcmssbackend.enums.InvoiceStatus.ACTIVE);
             inv.setNote(request.getNote());
