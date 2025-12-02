@@ -1,7 +1,7 @@
 -- Fix driver status ENUM to match backend DriverStatus enum
 -- This adds ACTIVE, ON_TRIP, OFF_DUTY status values
 
-USE ptcmss;
+USE ptcmss_db;
 
 -- Step 1: Alter the enum to add new values
 ALTER TABLE drivers 

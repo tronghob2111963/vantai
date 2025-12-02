@@ -1,7 +1,7 @@
 -- Fix missing vehicle brands
 -- Run this script to update existing vehicles with proper brand names
 
-USE ptcmss;
+USE ptcmss_db;
 
 UPDATE vehicles SET brand = 'Ford' WHERE vehicleId = 1;
 UPDATE vehicles SET brand = 'DCar' WHERE vehicleId = 2;

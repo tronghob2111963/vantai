@@ -1,8 +1,8 @@
-CREATE DATABASE  IF NOT EXISTS `ptcmss_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-USE `ptcmss_db`;
+CREATE DATABASE  IF NOT EXISTS `ptcmss` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `ptcmss`;
 -- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
--- Host: localhost    Database: ptcmss_db
+-- Host: localhost    Database: ptcmss
 -- ------------------------------------------------------
 -- Server version	8.0+
 
@@ -1400,7 +1400,7 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=CURRENT_USER SQL SECURITY DEFINER */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v_popularroutes` AS select `trc`.`startLocation` AS `startLocation`,`trc`.`endLocation` AS `endLocation`,count(0) AS `cacheEntryCount`,avg(`trc`.`distance`) AS `avgDistance`,avg(`trc`.`duration`) AS `avgDuration`,sum(`trc`.`hitCount`) AS `totalCacheHits`,max(`trc`.`lastUsedAt`) AS `lastUsed`,max(`trc`.`createdAt`) AS `lastCached` from `trip_route_cache` `trc` where (`trc`.`createdAt` >= (now() - interval 30 day)) group by `trc`.`startLocation`,`trc`.`endLocation` having (sum(`trc`.`hitCount`) > 0) order by `totalCacheHits` desc,`lastUsed` desc limit 100 */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
@@ -1418,7 +1418,7 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=CURRENT_USER SQL SECURITY DEFINER */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v_tripdistanceanalytics` AS select `t`.`tripId` AS `tripId`,`t`.`bookingId` AS `bookingId`,`b`.`branchId` AS `branchId`,`br`.`branchName` AS `branchName`,`t`.`startLocation` AS `startLocation`,`t`.`endLocation` AS `endLocation`,`t`.`distance` AS `distance`,`t`.`estimatedDuration` AS `estimatedDuration`,`t`.`actualDuration` AS `actualDuration`,(case when ((`t`.`actualDuration` is not null) and (`t`.`estimatedDuration` is not null)) then round((((`t`.`actualDuration` - `t`.`estimatedDuration`) / `t`.`estimatedDuration`) * 100),2) else NULL end) AS `durationVariancePercent`,`t`.`trafficStatus` AS `trafficStatus`,`t`.`status` AS `tripStatus`,`t`.`startTime` AS `startTime`,`t`.`endTime` AS `endTime`,timestampdiff(MINUTE,`t`.`startTime`,`t`.`endTime`) AS `actualTripDuration` from ((`trips` `t` join `bookings` `b` on((`t`.`bookingId` = `b`.`bookingId`))) join `branches` `br` on((`b`.`branchId` = `br`.`branchId`))) where (`t`.`distance` is not null) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
