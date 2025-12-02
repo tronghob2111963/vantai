@@ -10,7 +10,7 @@ public interface ExpenseRequestService {
     
     List<ExpenseRequestResponse> getByDriverId(Integer driverId);
     
-    List<ExpenseRequestResponse> getPendingRequests();
+    List<ExpenseRequestResponse> getPendingRequests(Integer branchId);
     
     ExpenseRequestResponse approveRequest(Integer id, String note);
     

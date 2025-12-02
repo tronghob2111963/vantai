@@ -34,6 +34,24 @@ function RequestCard({ request, onCancel, cancellingId }) {
         return null;
     }
 
+    // Kiểm tra xem yêu cầu nghỉ phép đã trong quá khứ chưa
+    const isPastLeaveRequest = React.useMemo(() => {
+        if (request.type !== "LEAVE" || !request.endDate) {
+            return false;
+        }
+        try {
+            const endDate = new Date(request.endDate);
+            const today = new Date();
+            // Reset time to start of day for comparison
+            today.setHours(0, 0, 0, 0);
+            endDate.setHours(0, 0, 0, 0);
+            return endDate < today;
+        } catch (err) {
+            console.error("Error checking if leave request is past:", err);
+            return false;
+        }
+    }, [request.type, request.endDate]);
+
     const typeMap = {
         LEAVE: {
             icon: Calendar,
@@ -166,9 +184,10 @@ function RequestCard({ request, onCancel, cancellingId }) {
                 )}
             </div>
 
-            {/* Cancel button for PENDING or APPROVED leave requests */}
+            {/* Cancel button for PENDING or APPROVED leave requests - chỉ hiển thị nếu chưa trong quá khứ */}
             {request.type === "LEAVE" && 
              (request.status === "PENDING" || request.status === "APPROVED") && 
+             !isPastLeaveRequest &&
              onCancel && (
                 <div className="mt-3 pt-3 border-t border-slate-200">
                     <button

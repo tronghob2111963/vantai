@@ -139,7 +139,7 @@ export default function DepositModal({
             setMethod(defaultMethod);
             // Luôn set ngày thanh toán là hôm nay khi mở modal
             setDate(todayISO());
-            setKind("PAYMENT");
+            setKind("DEPOSIT"); // Luôn là DEPOSIT, không cho chọn PAYMENT
             setNote("");
             setBankName("");
             setBankAccount("");
@@ -415,42 +415,22 @@ export default function DepositModal({
                         </div>
                     ) : null}
 
-                    {/* Chọn loại ghi nhận */}
+                    {/* Chọn loại ghi nhận - Chỉ hiển thị Tiền cọc */}
                     <div className="flex flex-wrap items-center gap-2 text-[13px]">
                         <label
                             className={cls(
                                 "px-3 py-1.5 rounded-lg border cursor-pointer text-[13px] font-medium shadow-sm transition-colors",
-                                kind === "DEPOSIT"
-                                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                                "border-emerald-500 bg-emerald-50 text-emerald-700"
                             )}
                         >
                             <input
                                 type="radio"
                                 name="kind"
                                 className="hidden"
-                                checked={kind === "DEPOSIT"}
-                                onChange={() => setKind("DEPOSIT")}
+                                checked={true}
+                                readOnly
                             />{" "}
                             Tiền cọc
-                        </label>
-
-                        <label
-                            className={cls(
-                                "px-3 py-1.5 rounded-lg border cursor-pointer text-[13px] font-medium shadow-sm transition-colors",
-                                kind === "PAYMENT"
-                                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                            )}
-                        >
-                            <input
-                                type="radio"
-                                name="kind"
-                                className="hidden"
-                                checked={kind === "PAYMENT"}
-                                onChange={() => setKind("PAYMENT")}
-                            />{" "}
-                            Thanh toán
                         </label>
                     </div>
 
@@ -651,13 +631,7 @@ export default function DepositModal({
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center gap-3 justify-between flex-shrink-0">
-                    <div className="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-0">
-                        {context?.type === "order"
-                            ? "Tạo deposit cho booking"
-                            : "Ghi nhận thanh toán cho invoice"}
-                    </div>
-
+                <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center gap-3 justify-end flex-shrink-0">
                     <div className="flex items-center gap-2">
                         <button
                             onClick={onClose}

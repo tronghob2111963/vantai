@@ -487,12 +487,14 @@ export default function DriverDashboard() {
                 // Filter for today's trips only
                 const tripDate = new Date(t.startTime || t.start_time);
                 const today = new Date();
-                return (
+                const isToday = (
                   tripDate.getDate() === today.getDate() &&
                   tripDate.getMonth() === today.getMonth() &&
-                  tripDate.getFullYear() === today.getFullYear() &&
-                  t.status === "SCHEDULED"
+                  tripDate.getFullYear() === today.getFullYear()
                 );
+                // Bao gồm cả SCHEDULED và ASSIGNED (đã phân xe)
+                const validStatus = t.status === "SCHEDULED" || t.status === "ASSIGNED";
+                return isToday && validStatus;
               })
               .slice(0, 10) // Show max 10 today's trips
               .map((t) => ({

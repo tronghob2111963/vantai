@@ -1121,15 +1121,31 @@ public class DispatchServiceImpl implements DispatchService {
                 }).collect(Collectors.toList());
 
         // Tính số tiền còn lại cần thanh toán
+        // Sử dụng cùng logic với BookingServiceImpl để đảm bảo nhất quán
+        // Tính paidAmount từ payment_history đã CONFIRMED (giống như BookingService)
         java.math.BigDecimal totalCost = booking.getTotalCost() != null ? booking.getTotalCost() : java.math.BigDecimal.ZERO;
-        java.math.BigDecimal depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount() : java.math.BigDecimal.ZERO;
-        java.math.BigDecimal remainingAmount = totalCost.subtract(depositAmount);
+        java.math.BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(booking.getId());
+        if (paidAmount == null) paidAmount = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal remainingAmount = totalCost.subtract(paidAmount);
+        if (remainingAmount.compareTo(java.math.BigDecimal.ZERO) < 0) {
+            remainingAmount = java.math.BigDecimal.ZERO;
+        }
+        // depositAmount = paidAmount (để nhất quán với BookingService)
+        java.math.BigDecimal depositAmount = paidAmount;
 
         // Lấy rating nếu có
         var ratingOpt = driverRatingsRepository.findByTrip_Id(trip.getId());
         java.math.BigDecimal rating = ratingOpt.map(r -> r.getOverallRating()).orElse(null);
         String ratingComment = ratingOpt.map(r -> r.getComment()).orElse(null);
 
+        // Lấy thông tin hireType từ booking
+        String hireType = null;
+        String hireTypeName = null;
+        if (booking.getHireType() != null) {
+            hireType = booking.getHireType().getCode(); // ONE_WAY, ROUND_TRIP, etc.
+            hireTypeName = booking.getHireType().getName(); // "Một chiều", "Hai chiều", etc.
+        }
+        
         return TripDetailResponse.builder()
                 .tripId(trip.getId())
                 .bookingId(booking.getId())
@@ -1147,6 +1163,8 @@ public class DispatchServiceImpl implements DispatchService {
                 .vehicleModel(vehicleModel)
                 .status(trip.getStatus())
                 .bookingNote(booking.getNote())
+                .hireType(hireType)
+                .hireTypeName(hireTypeName)
                 .totalCost(totalCost)
                 .depositAmount(depositAmount)
                 .remainingAmount(remainingAmount)
@@ -1350,10 +1368,16 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             // 4) Check trùng giờ (trip SCHEDULED/ONGOING)
+            // Lưu ý: Exclude các trips trong cùng booking (vì 1 tài xế có thể lái nhiều xe trong cùng booking)
             List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(d.getId());
             boolean overlap = driverTrips.stream().anyMatch(td -> {
                 Trips t = td.getTrip();
                 if (t.getId().equals(trip.getId())) return false;
+                // Exclude trips trong cùng booking (cho phép 1 tài xế lái nhiều xe trong cùng booking)
+                if (t.getBooking() != null && trip.getBooking() != null 
+                        && t.getBooking().getId().equals(trip.getBooking().getId())) {
+                    return false; // Không tính là overlap nếu cùng booking
+                }
                 if (t.getStatus() == TripStatus.CANCELLED || t.getStatus() == TripStatus.COMPLETED) return false;
                 Instant s1 = t.getStartTime();
                 Instant e1 = t.getEndTime();
@@ -1363,7 +1387,7 @@ public class DispatchServiceImpl implements DispatchService {
                 return s1.isBefore(e2) && s2.isBefore(e1);
             });
             if (overlap) {
-                log.debug("Driver {} has overlap trips, skip", d.getId());
+                log.debug("Driver {} has overlap trips (excluding same booking), skip", d.getId());
                 continue;
             }
 
@@ -1452,10 +1476,16 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             // Check trùng giờ
+            // Lưu ý: Exclude các trips trong cùng booking (vì 1 tài xế có thể lái nhiều xe trong cùng booking)
             List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(d.getId());
             boolean overlap = driverTrips.stream().anyMatch(td -> {
                 Trips t = td.getTrip();
                 if (t.getId().equals(trip.getId())) return false;
+                // Exclude trips trong cùng booking (cho phép 1 tài xế lái nhiều xe trong cùng booking)
+                if (t.getBooking() != null && trip.getBooking() != null 
+                        && t.getBooking().getId().equals(trip.getBooking().getId())) {
+                    return false; // Không tính là overlap nếu cùng booking
+                }
                 if (t.getStatus() == TripStatus.CANCELLED || t.getStatus() == TripStatus.COMPLETED) return false;
                 Instant s1 = t.getStartTime();
                 Instant e1 = t.getEndTime();

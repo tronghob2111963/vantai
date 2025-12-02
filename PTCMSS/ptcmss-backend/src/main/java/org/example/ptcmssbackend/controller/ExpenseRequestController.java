@@ -54,9 +54,11 @@ public class ExpenseRequestController {
      */
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
-    public ResponseEntity<ResponseData<List<ExpenseRequestResponse>>> getPending() {
-        log.info("[ExpenseRequest] get pending requests");
-        List<ExpenseRequestResponse> list = expenseRequestService.getPendingRequests();
+    public ResponseEntity<ResponseData<List<ExpenseRequestResponse>>> getPending(
+            @RequestParam(required = false) Integer branchId
+    ) {
+        log.info("[ExpenseRequest] get pending requests - branchId: {}", branchId);
+        List<ExpenseRequestResponse> list = expenseRequestService.getPendingRequests(branchId);
         return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(), "Success", list));
     }
 

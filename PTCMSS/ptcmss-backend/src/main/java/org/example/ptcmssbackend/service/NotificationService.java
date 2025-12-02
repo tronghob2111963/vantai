@@ -29,4 +29,10 @@ public interface NotificationService {
     
     // Delete notification
     void deleteNotification(Integer notificationId, Integer userId);
+    
+    // Delete notification by approval type and related entity ID
+    void deleteNotificationByApproval(String approvalType, Integer relatedEntityId, Integer userId);
+    
+    // Delete approval history (dismiss approval)
+    void dismissApproval(Integer approvalHistoryId, Integer userId);
 }

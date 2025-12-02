@@ -252,6 +252,7 @@ export default function CreateOrderPage() {
     const [dropoff, setDropoff] = React.useState("");
     const [startTime, setStartTime] = React.useState("");
     const [endTime, setEndTime] = React.useState("");
+    const [timeError, setTimeError] = React.useState(""); // Error message cho validation thời gian
     const [categories, setCategories] = React.useState([]);
     const [paxCount, setPaxCount] = React.useState(1);
     
@@ -759,6 +760,32 @@ export default function CreateOrderPage() {
             setIsWeekend(false);
         }
     }, [startTime]);
+    
+    // Validate thời gian real-time khi startTime hoặc endTime thay đổi
+    React.useEffect(() => {
+        if (hireType === "ONE_WAY") {
+            setTimeError(""); // ONE_WAY không cần validate
+            return;
+        }
+        
+        if (startTime && endTime) {
+            const startDate = new Date(startTime);
+            const endDate = new Date(endTime);
+            
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                setTimeError(""); // Chưa parse được thì chưa validate
+                return;
+            }
+            
+            if (endDate <= startDate) {
+                setTimeError("Thời gian về phải sau thời gian đi");
+            } else {
+                setTimeError(""); // Clear error nếu hợp lệ
+            }
+        } else {
+            setTimeError(""); // Chưa đủ thông tin thì chưa validate
+        }
+    }, [startTime, endTime, hireType]);
 
     // calculate via backend when possible
     React.useEffect(() => {
@@ -900,6 +927,17 @@ export default function CreateOrderPage() {
 
     // Validation: ONE_WAY không cần endTime
     const needsEndTime = hireType !== "ONE_WAY";
+    
+    // Validate thời gian: endTime phải > startTime
+    const isTimeValid = React.useMemo(() => {
+        if (!startTime) return true; // Chưa nhập startTime thì chưa cần validate
+        if (!needsEndTime || !endTime) return true; // ONE_WAY hoặc chưa nhập endTime
+        
+        const startDate = new Date(startTime);
+        const endDate = new Date(endTime);
+        return endDate > startDate;
+    }, [startTime, endTime, needsEndTime]);
+    
     const isValidCore =
         phone &&
         customerName &&
@@ -907,6 +945,8 @@ export default function CreateOrderPage() {
         dropoff &&
         startTime &&
         (needsEndTime ? endTime : true) &&
+        isTimeValid && // Thêm validation thời gian
+        !timeError && // Không có lỗi thời gian
         categoryId &&
         branchId &&
         quotedPrice > 0;
@@ -958,8 +998,11 @@ export default function CreateOrderPage() {
                 
                 // Check if end time is after start time
                 if (endDate <= startDate) {
+                    setTimeError("Thời gian về phải sau thời gian đi");
                     push("Thời gian về phải sau thời gian đi", "error");
                     return;
+                } else {
+                    setTimeError(""); // Clear error nếu hợp lệ
                 }
 
                 // Check minimum duration based on hire type
@@ -1084,8 +1127,11 @@ export default function CreateOrderPage() {
                 
                 // Check if end time is after start time
                 if (endDate <= startDate) {
+                    setTimeError("Thời gian về phải sau thời gian đi");
                     push("Thời gian về phải sau thời gian đi", "error");
                     return;
+                } else {
+                    setTimeError(""); // Clear error nếu hợp lệ
                 }
 
                 // Check minimum duration based on hire type
@@ -1681,14 +1727,34 @@ export default function CreateOrderPage() {
                                 <input
                                     type={hireType === "DAILY" || hireType === "MULTI_DAY" ? "date" : "datetime-local"}
                                     value={startTime}
-                                    onChange={(e) =>
-                                        setStartTime(
-                                            e.target
-                                                .value
-                                        )
-                                    }
-                                    className={inputCls}
+                                    onChange={(e) => {
+                                        const newStartTime = e.target.value;
+                                        setStartTime(newStartTime);
+                                        
+                                        // Validate real-time: nếu đã có endTime, kiểm tra endTime > startTime
+                                        if (newStartTime && endTime && hireType !== "ONE_WAY") {
+                                            const startDate = new Date(newStartTime);
+                                            const endDate = new Date(endTime);
+                                            if (endDate <= startDate) {
+                                                setTimeError("Thời gian về phải sau thời gian đi");
+                                            } else {
+                                                setTimeError("");
+                                            }
+                                        } else {
+                                            setTimeError("");
+                                        }
+                                    }}
+                                    className={cls(
+                                        inputCls,
+                                        timeError && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                                    )}
                                 />
+                                {timeError && (
+                                    <div className="text-[12px] text-red-600 mt-1 flex items-center gap-1">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        <span>{timeError}</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Kết thúc dự kiến / Ngày kết thúc - Ẩn với ONE_WAY */}
@@ -1705,14 +1771,34 @@ export default function CreateOrderPage() {
                                     <input
                                         type={hireType === "DAILY" || hireType === "MULTI_DAY" ? "date" : "datetime-local"}
                                         value={endTime}
-                                        onChange={(e) =>
-                                            setEndTime(
-                                                e.target
-                                                    .value
-                                            )
-                                        }
-                                        className={inputCls}
+                                        onChange={(e) => {
+                                            const newEndTime = e.target.value;
+                                            setEndTime(newEndTime);
+                                            
+                                            // Validate real-time: endTime phải > startTime
+                                            if (newEndTime && startTime) {
+                                                const startDate = new Date(startTime);
+                                                const endDate = new Date(newEndTime);
+                                                if (endDate <= startDate) {
+                                                    setTimeError("Thời gian về phải sau thời gian đi");
+                                                } else {
+                                                    setTimeError("");
+                                                }
+                                            } else {
+                                                setTimeError("");
+                                            }
+                                        }}
+                                        className={cls(
+                                            inputCls,
+                                            timeError && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                                        )}
                                     />
+                                    {timeError && (
+                                        <div className="text-[12px] text-red-600 mt-1 flex items-center gap-1">
+                                            <AlertTriangle className="h-3.5 w-3.5" />
+                                            <span>{timeError}</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

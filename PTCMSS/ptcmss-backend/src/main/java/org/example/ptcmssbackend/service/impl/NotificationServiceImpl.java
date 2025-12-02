@@ -900,6 +900,88 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("[Notification] Deleted notification {} for user {}", notificationId, userId);
     }
     
+    @Override
+    public void deleteNotificationByApproval(String approvalType, Integer relatedEntityId, Integer userId) {
+        log.info("[Notification] Delete notification by approval - type: {}, relatedEntityId: {}, userId: {}", 
+                approvalType, relatedEntityId, userId);
+        
+        // Tìm notification của user có message/title liên quan đến approval này
+        List<Notifications> userNotifications = notificationRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+        
+        // Tìm notification phù hợp dựa trên approval type
+        // Xóa tất cả notifications liên quan (có thể có nhiều notification cho cùng một approval)
+        List<Notifications> toDelete = new java.util.ArrayList<>();
+        
+        if ("EXPENSE_REQUEST".equals(approvalType)) {
+            // Tìm tất cả notifications có message/title liên quan đến expense request
+            toDelete = userNotifications.stream()
+                    .filter(n -> {
+                        String msg = n.getMessage() != null ? n.getMessage().toLowerCase() : "";
+                        String title = n.getTitle() != null ? n.getTitle().toLowerCase() : "";
+                        // Tìm notification có chứa từ khóa về expense request
+                        boolean matches = (msg.contains("yêu cầu thanh toán") || msg.contains("chi phí") || 
+                                msg.contains("expense") || title.contains("chi phí") || 
+                                title.contains("expense") || title.contains("yêu cầu thanh toán"));
+                        return matches;
+                    })
+                    .collect(Collectors.toList());
+        } else if ("DRIVER_DAY_OFF".equals(approvalType)) {
+            // Tìm tất cả notifications có message chứa "nghỉ phép"
+            toDelete = userNotifications.stream()
+                    .filter(n -> {
+                        String msg = n.getMessage() != null ? n.getMessage().toLowerCase() : "";
+                        String title = n.getTitle() != null ? n.getTitle().toLowerCase() : "";
+                        return (msg.contains("nghỉ phép") || title.contains("nghỉ phép"));
+                    })
+                    .collect(Collectors.toList());
+        }
+        
+        // Xóa tất cả notifications tìm được
+        if (!toDelete.isEmpty()) {
+            for (Notifications notification : toDelete) {
+                notificationRepository.delete(notification);
+                log.info("[Notification] Deleted notification {} for user {} by approval type {}", 
+                        notification.getId(), userId, approvalType);
+            }
+            log.info("[Notification] Deleted {} notifications for user {} by approval type {}", 
+                    toDelete.size(), userId, approvalType);
+        } else {
+            log.warn("[Notification] No matching notification found for approval type {} and user {}. Total notifications: {}", 
+                    approvalType, userId, userNotifications.size());
+            // Không throw exception để không ảnh hưởng đến flow
+        }
+    }
+    
+    @Override
+    @Transactional
+    public void dismissApproval(Integer approvalHistoryId, Integer userId) {
+        log.info("[Notification] Dismiss approval {} by user {}", approvalHistoryId, userId);
+        
+        ApprovalHistory history = approvalHistoryRepository.findById(approvalHistoryId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy approval: " + approvalHistoryId));
+        
+        // Chỉ cho phép dismiss nếu approval chưa được xử lý (PENDING)
+        if (history.getStatus() != ApprovalStatus.PENDING) {
+            throw new RuntimeException("Không thể xóa approval đã được xử lý");
+        }
+        
+        // Xóa approval history
+        approvalHistoryRepository.delete(history);
+        log.info("[Notification] Deleted approval history {} by user {}", approvalHistoryId, userId);
+        
+        // Xóa notification liên quan (nếu có)
+        try {
+            deleteNotificationByApproval(
+                    history.getApprovalType().name(),
+                    history.getRelatedEntityId(),
+                    userId
+            );
+        } catch (Exception e) {
+            log.warn("[Notification] Failed to delete related notification: {}", e.getMessage());
+            // Không throw exception để không ảnh hưởng đến flow chính
+        }
+    }
+    
     /**
      * Kiểm tra xem tài xế có lịch trình trong khoảng thời gian nghỉ không
      * Nếu có, throw exception để yêu cầu xếp tài xế thay thế

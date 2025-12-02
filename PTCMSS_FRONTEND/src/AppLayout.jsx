@@ -61,12 +61,13 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Tạo yêu cầu thanh toán", to: "/dispatch/expense-request", icon: DollarSign },
     { label: "Đánh giá tài xế", to: "/dispatch/ratings", icon: BarChart3 },
   ],
-  // Accountant (Kế toán - 7 options)
+  // Accountant (Kế toán - 8 options)
   [ROLES.ACCOUNTANT]: [
     { label: "Bảng điều khiển", to: "/accounting", icon: LayoutDashboard },
     { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", icon: BarChart3 },
     { label: "Báo cáo chi phí", to: "/accounting/expenses", icon: DollarSign },
     { label: "Danh sách hóa đơn", to: "/accounting/invoices", icon: ClipboardList },
+    { label: "Duyệt yêu cầu chi phí", to: "/accounting/expense-requests", icon: DollarSign },
     { label: "Danh sách đơn hàng", to: "/accountant/orders", icon: ClipboardList },
     { label: "Danh sách nhân viên", to: "/accountant/users", icon: Users },
     { label: "Danh sách xe", to: "/accountant/vehicles", icon: CarFront },
@@ -163,6 +164,7 @@ import DemoAssign from "./DemoAssign.jsx";
 import AccountantDashboard from "./components/module 6/AccountantDashboard.jsx";
 import InvoiceManagement from "./components/module 6/InvoiceManagement.jsx";
 import ExpenseReportPage from "./components/module 6/ExpenseReportPage.jsx";
+import ExpenseRequestManagementPage from "./components/module 6/ExpenseRequestManagementPage.jsx";
 import ReportRevenuePage from "./components/module 6/ReportRevenuePage.jsx";
 
 /* Module 7 – Báo cáo & Phân tích */
@@ -949,6 +951,14 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
                 <ExpenseReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounting/expense-requests"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}>
+                <ExpenseRequestManagementPage />
               </ProtectedRoute>
             }
           />
