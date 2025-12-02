@@ -627,25 +627,58 @@ public class DispatchServiceImpl implements DispatchService {
         Bookings booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + request.getBookingId()));
 
-        // Check booking phải có đặt cọc (payment_history CONFIRMED) mới được gán tài xế/xe
-        List<org.example.ptcmssbackend.entity.Invoices> depositInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(booking.getId()).stream()
-                .filter(inv -> Boolean.TRUE.equals(inv.getIsDeposit()))
-                .collect(java.util.stream.Collectors.toList());
+        // Check điều kiện thanh toán trước khi gán chuyến
+        // Cho phép gán nếu:
+        // 1. Có deposit đã xác nhận HOẶC
+        // 2. Đã thu >= 30% tổng giá trị HOẶC
+        // 3. Đã hoàn thành thanh toán (100%)
         
+        List<org.example.ptcmssbackend.entity.Invoices> allInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(booking.getId());
+        
+        // Tính tổng tiền đã thu (CONFIRMED)
+        BigDecimal totalPaid = BigDecimal.ZERO;
         boolean hasConfirmedDeposit = false;
-        for (var inv : depositInvoices) {
-            // Check có payment_history CONFIRMED cho invoice này không
+        
+        for (var inv : allInvoices) {
             var payments = paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(inv.getId());
-            if (payments != null && payments.stream().anyMatch(p -> 
-                    p.getConfirmationStatus() == org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED)) {
-                hasConfirmedDeposit = true;
-                break;
+            if (payments != null) {
+                for (var payment : payments) {
+                    if (payment.getConfirmationStatus() == org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED) {
+                        totalPaid = totalPaid.add(payment.getAmount());
+                        
+                        // Check nếu là deposit
+                        if (Boolean.TRUE.equals(inv.getIsDeposit())) {
+                            hasConfirmedDeposit = true;
+                        }
+                    }
+                }
             }
         }
         
-        if (!hasConfirmedDeposit) {
-            throw new RuntimeException("Đơn hàng chưa đặt cọc hoặc cọc chưa được xác nhận. Vui lòng thu cọc và chờ kế toán xác nhận trước khi xếp lịch điều phối.");
+        // Lấy tổng giá trị booking
+        BigDecimal totalBookingAmount = booking.getTotalPrice() != null ? booking.getTotalPrice() : BigDecimal.ZERO;
+        
+        // Tính % đã thanh toán
+        BigDecimal paymentPercentage = BigDecimal.ZERO;
+        if (totalBookingAmount.compareTo(BigDecimal.ZERO) > 0) {
+            paymentPercentage = totalPaid.multiply(BigDecimal.valueOf(100)).divide(totalBookingAmount, 2, java.math.RoundingMode.HALF_UP);
         }
+        
+        // Kiểm tra điều kiện
+        boolean canAssign = hasConfirmedDeposit || 
+                           paymentPercentage.compareTo(BigDecimal.valueOf(30)) >= 0 ||
+                           paymentPercentage.compareTo(BigDecimal.valueOf(100)) >= 0;
+        
+        if (!canAssign) {
+            throw new RuntimeException(String.format(
+                "Đơn hàng chưa đủ điều kiện gán chuyến. Đã thu: %s/%s (%.2f%%). " +
+                "Yêu cầu: Có tiền cọc đã xác nhận HOẶC đã thu >= 30%% tổng giá trị.",
+                totalPaid, totalBookingAmount, paymentPercentage
+            ));
+        }
+        
+        log.info("[Dispatch] Payment check passed - Paid: {}/{} ({}%), Has deposit: {}", 
+                totalPaid, totalBookingAmount, paymentPercentage, hasConfirmedDeposit);
 
         List<Trips> trips = tripRepository.findByBooking_Id(booking.getId());
         if (trips.isEmpty()) {
