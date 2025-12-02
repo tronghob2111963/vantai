@@ -171,6 +171,13 @@ public class UserServiceImpl implements UserService {
             Roles role = rolesRepository.findById(request.getRoleId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò"));
             user.setRole(role);
+            
+            // Đồng bộ role sang employee (nếu có)
+            Employees employee = employeeRepository.findByUserId(id).orElse(null);
+            if (employee != null) {
+                employee.setRole(role);
+                employeeRepository.save(employee);
+            }
         }
         
         // Cập nhật status

@@ -75,6 +75,15 @@ public interface InvoiceRepository extends JpaRepository<Invoices, Integer> {
     );
     
     /**
+     * Tính tổng tiền đã thu (CONFIRMED) từ payment_history cho booking
+     */
+    @Query("SELECT COALESCE(SUM(ph.amount), 0) FROM PaymentHistory ph " +
+            "JOIN ph.invoice i " +
+            "WHERE i.booking.id = :bookingId " +
+            "AND ph.confirmationStatus = org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED")
+    BigDecimal calculateConfirmedPaidAmountByBookingId(@Param("bookingId") Integer bookingId);
+    
+    /**
      * Tính tổng amount theo branchId, type và khoảng thời gian
      */
     @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoices i " +

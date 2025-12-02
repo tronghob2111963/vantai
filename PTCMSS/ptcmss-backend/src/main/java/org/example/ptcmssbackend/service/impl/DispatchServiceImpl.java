@@ -629,11 +629,16 @@ public class DispatchServiceImpl implements DispatchService {
 
         // Check điều kiện thanh toán trước khi gán chuyến
         // Cho phép gán nếu:
-        // 1. Có deposit đã xác nhận HOẶC
-        // 2. Đã thu >= 30% tổng giá trị HOẶC
-        // 3. Đã hoàn thành thanh toán (100%)
+        // 1. Booking đã COMPLETED (đã hoàn thành) - bỏ qua check HOẶC
+        // 2. Có deposit đã xác nhận HOẶC
+        // 3. Đã thu >= 30% tổng giá trị
         
-        List<org.example.ptcmssbackend.entity.Invoices> allInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(booking.getId());
+        // Nếu booking đã hoàn thành, cho phép gán luôn
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            log.info("[Dispatch] Booking {} is COMPLETED, skip payment check", booking.getId());
+        } else {
+            // Kiểm tra điều kiện thanh toán
+            List<org.example.ptcmssbackend.entity.Invoices> allInvoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(booking.getId());
         
         // Tính tổng tiền đã thu (CONFIRMED)
         BigDecimal totalPaid = BigDecimal.ZERO;
@@ -655,8 +660,10 @@ public class DispatchServiceImpl implements DispatchService {
             }
         }
         
-        // Lấy tổng giá trị booking
-        BigDecimal totalBookingAmount = booking.getTotalPrice() != null ? booking.getTotalPrice() : BigDecimal.ZERO;
+        // Lấy tổng giá trị booking (ưu tiên totalCost, nếu không có thì dùng estimatedCost)
+        BigDecimal totalBookingAmount = booking.getTotalCost() != null && booking.getTotalCost().compareTo(BigDecimal.ZERO) > 0
+                ? booking.getTotalCost()
+                : (booking.getEstimatedCost() != null ? booking.getEstimatedCost() : BigDecimal.ZERO);
         
         // Tính % đã thanh toán
         BigDecimal paymentPercentage = BigDecimal.ZERO;
@@ -664,21 +671,21 @@ public class DispatchServiceImpl implements DispatchService {
             paymentPercentage = totalPaid.multiply(BigDecimal.valueOf(100)).divide(totalBookingAmount, 2, java.math.RoundingMode.HALF_UP);
         }
         
-        // Kiểm tra điều kiện
-        boolean canAssign = hasConfirmedDeposit || 
-                           paymentPercentage.compareTo(BigDecimal.valueOf(30)) >= 0 ||
-                           paymentPercentage.compareTo(BigDecimal.valueOf(100)) >= 0;
-        
-        if (!canAssign) {
-            throw new RuntimeException(String.format(
-                "Đơn hàng chưa đủ điều kiện gán chuyến. Đã thu: %s/%s (%.2f%%). " +
-                "Yêu cầu: Có tiền cọc đã xác nhận HOẶC đã thu >= 30%% tổng giá trị.",
-                totalPaid, totalBookingAmount, paymentPercentage
-            ));
+            // Kiểm tra điều kiện
+            boolean canAssign = hasConfirmedDeposit || 
+                               paymentPercentage.compareTo(BigDecimal.valueOf(30)) >= 0;
+            
+            if (!canAssign) {
+                throw new RuntimeException(String.format(
+                    "Đơn hàng chưa đủ điều kiện gán chuyến. Đã thu: %s/%s (%.2f%%). " +
+                    "Yêu cầu: Có tiền cọc đã xác nhận HOẶC đã thu >= 30%% tổng giá trị.",
+                    totalPaid, totalBookingAmount, paymentPercentage
+                ));
+            }
+            
+            log.info("[Dispatch] Payment check passed - Paid: {}/{} ({}%), Has deposit: {}", 
+                    totalPaid, totalBookingAmount, paymentPercentage, hasConfirmedDeposit);
         }
-        
-        log.info("[Dispatch] Payment check passed - Paid: {}/{} ({}%), Has deposit: {}", 
-                totalPaid, totalBookingAmount, paymentPercentage, hasConfirmedDeposit);
 
         List<Trips> trips = tripRepository.findByBooking_Id(booking.getId());
         if (trips.isEmpty()) {

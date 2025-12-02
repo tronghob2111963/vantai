@@ -1661,11 +1661,8 @@ public class BookingServiceImpl implements BookingService {
                     .build();
         }).collect(Collectors.toList());
         
-        // Tính paidAmount và remainingAmount từ Invoices
-        BigDecimal paidAmount = invoiceRepository.calculatePaidAmountByBookingId(
-                booking.getId(),
-                InvoiceType.INCOME,
-                PaymentStatus.PAID);
+        // Tính paidAmount từ payment_history đã CONFIRMED
+        BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(booking.getId());
         if (paidAmount == null) paidAmount = BigDecimal.ZERO;
         BigDecimal remainingAmount = booking.getTotalCost() != null
                 ? booking.getTotalCost().subtract(paidAmount)
@@ -1725,11 +1722,8 @@ public class BookingServiceImpl implements BookingService {
                 .min(Instant::compareTo)
                 .orElse(null);
         
-        // Tính paidAmount từ invoices
-        BigDecimal paidAmount = invoiceRepository.calculatePaidAmountByBookingId(
-                booking.getId(),
-                InvoiceType.INCOME,
-                PaymentStatus.PAID);
+        // Tính paidAmount từ payment_history đã CONFIRMED
+        BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(booking.getId());
         if (paidAmount == null) paidAmount = BigDecimal.ZERO;
         
         // Check if all trips are assigned (have both driver and vehicle)
