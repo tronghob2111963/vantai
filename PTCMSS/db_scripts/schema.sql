@@ -4,7 +4,7 @@ USE `ptcmss_db`;
 --
 -- Host: localhost    Database: ptcmss_db
 -- ------------------------------------------------------
--- Server version	8.0+
+-- Server version	9.4.0
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -16,48 +16,6 @@ USE `ptcmss_db`;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `accounts_receivable`
---
-
-DROP TABLE IF EXISTS `accounts_receivable`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `accounts_receivable` (
-  `arId` int NOT NULL AUTO_INCREMENT,
-  `customerId` int NOT NULL,
-  `bookingId` int DEFAULT NULL,
-  `invoiceId` int DEFAULT NULL,
-  `totalAmount` decimal(18,2) DEFAULT NULL,
-  `paidAmount` decimal(18,2) DEFAULT NULL,
-  `remainingAmount` decimal(18,2) GENERATED ALWAYS AS ((`totalAmount` - `paidAmount`)) STORED,
-  `dueDate` date DEFAULT NULL,
-  `lastPaymentDate` date DEFAULT NULL,
-  `status` enum('UNPAID','PARTIALLYPAID','PAID') COLLATE utf8mb4_unicode_ci DEFAULT 'UNPAID',
-  `note` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`arId`),
-  KEY `fk_ar_customer` (`customerId`),
-  KEY `fk_ar_booking` (`bookingId`),
-  KEY `fk_ar_invoice` (`invoiceId`),
-  KEY `IX_AR_Status_DueDate` (`status`,`dueDate`),
-  CONSTRAINT `fk_ar_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`),
-  CONSTRAINT `fk_ar_customer` FOREIGN KEY (`customerId`) REFERENCES `customers` (`customerId`),
-  CONSTRAINT `fk_ar_invoice` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `accounts_receivable`
---
-
-LOCK TABLES `accounts_receivable` WRITE;
-/*!40000 ALTER TABLE `accounts_receivable` DISABLE KEYS */;
-INSERT INTO `accounts_receivable` (`arId`, `customerId`, `bookingId`, `invoiceId`, `totalAmount`, `paidAmount`, `dueDate`, `lastPaymentDate`, `status`, `note`, `createdAt`, `updatedAt`) VALUES (1,2,1,2,3800000.00,3800000.00,'2025-10-25',NULL,'PAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(2,4,2,3,1200000.00,500000.00,'2025-10-28',NULL,'PARTIALLYPAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(3,1,3,4,25000000.00,25000000.00,'2025-11-01',NULL,'PAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(4,3,4,NULL,15000000.00,500000.00,'2025-11-10',NULL,'PARTIALLYPAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08'),(5,5,5,5,1000000.00,1000000.00,'2025-10-29',NULL,'PAID',NULL,'2025-11-12 11:23:08','2025-11-12 11:23:08');
-/*!40000 ALTER TABLE `accounts_receivable` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `app_settings`
@@ -280,19 +238,19 @@ DROP TABLE IF EXISTS `debt_reminder_history`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `debt_reminder_history` (
   `reminderId` int NOT NULL AUTO_INCREMENT,
-  `createdAt` datetime(6) DEFAULT NULL,
-  `message` text COLLATE utf8mb4_unicode_ci,
-  `recipient` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `reminderDate` datetime(6) NOT NULL,
-  `reminderType` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `invoiceId` int NOT NULL,
+  `reminderDate` datetime(6) NOT NULL,
+  `reminderType` varchar(20) NOT NULL COMMENT 'EMAIL, SMS, PHONE',
+  `recipient` varchar(100) DEFAULT NULL,
+  `message` text,
   `sentBy` int DEFAULT NULL,
+  `createdAt` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`reminderId`),
-  KEY `FKnexosvqlx5baie771nj228jff` (`invoiceId`),
-  KEY `FK6tbo7olurv14twat5sr2bo3iq` (`sentBy`),
-  CONSTRAINT `FK6tbo7olurv14twat5sr2bo3iq` FOREIGN KEY (`sentBy`) REFERENCES `users` (`userId`),
-  CONSTRAINT `FKnexosvqlx5baie771nj228jff` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `invoiceId` (`invoiceId`),
+  KEY `sentBy` (`sentBy`),
+  CONSTRAINT `debt_reminder_history_ibfk_1` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`) ON DELETE CASCADE,
+  CONSTRAINT `debt_reminder_history_ibfk_2` FOREIGN KEY (`sentBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -301,62 +259,7 @@ CREATE TABLE `debt_reminder_history` (
 
 LOCK TABLES `debt_reminder_history` WRITE;
 /*!40000 ALTER TABLE `debt_reminder_history` DISABLE KEYS */;
-INSERT INTO `debt_reminder_history` VALUES (1,'2025-11-22 11:19:22.056105','Please pay your invoice as soon as possible',NULL,'2025-11-22 11:19:22.053551','EMAIL',16,NULL),(2,'2025-11-22 11:21:02.552599','Please pay your invoice as soon as possible',NULL,'2025-11-22 11:21:02.552600','EMAIL',19,NULL),(3,'2025-11-22 11:21:33.768766','Please pay your invoice as soon as possible',NULL,'2025-11-22 11:21:33.763500','EMAIL',22,NULL);
 /*!40000 ALTER TABLE `debt_reminder_history` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `deposits`
---
-
-DROP TABLE IF EXISTS `deposits`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `deposits` (
-  `depositId` int NOT NULL AUTO_INCREMENT,
-  `invoiceId` int DEFAULT NULL COMMENT 'Hóa đơn liên quan',
-  `bookingId` int NOT NULL COMMENT 'Đơn hàng',
-  `customerId` int NOT NULL COMMENT 'Khách hàng',
-  `amount` decimal(18,2) NOT NULL COMMENT 'Số tiền cọc',
-  `depositPercent` decimal(5,2) DEFAULT '0.00' COMMENT 'Phần trăm cọc',
-  `paymentMethod` enum('CASH','BANK_TRANSFER','QR','CARD') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'CASH',
-  `bankName` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bankAccount` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `referenceCode` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã tham chiếu CK',
-  `receiptNumber` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Số phiếu thu',
-  `receiptUrl` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'URL chứng từ',
-  `status` enum('PENDING','CONFIRMED','USED','REFUNDED','CANCELLED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
-  `depositedAt` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Ngày nhận cọc',
-  `usedAt` datetime DEFAULT NULL COMMENT 'Ngày sử dụng cọc',
-  `cancelledAt` datetime DEFAULT NULL,
-  `cancelReason` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `note` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdBy` int DEFAULT NULL,
-  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`depositId`),
-  UNIQUE KEY `UK_deposit_receipt` (`receiptNumber`),
-  KEY `FK_dep_invoice` (`invoiceId`),
-  KEY `FK_dep_booking` (`bookingId`),
-  KEY `FK_dep_customer` (`customerId`),
-  KEY `FK_dep_createdBy` (`createdBy`),
-  KEY `IX_deposits_status` (`status`),
-  KEY `IX_deposits_depositedAt` (`depositedAt`),
-  CONSTRAINT `FK_dep_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`) ON DELETE CASCADE,
-  CONSTRAINT `FK_dep_createdBy` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL,
-  CONSTRAINT `FK_dep_customer` FOREIGN KEY (`customerId`) REFERENCES `customers` (`customerId`),
-  CONSTRAINT `FK_dep_invoice` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Quản lý tiền cọc - Module 6';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `deposits`
---
-
-LOCK TABLES `deposits` WRITE;
-/*!40000 ALTER TABLE `deposits` DISABLE KEYS */;
-INSERT INTO `deposits` VALUES (1,2,1,2,1140000.00,30.00,'BANK_TRANSFER',NULL,NULL,NULL,NULL,NULL,'USED','2025-10-20 08:00:00',NULL,NULL,NULL,NULL,7,'2025-11-22 20:26:01','2025-11-22 20:26:01'),(2,3,2,4,600000.00,50.00,'CASH',NULL,NULL,NULL,NULL,NULL,'USED','2025-10-21 09:30:00',NULL,NULL,NULL,NULL,7,'2025-11-22 20:26:01','2025-11-22 20:26:01'),(3,4,3,1,7500000.00,30.00,'BANK_TRANSFER',NULL,NULL,NULL,NULL,NULL,'USED','2025-10-22 14:00:00',NULL,NULL,NULL,NULL,7,'2025-11-22 20:26:01','2025-11-22 20:26:01');
-/*!40000 ALTER TABLE `deposits` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -951,34 +854,6 @@ INSERT INTO `system_settings` VALUES (1,'VAT_RATE','0.08','2025-01-01',NULL,'dec
 UNLOCK TABLES;
 
 --
--- Table structure for table `token`
---
-
-DROP TABLE IF EXISTS `token`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `token` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `access_token` text COLLATE utf8mb4_unicode_ci,
-  `refresh_token` text COLLATE utf8mb4_unicode_ci,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`),
-  KEY `IX_Token_Username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `token`
---
-
-LOCK TABLES `token` WRITE;
-/*!40000 ALTER TABLE `token` DISABLE KEYS */;
-INSERT INTO `token` VALUES (1,'admin','eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInVzZXJJZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInN1YiI6ImFkbWluIiwiaWF0IjoxNzYyOTIxNDIyLCJleHAiOjE3NjMxMzc0MjJ9.B6lgYql6AAW8nE_Yn7tjYBnfSAhPHC1aErXFljdknZI','eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInVzZXJJZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInN1YiI6ImFkbWluIiwiaWF0IjoxNzYyOTIxNDIyLCJleHAiOjE3NjMzNTM0MjJ9.xOJWEaSPAFCE2zQft41ycQLksI2dnurwElI1nR0BLBU');
-/*!40000 ALTER TABLE `token` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `trip_assignment_history`
 --
 
@@ -1382,7 +1257,7 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=CURRENT_USER SQL SECURITY DEFINER */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v_drivermonthlyperformance` AS select `d`.`driverId` AS `driverId`,year(`t`.`startTime`) AS `year`,month(`t`.`startTime`) AS `month`,count(distinct `td`.`tripId`) AS `tripsCount`,sum((case when ((`td`.`startTime` is not null) and (`td`.`endTime` is not null)) then timestampdiff(MINUTE,`td`.`startTime`,`td`.`endTime`) else 0 end)) AS `minutesOnTrip` from ((`trip_drivers` `td` join `drivers` `d` on((`d`.`driverId` = `td`.`driverId`))) join `trips` `t` on((`t`.`tripId` = `td`.`tripId`))) group by `d`.`driverId`,year(`t`.`startTime`),month(`t`.`startTime`) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
@@ -1400,7 +1275,7 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=CURRENT_USER SQL SECURITY DEFINER */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v_popularroutes` AS select `trc`.`startLocation` AS `startLocation`,`trc`.`endLocation` AS `endLocation`,count(0) AS `cacheEntryCount`,avg(`trc`.`distance`) AS `avgDistance`,avg(`trc`.`duration`) AS `avgDuration`,sum(`trc`.`hitCount`) AS `totalCacheHits`,max(`trc`.`lastUsedAt`) AS `lastUsed`,max(`trc`.`createdAt`) AS `lastCached` from `trip_route_cache` `trc` where (`trc`.`createdAt` >= (now() - interval 30 day)) group by `trc`.`startLocation`,`trc`.`endLocation` having (sum(`trc`.`hitCount`) > 0) order by `totalCacheHits` desc,`lastUsed` desc limit 100 */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
@@ -1418,7 +1293,7 @@ UNLOCK TABLES;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=CURRENT_USER SQL SECURITY DEFINER */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v_tripdistanceanalytics` AS select `t`.`tripId` AS `tripId`,`t`.`bookingId` AS `bookingId`,`b`.`branchId` AS `branchId`,`br`.`branchName` AS `branchName`,`t`.`startLocation` AS `startLocation`,`t`.`endLocation` AS `endLocation`,`t`.`distance` AS `distance`,`t`.`estimatedDuration` AS `estimatedDuration`,`t`.`actualDuration` AS `actualDuration`,(case when ((`t`.`actualDuration` is not null) and (`t`.`estimatedDuration` is not null)) then round((((`t`.`actualDuration` - `t`.`estimatedDuration`) / `t`.`estimatedDuration`) * 100),2) else NULL end) AS `durationVariancePercent`,`t`.`trafficStatus` AS `trafficStatus`,`t`.`status` AS `tripStatus`,`t`.`startTime` AS `startTime`,`t`.`endTime` AS `endTime`,timestampdiff(MINUTE,`t`.`startTime`,`t`.`endTime`) AS `actualTripDuration` from ((`trips` `t` join `bookings` `b` on((`t`.`bookingId` = `b`.`bookingId`))) join `branches` `br` on((`b`.`branchId` = `br`.`branchId`))) where (`t`.`distance` is not null) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
@@ -1433,4 +1308,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 13:00:59
+-- Dump completed on 2025-12-02 13:27:05
