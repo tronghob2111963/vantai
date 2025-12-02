@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
     CalendarDays,
     Search,
@@ -864,6 +865,7 @@ function AssignDialog({
 
 // ===== MAIN PAGE =====
 export default function CoordinatorTimelinePro() {
+    const navigate = useNavigate();
     // Removed date state - load all future trips
     const [queueQuery, setQueueQuery] = React.useState("");
     const role = React.useMemo(() => getCurrentRole(), []);
@@ -1128,15 +1130,11 @@ export default function CoordinatorTimelinePro() {
     const unassignedTrips = branchId ? pending : [];
 
     const openAssign = (order) => {
-        setAssignOrder(order);
-        setAssignSuggest({
-            drivers: [],
-            vehicles: [],
-        });
-        setAssignOptionsError("");
-        setAssignOptionsLoading(false);
-        setAssignErrorMsg("");
-        setAssigning(false);
+        // Navigate to order detail page instead of opening assignment dialog
+        const orderId = order.bookingId || order.id;
+        if (orderId) {
+            navigate(`/orders/${orderId}`);
+        }
     };
 
     const handleConfirmAssign = async ({
