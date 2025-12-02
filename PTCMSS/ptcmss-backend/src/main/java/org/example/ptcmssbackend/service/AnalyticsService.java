@@ -731,6 +731,47 @@ public class AnalyticsService {
         }
 
         /**
+         * Get top vehicle categories by usage (số lần được đặt)
+         */
+        public List<Map<String, Object>> getTopVehicleCategories(String period, Integer limit) {
+                Map<String, LocalDateTime> dates = getPeriodDates(period);
+                LocalDateTime startDate = dates.get("start");
+                LocalDateTime endDate = dates.get("end");
+                
+                String sql = """
+                        SELECT 
+                            vcp.categoryId,
+                            vcp.categoryName,
+                            vcp.seats,
+                            COUNT(DISTINCT bvd.bookingId) as bookingCount,
+                            SUM(bvd.quantity) as totalVehiclesBooked,
+                            COALESCE(SUM(t.distance), 0) as totalKm,
+                            COUNT(DISTINCT t.tripId) as tripCount
+                        FROM vehicle_category_pricing vcp
+                        INNER JOIN booking_vehicle_details bvd ON vcp.categoryId = bvd.vehicleCategoryId
+                        INNER JOIN bookings b ON bvd.bookingId = b.bookingId 
+                            AND b.bookingDate BETWEEN ? AND ?
+                            AND b.status NOT IN ('CANCELLED', 'DRAFT')
+                        LEFT JOIN trips t ON b.bookingId = t.bookingId
+                        WHERE vcp.status = 'ACTIVE'
+                        GROUP BY vcp.categoryId, vcp.categoryName, vcp.seats
+                        HAVING bookingCount > 0
+                        ORDER BY bookingCount DESC, totalVehiclesBooked DESC
+                        LIMIT ?
+                        """;
+                
+                return jdbcTemplate.query(sql, (rs, rowNum) -> Map.of(
+                        "categoryId", rs.getInt("categoryId"),
+                        "categoryName", rs.getString("categoryName"),
+                        "seats", rs.getInt("seats"),
+                        "bookingCount", rs.getLong("bookingCount"),
+                        "totalVehiclesBooked", rs.getLong("totalVehiclesBooked"),
+                        "totalKm", rs.getBigDecimal("totalKm"),
+                        "tripCount", rs.getLong("tripCount")
+                ), startDate, endDate, limit != null ? limit : 5);
+        }
+
+        /**
          * Helper: Get date range for period
          */
         private Map<String, LocalDateTime> getPeriodDates(String period) {
