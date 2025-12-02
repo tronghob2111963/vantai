@@ -416,9 +416,10 @@ export default function AssignDriverDialog({
                                                                 )}
                                                         </div>
 
-                                                        {/* score */}
+                                                        {/* score - chỉ hiển thị nếu có lịch sử với khách hàng */}
                                                         {typeof s?.score ===
-                                                            "number" && (
+                                                            "number" && 
+                                                            s?.driver?.hasHistoryWithCustomer && (
                                                                 <div className="ml-auto flex items-center gap-1 text-[11px] text-amber-600 font-medium">
                                                                     <BadgeCheck className="h-4 w-4 text-amber-600" />
                                                                     <span>
@@ -500,7 +501,7 @@ export default function AssignDriverDialog({
                                                     d.id
                                                 }
                                             >
-                                                {d.name}{" "}
+                                                {d.hasHistoryWithCustomer ? "✓ " : ""}{d.name}{" "}
                                                 {d.tripsToday != null
                                                     ? `(${d.tripsToday} chuyến hôm nay)`
                                                     : ""}

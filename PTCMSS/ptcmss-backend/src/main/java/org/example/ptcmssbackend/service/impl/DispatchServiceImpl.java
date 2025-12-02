@@ -258,7 +258,24 @@ public class DispatchServiceImpl implements DispatchService {
         
         List<org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.DriverCandidate> candidates = new ArrayList<>();
         
+        // Lấy customerId từ booking
+        Integer customerId = trip.getBooking() != null && trip.getBooking().getCustomer() != null 
+            ? trip.getBooking().getCustomer().getId() 
+            : null;
+        
         for (Drivers d : drivers) {
+            // Kiểm tra lịch sử chuyến đi với khách hàng này
+            boolean hasHistoryWithCustomer = false;
+            if (customerId != null) {
+                // Tìm các chuyến đã hoàn thành của tài xế này với khách hàng
+                List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(d.getId());
+                hasHistoryWithCustomer = driverTrips.stream().anyMatch(td -> {
+                    Trips t = td.getTrip();
+                    if (t.getStatus() != TripStatus.COMPLETED) return false;
+                    if (t.getBooking() == null || t.getBooking().getCustomer() == null) return false;
+                    return t.getBooking().getCustomer().getId().equals(customerId);
+                });
+            }
             List<String> reasons = new ArrayList<>();
             boolean eligible = true;
             int score = 0;
@@ -347,6 +364,11 @@ public class DispatchServiceImpl implements DispatchService {
             score = (int) (tripsToday * 40 + tripsThisWeek * 30 + recentAssignments * 30);
             
             if (eligible) {
+                // Thêm thông tin lịch sử với khách hàng
+                if (hasHistoryWithCustomer) {
+                    reasons.add("✓ Đã từng phục vụ khách hàng này");
+                }
+                
                 reasons.add(String.format("Số chuyến hôm nay: %d", tripsToday));
                 reasons.add(String.format("Số chuyến tuần này: %d", tripsThisWeek));
                 reasons.add(String.format("Số chuyến 3 ngày gần: %d", recentAssignments));
@@ -355,7 +377,9 @@ public class DispatchServiceImpl implements DispatchService {
                 } else {
                     reasons.add(String.format("Điểm công bằng: %d (thấp = ưu tiên)", score));
                 }
-                if (d.getRating() != null && d.getRating().compareTo(BigDecimal.ZERO) > 0) {
+                
+                // Chỉ hiển thị rating nếu có lịch sử với khách hàng
+                if (hasHistoryWithCustomer && d.getRating() != null && d.getRating().compareTo(BigDecimal.ZERO) > 0) {
                     reasons.add(String.format("Đánh giá: %.1f⭐", d.getRating().doubleValue()));
                 }
             }
@@ -375,6 +399,7 @@ public class DispatchServiceImpl implements DispatchService {
                     .score(score)
                     .eligible(eligible)
                     .reasons(reasons)
+                    .hasHistoryWithCustomer(hasHistoryWithCustomer)
                     .build());
         }
         
@@ -487,6 +512,7 @@ public class DispatchServiceImpl implements DispatchService {
                                 .id(driver.getId())
                                 .name(driver.getName())
                                 .phone(driver.getPhone())
+                                .hasHistoryWithCustomer(driver.getHasHistoryWithCustomer())
                                 .build())
                         .vehicle(org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.VehicleBrief.builder()
                                 .id(vehicle.getId())
