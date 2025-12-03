@@ -757,7 +757,207 @@ public class DispatchServiceImpl implements DispatchService {
         // AUTO ASSIGN nếu autoAssign = true
         // ===========================
         if (Boolean.TRUE.equals(request.getAutoAssign())) {
-            log.info("[Dispatch] Auto-assign for booking {}", booking.getId());
+            log.info("[Dispatch] Auto-assign for booking {}, {} trips to assign", booking.getId(), targetTripIds.size());
+            
+            // Nếu có nhiều trips (nhiều xe), gán mỗi trip 1 tài xế và 1 xe riêng
+            // Lưu ý: Có thể gán cùng 1 xe cho nhiều trips nếu không trùng thời gian VÀ cùng loại xe
+            if (targetTripIds.size() > 1) {
+                log.info("[Dispatch] Multiple trips detected, assigning driver and vehicle for each trip");
+                List<Trips> tripsToAssign = trips.stream()
+                        .filter(t -> targetTripIds.contains(t.getId()))
+                        .sorted(Comparator.comparing(Trips::getStartTime)) // Sắp xếp theo thời gian bắt đầu
+                        .collect(Collectors.toList());
+                
+                // Lấy danh sách vehicle categories từ booking để map với từng trip
+                List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+                List<Integer> requiredCategoryIds = bookingVehicles.stream()
+                        .flatMap(bv -> {
+                            // Mỗi BookingVehicleDetails có quantity, cần expand thành list
+                            int qty = bv.getQuantity() != null ? bv.getQuantity() : 1;
+                            Integer catId = bv.getVehicleCategory() != null ? bv.getVehicleCategory().getId() : null;
+                            return java.util.stream.IntStream.range(0, qty)
+                                    .mapToObj(i -> catId)
+                                    .filter(id -> id != null);
+                        })
+                        .collect(Collectors.toList());
+                
+                log.info("[Dispatch] Booking has {} vehicle categories: {}", requiredCategoryIds.size(), requiredCategoryIds);
+                
+                // Map để track xe đã được gán cho các trips trước đó (trong cùng booking)
+                Map<Integer, List<Trips>> vehicleToTrips = new HashMap<>();
+                
+                for (int tripIdx = 0; tripIdx < tripsToAssign.size(); tripIdx++) {
+                    Trips trip = tripsToAssign.get(tripIdx);
+                    Integer tripDriverId = null;
+                    Integer tripVehicleId = null;
+                    
+                    // Chọn tài xế cho trip này
+                    if (driverId == null) {
+                        // Tính quãng đường của trip này
+                        double tripDistance = trip.getDistance() != null ? trip.getDistance().doubleValue() : 0.0;
+                        int maxDistanceForSingleDriver = getSystemSettingInt("SINGLE_DRIVER_MAX_DISTANCE_KM", 300);
+                        
+                        if (tripDistance > maxDistanceForSingleDriver) {
+                            // Chuyến dài: cần 2 tài xế
+                            log.info("[Dispatch] Long trip {} detected ({} km > {} km), assigning 2 drivers", trip.getId(), tripDistance, maxDistanceForSingleDriver);
+                            List<Integer> driverIds = pickDriversForLongTrip(booking, trip, 2);
+                            if (driverIds.size() >= 2) {
+                                tripDriverId = driverIds.get(0);
+                                // Tài xế thứ 2 sẽ được gán sau
+                                // Lưu tạm vào request để xử lý sau
+                            } else if (driverIds.size() == 1) {
+                                tripDriverId = driverIds.get(0);
+                            } else {
+                                tripDriverId = pickBestDriverForTrip(booking, trip);
+                            }
+                        } else {
+                            // Chuyến ngắn: chỉ cần 1 tài xế
+                            tripDriverId = pickBestDriverForTrip(booking, trip);
+                        }
+                    } else {
+                        // Nếu đã có driverId từ request, dùng nó
+                        tripDriverId = driverId;
+                    }
+                    
+                    // Chọn xe cho trip này
+                    // Ưu tiên: tìm xe đã được gán cho trips trước đó (trong cùng booking) nếu không trùng thời gian
+                    if (vehicleId == null) {
+                        // Tìm xe đã được gán cho trips trước đó và không trùng thời gian
+                        Integer reusedVehicleId = null;
+                        for (Map.Entry<Integer, List<Trips>> entry : vehicleToTrips.entrySet()) {
+                            Integer candidateVehicleId = entry.getKey();
+                            List<Trips> existingTrips = entry.getValue();
+                            
+                            // Kiểm tra xem xe này có trùng thời gian với trip hiện tại không
+                            boolean hasConflict = existingTrips.stream().anyMatch(existingTrip -> {
+                                if (existingTrip.getStartTime() == null || existingTrip.getEndTime() == null 
+                                    || trip.getStartTime() == null || trip.getEndTime() == null) {
+                                    return true; // Nếu thiếu thông tin thời gian, coi như conflict
+                                }
+                                // Kiểm tra overlap: s1 < e2 && s2 < e1
+                                return existingTrip.getStartTime().isBefore(trip.getEndTime()) 
+                                    && trip.getStartTime().isBefore(existingTrip.getEndTime());
+                            });
+                            
+                            if (!hasConflict) {
+                                // Xe này không conflict, có thể tái sử dụng
+                                reusedVehicleId = candidateVehicleId;
+                                break;
+                            }
+                        }
+                        
+                        if (reusedVehicleId != null) {
+                            // Kiểm tra xem xe tái sử dụng có đúng loại không
+                            Vehicles reusedVehicle = vehicleRepository.findById(reusedVehicleId).orElse(null);
+                            Integer requiredCategoryId = tripIdx < requiredCategoryIds.size() 
+                                    ? requiredCategoryIds.get(tripIdx) 
+                                    : null;
+                            
+                            if (reusedVehicle != null && requiredCategoryId != null 
+                                    && reusedVehicle.getCategory() != null 
+                                    && reusedVehicle.getCategory().getId().equals(requiredCategoryId)) {
+                                // Xe tái sử dụng đúng loại
+                                tripVehicleId = reusedVehicleId;
+                                log.info("[Dispatch] Reusing vehicle {} (category {}) for trip {} (no time conflict)", 
+                                    tripVehicleId, requiredCategoryId, trip.getId());
+                            } else {
+                                // Xe tái sử dụng không đúng loại, chọn xe mới
+                                tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId);
+                            }
+                        } else {
+                            // Không tìm thấy xe có thể tái sử dụng, chọn xe mới theo đúng loại
+                            Integer requiredCategoryId = tripIdx < requiredCategoryIds.size() 
+                                    ? requiredCategoryIds.get(tripIdx) 
+                                    : null;
+                            tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId);
+                        }
+                    } else {
+                        // Nếu đã có vehicleId từ request, dùng nó
+                        tripVehicleId = vehicleId;
+                    }
+                    
+                    // Gán tài xế và xe cho trip này
+                    if (tripDriverId != null && tripVehicleId != null) {
+                        org.example.ptcmssbackend.dto.request.Booking.AssignRequest tripAssignReq =
+                                new org.example.ptcmssbackend.dto.request.Booking.AssignRequest();
+                        tripAssignReq.setTripIds(List.of(trip.getId()));
+                        tripAssignReq.setDriverId(tripDriverId);
+                        tripAssignReq.setVehicleId(tripVehicleId);
+                        tripAssignReq.setNote(request.getNote());
+                        
+                        bookingService.assign(booking.getId(), tripAssignReq);
+                        log.info("[Dispatch] Auto-assigned driver {} and vehicle {} to trip {}", tripDriverId, tripVehicleId, trip.getId());
+                        
+                        // Track xe đã được gán
+                        vehicleToTrips.computeIfAbsent(tripVehicleId, k -> new ArrayList<>()).add(trip);
+                    } else {
+                        log.warn("[Dispatch] Cannot auto-assign trip {}: driver={}, vehicle={}", trip.getId(), tripDriverId, tripVehicleId);
+                    }
+                }
+                
+                // Build response
+                List<Trips> updatedTrips = tripRepository.findByBooking_Id(booking.getId());
+                List<AssignRespone.AssignedTripInfo> tripInfos = new ArrayList<>();
+                for (Trips t : updatedTrips) {
+                    if (!targetTripIds.contains(t.getId())) continue;
+                    
+                    List<TripDrivers> tds = tripDriverRepository.findByTripId(t.getId());
+                    List<TripVehicles> tvs = tripVehicleRepository.findByTripId(t.getId());
+                    
+                    Integer dId = null;
+                    String dName = null;
+                    if (!tds.isEmpty()) {
+                        Drivers d = tds.get(0).getDriver();
+                        dId = d.getId();
+                        if (d.getEmployee() != null && d.getEmployee().getUser() != null) {
+                            dName = d.getEmployee().getUser().getFullName();
+                        }
+                    }
+                    
+                    Integer vId = null;
+                    String plate = null;
+                    if (!tvs.isEmpty()) {
+                        Vehicles v = tvs.get(0).getVehicle();
+                        vId = v.getId();
+                        plate = v.getLicensePlate();
+                    }
+                    
+                    tripInfos.add(AssignRespone.AssignedTripInfo.builder()
+                            .tripId(t.getId())
+                            .tripStatus(t.getStatus() != null ? t.getStatus().name() : null)
+                            .driverId(dId)
+                            .driverName(dName)
+                            .vehicleId(vId)
+                            .vehicleLicensePlate(plate)
+                            .build());
+                }
+                
+                AssignRespone response = AssignRespone.builder()
+                        .bookingId(booking.getId())
+                        .bookingStatus(booking.getStatus() != null ? booking.getStatus().name() : null)
+                        .trips(tripInfos)
+                        .build();
+                
+                // Send WebSocket notifications for trip assignment
+                try {
+                    for (AssignRespone.AssignedTripInfo tripInfo : tripInfos) {
+                        if (tripInfo.getDriverId() != null) {
+                            // Get driver user ID
+                            Drivers driver = driverRepository.findById(tripInfo.getDriverId()).orElse(null);
+                            if (driver != null && driver.getEmployee() != null && driver.getEmployee().getUser() != null) {
+                                Integer driverUserId = driver.getEmployee().getUser().getId();
+                                // Send notification via WebSocket (if service available)
+                                log.info("[Dispatch] Sending notification to driver user {} for trip {}", driverUserId, tripInfo.getTripId());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("[Dispatch] Failed to send notifications", e);
+                }
+                
+                return response;
+            } else {
+                // Chỉ có 1 trip: logic như cũ
             Trips representativeTrip = trips.stream()
                     .filter(t -> targetTripIds.contains(t.getId()))
                     .findFirst()
@@ -792,8 +992,15 @@ public class DispatchServiceImpl implements DispatchService {
                     driverId = pickBestDriverForTrip(booking, representativeTrip);
                 }
             }
-            if (vehicleId == null) {
-                vehicleId = pickBestVehicleForTrip(booking, representativeTrip);
+                if (vehicleId == null) {
+                    // Lấy categoryId từ booking (trip đầu tiên)
+                    List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+                    Integer requiredCategoryId = null;
+                    if (!bookingVehicles.isEmpty() && bookingVehicles.get(0).getVehicleCategory() != null) {
+                        requiredCategoryId = bookingVehicles.get(0).getVehicleCategory().getId();
+                    }
+                    vehicleId = pickBestVehicleForTrip(booking, representativeTrip, requiredCategoryId);
+                }
             }
         }
 
@@ -1614,14 +1821,27 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     private Integer pickBestVehicleForTrip(Bookings booking, Trips trip) {
+        return pickBestVehicleForTrip(booking, trip, null);
+    }
+    
+    private Integer pickBestVehicleForTrip(Bookings booking, Trips trip, Integer requiredCategoryId) {
         Integer branchId = booking.getBranch().getId();
-        log.info("[Dispatch] Picking best vehicle for branch {}, trip {}", branchId, trip.getId());
+        log.info("[Dispatch] Picking best vehicle for branch {}, trip {}, categoryId {}", branchId, trip.getId(), requiredCategoryId);
 
-        // Đơn giản: tất cả vehicle AVAILABLE cùng chi nhánh
-        List<Vehicles> candidates = vehicleRepository
-                .findByBranch_IdAndStatus(branchId, VehicleStatus.AVAILABLE);
+        // Lấy danh sách xe: nếu có requiredCategoryId thì filter theo category, nếu không thì lấy tất cả AVAILABLE
+        List<Vehicles> candidates;
+        if (requiredCategoryId != null) {
+            // Chỉ lấy xe thuộc category yêu cầu
+            candidates = vehicleRepository.filterVehicles(requiredCategoryId, branchId, VehicleStatus.AVAILABLE);
+            log.info("[Dispatch] Found {} vehicles in category {} for branch {}", candidates.size(), requiredCategoryId, branchId);
+        } else {
+            // Lấy tất cả xe AVAILABLE cùng chi nhánh
+            candidates = vehicleRepository.findByBranch_IdAndStatus(branchId, VehicleStatus.AVAILABLE);
+            log.info("[Dispatch] Found {} AVAILABLE vehicles in branch {} (no category filter)", candidates.size(), branchId);
+        }
+        
         if (candidates.isEmpty()) {
-            log.warn("[Dispatch] No AVAILABLE vehicle found in branch {}", branchId);
+            log.warn("[Dispatch] No AVAILABLE vehicle found in branch {} for category {}", branchId, requiredCategoryId);
             return null;
         }
 

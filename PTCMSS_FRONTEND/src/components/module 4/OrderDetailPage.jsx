@@ -882,6 +882,9 @@ function DispatchInfoCard({ dispatch, dispatchList = [], onAssignClick, showAssi
                     {displayList.map((item, idx) => (
                         <div key={item.tripId || idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                             <div className="text-[11px] font-medium text-slate-500 mb-2">
+                                {item.vehicle_category || `Xe ${idx + 1}`}
+                            </div>
+                            <div className="text-[10px] text-slate-400 mb-2">
                                 Xe {idx + 1} {item.tripId ? `(Chuyến #${item.tripId})` : ''}
                             </div>
                             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1058,12 +1061,21 @@ export default function OrderDetailPage() {
         const finalPrice = Number(b.totalCost || 0);
         
         // Map tất cả trips với thông tin tài xế/xe
-        const dispatchList = trips.map(trip => ({
+        // Lấy danh sách vehicle categories từ booking để map với từng trip
+        const vehicleCategories = Array.isArray(b.vehicles) 
+            ? b.vehicles.flatMap(v => {
+                const qty = v.quantity || 1;
+                return Array(qty).fill(v.categoryName || '');
+            })
+            : [];
+        
+        const dispatchList = trips.map((trip, idx) => ({
             tripId: trip.id || trip.tripId || null,
             driver_name: trip.driverName || '',
             driver_phone: trip.driverPhone || '',
             vehicle_plate: trip.vehicleLicensePlate || '',
             vehicle_id: trip.vehicleId || null,
+            vehicle_category: idx < vehicleCategories.length ? vehicleCategories[idx] : '',
         }));
         
         return {
