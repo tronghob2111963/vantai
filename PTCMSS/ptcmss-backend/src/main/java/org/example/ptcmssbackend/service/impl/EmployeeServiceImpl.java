@@ -121,29 +121,73 @@ public class EmployeeServiceImpl implements EmployeeService {
         // Tìm employee hiện tại với eager loading
         Employees employee = employeeRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với ID: " + id));
-        
+
         // Tìm Branch và Role mới
         Branches branch = branchesRepository.findById(request.getBranchId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh với ID: " + request.getBranchId()));
         System.out.println("Found branch: " + branch.getId() + " - " + branch.getBranchName());
-        
+
         Roles role = rolesRepository.findById(request.getRoleId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò với ID: " + request.getRoleId()));
         System.out.println("Found role: " + role.getId() + " - " + role.getRoleName());
-        
+
         // Cập nhật thông tin
         employee.setBranch(branch);
         employee.setRole(role);
-        
+
         // Cập nhật status nếu có
         if (request.getStatus() != null && !request.getStatus().isEmpty()) {
             employee.setStatus(EmployeeStatus.valueOf(request.getStatus().toUpperCase()));
         }
-        
+
+        // Cập nhật thông tin user liên quan
+        Users user = employee.getUser();
+        if (user == null) {
+            throw new RuntimeException("Nhân viên không gắn với tài khoản người dùng hợp lệ");
+        }
+
+        if (request.getFullName() != null && !request.getFullName().trim().isEmpty()) {
+            user.setFullName(request.getFullName().trim());
+        }
+
+        if (request.getEmail() != null) {
+            String email = request.getEmail().trim();
+            if (!email.isEmpty() && !email.equalsIgnoreCase(user.getEmail() != null ? user.getEmail() : "")) {
+                usersRepository.findByEmail(email)
+                        .filter(existing -> !existing.getId().equals(user.getId()))
+                        .ifPresent(existing -> {
+                            throw new RuntimeException("Email đã tồn tại: " + email);
+                        });
+                user.setEmail(email);
+            } else if (email.isEmpty()) {
+                user.setEmail(null);
+            }
+        }
+
+        if (request.getPhone() != null) {
+            String phone = request.getPhone().trim();
+            if (!phone.isEmpty() && !phone.equals(user.getPhone() != null ? user.getPhone() : "")) {
+                usersRepository.findByPhone(phone)
+                        .filter(existing -> !existing.getId().equals(user.getId()))
+                        .ifPresent(existing -> {
+                            throw new RuntimeException("Số điện thoại đã tồn tại: " + phone);
+                        });
+                user.setPhone(phone);
+            } else if (phone.isEmpty()) {
+                user.setPhone(null);
+            }
+        }
+
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress().trim());
+        }
+
+        usersRepository.save(user);
+
         System.out.println("Updating employee...");
         Employees updated = employeeRepository.save(employee);
         System.out.println("Employee updated successfully");
-        
+
         return updated;
     }
 

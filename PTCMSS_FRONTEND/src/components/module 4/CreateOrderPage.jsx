@@ -2190,7 +2190,17 @@ export default function CreateOrderPage() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    {availabilityInfo.alternativeCategories.map((alt) => (
+                                {availabilityInfo.alternativeCategories
+                                    // Ẩn các loại xe đã được chọn trong form (tránh gợi ý trùng)
+                                    .filter(
+                                        (alt) =>
+                                            !vehicleSelections.some(
+                                                (v) =>
+                                                    String(v.categoryId) ===
+                                                    String(alt.categoryId)
+                                            )
+                                    )
+                                    .map((alt) => (
                                         <button
                                             key={alt.categoryId}
                                             type="button"
@@ -2258,8 +2268,17 @@ export default function CreateOrderPage() {
                                                 key={idx}
                                                 type="button"
                                                 onClick={() => {
-                                                    const newStart = fromDate.toISOString().slice(0, 16);
-                                                    setStartTime(newStart);
+                                                    // Chuyển sang local time phù hợp với input
+                                                    const local = new Date(fromDate.getTime() - fromDate.getTimezoneOffset() * 60000);
+                                                    if (hireType === "DAILY" || hireType === "MULTI_DAY") {
+                                                        // Input dạng date: yyyy-MM-dd
+                                                        const newDate = local.toISOString().slice(0, 10);
+                                                        setStartTime(newDate);
+                                                    } else {
+                                                        // datetime-local: yyyy-MM-ddTHH:mm
+                                                        const newStart = local.toISOString().slice(0, 16);
+                                                        setStartTime(newStart);
+                                                    }
                                                     setShowSuggestionDialog(false);
                                                     push(`Đã đổi giờ đón sang ${formattedTime}`, "success");
                                                 }}

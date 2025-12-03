@@ -46,9 +46,9 @@ export function createEmployee(req) {
   return apiFetch("/api/employees", { method: "POST", body: req });
 }
 
-// PUT /api/employees/{id} - Cập nhật nhân viên
+// PUT /api/employees/{id} - Cập nhật nhân viên + thông tin user liên quan
 export function updateEmployee(id, req) {
-  // req: { branchId, roleId, status }
+  // req: { branchId, roleId, status, fullName?, email?, phone?, address? }
   return apiFetch(`/api/employees/${id}`, { method: "PUT", body: req });
 }
 
