@@ -554,15 +554,46 @@ export default function DriverDashboard() {
       }
       setTrip(mapped);
 
-      // Load upcoming trips
+      // Load schedule and calculate statistics
       try {
         const schedule = await getDriverSchedule(driverId);
-        const upcoming = Array.isArray(schedule)
-          ? schedule
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        if (Array.isArray(schedule)) {
+          // Calculate tripsToday - count all trips today (including COMPLETED, ONGOING, etc.)
+          const tripsToday = schedule.filter((t) => {
+            const tripDate = new Date(t.startTime || t.start_time);
+            return (
+              tripDate.getDate() === today.getDate() &&
+              tripDate.getMonth() === today.getMonth() &&
+              tripDate.getFullYear() === today.getFullYear()
+            );
+          }).length;
+
+          // Calculate tripsThisMonth - count all trips in current month
+          const tripsThisMonth = schedule.filter((t) => {
+            const tripDate = new Date(t.startTime || t.start_time);
+            return (
+              tripDate.getMonth() === currentMonth &&
+              tripDate.getFullYear() === currentYear
+            );
+          }).length;
+
+          // Update stats
+          setStats((prev) => ({
+            ...prev,
+            tripsToday,
+            tripsThisMonth,
+          }));
+
+          // Filter upcoming trips for display
+          const upcoming = schedule
               .filter((t) => {
                 // Filter for today's trips only
                 const tripDate = new Date(t.startTime || t.start_time);
-                const today = new Date();
                 const isToday = (
                   tripDate.getDate() === today.getDate() &&
                   tripDate.getMonth() === today.getMonth() &&
@@ -580,10 +611,13 @@ export default function DriverDashboard() {
                 pickupTime: t.startTime || t.start_time,
                 customerName: t.customerName || t.customer_name,
                 status: t.status || "SCHEDULED",
-              }))
-          : [];
-        setUpcomingTrips(upcoming);
+              }));
+          setUpcomingTrips(upcoming);
+        } else {
+          setUpcomingTrips([]);
+        }
       } catch (err) {
+        console.error("Error loading schedule:", err);
         setUpcomingTrips([]);
       }
 

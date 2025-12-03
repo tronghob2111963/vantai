@@ -1007,6 +1007,42 @@ public class NotificationServiceImpl implements NotificationService {
             tripDriverRepository.findConflictingTrips(driverId, startInstant, endInstant);
         
         if (!conflictTrips.isEmpty()) {
+            // QUAN TRỌNG: Kiểm tra xem có chuyến nào đang ONGOING không
+            List<org.example.ptcmssbackend.entity.TripDrivers> ongoingTrips = conflictTrips.stream()
+                .filter(td -> td.getTrip() != null && td.getTrip().getStatus() == TripStatus.ONGOING)
+                .collect(java.util.stream.Collectors.toList());
+            
+            if (!ongoingTrips.isEmpty()) {
+                // KHÔNG CHO PHÉP DUYỆT NẾU CÓ CHUYẾN ĐANG ONGOING
+                StringBuilder errorMessage = new StringBuilder();
+                errorMessage.append(String.format(
+                    "Không thể duyệt nghỉ phép cho tài xế %s vì đang có %d chuyến đi đang diễn ra:\n",
+                    dayOff.getDriver().getEmployee() != null && dayOff.getDriver().getEmployee().getUser() != null
+                        ? dayOff.getDriver().getEmployee().getUser().getFullName()
+                        : "ID: " + driverId,
+                    ongoingTrips.size()
+                ));
+                
+                for (org.example.ptcmssbackend.entity.TripDrivers td : ongoingTrips) {
+                    if (td.getTrip() != null) {
+                        errorMessage.append(String.format(
+                            "- Chuyến #%d: %s → %s\n",
+                            td.getTrip().getId(),
+                            td.getTrip().getStartLocation(),
+                            td.getTrip().getEndLocation()
+                        ));
+                    }
+                }
+                
+                errorMessage.append("\nVui lòng hoàn thành các chuyến đi đang diễn ra hoặc phân công tài xế thay thế trước khi duyệt nghỉ phép.");
+                
+                log.error("[DayOff] Cannot approve day-off for driver {}: {} ongoing trips", 
+                    driverId, ongoingTrips.size());
+                
+                throw new IllegalStateException(errorMessage.toString());
+            }
+            
+            // Nếu không có chuyến ONGOING, tiếp tục xử lý như bình thường
             log.warn("[DayOff] Found {} conflicting trips for driver {}. Removing driver from these trips...", 
                 conflictTrips.size(), driverId);
             
@@ -1021,21 +1057,25 @@ public class NotificationServiceImpl implements NotificationService {
             
             alertMessage.append(String.format("✅ Đã tự động xóa tài xế khỏi %d chuyến:\n", conflictTrips.size()));
             
-            // XÓA TÀI XẾ KHỎI CÁC CHUYẾN BỊ CONFLICT
+            // XÓA TÀI XẾ KHỎI CÁC CHUYẾN BỊ CONFLICT (chỉ các chuyến SCHEDULED/ASSIGNED)
             for (org.example.ptcmssbackend.entity.TripDrivers td : conflictTrips) {
                 if (td.getTrip() != null) {
-                    alertMessage.append(String.format(
-                        "- Chuyến #%d: %s → %s (Ngày: %s)\n",
-                        td.getTrip().getId(),
-                        td.getTrip().getStartLocation(),
-                        td.getTrip().getEndLocation(),
-                        td.getTrip().getStartTime() != null 
-                            ? td.getTrip().getStartTime().toString().substring(0, 10)
-                            : "N/A"
-                    ));
-                    
-                    // Xóa driver khỏi trip
-                    tripDriverRepository.delete(td);
+                    TripStatus status = td.getTrip().getStatus();
+                    // Chỉ xóa khỏi các chuyến chưa bắt đầu
+                    if (status == TripStatus.SCHEDULED || status == TripStatus.ASSIGNED) {
+                        alertMessage.append(String.format(
+                            "- Chuyến #%d: %s → %s (Ngày: %s)\n",
+                            td.getTrip().getId(),
+                            td.getTrip().getStartLocation(),
+                            td.getTrip().getEndLocation(),
+                            td.getTrip().getStartTime() != null 
+                                ? td.getTrip().getStartTime().toString().substring(0, 10)
+                                : "N/A"
+                        ));
+                        
+                        // Xóa driver khỏi trip
+                        tripDriverRepository.delete(td);
+                    }
                 }
             }
             
