@@ -15,6 +15,10 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 
+import org.example.ptcmssbackend.entity.ExpenseRequests;
+import org.example.ptcmssbackend.enums.ExpenseRequestStatus;
+import org.example.ptcmssbackend.repository.ExpenseRequestRepository;
+
 /**
  * Analytics Service for Module 7
  * Handles all dashboard and reporting logic
@@ -25,6 +29,7 @@ import java.util.Map;
 public class AnalyticsService {
 
         private final JdbcTemplate jdbcTemplate;
+        private final ExpenseRequestRepository expenseRequestRepository;
 
         /**
          * Get Admin Dashboard data
@@ -45,7 +50,21 @@ public class AnalyticsService {
 
                 Map<String, Object> financial = jdbcTemplate.queryForMap(financialSql, startDate, endDate);
                 BigDecimal totalRevenue = (BigDecimal) financial.get("totalRevenue");
-                BigDecimal totalExpense = (BigDecimal) financial.get("totalExpense");
+                BigDecimal invoiceExpense = (BigDecimal) financial.get("totalExpense");
+
+                // Bổ sung chi phí từ ExpenseRequests đã được duyệt (APPROVED) trong kỳ
+                Instant startInstant = startDate.atZone(ZoneId.systemDefault()).toInstant();
+                Instant endInstant = endDate.atZone(ZoneId.systemDefault()).toInstant();
+                BigDecimal requestExpense = expenseRequestRepository.findByStatus(ExpenseRequestStatus.APPROVED)
+                                .stream()
+                                .filter(req -> req.getCreatedAt() != null
+                                                && !req.getCreatedAt().isBefore(startInstant)
+                                                && !req.getCreatedAt().isAfter(endInstant))
+                                .map(ExpenseRequests::getAmount)
+                                .filter(amount -> amount != null)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal totalExpense = invoiceExpense.add(requestExpense);
                 BigDecimal netProfit = totalRevenue.subtract(totalExpense);
 
                 // Query trip stats
@@ -294,7 +313,22 @@ public class AnalyticsService {
 
                 Map<String, Object> financial = jdbcTemplate.queryForMap(financialSql, branchId, startDate, endDate);
                 BigDecimal totalRevenue = (BigDecimal) financial.get("totalRevenue");
-                BigDecimal totalExpense = (BigDecimal) financial.get("totalExpense");
+                BigDecimal invoiceExpense = (BigDecimal) financial.get("totalExpense");
+
+                // Bổ sung chi phí từ ExpenseRequests đã được duyệt (APPROVED) theo chi nhánh trong kỳ
+                Instant startInstant = startDate.atZone(ZoneId.systemDefault()).toInstant();
+                Instant endInstant = endDate.atZone(ZoneId.systemDefault()).toInstant();
+                BigDecimal requestExpense = expenseRequestRepository
+                                .findByStatusAndBranch_Id(ExpenseRequestStatus.APPROVED, branchId)
+                                .stream()
+                                .filter(req -> req.getCreatedAt() != null
+                                                && !req.getCreatedAt().isBefore(startInstant)
+                                                && !req.getCreatedAt().isAfter(endInstant))
+                                .map(ExpenseRequests::getAmount)
+                                .filter(amount -> amount != null)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal totalExpense = invoiceExpense.add(requestExpense);
                 BigDecimal netProfit = totalRevenue.subtract(totalExpense);
 
                 // Query trip stats for branch

@@ -1482,10 +1482,17 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
     React.useEffect(() => {
         (async () => {
             try {
-                // Skip loading categories/branches lists for read-only roles to avoid 403 errors
+                // Một số role read-only (ví dụ Consultant) không có quyền gọi API list branches/categories → dễ bị 403.
+                // Tuy nhiên, Kế toán vẫn cần dữ liệu loại xe để filter, nên chỉ skip metadata cho Consultant.
+                const shouldLoadMeta = !isConsultant;
+
                 const [brData, catData, vehData] = await Promise.all([
-                    isReadOnly ? Promise.resolve({ content: [] }) : listBranches({ size: 1000 }).catch(() => ({ content: [] })),
-                    isReadOnly ? Promise.resolve([]) : listVehicleCategories().catch(() => []),
+                    shouldLoadMeta
+                        ? listBranches({ size: 1000 }).catch(() => ({ content: [] }))
+                        : Promise.resolve({ content: [] }),
+                    shouldLoadMeta
+                        ? listVehicleCategories().catch(() => [])
+                        : Promise.resolve([]),
                     listVehicles().catch(() => []),
                 ]);
                 const brs = Array.isArray(brData) ? brData : (brData?.items || brData?.content || []);

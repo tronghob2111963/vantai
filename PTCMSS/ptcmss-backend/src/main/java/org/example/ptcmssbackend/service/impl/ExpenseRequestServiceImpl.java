@@ -8,7 +8,10 @@ import org.example.ptcmssbackend.entity.Branches;
 import org.example.ptcmssbackend.entity.ExpenseRequests;
 import org.example.ptcmssbackend.entity.Users;
 import org.example.ptcmssbackend.entity.Vehicles;
+import org.example.ptcmssbackend.entity.ApprovalHistory;
 import org.example.ptcmssbackend.enums.ExpenseRequestStatus;
+import org.example.ptcmssbackend.enums.ApprovalStatus;
+import org.example.ptcmssbackend.enums.ApprovalType;
 import org.example.ptcmssbackend.entity.Employees;
 import org.example.ptcmssbackend.entity.Notifications;
 import org.example.ptcmssbackend.repository.BranchesRepository;
@@ -17,6 +20,7 @@ import org.example.ptcmssbackend.repository.ExpenseRequestRepository;
 import org.example.ptcmssbackend.repository.NotificationRepository;
 import org.example.ptcmssbackend.repository.UsersRepository;
 import org.example.ptcmssbackend.repository.VehicleRepository;
+import org.example.ptcmssbackend.repository.ApprovalHistoryRepository;
 import org.example.ptcmssbackend.service.ExpenseRequestService;
 import org.example.ptcmssbackend.service.WebSocketNotificationService;
 import org.springframework.stereotype.Service;
@@ -24,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -41,6 +46,7 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
     private final EmployeeRepository employeeRepository;
     private final NotificationRepository notificationRepository;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final ApprovalHistoryRepository approvalHistoryRepository;
     @Override
     @Transactional
     public ExpenseRequestResponse createExpenseRequest(CreateExpenseRequest request) {
@@ -137,6 +143,24 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
         
         ExpenseRequests saved = expenseRequestRepository.save(entity);
         
+        // Đồng bộ ApprovalHistory (nếu có) để dashboard phê duyệt không còn hiển thị "chờ duyệt"
+        try {
+            approvalHistoryRepository.findByApprovalTypeAndRelatedEntityIdAndStatus(
+                            ApprovalType.EXPENSE_REQUEST,
+                            saved.getId(),
+                            ApprovalStatus.PENDING
+                    )
+                    .ifPresent(history -> {
+                        history.setStatus(ApprovalStatus.APPROVED);
+                        history.setApprovalNote(note);
+                        history.setProcessedAt(Instant.now());
+                        approvalHistoryRepository.save(history);
+                    });
+        } catch (Exception syncErr) {
+            log.error("[ExpenseRequest] Failed to sync ApprovalHistory when approving expense request {}: {}", 
+                    saved.getId(), syncErr.getMessage(), syncErr);
+        }
+        
         // Gửi notification cho requester (Driver/Coordinator) khi được duyệt
         sendNotificationToRequester(saved, "APPROVED", "Yêu cầu chi phí của bạn đã được duyệt");
         
@@ -156,6 +180,24 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
         }
         
         ExpenseRequests saved = expenseRequestRepository.save(entity);
+        
+        // Đồng bộ ApprovalHistory khi từ chối
+        try {
+            approvalHistoryRepository.findByApprovalTypeAndRelatedEntityIdAndStatus(
+                            ApprovalType.EXPENSE_REQUEST,
+                            saved.getId(),
+                            ApprovalStatus.PENDING
+                    )
+                    .ifPresent(history -> {
+                        history.setStatus(ApprovalStatus.REJECTED);
+                        history.setApprovalNote(note);
+                        history.setProcessedAt(Instant.now());
+                        approvalHistoryRepository.save(history);
+                    });
+        } catch (Exception syncErr) {
+            log.error("[ExpenseRequest] Failed to sync ApprovalHistory when rejecting expense request {}: {}", 
+                    saved.getId(), syncErr.getMessage(), syncErr);
+        }
         
         // Gửi notification cho requester (Driver/Coordinator) khi bị từ chối
         sendNotificationToRequester(saved, "REJECTED", "Yêu cầu chi phí của bạn đã bị từ chối");
