@@ -5,6 +5,7 @@ import { listDriversByBranch, getDriverSchedule } from "../../api/drivers";
 import { getBranchByUserId } from "../../api/branches";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
+import UserAvatar from "../common/UserAvatar";
 
 export default function CoordinatorDriverListPage({ readOnly = false }) {
     const navigate = useNavigate();
@@ -370,9 +371,11 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                             <tr key={driver.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#0079BC] to-sky-600 flex items-center justify-center text-white font-semibold text-sm">
-                                                            {driver.fullName?.charAt(0) || "?"}
-                                                        </div>
+                                                        <UserAvatar
+                                                            name={driver.fullName}
+                                                            avatar={driver.avatar}
+                                                            size={40}
+                                                        />
                                                         <div>
                                                             <div className="font-medium text-slate-900">{driver.fullName}</div>
                                                             <div className="text-xs text-slate-500">ID: {driver.id}</div>

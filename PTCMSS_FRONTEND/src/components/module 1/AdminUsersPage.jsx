@@ -5,6 +5,7 @@ import { listEmployeesByRole, listEmployees, listEmployeesByBranch } from "../..
 import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, UserPlus } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
+import UserAvatar from "../common/UserAvatar";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
 
@@ -185,6 +186,8 @@ export default function AdminUsersPage() {
         branchId: emp.branchId,
         branchName: emp.branchName,
         status: emp.status,
+        // Avatar path lấy từ backend (userAvatar) nếu có
+        avatar: emp.userAvatar || emp.avatar || emp.avatarUrl,
       }));
       setAllUsers(mapped);
     } finally {
@@ -461,7 +464,10 @@ export default function AdminUsersPage() {
                 ) : currentUsers.map(u => (
                   <tr key={u.id} className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-colors group">
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-900">{u.fullName}</div>
+                      <div className="flex items-center gap-3">
+                        <UserAvatar name={u.fullName} avatar={u.avatar} size={32} />
+                        <div className="font-semibold text-slate-900">{u.fullName}</div>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-slate-700">
