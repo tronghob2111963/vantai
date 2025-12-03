@@ -162,7 +162,21 @@ export default function NotificationsDashboard() {
     }, [selectedBranchId, isAdmin, userId]);
 
     const handleRefresh = () => {
-        setSelectedBranchId(selectedBranchId); // Trigger reload
+        // Reload dashboard (pending approvals)
+        setLoading(true);
+        (async () => {
+            try {
+                const params = selectedBranchId ? `?branchId=${selectedBranchId}` : "";
+                const data = await apiFetch(`/api/notifications/dashboard${params}`);
+                setDashboard(data);
+            } catch (err) {
+                console.error("Failed to reload dashboard:", err);
+                setError("Không thể tải dashboard");
+            } finally {
+                setLoading(false);
+            }
+        })();
+        
         // Reload processed approvals too
         setLoadingProcessed(true);
         (async () => {

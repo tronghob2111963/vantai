@@ -1479,9 +1479,26 @@ public class BookingServiceImpl implements BookingService {
             }
             
             for (Integer tid : targetTripIds) {
+                // QUAN TRỌNG: Chỉ xóa TripDrivers của driver đang được assign, không xóa tất cả
+                // Điều này cho phép nhiều drivers cùng được gán cho 1 trip (nếu cần)
                 List<TripDrivers> olds = tripDriverRepository.findByTripId(tid);
-                if (!olds.isEmpty()) tripDriverRepository.deleteAll(olds);
+                List<TripDrivers> toDelete = olds.stream()
+                        .filter(td -> td.getDriver() != null && td.getDriver().getId().equals(driver.getId()))
+                        .collect(java.util.stream.Collectors.toList());
+                
+                if (!toDelete.isEmpty()) {
+                    tripDriverRepository.deleteAll(toDelete);
+                    tripDriverRepository.flush(); // Đảm bảo xóa trước khi tạo mới
+                }
 
+                // Kiểm tra xem đã có TripDrivers cho driver này chưa (tránh duplicate)
+                boolean alreadyExists = olds.stream()
+                        .anyMatch(td -> td.getDriver() != null && 
+                                      td.getDriver().getId().equals(driver.getId()) &&
+                                      td.getTrip() != null && 
+                                      td.getTrip().getId().equals(tid));
+
+                if (!alreadyExists) {
                 TripDrivers td = new TripDrivers();
                 TripDriverId id = new TripDriverId();
                 id.setTripId(tid);
@@ -1493,8 +1510,21 @@ public class BookingServiceImpl implements BookingService {
                 td.setDriverRole("Main Driver");
                 td.setNote(request.getNote());
                 tripDriverRepository.save(td);
+                } else {
+                    // Đã tồn tại, chỉ cập nhật note nếu có
+                    TripDrivers existing = olds.stream()
+                            .filter(td -> td.getDriver() != null && 
+                                        td.getDriver().getId().equals(driver.getId()))
+                            .findFirst()
+                            .orElse(null);
+                    if (existing != null && request.getNote() != null) {
+                        existing.setNote(request.getNote());
+                        tripDriverRepository.save(existing);
+                    }
+                }
                 
                 // Update trip status to ASSIGNED
+                Trips trip = trips.stream().filter(t -> t.getId().equals(tid)).findFirst().orElseThrow();
                 if (trip.getStatus() == TripStatus.SCHEDULED) {
                     trip.setStatus(TripStatus.ASSIGNED);
                     tripRepository.save(trip);

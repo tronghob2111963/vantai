@@ -319,7 +319,7 @@ INSERT IGNORE INTO invoice_items (itemId, invoiceId, description, quantity, unit
 (10,10,'Tour miền Tây (cọc)',1.00,5000000.00,8.00,400000.00,NULL,NOW(),NOW()),
 (11,11,'Tour miền Tây (thu nốt)',1.00,10000000.00,8.00,800000.00,NULL,NOW(),NOW()),
 (12,12,'Đón sân bay',1.00,600000.00,8.00,48000.00,NULL,NOW(),NOW());
-
+    
 -- Payment History
 INSERT IGNORE INTO payment_history (paymentId, amount, bankAccount, bankName, cashierName, createdAt, note, paymentDate, paymentMethod, receiptNumber, referenceNumber, createdBy, invoiceId, confirmationStatus) VALUES
 (1,600000.00,'070122047995','Sacombank','Kế toán HN',NOW(),'Cọc Booking 1',DATE_SUB(NOW(),INTERVAL 10 DAY),'BANK_TRANSFER','REC-2025-0001',NULL,5,1,'CONFIRMED'),

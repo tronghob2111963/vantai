@@ -423,10 +423,10 @@ function TripCard({
       {/* actions */}
       {isCurrent ? (
         <div className="flex flex-col gap-3 pt-5 border-t border-slate-200">
-          {!isTripToday && (
+          {!isTripToday && phase !== "ON_ROUTE" && phase !== "PICKED" && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 px-3 py-2 text-xs flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
-              <span>Chỉ có thể cập nhật trạng thái chuyến trong ngày diễn ra</span>
+              <span>Chỉ có thể bắt đầu chuyến trong ngày diễn ra. Chuyến đang diễn ra có thể hoàn thành bất cứ lúc nào.</span>
             </div>
           )}
           <div className="flex flex-wrap gap-3">
@@ -449,7 +449,7 @@ function TripCard({
               loading={false}
             />
             <ActionButton
-              active={phase === "PICKED" && isTripToday}
+              active={phase === "PICKED" || phase === "ON_ROUTE"}
               color="finish"
               icon={<Flag className="h-4 w-4 shrink-0 text-amber-700" />}
               label="Hoàn thành chuyến"

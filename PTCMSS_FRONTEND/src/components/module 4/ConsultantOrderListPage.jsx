@@ -1747,7 +1747,7 @@ export default function ConsultantOrdersPage() {
     const isAccountant = currentRole === ROLES.ACCOUNTANT;
 
     const [employeeInfo, setEmployeeInfo] = React.useState(null);
-    const [employeeFetchDone, setEmployeeFetchDone] = React.useState(!isConsultant);
+    const [employeeFetchDone, setEmployeeFetchDone] = React.useState(!isConsultant && !isAccountant);
 
     // filters
     const [statusFilter, setStatusFilter] = React.useState("");
@@ -1784,6 +1784,30 @@ export default function ConsultantOrdersPage() {
                 const data = resp?.data || resp;
                 if (!cancelled) {
                     setEmployeeInfo(data || null);
+                    
+                    // Nếu không có branchId trong employee, thử lấy từ profile hoặc branch API
+                    if (!data?.branchId && (isConsultant || isAccountant)) {
+                        try {
+                            const { getMyProfile } = await import("../../api/profile");
+                            const { getBranchByUserId } = await import("../../api/branches");
+                            const profile = await getMyProfile();
+                            let branchId = profile?.branchId || profile?.branch?.id || profile?.branch?.branchId;
+                            
+                            if (!branchId) {
+                                const branch = await getBranchByUserId(currentUserId);
+                                branchId = branch?.id || branch?.branchId;
+                            }
+                            
+                            if (branchId && !cancelled) {
+                                setEmployeeInfo(prev => ({
+                                    ...prev,
+                                    branchId: Number(branchId)
+                                }));
+                            }
+                        } catch (err2) {
+                            console.warn("Could not get branch from profile/API:", err2);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Failed to load employee info", err);
@@ -1923,9 +1947,15 @@ export default function ConsultantOrdersPage() {
     }, []);
 
     const fetchBookings = React.useCallback(async () => {
+        // Chờ employeeInfo được load xong trước khi kiểm tra
+        if ((isConsultant || isAccountant) && !employeeFetchDone) {
+            // Chưa load xong, đợi thêm
+            return null;
+        }
+        
         if ((isConsultant || isAccountant) && scopedBranchId == null) {
             if (employeeFetchDone && !employeeInfo?.branchId) {
-                throw new Error("Không xác định được chi nhánh của bạn");
+                throw new Error("Không xác định được chi nhánh của bạn. Vui lòng liên hệ quản trị viên để được gán vào chi nhánh.");
             }
             return null;
         }
