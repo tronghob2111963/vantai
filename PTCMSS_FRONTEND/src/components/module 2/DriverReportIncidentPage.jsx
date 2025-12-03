@@ -373,6 +373,21 @@ export default function DriverReportIncidentPage() {
                         <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md">
                           ID: {currentTrip.tripId}
                         </span>
+                        {currentTrip.status === "ONGOING" && (
+                          <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md font-medium">
+                            Đang diễn ra
+                          </span>
+                        )}
+                        {currentTrip.status === "ASSIGNED" && (
+                          <span className="text-xs px-2 py-0.5 bg-sky-100 text-sky-700 rounded-md font-medium">
+                            Đã phân xe
+                          </span>
+                        )}
+                        {currentTrip.status === "SCHEDULED" && (
+                          <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-medium">
+                            Đã lên lịch
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-blue-800 space-y-1">
                         <div className="flex items-center gap-2">
@@ -417,17 +432,42 @@ export default function DriverReportIncidentPage() {
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   >
                     <option value="">-- Chọn chuyến đi --</option>
-                    {availableTrips.map((trip) => (
-                      <option key={trip.tripId} value={trip.tripId}>
-                        ID {trip.tripId}: {trip.pickupAddress} → {trip.dropoffAddress} ({fmtHM(trip.pickupTime)})
-                      </option>
-                    ))}
+                    {availableTrips.map((trip) => {
+                      const statusLabel = {
+                        ONGOING: "🟢 Đang diễn ra",
+                        ASSIGNED: "🔵 Đã phân xe",
+                        SCHEDULED: "⚪ Đã lên lịch"
+                      }[trip.status] || trip.status;
+                      return (
+                        <option key={trip.tripId} value={trip.tripId}>
+                          {statusLabel} | ID {trip.tripId}: {trip.pickupAddress} → {trip.dropoffAddress} ({fmtHM(trip.pickupTime)})
+                        </option>
+                      );
+                    })}
                   </select>
                   {selectedTrip && (
                     <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
-                      <div className="font-medium text-slate-700 mb-1">Thông tin chuyến:</div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="font-medium text-slate-700">Thông tin chuyến:</div>
+                        {selectedTrip.status === "ONGOING" && (
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md font-medium text-[10px]">
+                            Đang diễn ra
+                          </span>
+                        )}
+                        {selectedTrip.status === "ASSIGNED" && (
+                          <span className="px-2 py-0.5 bg-sky-100 text-sky-700 rounded-md font-medium text-[10px]">
+                            Đã phân xe
+                          </span>
+                        )}
+                        {selectedTrip.status === "SCHEDULED" && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-medium text-[10px]">
+                            Đã lên lịch
+                          </span>
+                        )}
+                      </div>
                       <div>{selectedTrip.pickupAddress} → {selectedTrip.dropoffAddress}</div>
                       {selectedTrip.customerName && <div>Khách: {selectedTrip.customerName}</div>}
+                      <div className="text-slate-500 mt-1">Thời gian: {fmtHM(selectedTrip.pickupTime)}</div>
                     </div>
                   )}
                   <button
