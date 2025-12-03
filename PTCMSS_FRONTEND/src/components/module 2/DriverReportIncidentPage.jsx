@@ -1,9 +1,9 @@
 ﻿import React from "react";
 import {
   AlertTriangle, MapPin, Clock, FileText, Send, CheckCircle2,
-  XCircle, Loader2, Info, AlertCircle, Shield
+  XCircle, Loader2, Info, AlertCircle, Shield, Navigation, User, Phone
 } from "lucide-react";
-import { getDriverProfileByUser, reportIncident } from "../../api/drivers";
+import { getDriverProfileByUser, reportIncident, getDriverDashboard, getDriverSchedule } from "../../api/drivers";
 
 // Các mức độ nghiêm trọng với mô tả chi tiết
 const SEVERITIES = [
@@ -45,12 +45,32 @@ export default function DriverReportIncidentPage() {
   const [driver, setDriver] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [tripId, setTripId] = React.useState("");
+  const [tripIdInput, setTripIdInput] = React.useState(""); // For manual input
+  const [tripSelectionMode, setTripSelectionMode] = React.useState("auto"); // "auto", "dropdown", "manual"
+  const [currentTrip, setCurrentTrip] = React.useState(null);
+  const [availableTrips, setAvailableTrips] = React.useState([]);
+  const [selectedTrip, setSelectedTrip] = React.useState(null);
   const [incidentType, setIncidentType] = React.useState("");
   const [severity, setSeverity] = React.useState("MAJOR");
   const [location, setLocation] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [toast, setToast] = React.useState(null);
+
+  // Format time helper
+  const fmtHM = (iso) => {
+    if (!iso) return "--:--";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    } catch {
+      return "--:--";
+    }
+  };
 
   React.useEffect(() => {
     async function load() {
@@ -63,6 +83,118 @@ export default function DriverReportIncidentPage() {
         }
         const p = await getDriverProfileByUser(uid);
         setDriver(p);
+
+        // Load current trip from dashboard
+        if (p?.driverId) {
+          try {
+            const dash = await getDriverDashboard(p.driverId);
+            if (dash && dash.tripId) {
+              const tripDate = new Date(dash.startTime);
+              const today = new Date();
+              const isToday =
+                tripDate.getDate() === today.getDate() &&
+                tripDate.getMonth() === today.getMonth() &&
+                tripDate.getFullYear() === today.getFullYear();
+
+              if (isToday) {
+                const trip = {
+                  tripId: dash.tripId,
+                  pickupAddress: dash.startLocation,
+                  dropoffAddress: dash.endLocation ?? dash.EndLocation,
+                  pickupTime: dash.startTime,
+                  customerName: dash.customerName,
+                  customerPhone: dash.customerPhone,
+                  status: dash.status || "SCHEDULED",
+                };
+                setCurrentTrip(trip);
+                setTripId(String(dash.tripId));
+                setSelectedTrip(trip);
+                setTripSelectionMode("auto");
+              } else {
+                setTripSelectionMode("dropdown");
+              }
+            } else {
+              setTripSelectionMode("dropdown");
+            }
+
+            // Load available trips for incident reporting
+            // Business Logic: Chỉ cho phép báo cáo sự cố cho các chuyến:
+            // - ONGOING: Đang diễn ra (ưu tiên cao nhất)
+            // - ASSIGNED: Đã phân xe, sắp bắt đầu
+            // - SCHEDULED: Đã lên lịch
+            // KHÔNG cho phép: COMPLETED, CANCELLED
+            // Phạm vi thời gian: Hôm nay + các chuyến đang diễn ra từ hôm qua (nếu còn ONGOING)
+            try {
+              const schedule = await getDriverSchedule(p.driverId);
+              const now = new Date();
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              const yesterday = new Date(today);
+              yesterday.setDate(yesterday.getDate() - 1);
+              
+              const reportableTrips = Array.isArray(schedule)
+                ? schedule
+                    .filter((t) => {
+                      const tripDate = new Date(t.startTime || t.start_time);
+                      const tripStatus = t.status || "SCHEDULED";
+                      
+                      // Chỉ cho phép các status có thể báo cáo sự cố
+                      const validStatus = ["SCHEDULED", "ASSIGNED", "ONGOING"].includes(tripStatus);
+                      if (!validStatus) return false;
+                      
+                      // Cho phép:
+                      // 1. Chuyến hôm nay (bất kỳ status nào trong danh sách)
+                      const isToday =
+                        tripDate.getDate() === today.getDate() &&
+                        tripDate.getMonth() === today.getMonth() &&
+                        tripDate.getFullYear() === today.getFullYear();
+                      
+                      // 2. Chuyến ONGOING từ hôm qua (có thể vẫn đang diễn ra)
+                      const isYesterdayOngoing =
+                        tripStatus === "ONGOING" &&
+                        tripDate.getDate() === yesterday.getDate() &&
+                        tripDate.getMonth() === yesterday.getMonth() &&
+                        tripDate.getFullYear() === yesterday.getFullYear();
+                      
+                      // 3. Chuyến sắp tới trong 2 giờ tới (có thể cần báo cáo sớm)
+                      const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+                      const isUpcoming = tripDate <= twoHoursFromNow && tripDate >= now;
+                      
+                      return isToday || isYesterdayOngoing || isUpcoming;
+                    })
+                    .sort((a, b) => {
+                      // Sắp xếp: ONGOING trước, sau đó theo thời gian
+                      const statusOrder = { ONGOING: 1, ASSIGNED: 2, SCHEDULED: 3 };
+                      const aOrder = statusOrder[a.status] || 99;
+                      const bOrder = statusOrder[b.status] || 99;
+                      if (aOrder !== bOrder) return aOrder - bOrder;
+                      
+                      const aTime = new Date(a.startTime || a.start_time).getTime();
+                      const bTime = new Date(b.startTime || b.start_time).getTime();
+                      return bTime - aTime; // Mới nhất trước
+                    })
+                    .map((t) => ({
+                      tripId: t.tripId || t.trip_id,
+                      pickupAddress: t.startLocation || t.start_location || "—",
+                      dropoffAddress: t.endLocation || t.end_location || "—",
+                      pickupTime: t.startTime || t.start_time,
+                      customerName: t.customerName || t.customer_name,
+                      status: t.status || "SCHEDULED",
+                    }))
+                : [];
+              setAvailableTrips(reportableTrips);
+              
+              // If no current trip was set and have available trips, select first one
+              if (!dash?.tripId && todayTrips.length > 0) {
+                setSelectedTrip(todayTrips[0]);
+                setTripId(String(todayTrips[0].tripId));
+              }
+            } catch (err) {
+              console.error("Error loading schedule:", err);
+            }
+          } catch (err) {
+            console.error("Error loading dashboard:", err);
+          }
+        }
       } catch (err) {
         console.error("Error loading driver profile:", err);
         setToast({ type: "error", message: "Không tải được thông tin tài xế" });
@@ -73,12 +205,31 @@ export default function DriverReportIncidentPage() {
     load();
   }, []);
 
+  // Handle trip selection change
+  const handleTripSelect = (selectedTripId) => {
+    const trip = availableTrips.find(t => String(t.tripId) === String(selectedTripId));
+    if (trip) {
+      setSelectedTrip(trip);
+      setTripId(String(trip.tripId));
+      setTripSelectionMode("dropdown");
+    }
+  };
+
+  // Handle manual input
+  const handleManualInput = (value) => {
+    setTripIdInput(value);
+    setTripId(value);
+    setTripSelectionMode("manual");
+    setSelectedTrip(null);
+  };
+
   async function onSubmit(e) {
     e.preventDefault();
 
     // Validation
-    if (!tripId.trim()) {
-      setToast({ type: "error", message: "Vui lòng nhập mã chuyến đi" });
+    const finalTripId = tripSelectionMode === "manual" ? tripIdInput.trim() : tripId;
+    if (!finalTripId) {
+      setToast({ type: "error", message: "Vui lòng chọn hoặc nhập mã chuyến đi" });
       return;
     }
     if (!incidentType) {
@@ -100,9 +251,19 @@ export default function DriverReportIncidentPage() {
         throw new Error("Không tìm thấy thông tin tài xế");
       }
 
-      const tId = Number(String(tripId).trim());
+      const tId = Number(String(finalTripId).trim());
       if (!tId || isNaN(tId)) {
         throw new Error("Mã chuyến đi không hợp lệ");
+      }
+
+      // Business Logic Validation: Kiểm tra chuyến đi có thể báo cáo sự cố không
+      const selectedTripForValidation = selectedTrip || availableTrips.find(t => String(t.tripId) === String(tId));
+      if (selectedTripForValidation) {
+        const tripStatus = selectedTripForValidation.status;
+        const invalidStatuses = ["COMPLETED", "CANCELLED"];
+        if (invalidStatuses.includes(tripStatus)) {
+          throw new Error(`Không thể báo cáo sự cố cho chuyến đi đã ${tripStatus === "COMPLETED" ? "hoàn thành" : "bị hủy"}. Vui lòng chọn chuyến đi đang diễn ra hoặc sắp diễn ra.`);
+        }
       }
 
       // Tạo mô tả đầy đủ
@@ -117,8 +278,17 @@ export default function DriverReportIncidentPage() {
 
       setToast({ type: "success", message: "Đã gửi báo cáo sự cố thành công. Điều phối viên sẽ xử lý sớm nhất." });
 
-      // Reset form
-      setTripId("");
+      // Reset form (but keep current trip if exists)
+      if (currentTrip) {
+        setTripId(String(currentTrip.tripId));
+        setSelectedTrip(currentTrip);
+        setTripSelectionMode("auto");
+      } else {
+        setTripId("");
+        setSelectedTrip(null);
+        setTripSelectionMode("dropdown");
+      }
+      setTripIdInput("");
       setIncidentType("");
       setSeverity("MAJOR");
       setLocation("");
@@ -183,21 +353,135 @@ export default function DriverReportIncidentPage() {
         {/* Form */}
         <form onSubmit={onSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <div className="space-y-6">
-            {/* Trip ID */}
+            {/* Trip Selection */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                <FileText className="h-4 w-4 text-slate-400" />
-                Mã chuyến đi <span className="text-rose-500">*</span>
+                <Navigation className="h-4 w-4 text-slate-400" />
+                Chọn chuyến đi <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="text"
-                value={tripId}
-                onChange={(e) => setTripId(e.target.value)}
-                placeholder="Nhập mã chuyến đi (Trip ID)"
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                required
-              />
-              <p className="text-xs text-slate-500 mt-1">Ví dụ: 123, 456</p>
+
+              {/* Current Trip Card (if exists) */}
+              {currentTrip && tripSelectionMode === "auto" && (
+                <div className="mb-3 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center">
+                          <CheckCircle2 className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-blue-900">Chuyến đi hiện tại</span>
+                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md">
+                          ID: {currentTrip.tripId}
+                        </span>
+                      </div>
+                      <div className="text-sm text-blue-800 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5" />
+                          <span className="font-medium">{currentTrip.pickupAddress} → {currentTrip.dropoffAddress}</span>
+                        </div>
+                        {currentTrip.customerName && (
+                          <div className="flex items-center gap-2">
+                            <User className="h-3.5 w-3.5" />
+                            <span>{currentTrip.customerName}</span>
+                            {currentTrip.customerPhone && (
+                              <>
+                                <Phone className="h-3.5 w-3.5 ml-2" />
+                                <span>{currentTrip.customerPhone}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{fmtHM(currentTrip.pickupTime)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTripSelectionMode("dropdown")}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Chọn chuyến khác
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Dropdown Selection */}
+              {(tripSelectionMode === "dropdown" || !currentTrip) && availableTrips.length > 0 && (
+                <div className="mb-3">
+                  <select
+                    value={selectedTrip?.tripId || ""}
+                    onChange={(e) => handleTripSelect(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    <option value="">-- Chọn chuyến đi --</option>
+                    {availableTrips.map((trip) => (
+                      <option key={trip.tripId} value={trip.tripId}>
+                        ID {trip.tripId}: {trip.pickupAddress} → {trip.dropoffAddress} ({fmtHM(trip.pickupTime)})
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTrip && (
+                    <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+                      <div className="font-medium text-slate-700 mb-1">Thông tin chuyến:</div>
+                      <div>{selectedTrip.pickupAddress} → {selectedTrip.dropoffAddress}</div>
+                      {selectedTrip.customerName && <div>Khách: {selectedTrip.customerName}</div>}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTripSelectionMode("manual");
+                      setSelectedTrip(null);
+                    }}
+                    className="mt-2 text-xs text-slate-600 hover:text-slate-800 underline"
+                  >
+                    Hoặc nhập mã chuyến đi thủ công
+                  </button>
+                </div>
+              )}
+
+              {/* Manual Input */}
+              {tripSelectionMode === "manual" && (
+                <div>
+                  <input
+                    type="text"
+                    value={tripIdInput}
+                    onChange={(e) => handleManualInput(e.target.value)}
+                    placeholder="Nhập mã chuyến đi (Trip ID)"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Ví dụ: 123, 456</p>
+                  {availableTrips.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTripSelectionMode("dropdown");
+                        setTripIdInput("");
+                      }}
+                      className="mt-2 text-xs text-slate-600 hover:text-slate-800 underline"
+                    >
+                      Hoặc chọn từ danh sách chuyến đi
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* No trips available */}
+              {availableTrips.length === 0 && !currentTrip && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800 mb-2">Không có chuyến đi nào hôm nay.</p>
+                  <input
+                    type="text"
+                    value={tripIdInput}
+                    onChange={(e) => handleManualInput(e.target.value)}
+                    placeholder="Nhập mã chuyến đi (Trip ID)"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Incident Type */}
