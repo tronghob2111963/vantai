@@ -73,32 +73,10 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
-        Invoices invoice = buildInvoiceSkeleton(booking, amount, Boolean.TRUE.equals(deposit), PaymentStatus.UNPAID);
-        invoice.setNote(note);
-        if (employeeId != null) {
-            Employees employee = employeeRepository.findById(employeeId).orElse(null);
-            invoice.setCreatedBy(employee);
-        }
-        Invoices saved = invoiceRepository.save(invoice);
-
         String descriptionPrefix = appSettingService.getValue(AppSettingService.QR_DESCRIPTION_PREFIX);
         String description = StringUtils.hasText(note)
                 ? note
                 : String.format("%s-%d", descriptionPrefix, bookingId);
-
-        // Create Pending Payment History for QR Request
-        PaymentHistory history = new PaymentHistory();
-        history.setInvoice(saved);
-        history.setPaymentDate(Instant.now());
-        history.setAmount(amount);
-        history.setPaymentMethod("QR");
-        history.setConfirmationStatus(PaymentConfirmationStatus.PENDING);
-        history.setNote(description);
-        if (employeeId != null) {
-            Employees employee = employeeRepository.findById(employeeId).orElse(null);
-            history.setCreatedBy(employee);
-        }
-        paymentHistoryRepository.save(history);
 
         String qrText = buildQrText(amount, description);
         String qrImageUrl = buildQrImageUrl(amount, description);
@@ -119,11 +97,16 @@ public class PaymentServiceImpl implements PaymentService {
             log.warn("Failed to send WebSocket notification for QR generation", e);
         }
 
-        return mapInvoice(saved).toBuilder()
+        return PaymentResponse.builder()
+                .bookingId(bookingId)
+                .amount(amount)
+                .deposit(Boolean.TRUE.equals(deposit))
+                .paymentMethod("QR")
+                .paymentStatus(null)
+                .note(description)
                 .qrText(qrText)
                 .qrImageUrl(qrImageUrl)
                 .expiresAt(expiresAt)
-                .note(description)
                 .build();
     }
 

@@ -189,9 +189,9 @@ function VehicleCategoryCreateModal({ open, onClose, onCreated, existingCategori
     if (!open) return null;
 
     const seatsNum = Number(cleanDigits(seats));
-    const baseFeeNum = baseFee ? Number(cleanDigits(baseFee)) : null;
-    const sameDayFixedPriceNum = sameDayFixedPrice ? Number(cleanDigits(sameDayFixedPrice)) : null;
-    const pricePerKmNum = pricePerKm ? Number(cleanDigits(pricePerKm)) : null;
+    const baseFeeNum = baseFee === "" ? null : Number(cleanDigits(baseFee));
+    const sameDayFixedPriceNum = sameDayFixedPrice === "" ? null : Number(cleanDigits(sameDayFixedPrice));
+    const pricePerKmNum = pricePerKm === "" ? null : Number(cleanDigits(pricePerKm));
 
     // Validation
     const nameEmpty = trimmedName.length === 0 || trimmedName === "Xe";
@@ -201,7 +201,12 @@ function VehicleCategoryCreateModal({ open, onClose, onCreated, existingCategori
     );
     const nameError = nameEmpty || nameNotStartWithXe || nameDuplicate;
     const seatsError = isNaN(seatsNum) || seatsNum <= 0;
-    const valid = !nameError && !seatsError;
+    // Pricing required: không được để trống để đảm bảo tính giá đủ các hình thức thuê
+    const baseFeeError = baseFee === "" || baseFeeNum === null || isNaN(baseFeeNum) || baseFeeNum < 0;
+    const pricePerKmError = pricePerKm === "" || pricePerKmNum === null || isNaN(pricePerKmNum) || pricePerKmNum <= 0;
+    const sameDayFixedPriceError = sameDayFixedPrice === "" || sameDayFixedPriceNum === null || isNaN(sameDayFixedPriceNum) || sameDayFixedPriceNum < 0;
+
+    const valid = !nameError && !seatsError && !baseFeeError && !pricePerKmError && !sameDayFixedPriceError;
 
     // Handler cho input name - đảm bảo luôn bắt đầu bằng "Xe "
     const handleNameChange = (e) => {
@@ -368,29 +373,45 @@ function VehicleCategoryCreateModal({ open, onClose, onCreated, existingCategori
                         {/* Phí mở cửa */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Phí mở cửa (VNĐ)
+                                Phí mở cửa (VNĐ) <span className="text-red-500">*</span>
                             </div>
                             <input
                                 value={baseFee}
                                 onChange={(e) => setBaseFee(cleanDigits(e.target.value))}
                                 inputMode="numeric"
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                className={cls(
+                                    "w-full rounded-md border bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition",
+                                    baseFeeError ? "border-red-400 bg-red-50" : "border-slate-300"
+                                )}
                                 placeholder="50000"
                             />
+                            {baseFeeError && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Phí mở cửa không được để trống (có thể nhập 0 nếu không dùng).
+                                </div>
+                            )}
                         </div>
 
                         {/* Giá theo km */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Giá theo km (VNĐ)
+                                Giá theo km (VNĐ) <span className="text-red-500">*</span>
                             </div>
                             <input
                                 value={pricePerKm}
                                 onChange={(e) => setPricePerKm(cleanDigits(e.target.value))}
                                 inputMode="numeric"
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                className={cls(
+                                    "w-full rounded-md border bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition",
+                                    pricePerKmError ? "border-red-400 bg-red-50" : "border-slate-300"
+                                )}
                                 placeholder="15000"
                             />
+                            {pricePerKmError && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Giá theo km bắt buộc nhập và phải {'>'} 0.
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -399,15 +420,23 @@ function VehicleCategoryCreateModal({ open, onClose, onCreated, existingCategori
                         {/* Giá cố định/ngày */}
                         <div>
                             <div className="text-[12px] text-slate-600 mb-1">
-                                Giá cố định/ngày (VNĐ)
+                                Giá cố định/ngày (VNĐ) <span className="text-red-500">*</span>
                             </div>
                             <input
                                 value={sameDayFixedPrice}
                                 onChange={(e) => setSameDayFixedPrice(cleanDigits(e.target.value))}
                                 inputMode="numeric"
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                                className={cls(
+                                    "w-full rounded-md border bg-white px-3 py-2 text-[13px] tabular-nums focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition",
+                                    sameDayFixedPriceError ? "border-red-400 bg-red-50" : "border-slate-300"
+                                )}
                                 placeholder="1500000"
                             />
+                            {sameDayFixedPriceError && (
+                                <div className="text-[11px] text-red-500 mt-1">
+                                    Giá cố định/ngày không được để trống (có thể nhập 0 nếu không áp dụng).
+                                </div>
+                            )}
                         </div>
 
                         {/* Status */}
@@ -483,11 +512,16 @@ function VehicleCategoryEditModal({
 
     const cleanNumber = (s) => s.replace(/[^0-9]/g, "");
 
-    const baseFeeNum = baseFee ? Number(cleanNumber(baseFee)) : null;
-    const sameDayFixedPriceNum = sameDayFixedPrice ? Number(cleanNumber(sameDayFixedPrice)) : null;
-    const pricePerKmNum = pricePerKm ? Number(cleanNumber(pricePerKm)) : null;
+    const baseFeeNum = baseFee === "" ? null : Number(cleanNumber(baseFee));
+    const sameDayFixedPriceNum = sameDayFixedPrice === "" ? null : Number(cleanNumber(sameDayFixedPrice));
+    const pricePerKmNum = pricePerKm === "" ? null : Number(cleanNumber(pricePerKm));
+
+    const baseFeeError = baseFee === "" || baseFeeNum === null || isNaN(baseFeeNum) || baseFeeNum < 0;
+    const pricePerKmError = pricePerKm === "" || pricePerKmNum === null || isNaN(pricePerKmNum) || pricePerKmNum <= 0;
+    const sameDayFixedPriceError = sameDayFixedPrice === "" || sameDayFixedPriceNum === null || isNaN(sameDayFixedPriceNum) || sameDayFixedPriceNum < 0;
 
     async function handleSave() {
+        if (baseFeeError || pricePerKmError || sameDayFixedPriceError) return;
         setLoadingSave(true);
         onSaved({
             id: data.id,
@@ -540,43 +574,67 @@ function VehicleCategoryEditModal({
                     {/* Base Fee */}
                     <div>
                         <div className="text-[12px] text-slate-600 mb-1">
-                            Phí mở cửa (VNĐ)
+                            Phí mở cửa (VNĐ) <span className="text-red-500">*</span>
                         </div>
                         <input
                             value={baseFee}
                             onChange={(e) => setBaseFee(cleanNumber(e.target.value))}
                             inputMode="numeric"
                             placeholder="0"
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-[13px] tabular-nums bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                            className={cls(
+                                "w-full rounded-md border px-3 py-2 text-[13px] tabular-nums bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition",
+                                baseFeeError ? "border-red-400 bg-red-50" : "border-slate-300"
+                            )}
                         />
+                        {baseFeeError && (
+                            <div className="text-[11px] text-red-500 mt-1">
+                                Phí mở cửa không được để trống (có thể nhập 0 nếu không dùng).
+                            </div>
+                        )}
                     </div>
 
                     {/* Same Day Fixed Price */}
                     <div>
                         <div className="text-[12px] text-slate-600 mb-1">
-                            Giá cố định/ngày (VNĐ)
+                            Giá cố định/ngày (VNĐ) <span className="text-red-500">*</span>
                         </div>
                         <input
                             value={sameDayFixedPrice}
                             onChange={(e) => setSameDayFixedPrice(cleanNumber(e.target.value))}
                             inputMode="numeric"
                             placeholder="0"
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-[13px] tabular-nums bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                            className={cls(
+                                "w-full rounded-md border px-3 py-2 text-[13px] tabular-nums bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition",
+                                sameDayFixedPriceError ? "border-red-400 bg-red-50" : "border-slate-300"
+                            )}
                         />
+                        {sameDayFixedPriceError && (
+                            <div className="text-[11px] text-red-500 mt-1">
+                                Giá cố định/ngày không được để trống (có thể nhập 0 nếu không áp dụng).
+                            </div>
+                        )}
                     </div>
 
                     {/* Price per Km */}
                     <div>
                         <div className="text-[12px] text-slate-600 mb-1">
-                            Giá theo km (VNĐ)
+                            Giá theo km (VNĐ) <span className="text-red-500">*</span>
                         </div>
                         <input
                             value={pricePerKm}
                             onChange={(e) => setPricePerKm(cleanNumber(e.target.value))}
                             inputMode="numeric"
                             placeholder="0"
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-[13px] tabular-nums bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
+                            className={cls(
+                                "w-full rounded-md border px-3 py-2 text-[13px] tabular-nums bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition",
+                                pricePerKmError ? "border-red-400 bg-red-50" : "border-slate-300"
+                            )}
                         />
+                        {pricePerKmError && (
+                            <div className="text-[11px] text-red-500 mt-1">
+                                Giá theo km bắt buộc nhập và phải {'>'} 0.
+                            </div>
+                        )}
                     </div>
 
                     {/* Status */}
@@ -606,7 +664,7 @@ function VehicleCategoryEditModal({
 
                     <button
                         onClick={handleSave}
-                        disabled={loadingSave}
+                        disabled={loadingSave || baseFeeError || pricePerKmError || sameDayFixedPriceError}
                         className="rounded-md px-3 py-2 text-[13px] font-medium text-white shadow-sm bg-sky-600 hover:bg-sky-500 disabled:opacity-50"
                     >
                         {loadingSave ? "Đang lưu..." : "Lưu thay đổi"}

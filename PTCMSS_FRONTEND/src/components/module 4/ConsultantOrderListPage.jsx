@@ -166,7 +166,7 @@ const ORDER_STATUS_STYLE = {
 function OrderStatusPill({ status, order }) {
     // Normalize status regardless of format (IN_PROGRESS, Đang thực hiện, ...)
     let normalizedStatus = normalizeStatusValue(status) || 'DRAFT';
-
+    
     // Override: Nếu trạng thái là COMPLETED nhưng chưa thanh toán đủ → hiển thị INPROGRESS
     if (normalizedStatus === 'COMPLETED' && order) {
         const paidAmount = Number(order.paid_amount || 0);
@@ -1812,53 +1812,53 @@ export default function ConsultantOrdersPage() {
     }, [scopedBranchId]);
 
     const mapApiBookings = React.useCallback((response) => {
-        let list = [];
-        if (Array.isArray(response)) {
-            list = response;
-        } else if (Array.isArray(response?.content)) {
-            list = response.content;
-        } else if (Array.isArray(response?.data)) {
-            list = response.data;
-        } else if (Array.isArray(response?.data?.content)) {
-            list = response.data.content;
-        } else if (Array.isArray(response?.items)) {
-            list = response.items;
-        }
+                let list = [];
+                if (Array.isArray(response)) {
+                    list = response;
+                } else if (Array.isArray(response?.content)) {
+                    list = response.content;
+                } else if (Array.isArray(response?.data)) {
+                    list = response.data;
+                } else if (Array.isArray(response?.data?.content)) {
+                    list = response.data.content;
+                } else if (Array.isArray(response?.items)) {
+                    list = response.items;
+                }
 
         return (list || []).map((b) => {
             const bookingBranchId = b.branchId
-                || (b.branch && (b.branch.id || b.branch.branchId))
-                || null;
+                        || (b.branch && (b.branch.id || b.branch.branchId))
+                        || null;
 
-            const customerId = b.customerId
-                || (b.customer && (b.customer.id || b.customer.customerId))
-                || null;
+                    const customerId = b.customerId
+                        || (b.customer && (b.customer.id || b.customer.customerId))
+                        || null;
 
-            return {
-                id: b.id || b.bookingId,
-                code: b.bookingCode || b.code || (b.id ? `ORD-${b.id}` : `ORD-${b.bookingId || "?"}`),
-                status: b.status || "PENDING",
-                customer_name: b.customerName || (b.customer && (b.customer.fullName || b.customer.name)) || "—",
-                customer_phone: b.customerPhone || (b.customer && b.customer.phone) || "—",
-                customer_email: b.customerEmail || (b.customer && b.customer.email) || "",
-                pickup: (b.routeSummary || b.pickupLocation || "").split(" → ")[0] || (b.startLocation || ""),
-                dropoff: (b.routeSummary || b.dropoffLocation || "").split(" → ")[1] || (b.endLocation || ""),
-                pickup_time: b.startDate || b.pickupTime || b.startTime,
-                dropoff_eta: b.endDate || b.dropoffTime || b.endTime || b.startDate,
-                vehicle_category: b.vehicleCategory || "",
-                vehicle_category_id: b.vehicleCategoryId || "",
-                vehicle_count: b.vehicleCount || b.quantity || 1,
-                pax_count: b.passengerCount || b.paxCount || 0,
-                estimated_cost: b.estimatedCost || b.estimated_cost || 0,
-                deposit_amount: b.depositAmount || b.deposit_amount || b.deposit || 0,
-                paid_amount: b.paidAmount || b.paid_amount || 0,
-                quoted_price: b.totalCost || b.totalPrice || b.total || 0,
-                discount_amount: b.discountAmount || b.discount || 0,
-                notes: b.notes || b.note || "",
+                    return {
+                        id: b.id || b.bookingId,
+                        code: b.bookingCode || b.code || (b.id ? `ORD-${b.id}` : `ORD-${b.bookingId || "?"}`),
+                        status: b.status || "PENDING",
+                        customer_name: b.customerName || (b.customer && (b.customer.fullName || b.customer.name)) || "—",
+                        customer_phone: b.customerPhone || (b.customer && b.customer.phone) || "—",
+                        customer_email: b.customerEmail || (b.customer && b.customer.email) || "",
+                        pickup: (b.routeSummary || b.pickupLocation || "").split(" → ")[0] || (b.startLocation || ""),
+                        dropoff: (b.routeSummary || b.dropoffLocation || "").split(" → ")[1] || (b.endLocation || ""),
+                        pickup_time: b.startDate || b.pickupTime || b.startTime,
+                        dropoff_eta: b.endDate || b.dropoffTime || b.endTime || b.startDate,
+                        vehicle_category: b.vehicleCategory || "",
+                        vehicle_category_id: b.vehicleCategoryId || "",
+                        vehicle_count: b.vehicleCount || b.quantity || 1,
+                        pax_count: b.passengerCount || b.paxCount || 0,
+                        estimated_cost: b.estimatedCost || b.estimated_cost || 0,
+                        deposit_amount: b.depositAmount || b.deposit_amount || b.deposit || 0,
+                        paid_amount: b.paidAmount || b.paid_amount || 0,
+                        quoted_price: b.totalCost || b.totalPrice || b.total || 0,
+                        discount_amount: b.discountAmount || b.discount || 0,
+                        notes: b.notes || b.note || "",
                 branchId: bookingBranchId,
-                customerId: customerId,
-            };
-        });
+                        customerId: customerId,
+                    };
+                });
     }, []);
 
     const fetchBookings = React.useCallback(async () => {
@@ -1901,21 +1901,21 @@ export default function ConsultantOrdersPage() {
         const st = location.state;
         if (!(st && st.refresh)) return;
         let cancelled = false;
-        (async () => {
-            try {
+            (async () => {
+                try {
                 const mapped = await fetchBookings();
                 if (!cancelled && mapped) {
                     setOrders(mapped);
                     if (st.toast) push(st.toast, "success");
                 }
-            } catch (err) {
+                } catch (err) {
                 if (!cancelled) {
                     console.error("Failed to refresh orders:", err);
                 }
             } finally {
                 if (!cancelled) {
-                    navigate(location.pathname, { replace: true, state: {} });
-                }
+                navigate(location.pathname, { replace: true, state: {} });
+        }
             }
         })();
         return () => { cancelled = true; };
@@ -2099,8 +2099,8 @@ export default function ConsultantOrdersPage() {
         try {
             const mapped = await fetchBookings();
             if (mapped) {
-                setOrders(mapped);
-                push("Đã làm mới danh sách đơn hàng", "success");
+            setOrders(mapped);
+            push("Đã làm mới danh sách đơn hàng", "success");
             }
         } catch (e) {
             push("Không tải được danh sách đơn hàng", "error");

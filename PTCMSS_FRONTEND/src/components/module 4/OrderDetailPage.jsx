@@ -556,19 +556,17 @@ function QrPaymentModal({
             const initAmount = Math.max(0, Number(defaultAmount || 0));
             setAmountStr(initAmount > 0 ? String(initAmount) : "");
 
-            // Auto-generate note based on booking info
-            const autoNote = deposit
-                ? `Cọc đơn ${bookingCode || 'ORD'} - ${customerName || 'Khách hàng'}`
-                : `Thanh toán ${bookingCode || 'ORD'} - ${customerName || 'Khách hàng'}`;
+            // Mặc định coi QR là khoản đặt cọc khi mở popup
+            setDeposit(true);
+            const autoNote = `Cọc đơn ${bookingCode || "ORD"} - ${customerName || "Khách hàng"}`;
             setNote(autoNote);
 
-            setDeposit(true);
             setResult(null);
             setError("");
             setCopied(false);
             setUseFallbackImage(false);
         }
-    }, [open, defaultAmount, bookingCode, customerName, deposit]);
+    }, [open, defaultAmount, bookingCode, customerName]);
 
     if (!open) return null;
 
@@ -675,6 +673,7 @@ function QrPaymentModal({
                         </div>
                     </div>
 
+                    {/* Cho phép đánh dấu là cọc / thanh toán, dùng để set flag deposit cho backend */}
                     <label className="inline-flex items-center gap-2 text-[12px] text-slate-600">
                         <input
                             type="checkbox"
@@ -682,10 +681,9 @@ function QrPaymentModal({
                             onChange={(e) => {
                                 const isDeposit = e.target.checked;
                                 setDeposit(isDeposit);
-                                // Auto-update note when deposit status changes
                                 const autoNote = isDeposit
-                                    ? `Cọc đơn ${bookingCode || 'ORD'} - ${customerName || 'Khách hàng'}`
-                                    : `Thanh toán ${bookingCode || 'ORD'} - ${customerName || 'Khách hàng'}`;
+                                    ? `Cọc đơn ${bookingCode || "ORD"} - ${customerName || "Khách hàng"}`
+                                    : `Thanh toán ${bookingCode || "ORD"} - ${customerName || "Khách hàng"}`;
                                 setNote(autoNote);
                             }}
                             className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
