@@ -22,5 +22,7 @@ public class BookingListResponse {
     private Instant createdAt;
     private Integer consultantId;
     private String consultantName;
+    private Integer branchId;         // ID chi nhánh của booking
+    private String branchName;        // Tên chi nhánh của booking
 }
 

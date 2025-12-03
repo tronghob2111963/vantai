@@ -2069,6 +2069,8 @@ public class BookingServiceImpl implements BookingService {
                 .consultantId(booking.getConsultant() != null ? booking.getConsultant().getEmployeeId() : null)
                 .consultantName(booking.getConsultant() != null && booking.getConsultant().getUser() != null
                         ? booking.getConsultant().getUser().getFullName() : null)
+                .branchId(booking.getBranch() != null ? booking.getBranch().getId() : null)
+                .branchName(booking.getBranch() != null ? booking.getBranch().getBranchName() : null)
                 .build();
     }
 }

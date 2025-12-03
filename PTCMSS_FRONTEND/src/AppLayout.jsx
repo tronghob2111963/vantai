@@ -16,6 +16,7 @@ import {
   Shield,
   LayoutDashboard,
   Briefcase,
+  AlertTriangle,
 } from "lucide-react";
 import { logout as apiLogout } from "./api/auth";
 import {
@@ -41,11 +42,12 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Danh sách xe", to: "/consultant/vehicles", icon: CarFront },
     { label: "Danh sách tài xế", to: "/consultant/drivers", icon: Users },
   ],
-  // Driver (Tài xế - 7 options)
+  // Driver (Tài xế - 8 options)
   [ROLES.DRIVER]: [
     { label: "Bảng điều khiển", to: "/driver/dashboard", icon: LayoutDashboard },
     { label: "Lịch làm việc", to: "/driver/schedule", icon: CalendarClock },
     { label: "Danh sách chuyến", to: "/driver/trips-list", icon: ClipboardList },
+    { label: "Báo cáo sự cố", to: "/driver/report-incident", icon: AlertTriangle },
     { label: "Xin nghỉ phép", to: "/driver/leave-request", icon: CalendarClock },
     { label: "Yêu cầu thanh toán chi phí", to: "/driver/expense-request", icon: DollarSign },
     { label: "Danh sách yêu cầu", to: "/driver/requests", icon: ClipboardList },
