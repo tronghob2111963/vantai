@@ -305,11 +305,12 @@ export default function DriverRequestsPage() {
                     console.warn("Could not load day-off requests:", leaveErr);
                 }
                 
-                // Load expense requests
+                // Load expense requests (the backend is currently filtering by requesterUserId,
+                // nên ở đây ta truyền userId thay vì driverId)
                 let paymentRequests = [];
                 try {
-                    const expenseList = await getDriverExpenseRequests(profile.driverId);
-                    console.log("💰 Expense list:", expenseList);
+                    const expenseList = await getDriverExpenseRequests(Number(uid));
+                    console.log("💰 Expense list for userId:", uid, expenseList);
                     const expenses = expenseList?.data || expenseList || [];
                     paymentRequests = (Array.isArray(expenses) ? expenses : []).map(item => {
                         try {
