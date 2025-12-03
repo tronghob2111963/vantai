@@ -1980,6 +1980,7 @@ export default function ConsultantOrdersPage() {
         });
 
         const arr = [...afterFilter];
+        // Mặc định: đơn mới nhất lên đầu (pickup_time desc) nếu chưa chọn sort khác
         arr.sort((a, b) => {
             let A, B;
             if (sortKey === "code") {
@@ -1998,6 +1999,7 @@ export default function ConsultantOrdersPage() {
                 A = a.status;
                 B = b.status;
             } else {
+                // default sort theo pickup_time (ngày đi)
                 A = a.pickup_time;
                 B = b.pickup_time;
             }

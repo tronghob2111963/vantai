@@ -8,6 +8,9 @@ import {
     AlertCircle,
     FileText,
     Loader2,
+    Car,
+    ClipboardList,
+    StickyNote,
 } from "lucide-react";
 import { getCookie } from "../../utils/cookies";
 import { getDriverProfileByUser, getDriverRequests, cancelDayOffRequest } from "../../api/drivers";
@@ -25,6 +28,18 @@ const fmtDate = (iso) => {
     } catch {
         return "--/--/----";
     }
+};
+
+// Map loại chi phí giống màn kế toán
+const EXPENSE_TYPE_LABELS = {
+    FUEL: "Nhiên liệu",
+    TOLL: "Phí cầu đường",
+    PARKING: "Gửi xe / Bến bãi",
+    MAINTENANCE: "Bảo dưỡng",
+    INSURANCE: "Bảo hiểm",
+    INSPECTION: "Đăng kiểm",
+    REPAIR: "Sửa chữa nhỏ",
+    OTHER: "Khác",
 };
 
 function RequestCard({ request, onCancel, cancellingId }) {
@@ -150,22 +165,49 @@ function RequestCard({ request, onCancel, cancellingId }) {
 
                 {request.type === "PAYMENT" && (
                     <>
+                        {/* Số tiền */}
                         <div className="flex items-center gap-2">
-                            <span className="text-slate-500">Số tiền:</span>
+                            <span className="inline-flex items-center gap-1 text-slate-500">
+                                <DollarSign className="h-3.5 w-3.5 text-amber-500" />
+                                Số tiền:
+                            </span>
                             <span className="font-semibold text-amber-700">
                                 {Number(request.amount || 0).toLocaleString("vi-VN")}đ
                             </span>
                         </div>
-                        {request.tripId && (
+
+                        {/* Loại chi phí */}
+                        {request.expenseType && (
                             <div className="flex items-center gap-2">
-                                <span className="text-slate-500">Chuyến:</span>
-                                <span className="font-medium">#{request.tripId}</span>
+                                <span className="inline-flex items-center gap-1 text-slate-500">
+                                    <ClipboardList className="h-3.5 w-3.5 text-sky-500" />
+                                    Loại chi phí:
+                                </span>
+                                <span className="font-medium">
+                                    {EXPENSE_TYPE_LABELS[request.expenseType] || request.expenseType}
+                                </span>
                             </div>
                         )}
-                        {request.description && (
+
+                        {/* Loại xe / Xe áp dụng */}
+                        {request.vehiclePlate && (
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-slate-500">
+                                    <Car className="h-3.5 w-3.5 text-emerald-500" />
+                                    Xe áp dụng:
+                                </span>
+                                <span className="font-medium">{request.vehiclePlate}</span>
+                            </div>
+                        )}
+
+                        {/* Ghi chú chi tiết */}
+                        {request.note && (
                             <div className="flex items-start gap-2">
-                                <span className="text-slate-500">Mô tả:</span>
-                                <span className="flex-1">{request.description}</span>
+                                <span className="inline-flex items-center gap-1 text-slate-500 mt-0.5">
+                                    <StickyNote className="h-3.5 w-3.5 text-slate-400" />
+                                    Ghi chú:
+                                </span>
+                                <span className="flex-1">{request.note}</span>
                             </div>
                         )}
                     </>
@@ -271,6 +313,13 @@ export default function DriverRequestsPage() {
                     const expenses = expenseList?.data || expenseList || [];
                     paymentRequests = (Array.isArray(expenses) ? expenses : []).map(item => {
                         try {
+                            const expenseType = item.type || item.expenseType;
+                            const note =
+                                item.note ||
+                                item.description ||
+                                item.reason ||
+                                item.expenseNote;
+
                             return {
                                 id: `payment-${item.id}`,
                                 type: "PAYMENT",
@@ -278,7 +327,10 @@ export default function DriverRequestsPage() {
                                 createdAt: item.createdAt,
                                 amount: item.amount,
                                 tripId: item.tripId,
-                                description: item.description || item.reason,
+                                // Thông tin chi tiết cho màn tài xế
+                                expenseType,
+                                vehiclePlate: item.vehiclePlate || item.licensePlate || item.vehiclePlateNumber,
+                                note,
                                 rejectionReason: item.rejectionReason || item.rejectReason,
                             };
                         } catch (mapErr) {

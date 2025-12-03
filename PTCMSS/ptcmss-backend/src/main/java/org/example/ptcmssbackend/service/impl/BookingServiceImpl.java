@@ -1634,11 +1634,26 @@ public class BookingServiceImpl implements BookingService {
         java.util.List<Vehicles> candidates = vehicleRepository.filterVehicles(categoryId, branchId, VehicleStatus.AVAILABLE);
         int total = candidates != null ? candidates.size() : 0;
 
-        // Busy vehicles in window
+        // Busy vehicles in window (đã gán TripVehicles)
         java.util.List<Integer> busyIds = tripVehicleRepository.findBusyVehicleIds(branchId, categoryId, start, end);
         int busy = busyIds != null ? busyIds.size() : 0;
 
-        int available = Math.max(0, total - busy);
+        // Reserved quantity by bookings đã cọc nhưng CHƯA gán xe
+        java.util.List<BookingStatus> reservedStatuses = java.util.Arrays.asList(
+                BookingStatus.PENDING,
+                BookingStatus.CONFIRMED,
+                BookingStatus.INPROGRESS
+        );
+        Integer reservedQty = bookingVehicleDetailsRepository.countReservedQuantityWithoutAssignedVehicles(
+                branchId,
+                categoryId,
+                start,
+                end,
+                reservedStatuses
+        );
+        int reserved = reservedQty != null ? reservedQty : 0;
+
+        int available = Math.max(0, total - busy - reserved);
         boolean ok = available >= needed;
 
         // Nếu không đủ xe -> tính suggestions
@@ -1658,7 +1673,8 @@ public class BookingServiceImpl implements BookingService {
                 .availableCount(available)
                 .needed(needed)
                 .totalCandidates(total)
-                .busyCount(busy)
+                // busyCount: đã gán xe (busy) + đã được giữ chỗ bằng booking nhưng chưa gán xe (reserved)
+                .busyCount(busy + reserved)
                 .alternativeCategories(alternativeCategories)
                 .nextAvailableSlots(nextAvailableSlots)
                 .build();

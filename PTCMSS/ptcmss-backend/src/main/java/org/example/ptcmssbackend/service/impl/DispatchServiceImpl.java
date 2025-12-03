@@ -109,6 +109,9 @@ public class DispatchServiceImpl implements DispatchService {
                 continue;
             }
 
+            // Lấy số ghế tối đa cho booking này để ưu tiên trong hàng đợi
+            Integer maxSeats = getMaxSeatsFromBooking(b);
+
             result.add(PendingTripResponse.builder()
                     .tripId(t.getId())
                     .bookingId(b.getId())
@@ -125,8 +128,18 @@ public class DispatchServiceImpl implements DispatchService {
             );
         }
 
-        // Có thể sort theo startTime tăng dần
-        result.sort(Comparator.comparing(PendingTripResponse::getStartTime));
+        // Ưu tiên các chuyến có phân khúc cao hơn (nhiều chỗ ngồi hơn) trước, sau đó mới tới thời gian
+        result.sort((a, b) -> {
+            Integer seatsA = getMaxSeatsFromBooking(bookingRepository.findById(a.getBookingId()).orElse(null));
+            Integer seatsB = getMaxSeatsFromBooking(bookingRepository.findById(b.getBookingId()).orElse(null));
+            int sa = seatsA != null ? seatsA : 0;
+            int sb = seatsB != null ? seatsB : 0;
+            if (sa != sb) {
+                return Integer.compare(sb, sa); // nhiều chỗ hơn trước
+            }
+            // Nếu cùng phân khúc, sort theo startTime tăng dần
+            return a.getStartTime().compareTo(b.getStartTime());
+        });
         return result;
     }
     
@@ -427,6 +440,8 @@ public class DispatchServiceImpl implements DispatchService {
         evaluateVehicleCandidates(List<Vehicles> vehicles, Trips trip) {
         
         List<org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.VehicleCandidate> candidates = new ArrayList<>();
+        // Số ghế yêu cầu tối đa của booking (ví dụ: 45 chỗ)
+        Integer requiredSeats = getMaxSeatsFromBooking(trip.getBooking());
         
         for (Vehicles v : vehicles) {
             List<String> reasons = new ArrayList<>();
@@ -457,9 +472,26 @@ public class DispatchServiceImpl implements DispatchService {
             } else {
                 reasons.add("Rảnh tại thời điểm này");
             }
+
+            // 3) Check capacity vs required seats của booking
+            Integer capacity = v.getCapacity();
+            if (requiredSeats != null && requiredSeats > 0 && capacity != null) {
+                if (capacity < requiredSeats) {
+                    eligible = false;
+                    reasons.add(String.format("Sức chứa %d chỗ < yêu cầu %d chỗ của đơn", capacity, requiredSeats));
+                } else {
+                    reasons.add(String.format("Đủ sức chứa: %d/%d chỗ", capacity, requiredSeats));
+                }
+            }
             
-            // 3) Score based on capacity, mileage, etc. (simple for now)
-            score = 0; // Could add: mileage, last maintenance, etc.
+            // 4) Score based on capacity (ưu tiên xe có sức chứa gần với yêu cầu, tránh dùng xe lớn cho đơn nhỏ)
+            if (requiredSeats != null && requiredSeats > 0 && capacity != null && capacity >= requiredSeats) {
+                // Chênh lệch càng nhỏ thì điểm càng thấp (ưu tiên)
+                int diff = capacity - requiredSeats;
+                score = diff;
+            } else {
+                score = 0; // fallback đơn giản
+            }
             
             if (eligible) {
                 reasons.add("Đủ điều kiện gán");
@@ -477,7 +509,7 @@ public class DispatchServiceImpl implements DispatchService {
                     .build());
         }
         
-        // Sort: eligible first, then by score
+        // Sort: eligible first, then by score (ít dư sức chứa hơn được ưu tiên)
         candidates.sort((a, b) -> {
             if (a.isEligible() != b.isEligible()) {
                 return a.isEligible() ? -1 : 1;

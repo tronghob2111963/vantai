@@ -212,42 +212,42 @@ export default function CoordinatorVehicleListPage() {
                 {/* Search + Branch Info + Time filter */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
                     <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="flex-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5">
-                                <Search className="h-5 w-5 text-slate-400" />
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => {
-                                        setSearchQuery(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    placeholder="Tìm kiếm xe theo biển số, loại xe..."
-                                    className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
-                                />
-                            </div>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="flex-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5">
+                            <Search className="h-5 w-5 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                placeholder="Tìm kiếm xe theo biển số, loại xe..."
+                                className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
+                            />
+                        </div>
 
-                            {/* Refresh */}
-                            <button
-                                onClick={() => fetchVehicles()}
-                                disabled={loading || branchLoading}
-                                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-2 disabled:opacity-50"
-                            >
-                                {loading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <RefreshCw className="h-4 w-4" />
-                                )}
-                                Refresh
-                            </button>
-
-                            {/* Branch info */}
-                            {isBranchScoped && branchName && (
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-sm">
-                                    <span className="font-medium">Chi nhánh:</span>
-                                    <span>{branchName}</span>
-                                </div>
+                        {/* Refresh */}
+                        <button
+                            onClick={() => fetchVehicles()}
+                            disabled={loading || branchLoading}
+                            className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="h-4 w-4" />
                             )}
+                            Refresh
+                        </button>
+
+                        {/* Branch info */}
+                        {isBranchScoped && branchName && (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-sm">
+                                <span className="font-medium">Chi nhánh:</span>
+                                <span>{branchName}</span>
+                            </div>
+                        )}
                         </div>
 
                         {/* Time filter để kiểm tra xe rảnh */}
@@ -376,24 +376,24 @@ export default function CoordinatorVehicleListPage() {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm">
                                                     <div className="flex flex-col gap-1">
-                                                        <span
-                                                            className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${vehicle.status === "AVAILABLE"
-                                                                ? "bg-green-50 text-green-700"
-                                                                : vehicle.status === "INUSE"
-                                                                    ? "bg-blue-50 text-blue-700"
-                                                                    : vehicle.status === "MAINTENANCE"
-                                                                        ? "bg-orange-50 text-orange-700"
-                                                                        : "bg-gray-50 text-gray-700"
-                                                                }`}
-                                                        >
-                                                            {vehicle.status === "AVAILABLE"
-                                                                ? "Sẵn sàng"
-                                                                : vehicle.status === "INUSE"
-                                                                    ? "Đang sử dụng"
-                                                                    : vehicle.status === "MAINTENANCE"
-                                                                        ? "Bảo trì"
-                                                                        : "Không hoạt động"}
-                                                        </span>
+                                                    <span
+                                                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${vehicle.status === "AVAILABLE"
+                                                            ? "bg-green-50 text-green-700"
+                                                            : vehicle.status === "INUSE"
+                                                                ? "bg-blue-50 text-blue-700"
+                                                                : vehicle.status === "MAINTENANCE"
+                                                                    ? "bg-orange-50 text-orange-700"
+                                                                    : "bg-gray-50 text-gray-700"
+                                                            }`}
+                                                    >
+                                                        {vehicle.status === "AVAILABLE"
+                                                            ? "Sẵn sàng"
+                                                            : vehicle.status === "INUSE"
+                                                                ? "Đang sử dụng"
+                                                                : vehicle.status === "MAINTENANCE"
+                                                                    ? "Bảo trì"
+                                                                    : "Không hoạt động"}
+                                                    </span>
                                                         {timeFilterStart && timeFilterEnd && vehicleAvailability[vehicle.id] && (
                                                             <span
                                                                 className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${vehicleAvailability[vehicle.id].available

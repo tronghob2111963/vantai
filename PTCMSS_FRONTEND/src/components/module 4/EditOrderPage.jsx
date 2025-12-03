@@ -7,6 +7,8 @@ import { listVehicleCategories } from "../../api/vehicleCategories";
 import { listBranches } from "../../api/branches";
 import { listDriversByBranch } from "../../api/drivers";
 import { listVehicles } from "../../api/vehicles";
+import { listHireTypes } from "../../api/hireTypes";
+import { getCurrentRole, ROLES } from "../../utils/session";
 import {
     ArrowLeft,
     User,
@@ -152,6 +154,9 @@ export default function EditOrderPage() {
     const location = useLocation();
     const seedOrder = location?.state?.order;
 
+    const role = React.useMemo(() => getCurrentRole(), []);
+    const isConsultant = role === ROLES.CONSULTANT;
+
     /* --- trạng thái đơn hàng --- */
     const [status, setStatus] = React.useState("PENDING");
 
@@ -164,8 +169,10 @@ export default function EditOrderPage() {
     const [customerEmail, setCustomerEmail] = React.useState("");
 
     /* --- hình thức thuê --- */
+    const [hireType, setHireType] = React.useState("ONE_WAY"); // ONE_WAY | ROUND_TRIP | DAILY
     const [hireTypeId, setHireTypeId] = React.useState("");
     const [hireTypeName, setHireTypeName] = React.useState("");
+    const [hireTypesList, setHireTypesList] = React.useState([]);
 
     /* --- hành trình --- */
     const [pickup, setPickup] = React.useState("");
@@ -389,6 +396,46 @@ export default function EditOrderPage() {
             } catch { }
         })();
     }, [orderId]);
+
+    // Load hire types once
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const resp = await listHireTypes();
+                const list = Array.isArray(resp) ? resp : (resp?.data || []);
+                setHireTypesList(list);
+            } catch (err) {
+                console.error("Failed to load hire types:", err);
+            }
+        })();
+    }, []);
+
+    // Map hireTypeId -> hireType code when both are available
+    React.useEffect(() => {
+        if (!hireTypeId || hireTypesList.length === 0) return;
+        const found = hireTypesList.find(h => String(h.id) === String(hireTypeId));
+        if (found && found.code && found.code !== hireType) {
+            setHireType(found.code);
+        }
+    }, [hireTypeId, hireTypesList]); 
+
+    // Map hireType code -> hireTypeId to keep payload đúng
+    React.useEffect(() => {
+        if (!hireType || hireTypesList.length === 0) return;
+        const found = hireTypesList.find(h => h.code === hireType);
+        if (found && String(found.id) !== String(hireTypeId)) {
+            setHireTypeId(String(found.id));
+        }
+    }, [hireType, hireTypesList]);
+
+    // Với thuê theo ngày, chỉ dùng date (YYYY-MM-DD)
+    React.useEffect(() => {
+        const isDaily = hireType === "DAILY" || hireType === "MULTI_DAY";
+        if (!isDaily) return;
+
+        setStartTime(prev => (prev && prev.includes("T") ? prev.split("T")[0] : prev));
+        setEndTime(prev => (prev && prev.includes("T") ? prev.split("T")[0] : prev));
+    }, [hireType]);
     
     // Update selectedCategory khi categoryId thay đổi
     React.useEffect(() => {
@@ -1052,6 +1099,45 @@ export default function EditOrderPage() {
                         </div>
                     </div>
 
+                    {/* --- Hình thức thuê --- */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium flex items-center gap-2 mb-4">
+                            <CarFront className="h-4 w-4 text-emerald-600" />
+                            Hình thức thuê xe
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 text-[13px]">
+                            {[
+                                { key: "ONE_WAY", label: "Một chiều" },
+                                { key: "ROUND_TRIP", label: "Hai chiều" },
+                                { key: "DAILY", label: "Theo ngày" },
+                            ].map((opt) => (
+                                <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => canEdit && setHireType(opt.key)}
+                                    className={cls(
+                                        "px-3 py-2 rounded-md border text-[13px] flex items-center gap-2 shadow-sm",
+                                        hireType === opt.key
+                                            ? "ring-1 ring-emerald-200 bg-emerald-50 border-emerald-200 text-emerald-700"
+                                            : "border-slate-300 bg-white hover:bg-slate-50 text-slate-700",
+                                        !canEdit && "cursor-not-allowed opacity-60"
+                                    )}
+                                    disabled={!canEdit}
+                                >
+                                    <CarFront className="h-4 w-4" />
+                                    <span>{opt.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {hireTypeName && (
+                            <div className="mt-3 text-[12px] text-slate-500">
+                                Từ hệ thống: <span className="font-medium text-slate-700">{hireTypeName}</span>
+                            </div>
+                        )}
+                    </div>
+
                     {/* --- Báo giá --- */}
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium flex items-center gap-2 mb-4">
@@ -1242,16 +1328,18 @@ export default function EditOrderPage() {
                             />
                         </div>
 
-                        {/* Thời gian đón */}
+                        {/* Thời gian đón / Ngày bắt đầu */}
                         <div className="mb-3">
                             <label className={labelCls}>
                                 <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                 <span>
-                                    Thời gian đón
+                                    {hireType === "DAILY" || hireType === "MULTI_DAY"
+                                        ? "Ngày bắt đầu"
+                                        : "Thời gian đón"}
                                 </span>
                             </label>
                             <input
-                                type="datetime-local"
+                                type={hireType === "DAILY" || hireType === "MULTI_DAY" ? "date" : "datetime-local"}
                                 className={makeInputCls({
                                     enabled: inputEnabledCls,
                                     disabled: inputDisabledCls,
@@ -1266,17 +1354,18 @@ export default function EditOrderPage() {
                             />
                         </div>
 
-                        {/* Kết thúc dự kiến */}
+                        {/* Kết thúc dự kiến / Ngày kết thúc */}
                         <div className="mb-3">
                             <label className={labelCls}>
                                 <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                 <span>
-                                    Thời gian kết
-                                    thúc (dự kiến)
+                                    {hireType === "DAILY" || hireType === "MULTI_DAY"
+                                        ? "Ngày kết thúc"
+                                        : "Thời gian kết thúc (dự kiến)"}
                                 </span>
                             </label>
                             <input
-                                type="datetime-local"
+                                type={hireType === "DAILY" || hireType === "MULTI_DAY" ? "date" : "datetime-local"}
                                 className={makeInputCls({
                                     enabled: inputEnabledCls,
                                     disabled: inputDisabledCls,
@@ -1470,7 +1559,8 @@ export default function EditOrderPage() {
                         </div>
                     </div>
 
-                    {/* Gán tài xế / xe */}
+                    {/* Gán tài xế / xe - Ẩn với Tư vấn viên */}
+                    {!isConsultant && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium flex items-center gap-2 mb-4">
                             <CarFront className="h-4 w-4 text-sky-600" />
@@ -1726,6 +1816,7 @@ export default function EditOrderPage() {
                             </div>
                         </div>
                     </div>
+                    )}
                 </div>
             </div>
 
