@@ -326,7 +326,28 @@ public class DispatchServiceImpl implements DispatchService {
                 reasons.add(String.format("Bằng %s phù hợp xe %d chỗ", licenseClass, maxSeatsRequired != null ? maxSeatsRequired : 0));
             }
             
-            // 4) Check time overlap
+            // 4) Check if driver already assigned to another trip in the same booking
+            // Rule: Mỗi trip trong cùng booking phải có tài xế khác nhau
+            Bookings booking = trip.getBooking();
+            if (booking != null) {
+                List<Trips> allBookingTrips = tripRepository.findByBooking_Id(booking.getId());
+                boolean alreadyAssignedToOtherTrip = allBookingTrips.stream()
+                        .filter(t -> !t.getId().equals(trip.getId())) // Bỏ qua trip hiện tại
+                        .anyMatch(otherTrip -> {
+                            List<TripDrivers> otherTripDrivers = tripDriverRepository.findByTripId(otherTrip.getId());
+                            return otherTripDrivers.stream()
+                                    .anyMatch(td -> td.getDriver() != null && td.getDriver().getId().equals(d.getId()));
+                        });
+                
+                if (alreadyAssignedToOtherTrip) {
+                    eligible = false;
+                    reasons.add("Đã được gán cho chuyến khác trong cùng đơn hàng");
+                } else {
+                    reasons.add("Chưa được gán cho chuyến khác trong đơn hàng này");
+                }
+            }
+            
+            // 5) Check time overlap
             List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(d.getId());
             boolean overlap = driverTrips.stream().anyMatch(td -> {
                 Trips t = td.getTrip();
@@ -346,7 +367,7 @@ public class DispatchServiceImpl implements DispatchService {
                 reasons.add("Rảnh tại thời điểm này");
             }
             
-            // 4) Fairness scoring: số chuyến trong ngày
+            // 6) Fairness scoring: số chuyến trong ngày
             long tripsToday = driverTrips.stream().filter(td -> {
                 Trips t = td.getTrip();
                 if (t.getStartTime() == null) return false;
@@ -354,7 +375,7 @@ public class DispatchServiceImpl implements DispatchService {
                 return dDate.equals(tripDate);
             }).count();
             
-            // 5) Fairness: số chuyến trong tuần
+            // 7) Fairness: số chuyến trong tuần
             LocalDate weekStart = tripDate.minusDays(tripDate.getDayOfWeek().getValue() - 1);
             LocalDate weekEnd = weekStart.plusDays(6);
             long tripsThisWeek = driverTrips.stream().filter(td -> {
@@ -364,7 +385,7 @@ public class DispatchServiceImpl implements DispatchService {
                 return !dDate.isBefore(weekStart) && !dDate.isAfter(weekEnd);
             }).count();
             
-            // 6) Fairness: mức độ được gán gần đây (recent assignment)
+            // 8) Fairness: mức độ được gán gần đây (recent assignment)
             long recentAssignments = driverTrips.stream().filter(td -> {
                 Trips t = td.getTrip();
                 if (t.getStartTime() == null) return false;
