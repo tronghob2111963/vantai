@@ -246,15 +246,26 @@ export default function AssignDriverDialog({
         setAutoPosting(true);
         setError(""); // Clear previous error
         try {
+            // Xác định trips cần gán: nếu có nhiều trips (nhiều xe), gán cho tất cả
+            let targetTripIds = undefined;
+            if (tripIds && tripIds.length > 0) {
+                // Gán cho tất cả trips (nhiều xe)
+                targetTripIds = tripIds.map(id => Number(id));
+            } else if (tripId) {
+                // Chỉ có 1 trip
+                targetTripIds = [Number(tripId)];
+            }
+            
             const result = await assignTrips({
                 bookingId: Number(bookingId),
-                tripIds: tripId ? [Number(tripId)] : undefined,
+                tripIds: targetTripIds, // undefined = gán tất cả, array = gán các trips được chọn
                 autoAssign: true,
             });
 
             onAssigned?.({
                 type: "auto",
                 tripId,
+                tripIds: targetTripIds,
                 bookingId,
                 response: result,
             });

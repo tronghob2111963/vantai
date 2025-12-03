@@ -336,10 +336,27 @@ export default function NotificationsDashboard() {
                 [selectedApprovalId]: { note: dialogNote, type: "approved", timestamp: new Date().toISOString() }
             }));
             
+            // Cập nhật UI ngay lập tức: remove approval khỏi pending list
+            setDashboard(prev => {
+                if (!prev || !prev.pendingApprovals) return prev;
+                return {
+                    ...prev,
+                    pendingApprovals: prev.pendingApprovals.filter(a => a.id !== selectedApprovalId),
+                    stats: {
+                        ...prev.stats,
+                        totalPendingApprovals: Math.max(0, (prev.stats?.totalPendingApprovals || 0) - 1)
+                    }
+                };
+            });
+            
             setDialogOpen(false);
             setShowConflictDialog(false);
             setConflictingTrips([]);
-            handleRefresh();
+            
+            // Reload dashboard để đảm bảo data sync với backend
+            setTimeout(() => {
+                handleRefresh();
+            }, 500);
         } catch (err) {
             console.error("Failed to approve:", err);
             alert("Không thể phê duyệt");
@@ -399,8 +416,25 @@ export default function NotificationsDashboard() {
                 [selectedApprovalId]: { note: dialogNote, type: "rejected", timestamp: new Date().toISOString() }
             }));
             
+            // Cập nhật UI ngay lập tức: remove approval khỏi pending list
+            setDashboard(prev => {
+                if (!prev || !prev.pendingApprovals) return prev;
+                return {
+                    ...prev,
+                    pendingApprovals: prev.pendingApprovals.filter(a => a.id !== selectedApprovalId),
+                    stats: {
+                        ...prev.stats,
+                        totalPendingApprovals: Math.max(0, (prev.stats?.totalPendingApprovals || 0) - 1)
+                    }
+                };
+            });
+            
             setDialogOpen(false);
-            handleRefresh();
+            
+            // Reload dashboard để đảm bảo data sync với backend
+            setTimeout(() => {
+                handleRefresh();
+            }, 500);
             } catch (err) {
             console.error("Failed to reject:", err);
             alert("Không thể từ chối");

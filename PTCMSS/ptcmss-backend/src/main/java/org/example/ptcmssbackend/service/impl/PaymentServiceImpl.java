@@ -17,6 +17,7 @@ import org.example.ptcmssbackend.repository.BookingRepository;
 import org.example.ptcmssbackend.repository.EmployeeRepository;
 import org.example.ptcmssbackend.repository.InvoiceRepository;
 import org.example.ptcmssbackend.repository.PaymentHistoryRepository;
+import org.example.ptcmssbackend.repository.NotificationRepository;
 import org.example.ptcmssbackend.service.AppSettingService;
 import org.example.ptcmssbackend.service.PaymentService;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final InvoiceRepository invoiceRepository;
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final EmployeeRepository employeeRepository;
+    private final NotificationRepository notificationRepository;
     private final QrPaymentProperties qrPaymentProperties;
     private final AppSettingService appSettingService;
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
@@ -141,22 +143,56 @@ public class PaymentServiceImpl implements PaymentService {
         }
         paymentHistoryRepository.save(history);
 
-        // Send WebSocket notifications for payment request
+        // Send WebSocket notifications for payment request to accountants in the same branch
         try {
+            Integer branchId = booking.getBranch() != null ? booking.getBranch().getId() : null;
             String customerName = booking.getCustomer() != null ? booking.getCustomer().getFullName() : "Khách hàng";
             String bookingCode = "ORD-" + bookingId;
             String paymentType = Boolean.TRUE.equals(request.getDeposit()) ? "Cọc" : "Thanh toán";
-
-            // Global notification
-            webSocketNotificationService.sendGlobalNotification(
-                    "Yêu cầu " + paymentType.toLowerCase() + " mới",
-                    String.format("Có yêu cầu %s %s cho đơn %s - %s cần xác nhận",
-                            paymentType.toLowerCase(),
-                            formatAmount(request.getAmount()),
-                            bookingCode,
-                            customerName),
-                    "INFO"
-            );
+            String amountStr = formatAmount(request.getAmount());
+            
+            String title = "Yêu cầu " + paymentType.toLowerCase() + " mới";
+            String message = String.format("Có yêu cầu %s %s cho đơn %s - %s cần xác nhận",
+                    paymentType.toLowerCase(),
+                    amountStr,
+                    bookingCode,
+                    customerName);
+            
+            // Gửi notification cho accountants trong cùng branch
+            if (branchId != null) {
+                try {
+                    List<Employees> accountants = employeeRepository.findByRoleNameAndBranchId("Accountant", branchId);
+                    for (Employees accountant : accountants) {
+                        if (accountant.getUser() != null) {
+                            // Lưu notification vào DB
+                            org.example.ptcmssbackend.entity.Notifications notification = new org.example.ptcmssbackend.entity.Notifications();
+                            notification.setUser(accountant.getUser());
+                            notification.setTitle(title);
+                            notification.setMessage(message);
+                            notification.setIsRead(false);
+                            notificationRepository.save(notification);
+                            
+                            // Gửi WebSocket notification
+                            webSocketNotificationService.sendUserNotification(
+                                    accountant.getUser().getId(),
+                                    title,
+                                    message,
+                                    "INFO"
+                            );
+                            log.debug("[PaymentService] Sent notification to accountant: {}", accountant.getUser().getUsername());
+                        }
+                    }
+                    if (!accountants.isEmpty()) {
+                        log.info("[PaymentService] Notified {} accountants about payment request for booking {}", 
+                                accountants.size(), bookingCode);
+                    }
+                } catch (Exception accErr) {
+                    log.warn("[PaymentService] Failed to notify accountants: {}", accErr.getMessage());
+                }
+            }
+            
+            // Vẫn gửi global notification cho các role khác (nếu cần)
+            webSocketNotificationService.sendGlobalNotification(title, message, "INFO");
         } catch (Exception e) {
             log.warn("Failed to send WebSocket notification for payment", e);
         }

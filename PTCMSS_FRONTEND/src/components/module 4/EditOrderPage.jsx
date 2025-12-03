@@ -626,6 +626,29 @@ export default function EditOrderPage() {
         setFinalPrice(fp);
     }, [discountAmount, systemPrice]);
 
+    // Detect weekend and holiday from startTime (phải khai báo trước useEffect sử dụng)
+    const isWeekend = React.useMemo(() => {
+        if (!startTime) return false;
+        const date = new Date(startTime);
+        const day = date.getDay();
+        return day === 0 || day === 6; // Sunday or Saturday
+    }, [startTime]);
+
+    const isHoliday = React.useMemo(() => {
+        if (!startTime) return false;
+        const date = new Date(startTime);
+        const month = date.getMonth();
+        const day = date.getDate();
+        // Vietnamese holidays (simplified - có thể mở rộng sau)
+        const holidays = [
+            { month: 0, day: 1 },   // New Year
+            { month: 3, day: 30 },  // Liberation Day
+            { month: 4, day: 1 },   // Labor Day
+            { month: 8, day: 2 },   // National Day
+        ];
+        return holidays.some(h => h.month === month && h.day === day);
+    }, [startTime]);
+
     /* --- tự động tính lại giá khi thay đổi các tham số --- */
     React.useEffect(() => {
         if (!canEdit) return; // Chỉ tính khi có quyền sửa
@@ -710,29 +733,6 @@ export default function EditOrderPage() {
             setCheckingAvailability(false);
         }
     };
-
-    // Detect weekend and holiday from startTime
-    const isWeekend = React.useMemo(() => {
-        if (!startTime) return false;
-        const date = new Date(startTime);
-        const day = date.getDay();
-        return day === 0 || day === 6; // Sunday or Saturday
-    }, [startTime]);
-
-    const isHoliday = React.useMemo(() => {
-        if (!startTime) return false;
-        const date = new Date(startTime);
-        const month = date.getMonth();
-        const day = date.getDate();
-        // Vietnamese holidays (simplified - có thể mở rộng sau)
-        const holidays = [
-            { month: 0, day: 1 },   // New Year
-            { month: 3, day: 30 },  // Liberation Day
-            { month: 4, day: 1 },   // Labor Day
-            { month: 8, day: 2 },   // National Day
-        ];
-        return holidays.some(h => h.month === month && h.day === day);
-    }, [startTime]);
 
     /* --- recalc system price --- */
     const recalcPrice = async () => {
