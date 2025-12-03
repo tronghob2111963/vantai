@@ -9,6 +9,7 @@ import { listDriversByBranch } from "../../api/drivers";
 import { listVehicles } from "../../api/vehicles";
 import { listHireTypes } from "../../api/hireTypes";
 import { getCurrentRole, ROLES } from "../../utils/session";
+import PlaceAutocomplete from "../common/PlaceAutocomplete";
 import {
     ArrowLeft,
     User,
@@ -625,6 +626,49 @@ export default function EditOrderPage() {
         setFinalPrice(fp);
     }, [discountAmount, systemPrice]);
 
+    /* --- tự động tính lại giá khi thay đổi các tham số --- */
+    React.useEffect(() => {
+        if (!canEdit) return; // Chỉ tính khi có quyền sửa
+        
+        const timeoutId = setTimeout(async () => {
+            // Chỉ tính nếu có đủ thông tin
+            if (!startTime || !categoryId) {
+                return;
+            }
+            if (hireType !== "ONE_WAY" && !endTime) {
+                return;
+            }
+
+            try {
+                const startISO = toIsoZ(startTime);
+                const endISO = hireType === "ONE_WAY" && !endTime
+                    ? toIsoZ(new Date(new Date(startTime).getTime() + 2 * 60 * 60 * 1000).toISOString())
+                    : toIsoZ(endTime);
+
+                const price = await calculatePrice({
+                    vehicleCategoryIds: [Number(categoryId || 0)],
+                    quantities: [Number(vehiclesNeeded || 1)],
+                    distance: Number(distanceKm || 0),
+                    useHighway: false,
+                    hireTypeId: hireTypeId ? Number(hireTypeId) : undefined,
+                    isHoliday: isHoliday,
+                    isWeekend: isWeekend,
+                    startTime: startISO,
+                    endTime: endISO,
+                });
+                const base = Number(price || 0);
+                if (base > 0) {
+                    setSystemPrice(base);
+                }
+            } catch (err) {
+                console.error("Auto calculate price error:", err);
+                // Không hiển thị toast vì có thể user đang nhập dở
+            }
+        }, 1500); // Debounce 1.5 seconds
+
+        return () => clearTimeout(timeoutId);
+    }, [hireTypeId, isHoliday, isWeekend, startTime, endTime, distanceKm, categoryId, vehiclesNeeded, hireType, canEdit]);
+
     /* --- check availability (real call) --- */
     const checkAvailability = async () => {
         if (!categoryId || !branchId) {
@@ -667,20 +711,63 @@ export default function EditOrderPage() {
         }
     };
 
-    /* --- recalc system price (mock) --- */
+    // Detect weekend and holiday from startTime
+    const isWeekend = React.useMemo(() => {
+        if (!startTime) return false;
+        const date = new Date(startTime);
+        const day = date.getDay();
+        return day === 0 || day === 6; // Sunday or Saturday
+    }, [startTime]);
+
+    const isHoliday = React.useMemo(() => {
+        if (!startTime) return false;
+        const date = new Date(startTime);
+        const month = date.getMonth();
+        const day = date.getDate();
+        // Vietnamese holidays (simplified - có thể mở rộng sau)
+        const holidays = [
+            { month: 0, day: 1 },   // New Year
+            { month: 3, day: 30 },  // Liberation Day
+            { month: 4, day: 1 },   // Labor Day
+            { month: 8, day: 2 },   // National Day
+        ];
+        return holidays.some(h => h.month === month && h.day === day);
+    }, [startTime]);
+
+    /* --- recalc system price --- */
     const recalcPrice = async () => {
+        if (!startTime) {
+            pushToast("Vui lòng nhập thời gian đón trước", "error");
+            return;
+        }
+        if (!categoryId) {
+            pushToast("Vui lòng chọn loại xe trước", "error");
+            return;
+        }
         try {
+            const startISO = toIsoZ(startTime);
+            // ONE_WAY: endTime = startTime + 2 giờ (mặc định)
+            const endISO = hireType === "ONE_WAY" && !endTime
+                ? toIsoZ(new Date(new Date(startTime).getTime() + 2 * 60 * 60 * 1000).toISOString())
+                : toIsoZ(endTime);
+
             const price = await calculatePrice({
                 vehicleCategoryIds: [Number(categoryId || 0)],
                 quantities: [Number(vehiclesNeeded || 1)],
                 distance: Number(distanceKm || 0),
                 useHighway: false,
+                hireTypeId: hireTypeId ? Number(hireTypeId) : undefined,
+                isHoliday: isHoliday,
+                isWeekend: isWeekend,
+                startTime: startISO,
+                endTime: endISO,
             });
             const base = Number(price || 0);
             setSystemPrice(base);
             pushToast("Đã tính lại giá hệ thống: " + base.toLocaleString("vi-VN") + "đ", "info");
-        } catch {
-            pushToast("Không tính được giá tự động", "error");
+        } catch (err) {
+            console.error("Calculate price error:", err);
+            pushToast("Không tính được giá tự động: " + (err.message || "Lỗi"), "error");
         }
     };
 
@@ -1287,22 +1374,18 @@ export default function EditOrderPage() {
                         {/* Điểm đón */}
                         <div className="mb-3">
                             <label className={labelCls}>
-                                <MapPin className="h-3.5 w-3.5 text-amber-600" />
-                                <span>Điểm đón</span>
+                                <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>Điểm đón *</span>
                             </label>
-                            <input
+                            <PlaceAutocomplete
+                                value={pickup}
+                                onChange={setPickup}
+                                placeholder="VD: Hồ Hoàn Kiếm, Sân bay Nội Bài..."
                                 className={makeInputCls({
                                     enabled: inputEnabledCls,
                                     disabled: inputDisabledCls,
                                 })}
-                                value={pickup}
-                                onChange={(e) =>
-                                    setPickup(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="Sân bay Nội Bài - T1"
-                                {...disableInputProps}
+                                disabled={!canEdit}
                             />
                         </div>
 
@@ -1310,21 +1393,17 @@ export default function EditOrderPage() {
                         <div className="mb-3">
                             <label className={labelCls}>
                                 <MapPin className="h-3.5 w-3.5 text-rose-600" />
-                                <span>Điểm đến</span>
+                                <span>Điểm đến *</span>
                             </label>
-                            <input
+                            <PlaceAutocomplete
+                                value={dropoff}
+                                onChange={setDropoff}
+                                placeholder="VD: Trung tâm Hà Nội, Phố cổ..."
                                 className={makeInputCls({
                                     enabled: inputEnabledCls,
                                     disabled: inputDisabledCls,
                                 })}
-                                value={dropoff}
-                                onChange={(e) =>
-                                    setDropoff(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="Khách sạn Pearl Westlake, Tây Hồ"
-                                {...disableInputProps}
+                                disabled={!canEdit}
                             />
                         </div>
 

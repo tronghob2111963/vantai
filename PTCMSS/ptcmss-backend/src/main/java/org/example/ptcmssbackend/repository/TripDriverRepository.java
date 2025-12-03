@@ -12,10 +12,10 @@ import java.util.List;
 
 @Repository
 public interface TripDriverRepository extends JpaRepository<TripDrivers, TripDriverId> {
-    @Query("SELECT td FROM TripDrivers td JOIN FETCH td.trip WHERE td.driver.id = :driverId ORDER BY td.trip.startTime DESC")
+    @Query("SELECT DISTINCT td FROM TripDrivers td JOIN FETCH td.trip WHERE td.driver.id = :driverId ORDER BY td.trip.startTime DESC")
     List<TripDrivers> findAllByDriverId(@Param("driverId") Integer driverId);
     
-    @Query("SELECT td FROM TripDrivers td JOIN FETCH td.trip " +
+    @Query("SELECT DISTINCT td FROM TripDrivers td JOIN FETCH td.trip " +
            "WHERE td.driver.id = :driverId " +
            "AND (:startDate IS NULL OR td.trip.startTime >= :startDate) " +
            "AND (:endDate IS NULL OR td.trip.startTime <= :endDate) " +

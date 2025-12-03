@@ -450,9 +450,13 @@ export default function DriverTripDetailPage() {
     return tripDate > today;
   }, [trip?.pickup_time]);
 
-  // Chỉ được cập nhật nếu: chuyến HÔM NAY + chưa hoàn thành
+  // Chỉ được cập nhật nếu: 
+  // 1. Chuyến đang diễn ra (IN_PROGRESS) - cho phép hoàn thành bất kể ngày bắt đầu
+  // 2. HOẶC chuyến HÔM NAY + chưa hoàn thành (cho phép bắt đầu)
   const isCompleted = trip?.status === "COMPLETED";
-  const canUpdateStatus = isTripToday && !isTripFuture && !isCompleted;
+  const isInProgress = trip?.status === "IN_PROGRESS";
+  // Cho phép cập nhật nếu: (đang diễn ra) HOẶC (hôm nay + chưa hoàn thành + không phải tương lai)
+  const canUpdateStatus = (isInProgress || (isTripToday && !isTripFuture)) && !isCompleted;
 
   // Cho phép báo cáo chi phí: chuyến đã bắt đầu (IN_PROGRESS hoặc COMPLETED) và trong vòng 7 ngày gần đây
   const canReportExpense = React.useMemo(() => {
