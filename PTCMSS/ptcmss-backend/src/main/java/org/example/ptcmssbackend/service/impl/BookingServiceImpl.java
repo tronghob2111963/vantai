@@ -199,6 +199,74 @@ public class BookingServiceImpl implements BookingService {
                     .sum();
         }
         
+        // VALIDATION: Kiểm tra số lượng tài xế rảnh trước khi tạo booking
+        // Nếu booking có nhiều trips (nhiều xe), cần đảm bảo có đủ tài xế rảnh
+        if (totalVehicleCount > 0 && request.getTrips() != null && !request.getTrips().isEmpty()) {
+            // Tính số trips sẽ được tạo (có thể nhiều hơn số trips trong request nếu quantity > 1)
+            int expectedTripsCount = Math.max(request.getTrips().size(), totalVehicleCount);
+            
+            // Kiểm tra số lượng tài xế rảnh cho tất cả trips
+            Set<Integer> availableDriverIds = new java.util.HashSet<>();
+            
+            for (TripRequest tripReq : request.getTrips()) {
+                if (tripReq.getStartTime() != null && tripReq.getEndTime() != null) {
+                    Instant tripStart = tripReq.getStartTime();
+                    Instant tripEnd = tripReq.getEndTime();
+                    LocalDate tripDate = tripStart.atZone(ZoneId.systemDefault()).toLocalDate();
+                    
+                    // Lấy tất cả tài xế trong branch
+                    List<Drivers> branchDrivers = driverRepository.findByBranchId(branch.getId());
+                    
+                    for (Drivers driver : branchDrivers) {
+                        // Check các điều kiện để tài xế được coi là "rảnh"
+                        boolean isAvailable = true;
+                        
+                        // 1. Check nghỉ phép (nếu có DriverDayOffRepository)
+                        // Skip check này nếu không có repository
+                        
+                        // 2. Check bằng lái hết hạn
+                        if (driver.getLicenseExpiry() != null && driver.getLicenseExpiry().isBefore(tripDate)) {
+                            isAvailable = false;
+                        }
+                        
+                        // 3. Check trùng giờ với trips khác
+                        List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(driver.getId());
+                        boolean hasOverlap = driverTrips.stream().anyMatch(td -> {
+                            Trips t = td.getTrip();
+                            if (t.getStatus() == TripStatus.CANCELLED || t.getStatus() == TripStatus.COMPLETED) {
+                                return false;
+                            }
+                            Instant s1 = t.getStartTime();
+                            Instant e1 = t.getEndTime();
+                            if (s1 == null || e1 == null) return false;
+                            return s1.isBefore(tripEnd) && tripStart.isBefore(e1);
+                        });
+                        
+                        if (hasOverlap) {
+                            isAvailable = false;
+                        }
+                        
+                        if (isAvailable) {
+                            availableDriverIds.add(driver.getId());
+                        }
+                    }
+                }
+            }
+            
+            // Nếu số tài xế rảnh < số trips cần → reject booking
+            if (availableDriverIds.size() < expectedTripsCount) {
+                throw new RuntimeException(String.format(
+                        "Không đủ tài xế rảnh để tạo đơn hàng. " +
+                        "Yêu cầu: %d tài xế cho %d chuyến, nhưng chỉ có %d tài xế rảnh trong khoảng thời gian này. " +
+                        "Vui lòng chọn thời gian khác hoặc giảm số lượng xe.",
+                        expectedTripsCount, expectedTripsCount, availableDriverIds.size()
+                ));
+            }
+            
+            log.info("[Booking] Driver availability check passed: {} drivers available for {} trips", 
+                    availableDriverIds.size(), expectedTripsCount);
+        }
+        
         // Nếu có trips trong request, tạo trips theo request
         // Nếu không có trips nhưng có vehicles với quantity > 1, tự động tạo nhiều trips
         if (request.getTrips() != null && !request.getTrips().isEmpty()) {
@@ -1375,6 +1443,41 @@ public class BookingServiceImpl implements BookingService {
         if (request.getDriverId() != null) {
             Drivers driver = driverRepository.findById(request.getDriverId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế: " + request.getDriverId()));
+            
+            // VALIDATION: Kiểm tra tài xế này đã được gán cho trip khác trong cùng booking chưa
+            // (ngoài các trips đang được gán trong request này)
+            List<Trips> allBookingTrips = tripRepository.findByBooking_Id(bookingId);
+            Set<Integer> targetTripIdsSet = new java.util.HashSet<>(targetTripIds);
+            
+            for (Trips otherTrip : allBookingTrips) {
+                // Bỏ qua các trips đang được gán trong request này
+                if (targetTripIdsSet.contains(otherTrip.getId())) {
+                    continue;
+                }
+                
+                // Kiểm tra xem trip khác đã có tài xế này chưa
+                List<TripDrivers> otherTripDrivers = tripDriverRepository.findByTripId(otherTrip.getId());
+                boolean driverAlreadyAssigned = otherTripDrivers.stream()
+                        .anyMatch(td -> td.getDriver() != null && td.getDriver().getId().equals(driver.getId()));
+                
+                if (driverAlreadyAssigned) {
+                    throw new RuntimeException(String.format(
+                            "Tài xế %s đã được gán cho chuyến khác trong cùng đơn hàng (Trip #%d). " +
+                            "Mỗi chuyến trong cùng đơn hàng phải có tài xế khác nhau.",
+                            driver.getEmployee() != null && driver.getEmployee().getUser() != null
+                                    ? driver.getEmployee().getUser().getFullName()
+                                    : "ID " + driver.getId(),
+                            otherTrip.getId()
+                    ));
+                }
+            }
+            
+            // Nếu gán cho nhiều trips cùng lúc, cũng cần đảm bảo không trùng nhau
+            if (targetTripIds.size() > 1) {
+                log.warn("[Booking] Assigning same driver {} to {} trips. This is allowed but may not be desired.", 
+                        driver.getId(), targetTripIds.size());
+            }
+            
             for (Integer tid : targetTripIds) {
                 List<TripDrivers> olds = tripDriverRepository.findByTripId(tid);
                 if (!olds.isEmpty()) tripDriverRepository.deleteAll(olds);
@@ -1943,8 +2046,9 @@ public class BookingServiceImpl implements BookingService {
         BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(booking.getId());
         if (paidAmount == null) paidAmount = BigDecimal.ZERO;
         
-        // Check if all trips are assigned (have both driver and vehicle)
-        boolean isAssigned = !trips.isEmpty() && trips.stream().allMatch(trip -> {
+        // Check if booking has *any* trip assigned (at least one trip có đủ driver + vehicle)
+        // Business view cho điều phối: chỉ cần đã gán chuyến nào cho đơn là coi là "Đã gắn chuyến".
+        boolean isAssigned = !trips.isEmpty() && trips.stream().anyMatch(trip -> {
             List<TripDrivers> drivers = tripDriverRepository.findByTripId(trip.getId());
             List<TripVehicles> vehicles = tripVehicleRepository.findByTripId(trip.getId());
             return !drivers.isEmpty() && !vehicles.isEmpty();

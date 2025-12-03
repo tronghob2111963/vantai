@@ -351,15 +351,21 @@ function Topbar() {
     navigate("/me/profile");
   };
 
+  const currentRole = getCurrentRole();
+  const shouldShowNotifications =
+    currentRole === ROLES.CONSULTANT ||
+    currentRole === ROLES.COORDINATOR ||
+    currentRole === ROLES.ACCOUNTANT;
+
   return (
     <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3.5 shadow-sm">
       {/* Left side - empty or can add breadcrumb later */}
       <div className="flex-1"></div>
 
-      {/* Right side - bell + user chip + logout */}
+      {/* Right side - bell (một số role) + user chip + logout */}
       <div className="flex items-center gap-2.5">
-        {/* bell - WebSocket Notifications */}
-        <NotificationsWidget />
+        {/* bell - WebSocket Notifications (chỉ cho các role tham gia điều phối/thu chi) */}
+        {shouldShowNotifications && <NotificationsWidget />}
 
         {/* user chip */}
         <button

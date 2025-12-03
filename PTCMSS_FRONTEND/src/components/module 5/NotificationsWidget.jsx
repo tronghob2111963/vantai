@@ -70,6 +70,7 @@ export default function NotificationsWidget() {
     const role = getCurrentRole();
     const userId = getStoredUserId();
     const isAdmin = role === ROLES.ADMIN;
+    const isManager = role === ROLES.MANAGER;
     const isConsultant = role === ROLES.CONSULTANT;
 
     // WebSocket real-time notifications
@@ -127,9 +128,9 @@ export default function NotificationsWidget() {
     const loadingRef = React.useRef(false);
     
     const fetchAll = React.useCallback(async () => {
-        // Skip for DRIVER role - they don't have access to notifications dashboard
-        if (role === ROLES.DRIVER) {
-            console.log('[NotificationsWidget] Skipping dashboard fetch for DRIVER role');
+        // Skip for roles không tham gia phê duyệt/điều phối (DRIVER, MANAGER, ADMIN)
+        if (role === ROLES.DRIVER || role === ROLES.MANAGER || role === ROLES.ADMIN) {
+            console.log('[NotificationsWidget] Skipping dashboard fetch for role:', role);
             setDashboard(null);
             setLoading(false);
             return;
