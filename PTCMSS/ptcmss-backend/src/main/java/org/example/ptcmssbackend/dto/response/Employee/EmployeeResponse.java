@@ -13,6 +13,7 @@ public class EmployeeResponse {
     private String userFullName;
     private String userEmail;
     private String userPhone;
+    private String userAddress;
     private Integer branchId;
     private String branchName;
     private Integer roleId;
