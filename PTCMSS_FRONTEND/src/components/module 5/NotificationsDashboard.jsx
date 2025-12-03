@@ -387,9 +387,28 @@ export default function NotificationsDashboard() {
             
             setDialogOpen(false);
             handleRefresh();
-        } catch (err) {
+            } catch (err) {
             console.error("Failed to reject:", err);
             alert("Không thể từ chối");
+        }
+    };
+
+    // Xóa / ẩn một approval đã xử lý khỏi danh sách (và backend)
+    const handleDismissProcessedApproval = async (approvalId) => {
+        if (!approvalId) return;
+        if (!window.confirm("Bạn có chắc muốn xóa thông báo này khỏi danh sách?")) return;
+
+        try {
+            await apiFetch(`/api/notifications/approvals/${approvalId}?userId=${userId}`, {
+                method: "DELETE",
+            });
+            // Cập nhật UI local ngay để cảm giác mượt
+            setProcessedApprovals((prev) => prev.filter((a) => a.id !== approvalId));
+            // Cập nhật lại thống kê tổng quan
+            handleRefresh();
+        } catch (err) {
+            console.error("Failed to dismiss approval:", err);
+            alert("Không thể xóa thông báo này. Vui lòng thử lại.");
         }
     };
 
@@ -535,6 +554,7 @@ export default function NotificationsDashboard() {
                                                     key={approval.id}
                                                     approval={approval}
                                                     onClick={() => handleViewDetail(approval, "processed")}
+                                                    onDismiss={handleDismissProcessedApproval}
                                                 />
                                             ))}
                                         </div>
@@ -809,7 +829,7 @@ function AlertCard({ alert, onAcknowledge, onClick }) {
     );
 }
 
-function ProcessedApprovalCard({ approval, onClick }) {
+function ProcessedApprovalCard({ approval, onClick, onDismiss }) {
     const typeConfig = {
         DRIVER_DAY_OFF: { icon: Calendar, label: "Nghỉ phép", color: "text-purple-600" },
         EXPENSE_REQUEST: { icon: DollarSign, label: "Tạm ứng", color: "text-green-600" },
@@ -918,6 +938,19 @@ function ProcessedApprovalCard({ approval, onClick }) {
                                 </div>
                             </div>
                         </div>
+
+                        {onDismiss && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDismiss(approval.id);
+                                }}
+                                className="text-slate-400 hover:text-slate-600 ml-1 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                                title="Xóa thông báo này"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
