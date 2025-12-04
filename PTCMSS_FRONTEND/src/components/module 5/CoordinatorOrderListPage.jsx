@@ -197,6 +197,7 @@ export default function CoordinatorOrderListPage() {
             PENDING: { label: "Chờ xử lý", color: "bg-yellow-50 text-yellow-700" },
             CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-50 text-blue-700" },
             IN_PROGRESS: { label: "Đang thực hiện", color: "bg-purple-50 text-purple-700" },
+            INPROGRESS: { label: "Đang thực hiện", color: "bg-purple-50 text-purple-700" },
             COMPLETED: { label: "Hoàn thành", color: "bg-green-50 text-green-700" },
             CANCELLED: { label: "Đã hủy", color: "bg-red-50 text-red-700" },
         };

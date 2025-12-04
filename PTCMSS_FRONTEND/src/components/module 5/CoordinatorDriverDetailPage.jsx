@@ -21,6 +21,7 @@ export default function CoordinatorDriverDetailPage() {
         phone: "",
         address: "",
         note: "",
+        licenseNumber: "",
         licenseClass: "",
         licenseExpiry: "",
         healthCheckDate: "",
@@ -61,6 +62,7 @@ export default function CoordinatorDriverDetailPage() {
                 phone: resp?.phone || "",
                 address: resp?.address || "",
                 note: resp?.note || "",
+                licenseNumber: resp?.licenseNumber || "",
                 licenseClass: resp?.licenseClass || "",
                 licenseExpiry: resp?.licenseExpiry || "",
                 healthCheckDate: resp?.healthCheckDate || "",
@@ -72,6 +74,23 @@ export default function CoordinatorDriverDetailPage() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCancel = () => {
+        // Reset form data to original driver data
+        if (driver) {
+            setFormData({
+                phone: driver?.phone || "",
+                address: driver?.address || "",
+                note: driver?.note || "",
+                licenseNumber: driver?.licenseNumber || "",
+                licenseClass: driver?.licenseClass || "",
+                licenseExpiry: driver?.licenseExpiry || "",
+                healthCheckDate: driver?.healthCheckDate || "",
+                status: driver?.status || "",
+            });
+        }
+        setEditing(false);
     };
 
     const handleSave = async () => {
@@ -197,7 +216,7 @@ export default function CoordinatorDriverDetailPage() {
                         ) : (
                             <>
                                 <button
-                                    onClick={() => setEditing(false)}
+                                    onClick={handleCancel}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-medium hover:bg-slate-100 transition-colors"
                                 >
                                     <X className="h-4 w-4" />
@@ -263,8 +282,18 @@ export default function CoordinatorDriverDetailPage() {
                         <div className="space-y-4">
                             <div className="flex items-center gap-3">
                                 <Award className="h-5 w-5 text-slate-400" />
-                                <span className="text-slate-600">Số GPLX:</span>
-                                <span className="font-medium text-slate-900">{driver?.licenseNumber || "—"}</span>
+                                <span className="text-slate-600 min-w-[80px]">Số GPLX:</span>
+                                {editing ? (
+                                    <input
+                                        type="text"
+                                        value={formData.licenseNumber}
+                                        onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                        placeholder="Số giấy phép lái xe"
+                                    />
+                                ) : (
+                                    <span className="font-medium text-slate-900">{driver?.licenseNumber || "—"}</span>
+                                )}
                             </div>
                             <div className="flex items-center gap-3">
                                 <Shield className="h-5 w-5 text-slate-400" />

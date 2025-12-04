@@ -264,11 +264,11 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                             <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 border-t border-slate-200">
                                 <span className="text-sm text-slate-600 font-medium">Kiểm tra tài xế rảnh:</span>
                                 <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <Calendar className="h-4 w-4 text-slate-400" />
+                                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                        <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                                         <input
                                             type="date"
-                                            value={timeFilterStart}
+                                            value={timeFilterStart || ""}
                                             onChange={(e) => {
                                                 const newStart = e.target.value;
                                                 setTimeFilterStart(newStart);
@@ -279,16 +279,16 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                                 }
                                             }}
                                             max={timeFilterEnd || undefined}
-                                            className="bg-transparent outline-none text-sm text-slate-700"
+                                            className="bg-transparent outline-none text-sm text-slate-700 flex-1 cursor-pointer"
                                             title="Từ ngày"
                                         />
                                     </div>
                                     <span className="text-slate-400">→</span>
-                                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <Calendar className="h-4 w-4 text-slate-400" />
+                                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                        <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                                         <input
                                             type="date"
-                                            value={timeFilterEnd}
+                                            value={timeFilterEnd || ""}
                                             onChange={(e) => {
                                                 const newEnd = e.target.value;
                                                 // Validate: end phải >= start
@@ -300,7 +300,7 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                                 setCurrentPage(1);
                                             }}
                                             min={timeFilterStart || undefined}
-                                            className="bg-transparent outline-none text-sm text-slate-700"
+                                            className="bg-transparent outline-none text-sm text-slate-700 flex-1 cursor-pointer"
                                             title="Đến ngày"
                                         />
                                     </div>

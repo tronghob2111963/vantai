@@ -969,7 +969,7 @@ function FilterBar({
                     >
                         <option value="">Tất cả trạng thái</option>
                         <option value="AVAILABLE">Hoạt động</option>
-                        <option value="INUSE">Hoạt động</option>
+                        <option value="INUSE">Đang sử dụng</option>
                         <option value="MAINTENANCE">Bảo trì</option>
                         <option value="INACTIVE">Ngừng hoạt động</option>
                     </select>
@@ -990,10 +990,10 @@ function FilterBar({
                 {isConsultant && (
                     <>
                         <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white shadow-sm px-3 py-2 min-w-[160px]">
-                            <Calendar className="h-4 w-4 text-slate-400" />
+                            <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                             <input
                                 type="date"
-                                value={timeFilterStart}
+                                value={timeFilterStart || ""}
                                 onChange={(e) => {
                                     const newStart = e.target.value;
                                     setTimeFilterStart(newStart);
@@ -1003,17 +1003,16 @@ function FilterBar({
                                     }
                                 }}
                                 max={timeFilterEnd || undefined}
-                                placeholder="Từ ngày"
-                                className="bg-transparent outline-none text-[13px] text-slate-700 flex-1"
+                                className="bg-transparent outline-none text-[13px] text-slate-700 flex-1 cursor-pointer"
                                 title="Từ ngày"
                             />
                         </div>
                         <span className="text-slate-400 text-[13px]">→</span>
                         <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white shadow-sm px-3 py-2 min-w-[160px]">
-                            <Calendar className="h-4 w-4 text-slate-400" />
+                            <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                             <input
                                 type="date"
-                                value={timeFilterEnd}
+                                value={timeFilterEnd || ""}
                                 onChange={(e) => {
                                     const newEnd = e.target.value;
                                     // Validate: end phải >= start
@@ -1024,8 +1023,7 @@ function FilterBar({
                                     setTimeFilterEnd(newEnd);
                                 }}
                                 min={timeFilterStart || undefined}
-                                placeholder="Đến ngày"
-                                className="bg-transparent outline-none text-[13px] text-slate-700 flex-1"
+                                className="bg-transparent outline-none text-[13px] text-slate-700 flex-1 cursor-pointer"
                                 title="Đến ngày"
                             />
                         </div>
@@ -1522,6 +1520,57 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
         })();
     }, [mapVehicle]);
 
+    // Check vehicle availability khi có date filter (cho Consultant)
+    React.useEffect(() => {
+        if (!isConsultant || !timeFilterStart || !timeFilterEnd || vehicles.length === 0) {
+            setVehicleAvailability({});
+            return;
+        }
+
+        (async () => {
+            try {
+                const availabilityMap = {};
+                const startTime = new Date(timeFilterStart + "T00:00:00").toISOString();
+                const endTime = new Date(timeFilterEnd + "T23:59:59").toISOString();
+                
+                // Check availability cho từng xe bằng cách check trips
+                await Promise.all(vehicles.map(async (v) => {
+                    try {
+                        const trips = await getVehicleTrips(v.id);
+                        const tripList = Array.isArray(trips) ? trips : (trips?.data || trips?.content || []);
+                        
+                        // Check xem có trip nào overlap với khoảng thời gian không
+                        const hasConflict = tripList.some(trip => {
+                            if (!trip.startTime || trip.status === 'COMPLETED' || trip.status === 'CANCELLED') {
+                                return false;
+                            }
+                            const tripStart = new Date(trip.startTime);
+                            const tripEnd = trip.endTime ? new Date(trip.endTime) : new Date(tripStart.getTime() + 8 * 60 * 60 * 1000);
+                            const filterStart = new Date(startTime);
+                            const filterEnd = new Date(endTime);
+                            
+                            // Check overlap: tripStart <= filterEnd && tripEnd >= filterStart
+                            return (tripStart <= filterEnd && tripEnd >= filterStart);
+                        });
+                        
+                        availabilityMap[v.id] = {
+                            available: !hasConflict,
+                            reason: hasConflict ? "Có chuyến trong khoảng thời gian này" : "Rảnh"
+                        };
+                    } catch (err) {
+                        console.warn(`Failed to check availability for vehicle ${v.id}:`, err);
+                        // Mặc định là available nếu không check được
+                        availabilityMap[v.id] = { available: true, reason: "" };
+                    }
+                }));
+                setVehicleAvailability(availabilityMap);
+            } catch (err) {
+                console.error("Failed to check vehicle availability:", err);
+                setVehicleAvailability({});
+            }
+        })();
+    }, [isConsultant, timeFilterStart, timeFilterEnd, vehicles]);
+
     // modal state
     const [createOpen, setCreateOpen] = React.useState(false);
     const [editOpen, setEditOpen] = React.useState(false);
@@ -1546,12 +1595,25 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
             // Filter status: nếu xe đang trong chuyến, coi như INUSE
             const displayStatus = vehicleOngoingTrips[v.id] ? "INUSE" : v.status;
             if (statusFilter) {
-                // Nếu filter "AVAILABLE" hoặc "INUSE", cần check cả 2 trường hợp
-                if (statusFilter === "AVAILABLE" && displayStatus !== "AVAILABLE") return false;
-                if (statusFilter === "INUSE" && displayStatus !== "INUSE") return false;
-                if (statusFilter !== "AVAILABLE" && statusFilter !== "INUSE" && displayStatus !== statusFilter) return false;
+                // Filter "Hoạt động" (AVAILABLE) bao gồm cả AVAILABLE và INUSE
+                if (statusFilter === "AVAILABLE") {
+                    // "Hoạt động" = AVAILABLE hoặc INUSE
+                    if (displayStatus !== "AVAILABLE" && displayStatus !== "INUSE") return false;
+                } else {
+                    // Các filter khác: chính xác
+                    if (displayStatus !== statusFilter) return false;
+                }
             }
             if (q && !String(v.license_plate).toLowerCase().includes(q)) return false;
+            
+            // Filter theo ngày cho Consultant: chỉ hiển thị xe rảnh trong khoảng thời gian
+            if (isConsultant && timeFilterStart && timeFilterEnd) {
+                // Nếu có vehicleAvailability data, chỉ hiển thị xe rảnh
+                if (vehicleAvailability && vehicleAvailability[v.id] !== undefined) {
+                    if (!vehicleAvailability[v.id]?.available) return false;
+                }
+            }
+            
             return true;
         });
 
