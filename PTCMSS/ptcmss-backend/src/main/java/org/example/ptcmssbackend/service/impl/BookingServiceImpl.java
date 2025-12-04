@@ -2014,6 +2014,21 @@ public class BookingServiceImpl implements BookingService {
         // Tính paidAmount từ payment_history đã CONFIRMED
         BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(booking.getId());
         if (paidAmount == null) paidAmount = BigDecimal.ZERO;
+        
+        // Tính tổng số xe trong booking từ BookingVehicleDetails (quantity)
+        int vehicleCount = 0;
+        try {
+            List<BookingVehicleDetails> vehicleDetailsForCount = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+            if (vehicleDetailsForCount != null && !vehicleDetailsForCount.isEmpty()) {
+                vehicleCount = vehicleDetailsForCount.stream()
+                        .map(BookingVehicleDetails::getQuantity)
+                        .filter(java.util.Objects::nonNull)
+                        .mapToInt(Integer::intValue)
+                        .sum();
+            }
+        } catch (Exception e) {
+            log.warn("[BookingService] Cannot calculate vehicleCount for booking {}: {}", booking.getId(), e.getMessage());
+        }
         BigDecimal remainingAmount = booking.getTotalCost() != null
                 ? booking.getTotalCost().subtract(paidAmount)
                 : BigDecimal.ZERO;
@@ -2084,6 +2099,24 @@ public class BookingServiceImpl implements BookingService {
             return !drivers.isEmpty() && !vehicles.isEmpty();
         });
         
+        // Tính tổng số xe trong booking từ BookingVehicleDetails (quantity)
+        Integer vehicleCount = null;
+        try {
+            List<BookingVehicleDetails> vehicleDetails = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+            if (vehicleDetails != null && !vehicleDetails.isEmpty()) {
+                int total = vehicleDetails.stream()
+                        .map(BookingVehicleDetails::getQuantity)
+                        .filter(java.util.Objects::nonNull)
+                        .mapToInt(Integer::intValue)
+                        .sum();
+                if (total > 0) {
+                    vehicleCount = total;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[BookingService] Cannot calculate vehicleCount for booking {}: {}", booking.getId(), e.getMessage());
+        }
+        
         return BookingListResponse.builder()
                 .id(booking.getId())
                 .customerName(booking.getCustomer().getFullName())
@@ -2093,6 +2126,7 @@ public class BookingServiceImpl implements BookingService {
                 .totalCost(booking.getTotalCost())
                 .depositAmount(booking.getDepositAmount())
                 .paidAmount(paidAmount)
+                .vehicleCount(vehicleCount)
                 .status(booking.getStatus() != null ? booking.getStatus().name() : null)
                 .isAssigned(isAssigned)
                 .createdAt(booking.getCreatedAt())

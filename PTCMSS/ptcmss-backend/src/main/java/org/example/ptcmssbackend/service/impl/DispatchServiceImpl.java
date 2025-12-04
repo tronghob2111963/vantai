@@ -109,9 +109,6 @@ public class DispatchServiceImpl implements DispatchService {
                 continue;
             }
 
-            // Lấy số ghế tối đa cho booking này để ưu tiên trong hàng đợi
-            Integer maxSeats = getMaxSeatsFromBooking(b);
-
             result.add(PendingTripResponse.builder()
                     .tripId(t.getId())
                     .bookingId(b.getId())
@@ -862,14 +859,14 @@ public class DispatchServiceImpl implements DispatchService {
                                     tripVehicleId, requiredCategoryId, trip.getId());
                             } else {
                                 // Xe tái sử dụng không đúng loại, chọn xe mới
-                                tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId);
+                                tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId, vehicleToTrips);
                             }
                         } else {
                             // Không tìm thấy xe có thể tái sử dụng, chọn xe mới theo đúng loại
                             Integer requiredCategoryId = tripIdx < requiredCategoryIds.size() 
                                     ? requiredCategoryIds.get(tripIdx) 
                                     : null;
-                            tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId);
+                            tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId, vehicleToTrips);
                         }
                     } else {
                         // Nếu đã có vehicleId từ request, dùng nó
@@ -992,7 +989,7 @@ public class DispatchServiceImpl implements DispatchService {
                     driverId = pickBestDriverForTrip(booking, representativeTrip);
                 }
             }
-                if (vehicleId == null) {
+                    if (vehicleId == null) {
                     // Lấy categoryId từ booking (trip đầu tiên)
                     List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
                     Integer requiredCategoryId = null;
@@ -1820,11 +1817,14 @@ public class DispatchServiceImpl implements DispatchService {
         return defaultValue;
     }
 
-    private Integer pickBestVehicleForTrip(Bookings booking, Trips trip) {
-        return pickBestVehicleForTrip(booking, trip, null);
-    }
-    
     private Integer pickBestVehicleForTrip(Bookings booking, Trips trip, Integer requiredCategoryId) {
+        return pickBestVehicleForTrip(booking, trip, requiredCategoryId, null);
+    }
+
+    private Integer pickBestVehicleForTrip(Bookings booking,
+                                           Trips trip,
+                                           Integer requiredCategoryId,
+                                           Map<Integer, List<Trips>> provisionalAssignments) {
         Integer branchId = booking.getBranch().getId();
         log.info("[Dispatch] Picking best vehicle for branch {}, trip {}, categoryId {}", branchId, trip.getId(), requiredCategoryId);
 
@@ -1859,6 +1859,18 @@ public class DispatchServiceImpl implements DispatchService {
                             && !tv.getTrip().getId().equals(trip.getId())
             );
             if (busy) continue;
+
+            if (provisionalAssignments != null) {
+                List<Trips> provisionalTrips = provisionalAssignments.get(v.getId());
+                if (provisionalTrips != null) {
+                    boolean provisionalBusy = provisionalTrips.stream()
+                            .anyMatch(existing -> hasTimeOverlap(existing, trip));
+                    if (provisionalBusy) {
+                        log.debug("[Dispatch] Vehicle {} temporarily reserved for overlapping trip, skip", v.getId());
+                        continue;
+                    }
+                }
+            }
 
             // Score: tạm thời = 0 (sau này có thể thêm logic km, maintenance,...)
             scored.add(new CandidateScore<>(v, 0));
@@ -1957,6 +1969,18 @@ public class DispatchServiceImpl implements DispatchService {
         
         // Các hạng khác (A1, A2, A3, A4...): Không lái được xe khách
         return false;
+    }
+
+    private boolean hasTimeOverlap(Trips t1, Trips t2) {
+        if (t1 == null || t2 == null) return true;
+        Instant s1 = t1.getStartTime();
+        Instant e1 = t1.getEndTime();
+        Instant s2 = t2.getStartTime();
+        Instant e2 = t2.getEndTime();
+        if (s1 == null || e1 == null || s2 == null || e2 == null) {
+            return true;
+        }
+        return s1.isBefore(e2) && s2.isBefore(e1);
     }
 }
 
