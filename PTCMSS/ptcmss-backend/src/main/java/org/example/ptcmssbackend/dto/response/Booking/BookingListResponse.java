@@ -17,6 +17,7 @@ public class BookingListResponse {
     private BigDecimal totalCost;
     private BigDecimal depositAmount; // Tiền cọc cần thu
     private BigDecimal paidAmount;    // Tiền đã thanh toán thực tế
+    private Integer vehicleCount;     // Tổng số xe trong booking
     private String status;
     private Boolean isAssigned;       // Tất cả trips đã gán driver + vehicle chưa
     private Instant createdAt;

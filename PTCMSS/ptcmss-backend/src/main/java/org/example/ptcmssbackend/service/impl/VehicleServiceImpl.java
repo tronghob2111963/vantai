@@ -11,12 +11,14 @@ import org.example.ptcmssbackend.dto.response.Vehicle.VehicleTripResponse;
 import org.example.ptcmssbackend.entity.Bookings;
 import org.example.ptcmssbackend.entity.Invoices;
 import org.example.ptcmssbackend.entity.Vehicles;
+import org.example.ptcmssbackend.entity.ExpenseRequests;
 import org.example.ptcmssbackend.enums.InvoiceType;
 import org.example.ptcmssbackend.enums.PaymentStatus;
 import org.example.ptcmssbackend.enums.VehicleStatus;
 import org.example.ptcmssbackend.dto.response.common.PageResponse;
 import org.example.ptcmssbackend.repository.BranchesRepository;
 import org.example.ptcmssbackend.repository.InvoiceRepository;
+import org.example.ptcmssbackend.repository.ExpenseRequestRepository;
 import org.example.ptcmssbackend.repository.TripVehicleRepository;
 import org.example.ptcmssbackend.repository.TripDriverRepository;
 import org.example.ptcmssbackend.entity.TripDrivers;
@@ -24,6 +26,7 @@ import org.example.ptcmssbackend.entity.TripVehicles;
 import org.example.ptcmssbackend.repository.VehicleCategoryPricingRepository;
 import org.example.ptcmssbackend.repository.VehicleRepository;
 import org.example.ptcmssbackend.service.VehicleService;
+import org.example.ptcmssbackend.enums.ExpenseRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +52,7 @@ public class VehicleServiceImpl implements VehicleService {
     private final TripVehicleRepository tripVehicleRepository;
     private final TripDriverRepository tripDriverRepository;
     private final InvoiceRepository invoiceRepository;
+    private final ExpenseRequestRepository expenseRequestRepository;
 
     @Override
     public VehicleResponse create(VehicleRequest request) {
@@ -211,7 +215,8 @@ public class VehicleServiceImpl implements VehicleService {
         
         List<Invoices> expenses = invoiceRepository.findExpensesByVehicleId(vehicleId, InvoiceType.EXPENSE);
         
-        return expenses.stream()
+        // Map invoice-based expenses
+        List<VehicleExpenseResponse> results = expenses.stream()
                 .filter(inv -> inv.getCostType() == null || !inv.getCostType().equals("maintenance"))
                 .map(inv -> VehicleExpenseResponse.builder()
                         .invoiceId(inv.getId())
@@ -227,6 +232,35 @@ public class VehicleServiceImpl implements VehicleService {
                         .approvedAt(inv.getApprovedAt())
                         .build())
                 .collect(Collectors.toList());
+        
+        // Thêm các expense request đã được KẾ TOÁN DUYỆT (APPROVED) gắn với xe này
+        List<ExpenseRequests> approvedRequests =
+                expenseRequestRepository.findByStatusAndVehicle_Id(ExpenseRequestStatus.APPROVED, vehicleId);
+        
+        results.addAll(
+                approvedRequests.stream()
+                        .map(req -> VehicleExpenseResponse.builder()
+                                .invoiceId(null) // không phải invoice, dùng null
+                                .costType(req.getType())
+                                .amount(req.getAmount())
+                                .paymentStatus(ExpenseRequestStatus.APPROVED.name())
+                                .note(req.getNote())
+                                .invoiceDate(req.getCreatedAt())
+                                .createdByName(req.getRequester() != null ? req.getRequester().getFullName() : null)
+                                .approvedByName(null) // chưa lưu người duyệt, để null
+                                .approvedAt(null)
+                                .build())
+                        .collect(Collectors.toList())
+        );
+        
+        // Có thể sort theo ngày gần nhất trước
+        results.sort((a, b) -> {
+            if (a.getInvoiceDate() == null) return 1;
+            if (b.getInvoiceDate() == null) return -1;
+            return b.getInvoiceDate().compareTo(a.getInvoiceDate());
+        });
+        
+        return results;
     }
 
     @Override

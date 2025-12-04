@@ -1068,6 +1068,10 @@ export default function OrderDetailPage() {
                 return Array(qty).fill(v.categoryName || '');
             })
             : [];
+        const hasMixedVehicleCategories =
+            Array.isArray(b.vehicles) && b.vehicles.length > 1
+                ? new Set(b.vehicles.map(v => v.categoryName || '')).size > 1
+                : false;
         
         const dispatchList = trips.map((trip, idx) => ({
             tripId: trip.id || trip.tripId || null,
@@ -1126,6 +1130,7 @@ export default function OrderDetailPage() {
             // Thêm danh sách dispatch cho nhiều xe
             dispatchList: dispatchList,
             trips: trips, // Lưu toàn bộ trips để dùng trong AssignDriverDialog
+            hasMixedVehicleCategories,
             notes_internal: b.note || '',
             branch_name: b.branchName || b.branch?.name || '',
         };

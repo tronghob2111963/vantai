@@ -59,10 +59,12 @@ export default function AssignDriverDialog({
     const tripIds = order?.tripIds; // Danh sách trips nếu có nhiều xe
     const bookingId = order?.bookingId;
     const vehicleCount = order?.vehicle_count || 1; // Số lượng xe trong booking
+    const hasMixedVehicleCategories = !!order?.hasMixedVehicleCategories;
     
     // Tính số trips chưa gán (nếu có nhiều xe)
     const [unassignedTripCount, setUnassignedTripCount] = React.useState(0);
-    const [assignToAllTrips, setAssignToAllTrips] = React.useState(true); // Mặc định gán cho tất cả
+    // Nếu đơn có nhiều loại xe khác nhau -> mặc định KHÔNG gán cho tất cả để tránh sai loại xe
+    const [assignToAllTrips, setAssignToAllTrips] = React.useState(!hasMixedVehicleCategories);
 
     // Fetch gợi ý khi popup mở
     React.useEffect(() => {
@@ -77,8 +79,10 @@ export default function AssignDriverDialog({
             // Tính số trips chưa gán từ tripIds (đã được lọc từ OrderDetailPage)
             if (tripIds && tripIds.length > 0) {
                 setUnassignedTripCount(tripIds.length);
-                // Nếu có nhiều hơn 1 trip chưa gán, mặc định gán cho tất cả
-                setAssignToAllTrips(tripIds.length > 1);
+                // Nếu có nhiều hơn 1 trip chưa gán:
+                //  - Nếu đơn có nhiều loại xe khác nhau -> KHÔNG auto tick "gán cho tất cả"
+                //  - Ngược lại (cùng loại xe) -> vẫn mặc định gán cho tất cả như trước
+                setAssignToAllTrips(tripIds.length > 1 && !hasMixedVehicleCategories);
             } else {
                 setUnassignedTripCount(1);
                 setAssignToAllTrips(false); // Chỉ gán cho 1 trip
