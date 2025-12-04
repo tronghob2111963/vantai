@@ -376,6 +376,7 @@ export default function CoordinatorVehicleListPage() {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm">
                                                     <div className="flex flex-col gap-1">
+                                                    {/* Badge trên: Trạng thái hiện tại của xe (Sẵn sàng/Đang sử dụng/Bảo trì) */}
                                                     <span
                                                         className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${vehicle.status === "AVAILABLE"
                                                             ? "bg-green-50 text-green-700"
@@ -394,7 +395,9 @@ export default function CoordinatorVehicleListPage() {
                                                                     ? "Bảo trì"
                                                                     : "Không hoạt động"}
                                                     </span>
-                                                        {timeFilterStart && timeFilterEnd && vehicleAvailability[vehicle.id] && (
+                                                        {/* Badge dưới: Rảnh/Bận theo khoảng thời gian đã chọn trong filter
+                                                            Chỉ hiển thị khi xe ở trạng thái "Sẵn sàng" và đã chọn filter ngày */}
+                                                        {vehicle.status === "AVAILABLE" && timeFilterStart && timeFilterEnd && vehicleAvailability[vehicle.id] && (
                                                             <span
                                                                 className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${vehicleAvailability[vehicle.id].available
                                                                     ? "bg-emerald-50 text-emerald-700"
@@ -425,6 +428,29 @@ export default function CoordinatorVehicleListPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Note giải thích về trạng thái */}
+                {timeFilterStart && timeFilterEnd && (
+                    <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 text-sm text-slate-700">
+                                <div className="font-semibold text-slate-900 mb-2">Giải thích về trạng thái:</div>
+                                <ul className="space-y-1.5 text-slate-600">
+                                    <li>
+                                        <span className="font-medium text-slate-800">• Trạng thái trên:</span> Trạng thái hiện tại của xe trong hệ thống (Sẵn sàng/Đang sử dụng/Bảo trì)
+                                    </li>
+                                    <li>
+                                        <span className="font-medium text-slate-800">• Trạng thái dưới (Rảnh/Bận):</span> Chỉ hiển thị khi xe ở trạng thái "Sẵn sàng" và cho biết xe có rảnh trong khoảng thời gian đã chọn hay không
+                                    </li>
+                                    <li className="text-xs text-slate-500 mt-2">
+                                        💡 Lưu ý: Xe đang "Đang sử dụng" hoặc "Bảo trì" sẽ không hiển thị badge "Rảnh/Bận" vì đã rõ là không thể sử dụng
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Pagination */}
                 {totalPages > 1 && (

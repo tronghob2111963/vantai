@@ -354,7 +354,7 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                             Trạng thái
                                         </th>
-                                        {isConsultant && timeFilterStart && timeFilterEnd && (
+                                        {canUseAvailabilityFilter && timeFilterStart && timeFilterEnd && (
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                                 Rảnh/Bận
                                             </th>
@@ -404,6 +404,7 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                                         <span className="text-slate-400">Chưa cập nhật</span>
                                                     )}
                                                 </td>
+                                                {/* Cột Trạng thái: Hiển thị trạng thái hiện tại của tài xế */}
                                                 <td className="px-4 py-3">
                                                     {(() => {
                                                         const statusMap = {
@@ -421,8 +422,9 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                                         );
                                                     })()}
                                                 </td>
-                                                {/* Availability badge for Consultant with time filter */}
-                                                {isConsultant && timeFilterStart && timeFilterEnd && (
+                                                {/* Cột Rảnh/Bận: Hiển thị trạng thái rảnh/bận theo khoảng thời gian đã chọn trong filter
+                                                    Chỉ hiển thị khi tài xế ở trạng thái sẵn sàng (AVAILABLE/ACTIVE) và đã chọn filter ngày */}
+                                                {canUseAvailabilityFilter && timeFilterStart && timeFilterEnd && (driver.status === "AVAILABLE" || driver.status === "ACTIVE") && (
                                                     <td className="px-4 py-3">
                                                         {driverAvailability[driver.id] ? (
                                                             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
@@ -472,6 +474,29 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                         </div>
                     )}
                 </div>
+
+                {/* Note giải thích về trạng thái */}
+                {canUseAvailabilityFilter && timeFilterStart && timeFilterEnd && (
+                    <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 text-sm text-slate-700">
+                                <div className="font-semibold text-slate-900 mb-2">Giải thích về trạng thái:</div>
+                                <ul className="space-y-1.5 text-slate-600">
+                                    <li>
+                                        <span className="font-medium text-slate-800">• Cột "Trạng thái":</span> Trạng thái hiện tại của tài xế trong hệ thống (Sẵn sàng/Đang bận/Nghỉ phép/Không hoạt động)
+                                    </li>
+                                    <li>
+                                        <span className="font-medium text-slate-800">• Cột "Rảnh/Bận":</span> Chỉ hiển thị khi tài xế ở trạng thái "Sẵn sàng" hoặc "Hoạt động" và cho biết tài xế có rảnh trong khoảng thời gian đã chọn hay không
+                                    </li>
+                                    <li className="text-xs text-slate-500 mt-2">
+                                        💡 Lưu ý: Tài xế đang "Đang bận", "Nghỉ phép" hoặc "Không hoạt động" sẽ không hiển thị cột "Rảnh/Bận" vì đã rõ là không thể sử dụng
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Pagination */}
                 {totalPages > 1 && (
