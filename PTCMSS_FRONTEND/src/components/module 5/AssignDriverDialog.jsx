@@ -143,11 +143,12 @@ export default function AssignDriverDialog({
     }, [driverCandidates]);
 
     // Loại xe khách đã đặt (dùng để lọc danh sách xe phù hợp)
+    // Ưu tiên lấy từ summary (từ API) vì đã được map đúng cho trip này
     const expectedVehicleType =
+        summary?.vehicleType ||
         order?.trip?.vehicle_category ||
         order?.vehicle_type ||
         order?.vehicleType ||
-        summary?.vehicleType ||
         null;
     
     // danh sách xe (chỉ eligible & đúng loại xe mà khách đặt)
@@ -348,11 +349,12 @@ export default function AssignDriverDialog({
                                 Loại xe:
                             </span>
                             <span className="text-slate-900 font-medium">
-                                {order?.vehicle_type || 
-                                 order?.vehicleType || 
-                                 summary?.vehicleType ||
+                                {summary?.vehicleType || 
+                                 order?.vehicle_type || 
+                                 order?.vehicleType ||
                                  "—"}
-                                {vehicleCount > 1 && ` (${vehicleCount} xe)`}
+                                {/* Chỉ hiển thị số lượng nếu đang gán cho nhiều trips cùng loại xe */}
+                                {assignToAllTrips && unassignedTripCount > 1 && !hasMixedVehicleCategories && ` (${unassignedTripCount} xe)`}
                             </span>
                         </div>
 
@@ -386,9 +388,19 @@ export default function AssignDriverDialog({
                                         className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                                     />
                                     <span>
-                                        Gán cùng tài xế/xe cho tất cả {unassignedTripCount} chuyến còn lại
+                                        Gán cho tất cả {unassignedTripCount} chuyến còn lại
                                     </span>
                                 </label>
+                                {hasMixedVehicleCategories && assignToAllTrips && (
+                                    <div className="mt-1 text-[11px] text-blue-600 font-medium">
+                                        ℹ️ Hệ thống sẽ tự động chọn xe phù hợp cho từng chuyến (xe 9 chỗ cho chuyến 1, xe 45 chỗ cho chuyến 2, ...)
+                                    </div>
+                                )}
+                                {!hasMixedVehicleCategories && assignToAllTrips && (
+                                    <div className="mt-1 text-[11px] text-blue-600 font-medium">
+                                        ℹ️ Sẽ gán cùng tài xế/xe cho tất cả {unassignedTripCount} chuyến
+                                    </div>
+                                )}
                                 {!assignToAllTrips && (
                                     <div className="mt-1 text-[11px] text-amber-700">
                                         (Chỉ gán cho chuyến đầu tiên trong danh sách chưa gán)

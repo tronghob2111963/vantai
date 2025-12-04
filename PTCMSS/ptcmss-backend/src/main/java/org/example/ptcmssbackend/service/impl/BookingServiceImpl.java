@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -1418,6 +1419,21 @@ public class BookingServiceImpl implements BookingService {
         Bookings booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
 
+        // VALIDATION: Chỉ cho phép gán xe sau khi khách đã đặt cọc
+        // Lý do: Tránh giữ chỗ xe cho khách chưa cọc, dẫn đến mất cơ hội với khách khác đã cọc
+        BigDecimal depositAmount = booking.getDepositAmount() != null ? booking.getDepositAmount() : BigDecimal.ZERO;
+        BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(bookingId);
+        if (paidAmount == null) paidAmount = BigDecimal.ZERO;
+        
+        if (depositAmount.compareTo(BigDecimal.ZERO) > 0 && paidAmount.compareTo(depositAmount) < 0) {
+            throw new RuntimeException(String.format(
+                    "Không thể gán xe cho đơn hàng này. Khách hàng chưa đặt cọc đủ. " +
+                    "Yêu cầu cọc: %,.0f VNĐ, Đã thanh toán: %,.0f VNĐ. " +
+                    "Vui lòng yêu cầu khách đặt cọc trước khi gán xe.",
+                    depositAmount, paidAmount
+            ));
+        }
+
         List<Trips> trips = tripRepository.findByBooking_Id(bookingId);
         List<Integer> targetTripIds = (request.getTripIds() != null && !request.getTripIds().isEmpty())
                 ? request.getTripIds()
@@ -1530,6 +1546,15 @@ public class BookingServiceImpl implements BookingService {
             Vehicles primaryVehicle = vehicleRepository.findById(request.getVehicleId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy xe: " + request.getVehicleId()));
             
+            // VALIDATION: Kiểm tra xe có sẵn sàng không
+            if (primaryVehicle.getStatus() != VehicleStatus.AVAILABLE) {
+                throw new RuntimeException(String.format(
+                        "Xe %s không sẵn sàng. Trạng thái hiện tại: %s",
+                        primaryVehicle.getLicensePlate(),
+                        primaryVehicle.getStatus()
+                ));
+            }
+            
             // Lấy thông tin về loại xe cần cho từng trip từ BookingVehicleDetails
             List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
             
@@ -1543,19 +1568,58 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
 
-            // VALIDATION: Không cho phép gán xe khác loại so với booking
-            // - Với phần lớn đơn, tất cả trips dùng cùng 1 loại xe → requiredCategoryIds[0]
-            // - Nếu booking không khai báo loại xe, bỏ qua validation này
-            Integer requiredPrimaryCategoryId = !requiredCategoryIds.isEmpty() ? requiredCategoryIds.get(0) : null;
+            // VALIDATION: Không cho phép gán xe khác loại so với trip đang được gán
+            // QUAN TRỌNG: Nếu gán cho nhiều trips, mỗi trip có thể cần loại xe khác nhau
+            // → Cần validate đúng loại xe cho trip cụ thể đang được gán, không phải trip đầu tiên
+            
+            // Sắp xếp trips để map đúng với requiredCategoryIds
+            List<Trips> sortedTripsForValidation = new ArrayList<>(trips);
+            sortedTripsForValidation.sort(Comparator.comparing((Trips t) -> t.getStartTime() != null ? t.getStartTime() : Instant.EPOCH)
+                    .thenComparing(Trips::getId));
+            
+            // Tìm trip đầu tiên trong targetTripIds để validate
+            Trips firstTargetTrip = sortedTripsForValidation.stream()
+                    .filter(t -> targetTripIds.contains(t.getId()))
+                    .findFirst()
+                    .orElse(null);
+            
+            // Map đúng categoryId cho trip này
+            Integer requiredPrimaryCategoryId = null;
+            if (firstTargetTrip != null && !requiredCategoryIds.isEmpty()) {
+                // Tìm index của trip này trong sortedTripsForValidation
+                int tripIndex = -1;
+                for (int i = 0; i < sortedTripsForValidation.size(); i++) {
+                    if (sortedTripsForValidation.get(i).getId().equals(firstTargetTrip.getId())) {
+                        tripIndex = i;
+                        break;
+                    }
+                }
+                
+                // Map đúng categoryId cho trip này
+                if (tripIndex >= 0 && tripIndex < requiredCategoryIds.size()) {
+                    requiredPrimaryCategoryId = requiredCategoryIds.get(tripIndex);
+                } else {
+                    // Fallback: dùng categoryId đầu tiên nếu không map được
+                    requiredPrimaryCategoryId = requiredCategoryIds.get(0);
+                }
+            } else if (!requiredCategoryIds.isEmpty()) {
+                // Fallback: nếu không tìm được trip, dùng categoryId đầu tiên
+                requiredPrimaryCategoryId = requiredCategoryIds.get(0);
+            }
+            
+            // Final variable để dùng trong lambda
+            final Integer finalRequiredCategoryId = requiredPrimaryCategoryId;
+            
             Integer primaryCategoryId = primaryVehicle.getCategory() != null
                     ? primaryVehicle.getCategory().getId()
                     : null;
-            if (requiredPrimaryCategoryId != null && primaryCategoryId != null
-                    && !primaryCategoryId.equals(requiredPrimaryCategoryId)) {
+            
+            if (finalRequiredCategoryId != null && primaryCategoryId != null
+                    && !finalRequiredCategoryId.equals(primaryCategoryId)) {
                 // Lấy tên loại xe yêu cầu và loại xe đang chọn để hiện thông báo rõ ràng
                 String requiredName = bookingVehicles.stream()
                         .filter(bvd -> bvd.getVehicleCategory() != null
-                                && bvd.getVehicleCategory().getId().equals(requiredPrimaryCategoryId))
+                                && bvd.getVehicleCategory().getId().equals(finalRequiredCategoryId))
                         .map(bvd -> bvd.getVehicleCategory().getCategoryName())
                         .findFirst()
                         .orElse("đúng loại xe");
@@ -1567,6 +1631,52 @@ public class BookingServiceImpl implements BookingService {
                         requiredName, pickedName));
             }
             
+            // VALIDATION: Kiểm tra xe có bận không tại thời điểm của trip đầu tiên
+            // Nếu booking đã được tạo thành công → có nghĩa là đã có xe available
+            // Nhưng khi gán, phải đảm bảo xe đó vẫn available tại thời điểm đó
+            if (!trips.isEmpty()) {
+                Trips firstTrip = trips.get(0);
+                if (firstTrip.getStartTime() != null) {
+                    Instant tripEndTime = firstTrip.getEndTime() != null 
+                            ? firstTrip.getEndTime() 
+                            : firstTrip.getStartTime().plusSeconds(3600);
+                    
+                    // Kiểm tra overlap với các trips khác (ngoài các trips đang được gán)
+                    List<org.example.ptcmssbackend.entity.TripVehicles> overlaps = 
+                            tripVehicleRepository.findOverlapsForVehicle(
+                                    primaryVehicle.getId(),
+                                    firstTrip.getStartTime(),
+                                    tripEndTime
+                            );
+                    
+                    // Loại bỏ các overlaps với trips đã bị cancel hoặc chính các trips đang được gán
+                    boolean hasConflict = overlaps.stream().anyMatch(tv -> {
+                        Trips overlapTrip = tv.getTrip();
+                        return overlapTrip.getStatus() != TripStatus.CANCELLED
+                                && !targetTripIds.contains(overlapTrip.getId());
+                    });
+                    
+                    if (hasConflict) {
+                        throw new RuntimeException(String.format(
+                                "Xe %s đã được gán cho chuyến khác tại thời điểm này. " +
+                                "Vui lòng chọn xe khác hoặc kiểm tra lại lịch trình.",
+                                primaryVehicle.getLicensePlate()
+                        ));
+                    }
+                }
+            }
+            
+            // VALIDATION: Nếu gán cho nhiều trips và có nhiều loại xe khác nhau
+            // → Cho phép gán, nhưng backend sẽ tự động tìm xe phù hợp cho từng trip
+            // → primaryVehicle chỉ dùng cho trip đầu tiên, các trips khác sẽ được tìm xe tự động
+            Set<Integer> uniqueCategoryIds = new java.util.HashSet<>(requiredCategoryIds);
+            boolean needsDifferentVehicles = uniqueCategoryIds.size() > 1;
+            
+            if (targetTripIds.size() > 1 && needsDifferentVehicles) {
+                log.info("[Booking] Gán cho {} trips với {} loại xe khác nhau. Sẽ tự động tìm xe phù hợp cho từng trip.",
+                        targetTripIds.size(), uniqueCategoryIds.size());
+            }
+            
             // Nếu gán cho nhiều trips, cần tìm thêm xe cho các trips còn lại
             List<Vehicles> assignedVehicles = new ArrayList<>();
             assignedVehicles.add(primaryVehicle); // Xe đầu tiên
@@ -1575,12 +1685,28 @@ public class BookingServiceImpl implements BookingService {
             if (targetTripIds.size() > 1) {
                 Integer branchId = booking.getBranch() != null ? booking.getBranch().getId() : null;
                 
+                // Sắp xếp trips theo startTime và ID để map đúng với requiredCategoryIds
+                List<Trips> sortedTrips = new ArrayList<>(trips);
+                sortedTrips.sort(Comparator.comparing((Trips t) -> t.getStartTime() != null ? t.getStartTime() : Instant.EPOCH)
+                        .thenComparing(Trips::getId));
+                
                 // Tìm xe cho từng trip còn lại (từ trip thứ 2 trở đi)
                 for (int tripIdx = 1; tripIdx < targetTripIds.size(); tripIdx++) {
+                    Integer currentTripId = targetTripIds.get(tripIdx);
+                    
+                    // Tìm index của trip này trong sortedTrips để map đúng categoryId
+                    int sortedTripIndex = -1;
+                    for (int i = 0; i < sortedTrips.size(); i++) {
+                        if (sortedTrips.get(i).getId().equals(currentTripId)) {
+                            sortedTripIndex = i;
+                            break;
+                        }
+                    }
+                    
                     // Lấy categoryId cần cho trip này (nếu có)
-                    Integer requiredCategoryId = tripIdx < requiredCategoryIds.size() 
-                            ? requiredCategoryIds.get(tripIdx) 
-                            : (primaryVehicle.getCategory() != null ? primaryVehicle.getCategory().getId() : null);
+                    Integer requiredCategoryId = (sortedTripIndex >= 0 && sortedTripIndex < requiredCategoryIds.size())
+                            ? requiredCategoryIds.get(sortedTripIndex)
+                            : (requiredCategoryIds.isEmpty() ? null : requiredCategoryIds.get(0));
                     
                     // Tìm các xe cùng loại (nếu có yêu cầu), cùng branch, available
                     List<Vehicles> availableVehicles = vehicleRepository.filterVehicles(
@@ -1598,7 +1724,6 @@ public class BookingServiceImpl implements BookingService {
                             .collect(java.util.stream.Collectors.toList());
                     
                     // Kiểm tra từng xe có bận không trong thời gian của trip này
-                    final Integer currentTripId = targetTripIds.get(tripIdx);
                     Trips currentTrip = trips.stream()
                             .filter(t -> t.getId().equals(currentTripId))
                             .findFirst()
@@ -1643,12 +1768,21 @@ public class BookingServiceImpl implements BookingService {
                         log.info("[Booking] Found vehicle {} (category: {}) for trip {}", 
                                 selectedVehicle.getLicensePlate(), 
                                 selectedVehicle.getCategory() != null ? selectedVehicle.getCategory().getCategoryName() : "N/A",
-                                targetTripIds.get(tripIdx));
+                                currentTripId);
                     } else {
-                        // Không tìm được xe phù hợp, dùng xe chính (fallback)
-                        log.warn("[Booking] No suitable vehicle found for trip {}. Will use primary vehicle.", 
-                                targetTripIds.get(tripIdx));
-                        assignedVehicles.add(primaryVehicle);
+                        // Không tìm được xe phù hợp → THROW ERROR thay vì fallback
+                        String requiredCategoryName = "N/A";
+                        if (requiredCategoryId != null) {
+                            VehicleCategoryPricing category = vehicleCategoryRepository.findById(requiredCategoryId).orElse(null);
+                            if (category != null) {
+                                requiredCategoryName = category.getCategoryName();
+                            }
+                        }
+                        throw new RuntimeException(String.format(
+                                "Không tìm được xe phù hợp cho chuyến #%d (cần loại '%s'). " +
+                                "Vui lòng kiểm tra lại danh sách xe available hoặc gán từng chuyến một.",
+                                currentTripId, requiredCategoryName
+                        ));
                     }
                 }
                 
