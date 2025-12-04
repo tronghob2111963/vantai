@@ -1289,9 +1289,9 @@ public class BookingServiceImpl implements BookingService {
         // bao gồm cả tiền cọc và thanh toán còn lại.
         BigDecimal monthlyRevenue = invoiceRepository
                 .sumConfirmedPaymentsForConsultantAndBranchAndDateRange(
-                        branchId,
-                        consultantEmployeeId,
-                        startInstant,
+                branchId,
+                consultantEmployeeId,
+                startInstant,
                         endInstant
                 );
         if (monthlyRevenue == null) {
@@ -1824,7 +1824,7 @@ public class BookingServiceImpl implements BookingService {
             //    Chỉ áp dụng cho thuê theo khung giờ. Với thuê theo ngày (isFullDayHire),
             //    không gợi ý "giờ khác" vì vẫn không đặt được xe mong muốn trong cùng ngày.
             if (!isFullDayHire) {
-                nextAvailableSlots = findNextAvailableSlots(branchId, categoryId, start, needed, candidates);
+            nextAvailableSlots = findNextAvailableSlots(branchId, categoryId, start, needed, candidates);
             }
         }
 

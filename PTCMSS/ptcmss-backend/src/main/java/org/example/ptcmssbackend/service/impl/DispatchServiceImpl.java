@@ -993,7 +993,7 @@ public class DispatchServiceImpl implements DispatchService {
                     driverId = pickBestDriverForTrip(booking, representativeTrip);
                 }
             }
-                    if (vehicleId == null) {
+                if (vehicleId == null) {
                     // Lấy categoryId từ booking (trip đầu tiên)
                     List<BookingVehicleDetails> bookingVehicles = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
                     Integer requiredCategoryId = null;
@@ -1824,7 +1824,7 @@ public class DispatchServiceImpl implements DispatchService {
     private Integer pickBestVehicleForTrip(Bookings booking, Trips trip, Integer requiredCategoryId) {
         return pickBestVehicleForTrip(booking, trip, requiredCategoryId, null);
     }
-
+    
     private Integer pickBestVehicleForTrip(Bookings booking,
                                            Trips trip,
                                            Integer requiredCategoryId,
