@@ -21,6 +21,7 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const pageSize = 10;
     
     // Time filter để kiểm tra tài xế rảnh (cho Tư vấn viên & Điều phối viên)
@@ -159,6 +160,7 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
 
             setDrivers(paged);
             setTotalPages(total || 1);
+            setTotalItems(driversList.length);
         } catch (error) {
             console.error("Error fetching drivers:", error);
         } finally {
@@ -504,6 +506,8 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
+                            itemsPerPage={pageSize}
+                            totalItems={totalItems}
                             onPageChange={setCurrentPage}
                         />
                     </div>

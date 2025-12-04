@@ -18,6 +18,7 @@ export default function CoordinatorOrderListPage() {
     const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, ASSIGNED, UNASSIGNED
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const pageSize = 10;
 
     // Branch state
@@ -156,12 +157,17 @@ export default function CoordinatorOrderListPage() {
             }
 
             // Use backend total pages if no filter, otherwise calculate from filtered content
-            const filteredTotal = filterStatus === "ALL"
+            const filteredTotalPages = filterStatus === "ALL"
                 ? (totalPagesFromBackend || Math.ceil(totalElements / pageSize) || 1)
                 : Math.ceil(content.length / pageSize) || 1;
 
+            const filteredTotalItems = filterStatus === "ALL"
+                ? totalElements
+                : content.length;
+
             setOrders(Array.isArray(content) ? content : []);
-            setTotalPages(filteredTotal);
+            setTotalPages(filteredTotalPages);
+            setTotalItems(filteredTotalItems);
             
             if (Array.isArray(content) && content.length === 0) {
                 console.log("[CoordinatorOrderListPage] No orders found. Check if:");
@@ -493,6 +499,8 @@ export default function CoordinatorOrderListPage() {
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
+                            itemsPerPage={pageSize}
+                            totalItems={totalItems}
                             onPageChange={setCurrentPage}
                         />
                     </div>

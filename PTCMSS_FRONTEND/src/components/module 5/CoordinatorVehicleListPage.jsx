@@ -17,6 +17,7 @@ export default function CoordinatorVehicleListPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const pageSize = 10;
 
     // Time filter để kiểm tra xe rảnh
@@ -151,6 +152,7 @@ export default function CoordinatorVehicleListPage() {
 
             setVehicles(paged);
             setTotalPages(total || 1);
+            setTotalItems(vehiclesList.length);
         } catch (error) {
             console.error("Error fetching vehicles:", error);
         } finally {
@@ -458,6 +460,8 @@ export default function CoordinatorVehicleListPage() {
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
+                            itemsPerPage={pageSize}
+                            totalItems={totalItems}
                             onPageChange={setCurrentPage}
                         />
                     </div>
