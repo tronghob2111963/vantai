@@ -84,6 +84,28 @@ public interface InvoiceRepository extends JpaRepository<Invoices, Integer> {
     BigDecimal calculateConfirmedPaidAmountByBookingId(@Param("bookingId") Integer bookingId);
     
     /**
+     * Tính tổng tiền đã thu (CONFIRMED payments) cho một consultant trong khoảng thời gian,
+     * có thể lọc theo chi nhánh (branchId).
+     *
+     * Bao gồm cả tiền cọc và thanh toán còn lại, miễn là payment đã được kế toán xác nhận.
+     */
+    @Query("SELECT COALESCE(SUM(ph.amount), 0) FROM PaymentHistory ph " +
+            "JOIN ph.invoice i " +
+            "LEFT JOIN i.booking b " +
+            "LEFT JOIN b.consultant c " +
+            "WHERE ph.confirmationStatus = org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED " +
+            "AND ph.paymentDate >= :startDate " +
+            "AND ph.paymentDate <= :endDate " +
+            "AND (:branchId IS NULL OR i.branch.id = :branchId) " +
+            "AND (:consultantEmployeeId IS NULL OR c.employeeId = :consultantEmployeeId)")
+    BigDecimal sumConfirmedPaymentsForConsultantAndBranchAndDateRange(
+            @Param("branchId") Integer branchId,
+            @Param("consultantEmployeeId") Integer consultantEmployeeId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate
+    );
+    
+    /**
      * Tính tổng amount theo branchId, type và khoảng thời gian
      */
     @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoices i " +

@@ -1285,19 +1285,18 @@ public class BookingServiceImpl implements BookingService {
         Instant startInstant = monthStart.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant endInstant = monthEnd.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
         
-        Page<Bookings> monthlyBookings = bookingRepository.filterBookings(
-                BookingStatus.COMPLETED,
-                branchId,
-                consultantEmployeeId,
-                startInstant,
-                endInstant,
-                null,
-                Pageable.unpaged()
-        );
-        
-        BigDecimal monthlyRevenue = monthlyBookings.getContent().stream()
-                .map(b -> b.getTotalCost() != null ? b.getTotalCost() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Doanh số tháng = tổng tiền đã thu (payments CONFIRMED) trong tháng,
+        // bao gồm cả tiền cọc và thanh toán còn lại.
+        BigDecimal monthlyRevenue = invoiceRepository
+                .sumConfirmedPaymentsForConsultantAndBranchAndDateRange(
+                        branchId,
+                        consultantEmployeeId,
+                        startInstant,
+                        endInstant
+                );
+        if (monthlyRevenue == null) {
+            monthlyRevenue = BigDecimal.ZERO;
+        }
         
         // Tính tỷ lệ chuyển đổi
         Long totalBookings = bookingRepository.countByStatus(null, branchId, consultantEmployeeId);
@@ -1322,9 +1321,18 @@ public class BookingServiceImpl implements BookingService {
             Long monthConfirmed = monthBookings.getContent().stream()
                     .filter(b -> b.getStatus() == BookingStatus.CONFIRMED || b.getStatus() == BookingStatus.COMPLETED)
                     .count();
-            BigDecimal monthRevenue = monthBookings.getContent().stream()
-                    .map(b -> b.getTotalCost() != null ? b.getTotalCost() : BigDecimal.ZERO)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            BigDecimal monthRevenue = invoiceRepository
+                    .sumConfirmedPaymentsForConsultantAndBranchAndDateRange(
+                            branchId,
+                            consultantEmployeeId,
+                            mStartInstant,
+                            mEndInstant
+                    );
+            if (monthRevenue == null) {
+                monthRevenue = BigDecimal.ZERO;
+            }
+            
             Double monthConversionRate = monthTotal > 0 ? (double) monthConfirmed / monthTotal * 100 : 0.0;
             
             monthlyStatistics.add(ConsultantDashboardResponse.MonthlyStatistic.builder()
@@ -1763,6 +1771,21 @@ public class BookingServiceImpl implements BookingService {
         java.time.Instant end = request.getEndTime();
         int needed = request.getQuantity() != null ? request.getQuantity() : 1;
 
+        // Với hình thức thuê theo ngày (khoảng thời gian rất dài, gần trọn 1 ngày trở lên),
+        // ta coi như "thuê theo ngày" – không có giờ cụ thể, chỉ quan tâm ngày.
+        // Trong trường hợp này, việc gợi ý "giờ khác trong cùng ngày" là vô nghĩa,
+        // nên sẽ KHÔNG trả về gợi ý thay đổi giờ (nextAvailableSlots) mà chỉ gợi ý loại xe khác.
+        boolean isFullDayHire = false;
+        try {
+            if (start != null && end != null) {
+                long hours = java.time.Duration.between(start, end).toHours();
+                // Ngưỡng 20h trở lên coi như thuê theo ngày (có thể 1 hoặc nhiều ngày)
+                isFullDayHire = hours >= 20;
+            }
+        } catch (Exception e) {
+            // ignore, giữ isFullDayHire = false
+        }
+
         // Total candidates available by branch/category/status
         java.util.List<Vehicles> candidates = vehicleRepository.filterVehicles(categoryId, branchId, VehicleStatus.AVAILABLE);
         int total = candidates != null ? candidates.size() : 0;
@@ -1798,7 +1821,11 @@ public class BookingServiceImpl implements BookingService {
             alternativeCategories = findAlternativeCategories(branchId, categoryId, start, end, needed);
             
             // 2. Tìm thời gian rảnh tiếp theo của loại xe được yêu cầu
-            nextAvailableSlots = findNextAvailableSlots(branchId, categoryId, start, needed, candidates);
+            //    Chỉ áp dụng cho thuê theo khung giờ. Với thuê theo ngày (isFullDayHire),
+            //    không gợi ý "giờ khác" vì vẫn không đặt được xe mong muốn trong cùng ngày.
+            if (!isFullDayHire) {
+                nextAvailableSlots = findNextAvailableSlots(branchId, categoryId, start, needed, candidates);
+            }
         }
 
         return org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.builder()
