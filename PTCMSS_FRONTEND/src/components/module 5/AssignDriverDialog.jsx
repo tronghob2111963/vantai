@@ -351,7 +351,7 @@ export default function AssignDriverDialog({
                             <span className="text-slate-900 font-medium">
                                 {summary?.vehicleType || 
                                  order?.vehicle_type || 
-                                 order?.vehicleType ||
+                                 order?.vehicleType || 
                                  "—"}
                                 {/* Chỉ hiển thị số lượng nếu đang gán cho nhiều trips cùng loại xe */}
                                 {assignToAllTrips && unassignedTripCount > 1 && !hasMixedVehicleCategories && ` (${unassignedTripCount} xe)`}
