@@ -23,12 +23,14 @@ public interface BookingVehicleDetailsRepository extends JpaRepository<BookingVe
     /**
      * Đếm tổng số lượng xe đã được "giữ chỗ" theo booking (booking_vehicle_details)
      * cho 1 chi nhánh + loại xe + khoảng thời gian, với các đơn:
-     *  - thuộc các status cho trước (PENDING/CONFIRMED/ASSIGNED,...)
-     *  - đã có tiền cọc (> 0)
+     *  - thuộc các status cho trước (PENDING/CONFIRMED/INPROGRESS)
      *  - CHƯA được gán xe thực tế (không có TripVehicles nào cho booking đó)
      *
-     * Dùng để trừ thêm vào availability, tránh case: đơn đã cọc nhưng chưa gán xe
+     * Dùng để trừ thêm vào availability, tránh case: đơn đã đặt cọc nhưng chưa gán xe
      * vẫn bị tính là còn xe rảnh.
+     * 
+     * Lưu ý: Tính cả các đơn PENDING chưa có tiền cọc (> 0) vì đơn đã ở status PENDING
+     * nghĩa là đã được "đặt cọc" và cần được giữ chỗ xe.
      */
     @Query("""
         SELECT COALESCE(SUM(bvd.quantity), 0)
@@ -38,8 +40,6 @@ public interface BookingVehicleDetailsRepository extends JpaRepository<BookingVe
         WHERE b.branch.id = :branchId
           AND bvd.vehicleCategory.id = :categoryId
           AND b.status IN :statuses
-          AND b.depositAmount IS NOT NULL
-          AND b.depositAmount > 0
           AND t.startTime < :endTime
           AND t.endTime > :startTime
           AND NOT EXISTS (
