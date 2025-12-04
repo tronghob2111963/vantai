@@ -21,4 +21,7 @@ public interface ExpenseRequestRepository extends JpaRepository<ExpenseRequests,
     
     // Tìm expense requests theo status và branch
     List<ExpenseRequests> findByStatusAndBranch_Id(ExpenseRequestStatus status, Integer branchId);
+    
+    // Tìm expense requests theo status và vehicle (dùng cho màn hình chi phí xe)
+    List<ExpenseRequests> findByStatusAndVehicle_Id(ExpenseRequestStatus status, Integer vehicleId);
 }
