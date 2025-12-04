@@ -156,6 +156,7 @@ import DriverRatingsPage from "./components/module 5/DriverRatingsPage.jsx";
 import CoordinatorOrderListPage from "./components/module 5/CoordinatorOrderListPage.jsx";
 import CoordinatorDriverListPage from "./components/module 5/CoordinatorDriverListPage.jsx";
 import CoordinatorDriverDetailPage from "./components/module 5/CoordinatorDriverDetailPage.jsx";
+import CoordinatorDriverTripsPage from "./components/module 5/CoordinatorDriverTripsPage.jsx";
 import CoordinatorVehicleListPage from "./components/module 5/CoordinatorVehicleListPage.jsx";
 import CoordinatorVehicleDetailPage from "./components/module 5/CoordinatorVehicleDetailPage.jsx";
 
@@ -863,6 +864,14 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.COORDINATOR]}>
                 <CoordinatorDriverDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coordinator/drivers/:driverId/trips"
+            element={
+              <ProtectedRoute roles={[ROLES.COORDINATOR]}>
+                <CoordinatorDriverTripsPage />
               </ProtectedRoute>
             }
           />

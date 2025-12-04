@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     User, Phone, Mail, MapPin, Calendar, Award, Shield, ArrowLeft,
-    Save, X, Loader2, AlertCircle, CheckCircle2, Edit2
+    Save, X, Loader2, AlertCircle, CheckCircle2, Edit2, CarFront, Eye
 } from "lucide-react";
 import { getDriverProfile, updateDriverProfile } from "../../api/drivers";
 
@@ -206,13 +206,22 @@ export default function CoordinatorDriverDetailPage() {
                     </div>
                     <div className="ml-auto flex gap-2">
                         {!editing ? (
-                            <button
-                                onClick={() => setEditing(true)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-500 transition-colors"
-                            >
-                                <Edit2 className="h-4 w-4" />
-                                Chỉnh sửa
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => navigate(`/coordinator/drivers/${driverId}/trips`)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500 transition-colors"
+                                >
+                                    <CarFront className="h-4 w-4" />
+                                    Xem chuyến
+                                </button>
+                                <button
+                                    onClick={() => setEditing(true)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-500 transition-colors"
+                                >
+                                    <Edit2 className="h-4 w-4" />
+                                    Chỉnh sửa
+                                </button>
+                            </>
                         ) : (
                             <>
                                 <button

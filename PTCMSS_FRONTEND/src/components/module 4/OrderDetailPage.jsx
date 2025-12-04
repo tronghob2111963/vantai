@@ -1437,6 +1437,22 @@ export default function OrderDetailPage() {
                     ? (firstUnassignedTrip.id || firstUnassignedTrip.tripId)
                     : (order.trip?.id || order.trips?.[0]?.id || order.trips?.[0]?.tripId);
                 
+                // Tìm đúng vehicle_category của trip đang được gán
+                let vehicleCategoryForTrip = order.trip?.vehicle_category; // Fallback
+                if (defaultTripId && order.dispatchList) {
+                    const tripDispatch = order.dispatchList.find(d => d.tripId === defaultTripId);
+                    if (tripDispatch?.vehicle_category) {
+                        vehicleCategoryForTrip = tripDispatch.vehicle_category;
+                    }
+                }
+                // Nếu không tìm thấy trong dispatchList, tìm trong trips
+                if (!vehicleCategoryForTrip && defaultTripId && order.trips) {
+                    const tripIndex = order.trips.findIndex(t => (t.id || t.tripId) === defaultTripId);
+                    if (tripIndex >= 0 && order.dispatchList && order.dispatchList[tripIndex]) {
+                        vehicleCategoryForTrip = order.dispatchList[tripIndex].vehicle_category;
+                    }
+                }
+                
                 return (
                     <AssignDriverDialog
                         open={assignDialogOpen}
@@ -1447,7 +1463,7 @@ export default function OrderDetailPage() {
                             tripIds: unassignedTripIds.length > 0 ? unassignedTripIds : undefined,
                             code: order.code,
                             pickup_time: order.trip?.pickup_time,
-                            vehicle_type: order.trip?.vehicle_category,
+                            vehicle_type: vehicleCategoryForTrip,
                             vehicle_count: order.trip?.vehicle_count || 1,
                             branch_name: order.branch_name,
                         }}
