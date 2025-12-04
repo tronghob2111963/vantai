@@ -200,10 +200,9 @@ public class BookingServiceImpl implements BookingService {
         }
         
         // VALIDATION: Kiểm tra số lượng tài xế rảnh trước khi tạo booking
-        // Nếu booking có nhiều trips (nhiều xe), cần đảm bảo có đủ tài xế rảnh
-        if (totalVehicleCount > 0 && request.getTrips() != null && !request.getTrips().isEmpty()) {
-            // Tính số trips sẽ được tạo (có thể nhiều hơn số trips trong request nếu quantity > 1)
-            int expectedTripsCount = Math.max(request.getTrips().size(), totalVehicleCount);
+        // Chỉ kiểm tra số trips thực tế trong request, không tự động sinh thêm
+        if (request.getTrips() != null && !request.getTrips().isEmpty()) {
+            int expectedTripsCount = request.getTrips().size(); // Chỉ tính số trips trong request
             
             // Kiểm tra số lượng tài xế rảnh cho tất cả trips
             Set<Integer> availableDriverIds = new java.util.HashSet<>();
@@ -267,8 +266,7 @@ public class BookingServiceImpl implements BookingService {
                     availableDriverIds.size(), expectedTripsCount);
         }
         
-        // Nếu có trips trong request, tạo trips theo request
-        // Nếu không có trips nhưng có vehicles với quantity > 1, tự động tạo nhiều trips
+        // Tạo trips theo đúng request - KHÔNG tự động sinh thêm trips
         if (request.getTrips() != null && !request.getTrips().isEmpty()) {
             // Validate trips: endTime phải > startTime
             for (TripRequest tripReq : request.getTrips()) {
@@ -279,7 +277,7 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
             
-            // Tạo trips từ request
+            // Tạo trips từ request - CHỈ tạo đúng số trips trong request, không tự động sinh thêm
             for (TripRequest tripReq : request.getTrips()) {
                 Trips trip = new Trips();
                 trip.setBooking(booking);
@@ -296,43 +294,21 @@ public class BookingServiceImpl implements BookingService {
                 tripRepository.save(trip);
             }
             
-            // Nếu số trips trong request < tổng số xe, tạo thêm trips
-            int existingTripsCount = request.getTrips().size();
-            if (existingTripsCount < totalVehicleCount) {
-                TripRequest baseTrip = request.getTrips().get(0); // Dùng trip đầu tiên làm template
-                for (int i = existingTripsCount; i < totalVehicleCount; i++) {
-                    Trips trip = new Trips();
-                    trip.setBooking(booking);
-                    trip.setUseHighway(baseTrip.getUseHighway() != null ? baseTrip.getUseHighway() : booking.getUseHighway());
-                    trip.setStartTime(baseTrip.getStartTime());
-                    trip.setStartLocation(baseTrip.getStartLocation());
-                    trip.setEndLocation(baseTrip.getEndLocation());
-                    if (baseTrip.getDistance() != null && baseTrip.getDistance() > 0) {
-                        trip.setDistance(BigDecimal.valueOf(baseTrip.getDistance()));
-                    }
-                    trip.setStatus(TripStatus.SCHEDULED);
-                    tripRepository.save(trip);
-                    log.info("[Booking] Auto-created additional trip {} for booking {} (vehicle {}/{})", 
-                            trip.getId(), booking.getId(), i + 1, totalVehicleCount);
-                }
+            log.info("[Booking] Created {} trips for booking {} (as per request, no auto-generation)", 
+                    request.getTrips().size(), booking.getId());
+        } else {
+            // Nếu không có trips trong request, chỉ tạo 1 trip mặc định
+            Trips trip = new Trips();
+            trip.setBooking(booking);
+            trip.setUseHighway(booking.getUseHighway());
+            // Sử dụng distance từ request nếu có
+            if (request.getDistance() != null && request.getDistance() > 0) {
+                trip.setDistance(BigDecimal.valueOf(request.getDistance()));
             }
-        } else if (totalVehicleCount > 0) {
-            // Không có trips trong request nhưng có vehicles -> tạo trips tự động
-            // Lấy thông tin từ distance và vehicles để tạo trips
-            for (int i = 0; i < totalVehicleCount; i++) {
-                Trips trip = new Trips();
-                trip.setBooking(booking);
-                trip.setUseHighway(booking.getUseHighway());
-                // Sử dụng distance từ request nếu có
-                if (request.getDistance() != null && request.getDistance() > 0) {
-                    trip.setDistance(BigDecimal.valueOf(request.getDistance()));
-                }
-                trip.setStatus(TripStatus.SCHEDULED);
-                // Note: startTime, startLocation, endLocation sẽ được set sau khi có thông tin từ frontend
-                tripRepository.save(trip);
-                log.info("[Booking] Auto-created trip {} for booking {} (vehicle {}/{})", 
-                        trip.getId(), booking.getId(), i + 1, totalVehicleCount);
-            }
+            trip.setStatus(TripStatus.SCHEDULED);
+            // Note: startTime, startLocation, endLocation sẽ được set sau khi có thông tin từ frontend
+            tripRepository.save(trip);
+            log.info("[Booking] Created 1 default trip for booking {} (no trips in request)", booking.getId());
         }
 
         // 7. Tạo booking vehicle details
@@ -1452,8 +1428,10 @@ public class BookingServiceImpl implements BookingService {
             Drivers driver = driverRepository.findById(request.getDriverId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy tài xế: " + request.getDriverId()));
             
-            // VALIDATION: Kiểm tra tài xế này đã được gán cho trip khác trong cùng booking chưa
-            // (ngoài các trips đang được gán trong request này)
+            // VALIDATION: Mỗi trip trong cùng booking phải có tài xế khác nhau
+            // Rule: Booking 3 xe → 3 trips → bắt buộc phải gán 3 tài xế khác nhau
+            
+            // 1. Kiểm tra tài xế này đã được gán cho trip khác trong cùng booking chưa
             List<Trips> allBookingTrips = tripRepository.findByBooking_Id(bookingId);
             Set<Integer> targetTripIdsSet = new java.util.HashSet<>(targetTripIds);
             
@@ -1480,10 +1458,17 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
             
-            // Nếu gán cho nhiều trips cùng lúc, cũng cần đảm bảo không trùng nhau
+            // 2. VALIDATION: Không cho phép gán cùng 1 tài xế cho nhiều trips trong cùng request
+            // Nếu đang cố gán cùng 1 tài xế cho nhiều trips → REJECT
             if (targetTripIds.size() > 1) {
-                log.warn("[Booking] Assigning same driver {} to {} trips. This is allowed but may not be desired.", 
-                        driver.getId(), targetTripIds.size());
+                throw new RuntimeException(String.format(
+                        "Không thể gán cùng tài xế %s cho %d chuyến trong cùng đơn hàng. " +
+                        "Mỗi chuyến phải có tài xế khác nhau. Vui lòng gán từng chuyến một với tài xế khác nhau.",
+                        driver.getEmployee() != null && driver.getEmployee().getUser() != null
+                                ? driver.getEmployee().getUser().getFullName()
+                                : "ID " + driver.getId(),
+                        targetTripIds.size()
+                ));
             }
             
             for (Integer tid : targetTripIds) {
