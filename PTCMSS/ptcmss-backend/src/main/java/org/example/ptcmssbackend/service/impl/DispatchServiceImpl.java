@@ -43,9 +43,13 @@ public class DispatchServiceImpl implements DispatchService {
     private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
     private static final int DEFAULT_SHIFT_START = 6;
     private static final int DEFAULT_SHIFT_END = 22;
+    /**
+     * Các trạng thái booking được phép xuất hiện trên bảng điều phối.
+     * Lưu ý: ĐƠN NHÁP (DRAFT) không nên hiển thị cho điều phối,
+     * vì chưa chốt giá/đặt cọc nên chưa sẵn sàng xếp xe.
+     */
     private static final EnumSet<BookingStatus> DISPATCHABLE_BOOKING_STATUSES =
             EnumSet.of(
-                    BookingStatus.DRAFT,
                     BookingStatus.PENDING,
                     BookingStatus.QUOTATION_SENT,
                     BookingStatus.CONFIRMED,
