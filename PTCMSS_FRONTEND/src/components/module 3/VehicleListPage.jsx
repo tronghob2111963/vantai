@@ -883,8 +883,6 @@ function FilterBar({
     setCategoryFilter,
     statusFilter,
     setStatusFilter,
-    searchPlate,
-    setSearchPlate,
     branches,
     categories,
     onClickCreate,
@@ -973,17 +971,6 @@ function FilterBar({
                         <option value="MAINTENANCE">Bảo trì</option>
                         <option value="INACTIVE">Ngừng hoạt động</option>
                     </select>
-                </div>
-
-                {/* Search biß╗ân sß╗æ */}
-                <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white shadow-sm px-3 py-2 min-w-[200px]">
-                    <Search className="h-4 w-4 text-slate-400" />
-                    <input
-                        value={searchPlate}
-                        onChange={(e) => setSearchPlate(e.target.value)}
-                        placeholder="Tìm biển số xe..."
-                        className="bg-transparent outline-none text-[13px] placeholder:text-slate-400 text-slate-700 flex-1"
-                    />
                 </div>
                 
                 {/* Time filter for Consultant - Check vehicle availability */}
@@ -1412,6 +1399,7 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
     const isManager = currentRole === ROLES.MANAGER;
     const isAccountant = currentRole === ROLES.ACCOUNTANT;
     const isConsultant = currentRole === ROLES.CONSULTANT;
+    const isCoordinator = currentRole === ROLES.COORDINATOR;
     // readOnly mode: Consultant và Accountant chỉ được xem, không được thêm/sửa/xóa
     const isReadOnly = readOnlyProp || isAccountant || isConsultant;
 
@@ -1423,7 +1411,6 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
     const [branchFilter, setBranchFilter] = React.useState("");
     const [categoryFilter, setCategoryFilter] = React.useState("");
     const [statusFilter, setStatusFilter] = React.useState("");
-    const [searchPlate, setSearchPlate] = React.useState("");
     
     // Time filter for Consultant (to check vehicle availability)
     const [timeFilterStart, setTimeFilterStart] = React.useState("");
@@ -1468,14 +1455,15 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
     const mapVehicle = React.useCallback((v) => ({
         id: v.id,
         license_plate: v.licensePlate,
-        category_id: v.categoryId,
-        category_name: v.categoryName,
-        branch_id: v.branchId,
-        branch_name: v.branchName,
+        category_id: v.categoryId || v.category?.id,
+        category_name: v.categoryName || v.category?.categoryName || v.category?.name || "",
+        branch_id: v.branchId || v.branch?.id,
+        branch_name: v.branchName || v.branch?.branchName || v.branch?.name || "",
         status: v.status,
         reg_due_date: v.inspectionExpiry || "",
         ins_due_date: v.insuranceExpiry || "",
         model: v.model,
+        brand: v.brand,
         year: v.productionYear,
     }), []);
 
@@ -1494,6 +1482,11 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
                 setBranches(brs.map(b => ({ id: b.id, name: b.branchName || b.name || b.branch_name })));
                 setCategories((catData || []).map(c => ({ id: c.id, name: c.categoryName || c.name, seats: c.seats, status: c.status })));
                 const mappedVehicles = (vehData || []).map(mapVehicle);
+                // Debug: kiểm tra dữ liệu category_name
+                if (mappedVehicles.length > 0) {
+                    console.log("Sample vehicle data:", mappedVehicles[0]);
+                    console.log("Category name:", mappedVehicles[0].category_name);
+                }
                 setVehicles(mappedVehicles);
                 
                 // Check xe đang trong chuyến (ongoing trips)
@@ -1578,7 +1571,6 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
     
     // filter + sort data (moved before useEffect that uses it)
     const filteredSorted = React.useMemo(() => {
-        const q = searchPlate.trim().toLowerCase();
         // Manager chỉ xem xe trong chi nhánh của mình
         const bf = isManager && managerBranchId
             ? String(managerBranchId)
@@ -1604,7 +1596,6 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
                     if (displayStatus !== statusFilter) return false;
                 }
             }
-            if (q && !String(v.license_plate).toLowerCase().includes(q)) return false;
             
             // Filter theo ngày cho Consultant: chỉ hiển thị xe rảnh trong khoảng thời gian
             if (isConsultant && timeFilterStart && timeFilterEnd) {
@@ -1651,7 +1642,6 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
         branchFilter,
         categoryFilter,
         statusFilter,
-        searchPlate,
         sortKey,
         sortDir,
         isManager,
@@ -1720,7 +1710,6 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
         setLoadingRefresh(true);
         try {
             const vehData = await listVehicles({
-                licensePlate: searchPlate || undefined,
                 categoryId: categoryFilter ? Number(categoryFilter) : undefined,
                 branchId: branchFilter ? Number(branchFilter) : undefined,
                 status: statusFilter || undefined,
@@ -1777,15 +1766,13 @@ export default function VehicleListPage({ readOnly: readOnlyProp = false }) {
                     setCategoryFilter={setCategoryFilter}
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
-                    searchPlate={searchPlate}
-                    setSearchPlate={setSearchPlate}
                     branches={branches}
                     categories={categories}
                     onClickCreate={handleCreateNew}
                     loadingRefresh={loadingRefresh}
                     onRefresh={handleRefresh}
                     showBranchFilter={!isManager && !isConsultant && !isAccountant}
-                    showCreateButton={!isReadOnly}
+                    showCreateButton={!isReadOnly && !isCoordinator}
                     createButtonPosition="left"
                     // Time filter for Consultant
                     isConsultant={isConsultant}
