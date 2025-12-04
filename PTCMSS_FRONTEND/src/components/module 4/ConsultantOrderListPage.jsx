@@ -1671,13 +1671,7 @@ function OrderFormModal({
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-4 border-t border-slate-200 bg-slate-50 flex flex-wrap gap-2 justify-between items-center text-[13px]">
-                    <div className="text-[11px] text-slate-400">
-                        {isEdit
-                            ? "PUT /api/orders/{orderId}"
-                            : "POST /api/orders"}
-                    </div>
-
+                <div className="px-5 py-4 border-t border-slate-200 bg-slate-50 flex flex-wrap gap-2 justify-end items-center text-[13px]">
                     <div className="flex flex-wrap gap-2">
                         <button
                             onClick={onClose}

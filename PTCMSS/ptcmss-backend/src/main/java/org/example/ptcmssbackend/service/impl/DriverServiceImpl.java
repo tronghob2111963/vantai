@@ -305,12 +305,14 @@ public class DriverServiceImpl implements DriverService {
         // Cập nhật thông tin driver
         if (request.getNote() != null) driver.setNote(request.getNote());
         if (request.getHealthCheckDate() != null) driver.setHealthCheckDate(request.getHealthCheckDate());
+        if (request.getLicenseNumber() != null) driver.setLicenseNumber(request.getLicenseNumber());
         if (request.getLicenseClass() != null) driver.setLicenseClass(request.getLicenseClass());
         if (request.getLicenseExpiry() != null) driver.setLicenseExpiry(request.getLicenseExpiry());
-        if (request.getStatus() != null) {
+        // Chỉ validate và cập nhật status nếu có giá trị hợp lệ (không null và không rỗng)
+        if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             try {
                 org.example.ptcmssbackend.enums.DriverStatus newStatus = 
-                    org.example.ptcmssbackend.enums.DriverStatus.valueOf(request.getStatus());
+                    org.example.ptcmssbackend.enums.DriverStatus.valueOf(request.getStatus().trim());
                 
                 // VALIDATION: Kiểm tra quyền của user hiện tại
                 org.springframework.security.core.Authentication auth = 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { CarFront, Search, Eye, AlertCircle, RefreshCw, Loader2, Calendar, CheckCircle2, X } from "lucide-react";
-import { listVehiclesByBranch, getVehicleTrips } from "../../api/vehicles";
+import { CarFront, Search, Eye, AlertCircle, RefreshCw, Loader2, Calendar, CheckCircle2, X, Filter } from "lucide-react";
+import { listVehiclesByBranch, getVehicleTrips, listVehicleCategories } from "../../api/vehicles";
 import { getBranchByUserId } from "../../api/branches";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import Pagination from "../common/Pagination";
@@ -17,7 +17,12 @@ export default function CoordinatorVehicleListPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const pageSize = 10;
+
+    // Filter theo danh mục xe
+    const [categoryFilter, setCategoryFilter] = useState("");
+    const [categories, setCategories] = useState([]);
 
     // Time filter để kiểm tra xe rảnh
     const [timeFilterStart, setTimeFilterStart] = useState("");
@@ -68,11 +73,38 @@ export default function CoordinatorVehicleListPage() {
         return () => { cancelled = true; };
     }, [isBranchScoped, userId]);
 
+    // Load danh mục xe để hiển thị filter loại xe
+    useEffect(() => {
+        let cancelled = false;
+        async function loadCategories() {
+            try {
+                const resp = await listVehicleCategories();
+                if (cancelled) return;
+                const list = Array.isArray(resp)
+                    ? resp
+                    : resp?.data || resp?.items || resp?.content || [];
+                const mapped = list.map((c) => ({
+                    id: c.id,
+                    name: c.categoryName || c.name || "",
+                    seats: c.seats,
+                }));
+                setCategories(mapped);
+            } catch (err) {
+                console.warn("[CoordinatorVehicleListPage] Failed to load categories:", err);
+                if (!cancelled) setCategories([]);
+            }
+        }
+        loadCategories();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     useEffect(() => {
         if (branchLoading) return;
         if (isBranchScoped && !branchId) return;
         fetchVehicles();
-    }, [currentPage, searchQuery, branchId, branchLoading]);
+    }, [currentPage, searchQuery, categoryFilter, branchId, branchLoading]);
 
     // Kiểm tra xe rảnh theo khoảng thời gian khi đã chọn filter
     useEffect(() => {
@@ -133,14 +165,25 @@ export default function CoordinatorVehicleListPage() {
             console.log("[CoordinatorVehicleListPage] Response:", response);
             let vehiclesList = Array.isArray(response) ? response : [];
 
-            // Client-side search filter
+            // Client-side search filter (chỉ tìm theo biển số & hãng xe)
             if (searchQuery.trim()) {
                 const query = searchQuery.toLowerCase();
-                vehiclesList = vehiclesList.filter(v =>
-                    (v.licensePlate || "").toLowerCase().includes(query) ||
-                    (v.model || "").toLowerCase().includes(query) ||
-                    (v.brand || "").toLowerCase().includes(query)
+                vehiclesList = vehiclesList.filter((v) =>
+                    (v.licensePlate || "").toLowerCase().includes(query)
+                    || (v.brand || "").toLowerCase().includes(query)
                 );
+            }
+
+            // Filter theo danh mục xe (categoryId)
+            if (categoryFilter) {
+                vehiclesList = vehiclesList.filter((v) => {
+                    const vCategoryId =
+                        v.categoryId ??
+                        v.category_id ??
+                        v.vehicleCategoryId ??
+                        v.vehicleCategory?.id;
+                    return String(vCategoryId) === String(categoryFilter);
+                });
             }
 
             // Client-side pagination
@@ -151,6 +194,7 @@ export default function CoordinatorVehicleListPage() {
 
             setVehicles(paged);
             setTotalPages(total || 1);
+            setTotalItems(vehiclesList.length);
         } catch (error) {
             console.error("Error fetching vehicles:", error);
         } finally {
@@ -209,45 +253,67 @@ export default function CoordinatorVehicleListPage() {
                     </div>
                 )}
 
-                {/* Search + Branch Info + Time filter */}
+                {/* Search + Category filter + Branch Info + Time filter */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
                     <div className="flex flex-col gap-4">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="flex-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5">
-                            <Search className="h-5 w-5 text-slate-400" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value);
-                                    setCurrentPage(1);
-                                }}
-                                placeholder="Tìm kiếm xe theo biển số, loại xe..."
-                                className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
-                            />
-                        </div>
-
-                        {/* Refresh */}
-                        <button
-                            onClick={() => fetchVehicles()}
-                            disabled={loading || branchLoading}
-                            className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <RefreshCw className="h-4 w-4" />
-                            )}
-                            Refresh
-                        </button>
-
-                        {/* Branch info */}
-                        {isBranchScoped && branchName && (
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-sm">
-                                <span className="font-medium">Chi nhánh:</span>
-                                <span>{branchName}</span>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            {/* Search theo biển số / hãng xe */}
+                            <div className="flex-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5">
+                                <Search className="h-5 w-5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
+                                    placeholder="Tìm kiếm xe theo biển số, hãng xe..."
+                                    className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
+                                />
                             </div>
-                        )}
+
+                            {/* Filter theo danh mục xe */}
+                            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm min-w-[200px]">
+                                <Filter className="h-4 w-4 text-slate-400" />
+                                <select
+                                    value={categoryFilter}
+                                    onChange={(e) => {
+                                        setCategoryFilter(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="flex-1 bg-transparent outline-none text-slate-700"
+                                >
+                                    <option value="">Tất cả loại xe</option>
+                                    {categories.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}
+                                            {c.seats ? ` (${c.seats} chỗ)` : ""}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Refresh */}
+                            <button
+                                onClick={() => fetchVehicles()}
+                                disabled={loading || branchLoading}
+                                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {loading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                )}
+                                Refresh
+                            </button>
+
+                            {/* Branch info */}
+                            {isBranchScoped && branchName && (
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-sm">
+                                    <span className="font-medium">Chi nhánh:</span>
+                                    <span>{branchName}</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Time filter để kiểm tra xe rảnh */}
@@ -458,6 +524,8 @@ export default function CoordinatorVehicleListPage() {
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
+                            itemsPerPage={pageSize}
+                            totalItems={totalItems}
                             onPageChange={setCurrentPage}
                         />
                     </div>

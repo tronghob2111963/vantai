@@ -142,10 +142,23 @@ export default function AssignDriverDialog({
         return driverCandidates.filter(d => d.eligible);
     }, [driverCandidates]);
 
-    // danh sách xe (chỉ eligible)
+    // Loại xe khách đã đặt (dùng để lọc danh sách xe phù hợp)
+    const expectedVehicleType =
+        order?.trip?.vehicle_category ||
+        order?.vehicle_type ||
+        order?.vehicleType ||
+        summary?.vehicleType ||
+        null;
+    
+    // danh sách xe (chỉ eligible & đúng loại xe mà khách đặt)
     const vehicleOptions = React.useMemo(() => {
-        return vehicleCandidates.filter(v => v.eligible);
-    }, [vehicleCandidates]);
+        return vehicleCandidates.filter(v => {
+            if (!v.eligible) return false;
+            if (!expectedVehicleType) return true;
+            const vType = v.type || v.categoryName || v.vehicleType || "";
+            return vType === expectedVehicleType;
+        });
+    }, [vehicleCandidates, expectedVehicleType]);
 
     // khi click 1 dòng gợi ý => fill vào dropdown
     const handlePickSuggestion = (s) => {
