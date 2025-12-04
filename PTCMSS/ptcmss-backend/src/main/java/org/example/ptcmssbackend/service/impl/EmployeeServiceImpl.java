@@ -15,6 +15,8 @@ import org.example.ptcmssbackend.repository.RolesRepository;
 import org.example.ptcmssbackend.repository.DriverRepository;
 import org.example.ptcmssbackend.service.EmployeeService;
 import org.example.ptcmssbackend.service.EmailService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -196,7 +198,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     public Employees createEmployeeWithUser(org.example.ptcmssbackend.dto.request.Employee.CreateEmployeeWithUserRequest request) {
         System.out.println("=== Creating Employee with User ===");
         System.out.println("Request: username=" + request.getUsername() + ", branchId=" + request.getBranchId() + ", roleId=" + request.getRoleId());
-        
+
         // Kiểm tra username đã tồn tại chưa
         if (usersRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new RuntimeException("Tên đăng nhập đã tồn tại: " + request.getUsername());
@@ -220,10 +222,46 @@ public class EmployeeServiceImpl implements EmployeeService {
         Branches branch = branchesRepository.findById(request.getBranchId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh với ID: " + request.getBranchId()));
         System.out.println("Found branch: " + branch.getId() + " - " + branch.getBranchName());
-        
+
         Roles role = rolesRepository.findById(request.getRoleId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò với ID: " + request.getRoleId()));
         System.out.println("Found role: " + role.getId() + " - " + role.getRoleName());
+
+        // ====== PHÂN QUYỀN: Manager chỉ được tạo nhân viên trong chi nhánh của mình
+        // và chỉ được tạo các role có quyền thấp hơn (không được tạo ADMIN / MANAGER)
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities() != null) {
+            boolean isManager = auth.getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_MANAGER".equalsIgnoreCase(a.getAuthority()));
+
+            if (isManager) {
+                Users currentUser = null;
+                if (auth.getPrincipal() instanceof Users) {
+                    currentUser = (Users) auth.getPrincipal();
+                }
+
+                // Lấy chi nhánh mà Manager đang phụ trách
+                if (currentUser != null) {
+                    Integer managerBranchId = employeeRepository.findByUserId(currentUser.getId())
+                            .map(e -> e.getBranch() != null ? e.getBranch().getId() : null)
+                            .orElse(null);
+
+                    if (managerBranchId == null) {
+                        throw new RuntimeException("Tài khoản quản lý chưa được gán chi nhánh, không thể tạo nhân viên mới.");
+                    }
+
+                    if (!managerBranchId.equals(branch.getId())) {
+                        throw new RuntimeException("Bạn chỉ được tạo nhân viên trong chi nhánh mình phụ trách.");
+                    }
+                }
+
+                // Manager không được tạo tài khoản có vai trò Admin/Manager
+                String newRoleName = role.getRoleName() != null ? role.getRoleName().trim().toUpperCase() : "";
+                if ("ADMIN".equals(newRoleName) || "MANAGER".equals(newRoleName) || "QUẢN LÝ".equals(newRoleName)) {
+                    throw new RuntimeException("Quản lý không được phép tạo tài khoản với vai trò Admin hoặc Manager.");
+                }
+            }
+        }
         
         // 1. Tạo User mới (KHÔNG CÓ PASSWORD - sẽ tạo sau khi verify email)
         Users user = new Users();

@@ -251,7 +251,6 @@ export default function DriverProfilePage() {
   }
 
   const tripsTotal = profile?.totalTrips || 0;
-  const kmTotal = profile?.totalKm || 0;
   const status = profile?.status || "ACTIVE";
   const licenseClass = profile?.licenseClass || "—";
   const note = profile?.note || "";
@@ -317,7 +316,7 @@ export default function DriverProfilePage() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:ml-auto lg:max-w-xl">
+              <div className="grid grid-cols-2 gap-4 lg:ml-auto lg:max-w-xl">
                 {/* Tổng chuyến */}
                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 shadow-sm">
                   <div className="text-xs text-slate-500 flex items-center gap-1">
@@ -326,17 +325,6 @@ export default function DriverProfilePage() {
                   </div>
                   <div className="mt-1 text-2xl font-semibold text-slate-900">
                     {fmtNum(tripsTotal)}
-                  </div>
-                </div>
-
-                {/* Tổng km */}
-                <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 shadow-sm">
-                  <div className="text-xs text-slate-500 flex items-center gap-1">
-                    <Car className="h-3.5 w-3.5 text-amber-500" />
-                    Tổng km
-                  </div>
-                  <div className="mt-1 text-2xl font-semibold">
-                    {fmtNum(kmTotal)} km
                   </div>
                 </div>
 
@@ -369,11 +357,8 @@ export default function DriverProfilePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* ===== Contact + Edit ===== */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
-              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 flex items-center">
+              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
                 <div className="text-sm font-medium">Thông tin liên lạc</div>
-                <div className="ml-auto text-[11px] text-slate-400">
-                  PUT /api/drivers/{profile.driverId}/profile
-                </div>
               </div>
 
               <div className="p-4 space-y-4 text-sm text-slate-700">
@@ -499,11 +484,8 @@ export default function DriverProfilePage() {
 
             {/* ===== Driver Info ===== */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
-              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 flex items-center">
+              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
                 <div className="text-sm font-medium">Hồ sơ tài xế</div>
-                <div className="ml-auto text-[11px] text-slate-400">
-                  GET /api/drivers/{profile.driverId}/profile
-                </div>
               </div>
 
               <div className="p-4 text-sm space-y-4">

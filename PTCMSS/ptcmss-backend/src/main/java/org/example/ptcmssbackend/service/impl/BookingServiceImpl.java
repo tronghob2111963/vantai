@@ -1557,6 +1557,30 @@ public class BookingServiceImpl implements BookingService {
                     requiredCategoryIds.add(categoryId);
                 }
             }
+
+            // VALIDATION: Không cho phép gán xe khác loại so với booking
+            // - Với phần lớn đơn, tất cả trips dùng cùng 1 loại xe → requiredCategoryIds[0]
+            // - Nếu booking không khai báo loại xe, bỏ qua validation này
+            Integer requiredPrimaryCategoryId = !requiredCategoryIds.isEmpty() ? requiredCategoryIds.get(0) : null;
+            Integer primaryCategoryId = primaryVehicle.getCategory() != null
+                    ? primaryVehicle.getCategory().getId()
+                    : null;
+            if (requiredPrimaryCategoryId != null && primaryCategoryId != null
+                    && !primaryCategoryId.equals(requiredPrimaryCategoryId)) {
+                // Lấy tên loại xe yêu cầu và loại xe đang chọn để hiện thông báo rõ ràng
+                String requiredName = bookingVehicles.stream()
+                        .filter(bvd -> bvd.getVehicleCategory() != null
+                                && bvd.getVehicleCategory().getId().equals(requiredPrimaryCategoryId))
+                        .map(bvd -> bvd.getVehicleCategory().getCategoryName())
+                        .findFirst()
+                        .orElse("đúng loại xe");
+                String pickedName = primaryVehicle.getCategory() != null
+                        ? primaryVehicle.getCategory().getCategoryName()
+                        : "không rõ";
+                throw new RuntimeException(String.format(
+                        "Xe được chọn không đúng loại với đơn hàng. Cần %s nhưng đang chọn %s.",
+                        requiredName, pickedName));
+            }
             
             // Nếu gán cho nhiều trips, cần tìm thêm xe cho các trips còn lại
             List<Vehicles> assignedVehicles = new ArrayList<>();
