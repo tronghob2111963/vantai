@@ -332,16 +332,9 @@ export default function CreateOrderPage() {
     const [checkingAvail, setCheckingAvail] =
         React.useState(false);
 
-    // TẠM TẮT: Check availability real-time vì backend có thể đang giữ xe khi check
-    // Chỉ check availability khi submit order để tránh giữ xe khi chưa đặt cọc
-    // TODO: Backend cần thêm parameter để chỉ check mà không giữ xe
+    // Check availability real-time khi chọn xe hoặc thay đổi thời gian
+    // Backend API chỉ đọc dữ liệu, không giữ/reserve xe nên an toàn để check real-time
     React.useEffect(() => {
-        // Tắt check real-time - chỉ check khi submit
-        setAvailabilityInfo(null);
-        return;
-        
-        // Code cũ đã comment - có thể bật lại khi backend hỗ trợ check không giữ xe
-        /*
         // Chỉ check khi có ít nhất 1 loại xe được chọn
         const hasValidSelection = vehicleSelections.some(v => v.categoryId && v.quantity > 0);
         if (!startTime || !hasValidSelection || !branchId) {
@@ -378,7 +371,7 @@ export default function CreateOrderPage() {
                         })
                 );
                 
-                console.log("[CheckAvailability] All results:", results);
+                console.log("🔵 [FRONTEND] Real-time Check Availability Results:", results);
                 
                 // Tổng hợp kết quả: nếu có bất kỳ loại xe nào hết thì báo hết
                 const allOk = results.every(r => r.ok);
@@ -420,7 +413,7 @@ export default function CreateOrderPage() {
             } catch (err) {
                 console.error("Check availability error:", err);
                 setAvailabilityInfo({
-                    ok: true,
+                    ok: false,
                     count: 0,
                     text: "Lỗi kiểm tra: " + (err.message || "Không xác định"),
                     branch: branchId,
@@ -430,10 +423,9 @@ export default function CreateOrderPage() {
             }
         };
         
-        // Debounce 500ms
+        // Debounce 500ms để tránh check quá nhiều khi user đang nhập
         const timer = setTimeout(checkAvail, 500);
         return () => clearTimeout(timer);
-        */
     }, [startTime, endTime, branchId, hireType, vehicleSelections, categories]);
 
     /* --- Part 4: báo giá --- */
@@ -740,8 +732,10 @@ export default function CreateOrderPage() {
                     }
                 }
             } catch (err) {
-                console.error("Failed to load system settings:", err);
-                // Giữ giá trị mặc định nếu load lỗi
+                // Log warning thay vì error để không làm phiền user
+                // Giữ giá trị mặc định nếu load lỗi (có thể do không có quyền hoặc network issue)
+                console.warn("⚠️ [FRONTEND] Failed to load system settings (using defaults):", err.message || err);
+                // Giá trị mặc định đã được set ở useState: holidaySurchargeRate = 0.25, weekendSurchargeRate = 0.20
             }
         })();
     }, []);
@@ -863,7 +857,7 @@ export default function CreateOrderPage() {
                 // Gửi tất cả loại xe đã chọn
                 // TODO: Backend cần kiểm tra logic tính giá - thuê theo ngày (DAILY) phải rẻ hơn thuê 2 chiều (ROUND_TRIP)
                 // Hiện tại có thể đang tính sai: ROUND_TRIP đắt gấp đôi DAILY
-                const price = await calculatePrice({
+                const priceRequest = {
                     vehicleCategoryIds: validSelections.map(v => Number(v.categoryId)),
                     quantities: validSelections.map(v => Number(v.quantity || 1)),
                     distance: Number(distanceKm || 0),
@@ -873,8 +867,41 @@ export default function CreateOrderPage() {
                     isWeekend: isWeekend,
                     startTime: startISO,
                     endTime: endISO,
+                };
+                
+                // Lấy thông tin hireType từ hireTypesList
+                const currentHireTypeObj = hireTypesList.find(h => 
+                    (hireTypeId && h.id === Number(hireTypeId)) || 
+                    (hireType && h.code === hireType)
+                );
+                
+                // 🔍 LOG FRONTEND: Dữ liệu gửi đi
+                console.log("🔵 [FRONTEND] Calculate Price Request:", {
+                    ...priceRequest,
+                    hireType: hireType, // String: "ONE_WAY", "ROUND_TRIP", "DAILY"
+                    hireTypeId: hireTypeId,
+                    hireTypeName: currentHireTypeObj?.name || "N/A",
+                    hireTypeCode: currentHireTypeObj?.code || hireType || "N/A",
+                    vehicleSelections: validSelections.map(v => ({
+                        categoryId: v.categoryId,
+                        categoryName: v.categoryName,
+                        quantity: v.quantity || 1
+                    })),
+                    hireTypesList: hireTypesList.map(h => ({ id: h.id, code: h.code, name: h.name }))
                 });
+                
+                const price = await calculatePrice(priceRequest);
                 const base = Number(price || 0);
+                
+                // 🔍 LOG FRONTEND: Kết quả nhận về
+                console.log("🟢 [FRONTEND] Calculate Price Response:", {
+                    price: base,
+                    formattedPrice: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(base),
+                    distance: distanceKm,
+                    hireTypeId: hireTypeId,
+                    hireTypeName: hireType?.name || "N/A"
+                });
+                
                 setEstPriceSys(base);
                 setQuotedPrice((old) => (quotedPriceTouched ? old : base));
             } catch (err) {
@@ -1229,6 +1256,20 @@ export default function CreateOrderPage() {
                                 endTime: sEnd,
                                 quantity: selection.quantity || 1,
                             });
+                            
+                            // 🔍 LOG FRONTEND: Check availability response
+                            console.log("🔵 [FRONTEND] Check Availability Response:", {
+                                categoryId: selection.categoryId,
+                                categoryName: selection.categoryName,
+                                ok: data.ok,
+                                availableCount: data.availableCount,
+                                needed: data.needed,
+                                totalCandidates: data.totalCandidates,
+                                busyCount: data.busyCount,
+                                alternativeCategories: data.alternativeCategories || [],
+                                nextAvailableSlots: data.nextAvailableSlots || [],
+                            });
+                            
                             return { ...data, categoryId: selection.categoryId, quantity: selection.quantity };
                         })
                     );
@@ -1237,10 +1278,32 @@ export default function CreateOrderPage() {
                     if (!allOk) {
                         const firstFailed = checkResults.find(r => !r.ok);
                         const cat = categories.find(c => c.id === firstFailed.categoryId);
+                        
+                        // Set availabilityInfo để hiển thị suggest dialog
+                        setAvailabilityInfo({
+                            ok: false,
+                            count: 0,
+                            totalCandidates: firstFailed.totalCandidates || 0,
+                            busyCount: firstFailed.busyCount || 0,
+                            text: `${cat?.name || 'Xe'}: Không đủ xe trong khung giờ này (${firstFailed.busyCount || 0}/${firstFailed.totalCandidates || 0} đang bận). Vui lòng chọn thời gian khác.`,
+                            branch: branchId,
+                            // Suggestions từ kết quả đầu tiên bị fail
+                            alternativeCategories: firstFailed.alternativeCategories || [],
+                            nextAvailableSlots: firstFailed.nextAvailableSlots || [],
+                            failedCategoryId: firstFailed.categoryId,
+                            results: checkResults,
+                        });
+                        
                         push(
                             `${cat?.name || 'Xe'}: Không đủ xe trong khung giờ này (${firstFailed.busyCount || 0}/${firstFailed.totalCandidates || 0} đang bận). Vui lòng chọn thời gian khác.`,
                             "error"
                         );
+                        
+                        // Tự động mở popup gợi ý khi không đủ xe và có suggestions
+                        if (firstFailed.alternativeCategories?.length > 0 || firstFailed.nextAvailableSlots?.length > 0) {
+                            setShowSuggestionDialog(true);
+                        }
+                        
                         setLoadingSubmit(false);
                         return;
                     }
@@ -1253,6 +1316,16 @@ export default function CreateOrderPage() {
                 }
             }
 
+            // 🔍 DEBUG: Log vehicleSelections trước khi tạo request
+            console.log("🔵 [FRONTEND] vehicleSelections before creating booking:", vehicleSelections);
+            const validVehicleSelections = vehicleSelections.filter(v => v.categoryId);
+            console.log("🔵 [FRONTEND] Valid vehicle selections:", validVehicleSelections);
+            const vehiclesToSend = validVehicleSelections.map(v => ({ 
+                vehicleCategoryId: Number(v.categoryId), 
+                quantity: Number(v.quantity || 1) 
+            }));
+            console.log("🔵 [FRONTEND] Vehicles to send to backend:", vehiclesToSend);
+
             const req = {
                 customer: { fullName: customerName, phone, email },
                 branchId: Number(branchId),
@@ -1264,11 +1337,7 @@ export default function CreateOrderPage() {
                 trips: [
                     { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
                 ],
-                // TODO: Backend cần kiểm tra - có thể đang tự động add thêm 1 xe khi hireType = DAILY
-                // Frontend gửi đúng quantity, không tự động tăng
-                vehicles: vehicleSelections
-                    .filter(v => v.categoryId)
-                    .map(v => ({ vehicleCategoryId: Number(v.categoryId), quantity: Number(v.quantity || 1) })),
+                vehicles: vehiclesToSend,
                 estimatedCost: Number(estPriceSys || 0),
                 discountAmount: Number(discount || 0),
                 totalCost: Number(quotedPrice || 0),
@@ -1280,6 +1349,7 @@ export default function CreateOrderPage() {
             console.log("📤 Creating booking:", req);
             const created = await createBooking(req);
             console.log("✅ Booking created response:", created);
+            console.log("🔍 [FRONTEND] Vehicles in response:", created?.vehicles || created?.data?.vehicles);
             
             // Handle different response formats
             const bookingId = created?.id || created?.data?.id || created?.bookingId;
