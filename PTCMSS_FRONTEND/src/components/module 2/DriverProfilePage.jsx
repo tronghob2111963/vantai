@@ -93,6 +93,7 @@ export default function DriverProfilePage() {
   const [address, setAddress] = React.useState("");
   const [avatarPreview, setAvatarPreview] = React.useState(null); // Preview URL
   const [avatarFile, setAvatarFile] = React.useState(null); // File object để upload
+  const [avatarUrl, setAvatarUrl] = React.useState(null); // Fetched avatar blob URL
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
 
   const [phoneError, setPhoneError] = React.useState("");
@@ -124,6 +125,51 @@ export default function DriverProfilePage() {
         setAddress(data.address || "");
         setAvatarPreview(null); // Reset preview khi load lại
         setAvatarFile(null);
+
+        // Load avatar với auth token (giống header)
+        if (data?.avatar) {
+          try {
+            const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
+            const imgPath = data.avatar;
+            const fullUrl = /^https?:\/\//i.test(imgPath) 
+              ? imgPath 
+              : `${apiBase}${imgPath.startsWith("/") ? "" : "/"}${imgPath}`;
+            const urlWithCacheBuster = `${fullUrl}${fullUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+            
+            // Fetch with auth
+            let token = localStorage.getItem("access_token") || "";
+            if (!token) {
+              try {
+                const parts = document.cookie.split("; ");
+                for (const p of parts) {
+                  const [k, v] = p.split("=");
+                  if (k === "access_token") {
+                    token = decodeURIComponent(v || "");
+                    break;
+                  }
+                }
+              } catch {}
+            }
+            const resp = await fetch(urlWithCacheBuster, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              credentials: "include",
+              cache: "no-store",
+            });
+            
+            if (resp.ok && mounted) {
+              const blob = await resp.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              setAvatarUrl(blobUrl);
+            } else if (mounted) {
+              setAvatarUrl(null);
+            }
+          } catch (err) {
+            console.warn("Failed to load avatar:", err);
+            if (mounted) setAvatarUrl(null);
+          }
+        } else if (mounted) {
+          setAvatarUrl(null);
+        }
       } catch (err) {
         setError(
           err?.data?.message ||
@@ -136,8 +182,19 @@ export default function DriverProfilePage() {
     }
 
     load();
-    return () => (mounted = false);
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  // Cleanup avatar blob URL khi component unmount
+  React.useEffect(() => {
+    return () => {
+      if (avatarUrl) {
+        URL.revokeObjectURL(avatarUrl);
+      }
+    };
+  }, [avatarUrl]);
 
   // Check if data has changed
   const dirty =
@@ -231,6 +288,49 @@ export default function DriverProfilePage() {
       if (avatarFile) {
         const reloadedProfile = await getDriverProfileByUser(userId);
         setProfile(reloadedProfile);
+        
+        // Reload avatar với auth token
+        if (reloadedProfile?.avatar) {
+          try {
+            const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
+            const imgPath = reloadedProfile.avatar;
+            const fullUrl = /^https?:\/\//i.test(imgPath) 
+              ? imgPath 
+              : `${apiBase}${imgPath.startsWith("/") ? "" : "/"}${imgPath}`;
+            const urlWithCacheBuster = `${fullUrl}${fullUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+            
+            let token = localStorage.getItem("access_token") || "";
+            if (!token) {
+              try {
+                const parts = document.cookie.split("; ");
+                for (const p of parts) {
+                  const [k, v] = p.split("=");
+                  if (k === "access_token") {
+                    token = decodeURIComponent(v || "");
+                    break;
+                  }
+                }
+              } catch {}
+            }
+            const resp = await fetch(urlWithCacheBuster, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              credentials: "include",
+              cache: "no-store",
+            });
+            
+            if (resp.ok) {
+              // Revoke old URL
+              if (avatarUrl) {
+                URL.revokeObjectURL(avatarUrl);
+              }
+              const blob = await resp.blob();
+              const newBlobUrl = URL.createObjectURL(blob);
+              setAvatarUrl(newBlobUrl);
+            }
+          } catch (err) {
+            console.warn("Failed to reload avatar:", err);
+          }
+        }
       } else {
         setProfile(updated);
       }
@@ -364,17 +464,40 @@ export default function DriverProfilePage() {
               <div className="flex items-start gap-4 min-w-[220px]">
                 <div className="relative">
                   <div className="relative">
-                    <UserAvatar
-                      name={fullName}
-                      avatar={avatarPreview || profile?.avatar} // Ưu tiên preview
-                      size={64}
-                      className={cls(
-                        "ring-2 shadow-sm transition-all",
-                        avatarPreview
-                          ? "ring-amber-400 ring-4" // Highlight khi có preview chưa lưu
-                          : "ring-blue-100"
-                      )}
-                    />
+                    {avatarPreview ? (
+                      // Hiển thị preview nếu có
+                      <UserAvatar
+                        name={fullName}
+                        avatar={avatarPreview}
+                        size={64}
+                        className={cls(
+                          "ring-4 ring-amber-400 shadow-sm transition-all"
+                        )}
+                      />
+                    ) : avatarUrl ? (
+                      // Hiển thị avatar đã fetch với auth
+                      <div
+                        className={cls(
+                          "rounded-full overflow-hidden ring-2 ring-blue-100 shadow-sm",
+                          "w-16 h-16 flex items-center justify-center"
+                        )}
+                      >
+                        <img
+                          src={avatarUrl}
+                          alt={fullName}
+                          className="w-full h-full object-cover"
+                          onError={() => setAvatarUrl(null)}
+                        />
+                      </div>
+                    ) : (
+                      // Fallback sang UserAvatar với initials
+                      <UserAvatar
+                        name={fullName}
+                        avatar={null}
+                        size={64}
+                        className="ring-2 ring-blue-100 shadow-sm"
+                      />
+                    )}
                     {/* Badge "Chưa lưu" khi có preview */}
                     {avatarPreview && (
                       <div className="absolute -top-1 -left-1 bg-amber-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow-sm border border-white">
