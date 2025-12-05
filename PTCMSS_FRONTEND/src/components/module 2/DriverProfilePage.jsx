@@ -91,6 +91,8 @@ export default function DriverProfilePage() {
   const [profile, setProfile] = React.useState(null);
   const [phone, setPhone] = React.useState("");
   const [address, setAddress] = React.useState("");
+  const [avatarPreview, setAvatarPreview] = React.useState(null); // Preview URL
+  const [avatarFile, setAvatarFile] = React.useState(null); // File object để upload
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
 
   const [phoneError, setPhoneError] = React.useState("");
@@ -120,6 +122,8 @@ export default function DriverProfilePage() {
         setProfile(data);
         setPhone(data.phone || "");
         setAddress(data.address || "");
+        setAvatarPreview(null); // Reset preview khi load lại
+        setAvatarFile(null);
       } catch (err) {
         setError(
           err?.data?.message ||
@@ -139,7 +143,8 @@ export default function DriverProfilePage() {
   const dirty =
     profile &&
     (phone !== (profile.phone || "") ||
-      address !== (profile.address || ""));
+      address !== (profile.address || "") ||
+      avatarFile !== null); // Có avatar mới chọn
 
   // Check if form is valid (no errors and has required data)
   const isValid =
@@ -189,20 +194,53 @@ export default function DriverProfilePage() {
       return;
     }
 
-    const payload = {
-      phone: phone.trim(),
-      address: address.trim(),
-    };
-
     try {
       setSaving(true);
+      const userId = getCookie("userId");
+      if (!userId) {
+        push("Không tìm thấy userId", "error");
+        return;
+      }
+
+      // Upload avatar trước nếu có
+      if (avatarFile) {
+        setUploadingAvatar(true);
+        try {
+          await uploadDriverAvatar(parseInt(userId), avatarFile);
+        } catch (err) {
+          push(
+            err?.data?.message || err?.message || "Không thể upload ảnh đại diện",
+            "error"
+          );
+          setUploadingAvatar(false);
+          setSaving(false);
+          return;
+        }
+        setUploadingAvatar(false);
+      }
+
+      // Cập nhật thông tin liên lạc
+      const payload = {
+        phone: phone.trim(),
+        address: address.trim(),
+      };
+
       const updated = await updateDriverProfile(profile.driverId, payload);
 
-      setProfile(updated);
+      // Reload profile để lấy avatar mới nếu có
+      if (avatarFile) {
+        const reloadedProfile = await getDriverProfileByUser(userId);
+        setProfile(reloadedProfile);
+      } else {
+        setProfile(updated);
+      }
+
       setPhone(updated.phone || "");
       setAddress(updated.address || "");
+      setAvatarPreview(null);
+      setAvatarFile(null);
 
-      push("Đã lưu thông tin liên lạc", "success");
+      push("Đã lưu thông tin", "success");
     } catch (err) {
       setError(
         err?.data?.message ||
@@ -212,6 +250,7 @@ export default function DriverProfilePage() {
       push("Lưu thất bại ❌", "error");
     } finally {
       setSaving(false);
+      setUploadingAvatar(false);
     }
   };
 
@@ -221,53 +260,43 @@ export default function DriverProfilePage() {
     setAddress(profile.address || "");
     setPhoneError("");
     setAddressError("");
+    setAvatarPreview(null);
+    setAvatarFile(null);
     push("Đã hoàn tác thay đổi", "info");
   };
 
   /* ===========================================
-     Avatar upload handler
+     Avatar preview handler (chỉ hiển thị preview, chưa upload)
   =========================================== */
-  const handleAvatarUpload = async (e) => {
+  const handleAvatarSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
       push("Chỉ chấp nhận file ảnh", "error");
+      e.target.value = "";
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       push("Kích thước file không được vượt quá 5MB", "error");
+      e.target.value = "";
       return;
     }
 
-    try {
-      setUploadingAvatar(true);
-      const userId = getCookie("userId");
-      if (!userId) {
-        push("Không tìm thấy userId", "error");
-        return;
-      }
-
-      const avatarUrl = await uploadDriverAvatar(parseInt(userId), file);
-      
-      // Reload profile to get updated avatar
-      const updatedProfile = await getDriverProfileByUser(userId);
-      setProfile(updatedProfile);
-      
-      push("Đã cập nhật ảnh đại diện", "success");
-    } catch (err) {
-      push(
-        err?.data?.message || err?.message || "Không thể upload ảnh đại diện",
-        "error"
-      );
-    } finally {
-      setUploadingAvatar(false);
-      // Reset input
+    // Tạo preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result);
+      setAvatarFile(file);
+    };
+    reader.onerror = () => {
+      push("Không thể đọc file ảnh", "error");
       e.target.value = "";
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   /* ===========================================
@@ -334,18 +363,31 @@ export default function DriverProfilePage() {
               {/* Avatar + info */}
               <div className="flex items-start gap-4 min-w-[220px]">
                 <div className="relative">
-                  <UserAvatar
-                    name={fullName}
-                    avatar={profile?.avatar}
-                    size={64}
-                    className="ring-2 ring-blue-100 shadow-sm"
-                  />
+                  <div className="relative">
+                    <UserAvatar
+                      name={fullName}
+                      avatar={avatarPreview || profile?.avatar} // Ưu tiên preview
+                      size={64}
+                      className={cls(
+                        "ring-2 shadow-sm transition-all",
+                        avatarPreview
+                          ? "ring-amber-400 ring-4" // Highlight khi có preview chưa lưu
+                          : "ring-blue-100"
+                      )}
+                    />
+                    {/* Badge "Chưa lưu" khi có preview */}
+                    {avatarPreview && (
+                      <div className="absolute -top-1 -left-1 bg-amber-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow-sm border border-white">
+                        Mới
+                      </div>
+                    )}
+                  </div>
                   
                   {/* Upload button overlay */}
                   <label
                     className={cls(
                       "absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-md cursor-pointer transition-colors",
-                      uploadingAvatar
+                      (saving || uploadingAvatar)
                         ? "bg-slate-400 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     )}
@@ -359,8 +401,8 @@ export default function DriverProfilePage() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={handleAvatarUpload}
-                      disabled={uploadingAvatar}
+                      onChange={handleAvatarSelect}
+                      disabled={saving || uploadingAvatar}
                       className="hidden"
                     />
                   </label>
