@@ -3,6 +3,7 @@ package org.example.ptcmssbackend.service;
 import org.example.ptcmssbackend.dto.request.Booking.CheckAvailabilityRequest;
 import org.example.ptcmssbackend.dto.request.Booking.CreateBookingRequest;
 import org.example.ptcmssbackend.dto.request.Booking.TripRequest;
+import org.example.ptcmssbackend.dto.request.Booking.UpdateBookingRequest;
 import org.example.ptcmssbackend.dto.request.Booking.VehicleDetailRequest;
 import org.example.ptcmssbackend.entity.Branches;
 import org.example.ptcmssbackend.entity.VehicleCategoryPricing;
@@ -609,5 +610,188 @@ class BookingServiceImplTest {
         branch.setBranchName("Test Branch");
         vehicle.setBranch(branch);
         return vehicle;
+    }
+
+    // ==================== update() Tests ====================
+
+    @Test
+    void update_whenValidRequest_shouldUpdateBookingSuccessfully() {
+        // Given
+        Integer bookingId = 1;
+        org.example.ptcmssbackend.entity.Bookings booking = new org.example.ptcmssbackend.entity.Bookings();
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setNote("Original note");
+        
+        Branches branch = new Branches();
+        branch.setId(1);
+        branch.setBranchName("Chi nhánh Hà Nội");
+        booking.setBranch(branch);
+        
+        org.example.ptcmssbackend.entity.Customers customer = new org.example.ptcmssbackend.entity.Customers();
+        customer.setId(1);
+        booking.setCustomer(customer);
+
+        // Trip trong tương lai (đủ 24h)
+        org.example.ptcmssbackend.entity.Trips trip = new org.example.ptcmssbackend.entity.Trips();
+        trip.setId(100);
+        trip.setStartTime(Instant.now().plusSeconds(25 * 3600)); // 25 giờ sau
+        trip.setStatus(org.example.ptcmssbackend.enums.TripStatus.SCHEDULED);
+        trip.setBooking(booking);
+
+        UpdateBookingRequest request = new UpdateBookingRequest();
+        request.setNote("Updated note");
+        request.setStatus(BookingStatus.CONFIRMED.name());
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.of(booking));
+        when(tripRepository.findByBooking_Id(bookingId)).thenReturn(List.of(trip));
+        when(bookingVehicleDetailsRepository.findByBookingId(bookingId)).thenReturn(Collections.emptyList());
+        when(bookingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(systemSettingService.getByKey(anyString())).thenReturn(null);
+
+        // When
+        var response = bookingService.update(bookingId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(bookingId);
+        verify(bookingRepository).save(any());
+        verify(webSocketNotificationService).sendBookingUpdate(anyInt(), anyString(), anyString());
+    }
+
+    @Test
+    void update_whenBookingNotFound_shouldThrowException() {
+        // Given
+        Integer bookingId = 999;
+        UpdateBookingRequest request = new UpdateBookingRequest();
+        request.setNote("Updated note");
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> bookingService.update(bookingId, request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy đơn hàng");
+    }
+
+    @Test
+    void update_whenStatusNotAllowed_shouldThrowException() {
+        // Given
+        Integer bookingId = 1;
+        org.example.ptcmssbackend.entity.Bookings booking = new org.example.ptcmssbackend.entity.Bookings();
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.COMPLETED); // Status không cho phép update
+
+        UpdateBookingRequest request = new UpdateBookingRequest();
+        request.setNote("Updated note");
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.of(booking));
+
+        // When & Then
+        assertThatThrownBy(() -> bookingService.update(bookingId, request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không thể cập nhật đơn hàng với trạng thái");
+    }
+
+    @Test
+    void update_whenTooCloseToStartTime_shouldThrowException() {
+        // Given
+        Integer bookingId = 1;
+        org.example.ptcmssbackend.entity.Bookings booking = new org.example.ptcmssbackend.entity.Bookings();
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.PENDING);
+
+        // Trip quá gần (chỉ còn 10 giờ)
+        org.example.ptcmssbackend.entity.Trips trip = new org.example.ptcmssbackend.entity.Trips();
+        trip.setId(100);
+        trip.setStartTime(Instant.now().plusSeconds(10 * 3600)); // 10 giờ sau
+        trip.setStatus(org.example.ptcmssbackend.enums.TripStatus.SCHEDULED);
+        trip.setBooking(booking);
+
+        UpdateBookingRequest request = new UpdateBookingRequest();
+        request.setNote("Updated note");
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.of(booking));
+        when(tripRepository.findByBooking_Id(bookingId)).thenReturn(List.of(trip));
+
+        // When & Then
+        assertThatThrownBy(() -> bookingService.update(bookingId, request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Sửa đổi đơn hàng phải thực hiện trước");
+    }
+
+    @Test
+    void update_whenUpdatingDistance_shouldRecalculatePrice() {
+        // Given
+        Integer bookingId = 1;
+        org.example.ptcmssbackend.entity.Bookings booking = new org.example.ptcmssbackend.entity.Bookings();
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setEstimatedCost(new BigDecimal("1000000"));
+        booking.setUseHighway(false);
+
+        Branches branch = new Branches();
+        branch.setId(1);
+        booking.setBranch(branch);
+
+        org.example.ptcmssbackend.entity.Customers customer = new org.example.ptcmssbackend.entity.Customers();
+        customer.setId(1);
+        booking.setCustomer(customer);
+
+        org.example.ptcmssbackend.entity.HireTypes hireType = new org.example.ptcmssbackend.entity.HireTypes();
+        hireType.setId(1);
+        hireType.setCode("ONE_WAY");
+        booking.setHireType(hireType);
+
+        // Trip trong tương lai (đủ 24h)
+        org.example.ptcmssbackend.entity.Trips trip = new org.example.ptcmssbackend.entity.Trips();
+        trip.setId(100);
+        trip.setStartTime(Instant.now().plusSeconds(25 * 3600));
+        trip.setEndTime(Instant.now().plusSeconds(27 * 3600));
+        trip.setStatus(org.example.ptcmssbackend.enums.TripStatus.SCHEDULED);
+        trip.setBooking(booking);
+
+        VehicleCategoryPricing category = new VehicleCategoryPricing();
+        category.setId(1);
+        category.setStatus(org.example.ptcmssbackend.enums.VehicleCategoryStatus.ACTIVE);
+        category.setPricePerKm(new BigDecimal("10000"));
+        category.setBaseFare(new BigDecimal("50000"));
+
+        // Existing vehicle details (giống với request để không bị coi là major change)
+        org.example.ptcmssbackend.entity.BookingVehicleDetails existingVehicleDetail = 
+            new org.example.ptcmssbackend.entity.BookingVehicleDetails();
+        org.example.ptcmssbackend.entity.BookingVehicleDetailsId vehicleDetailId = 
+            new org.example.ptcmssbackend.entity.BookingVehicleDetailsId();
+        vehicleDetailId.setBookingId(bookingId);
+        vehicleDetailId.setVehicleCategoryId(1);
+        existingVehicleDetail.setId(vehicleDetailId);
+        existingVehicleDetail.setVehicleCategory(category);
+        existingVehicleDetail.setQuantity(1);
+
+        UpdateBookingRequest request = new UpdateBookingRequest();
+        request.setDistance(150.0); // Tăng từ 100km lên 150km
+        VehicleDetailRequest v = new VehicleDetailRequest();
+        v.setVehicleCategoryId(1);
+        v.setQuantity(1);
+        request.setVehicles(List.of(v));
+        request.setHireTypeId(1);
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.of(booking));
+        when(tripRepository.findByBooking_Id(bookingId)).thenReturn(List.of(trip));
+        when(bookingVehicleDetailsRepository.findByBookingId(bookingId)).thenReturn(List.of(existingVehicleDetail));
+        when(hireTypesRepository.findById(1)).thenReturn(java.util.Optional.of(hireType));
+        when(vehicleCategoryRepository.findById(1)).thenReturn(java.util.Optional.of(category));
+        when(bookingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(systemSettingService.getByKey(anyString())).thenReturn(null);
+
+        // When
+        var response = bookingService.update(bookingId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        // Verify price was recalculated (150km * 10000 + 50000 = 1550000)
+        verify(bookingRepository).save(argThat(b -> {
+            return b.getEstimatedCost().compareTo(new BigDecimal("1550000")) == 0;
+        }));
     }
 }
