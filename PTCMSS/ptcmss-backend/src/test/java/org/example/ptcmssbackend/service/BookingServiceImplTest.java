@@ -27,9 +27,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class BookingServiceImplTest {
@@ -333,6 +331,267 @@ class BookingServiceImplTest {
         assertThatThrownBy(() -> bookingService.getById(bookingId))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Không tìm thấy đơn hàng");
+    }
+
+    @Test
+    void create_whenValidRequest_shouldCreateBookingSuccessfully() {
+        // Given
+        CreateBookingRequest request = new CreateBookingRequest();
+        request.setCustomer(new org.example.ptcmssbackend.dto.request.Booking.CustomerRequest());
+        request.setDistance(100.0);
+        request.setStatus(BookingStatus.PENDING.name());
+        request.setHireTypeId(1);
+        request.setUseHighway(false);
+        request.setIsHoliday(false);
+        request.setIsWeekend(false);
+
+        VehicleDetailRequest v = new VehicleDetailRequest();
+        v.setVehicleCategoryId(1);
+        v.setQuantity(1);
+        request.setVehicles(List.of(v));
+
+        TripRequest t1 = new TripRequest();
+        Instant start = Instant.parse("2025-12-10T08:00:00Z");
+        Instant end = start.plusSeconds(2 * 3600);
+        t1.setStartTime(start);
+        t1.setEndTime(end);
+        t1.setStartLocation("Hà Nội");
+        t1.setEndLocation("Hải Phòng");
+        t1.setDistance(100.0);
+        request.setTrips(List.of(t1));
+
+        // Branch & consultant
+        Branches branch = new Branches();
+        branch.setId(1);
+        branch.setBranchName("Chi nhánh Hà Nội");
+        branch.setStatus(org.example.ptcmssbackend.enums.BranchStatus.ACTIVE);
+        
+        org.example.ptcmssbackend.entity.Employees consultant = new org.example.ptcmssbackend.entity.Employees();
+        consultant.setEmployeeId(100);
+        consultant.setBranch(branch);
+
+        org.example.ptcmssbackend.entity.Customers customer = new org.example.ptcmssbackend.entity.Customers();
+        customer.setId(1);
+        customer.setFullName("Nguyễn Văn A");
+
+        org.example.ptcmssbackend.entity.HireTypes hireType = new org.example.ptcmssbackend.entity.HireTypes();
+        hireType.setId(1);
+        hireType.setCode("ONE_WAY");
+
+        VehicleCategoryPricing category = new VehicleCategoryPricing();
+        category.setId(1);
+        category.setStatus(org.example.ptcmssbackend.enums.VehicleCategoryStatus.ACTIVE);
+        category.setPricePerKm(new BigDecimal("10000"));
+        category.setBaseFare(new BigDecimal("50000"));
+
+        org.example.ptcmssbackend.entity.Drivers driver = new org.example.ptcmssbackend.entity.Drivers();
+        driver.setId(1);
+        driver.setLicenseExpiry(null);
+
+        org.example.ptcmssbackend.entity.Bookings savedBooking = new org.example.ptcmssbackend.entity.Bookings();
+        savedBooking.setId(1);
+        savedBooking.setStatus(BookingStatus.PENDING);
+        savedBooking.setBranch(branch);
+        savedBooking.setCustomer(customer);
+        savedBooking.setConsultant(consultant);
+
+        // Mock dependencies
+        when(employeeRepository.findById(100)).thenReturn(java.util.Optional.of(consultant));
+        when(customerService.findOrCreateCustomer(any(), any())).thenReturn(customer);
+        when(hireTypesRepository.findById(1)).thenReturn(java.util.Optional.of(hireType));
+        when(vehicleCategoryRepository.findById(1)).thenReturn(java.util.Optional.of(category));
+        when(bookingRepository.save(any())).thenAnswer(inv -> {
+            org.example.ptcmssbackend.entity.Bookings b = inv.getArgument(0);
+            b.setId(1);
+            return b;
+        });
+        when(driverRepository.findByBranchId(1)).thenReturn(List.of(driver));
+        when(tripDriverRepository.findAllByDriverId(1)).thenReturn(Collections.emptyList());
+        when(tripRepository.save(any())).thenAnswer(inv -> {
+            org.example.ptcmssbackend.entity.Trips t = inv.getArgument(0);
+            t.setId(100);
+            return t;
+        });
+        when(bookingVehicleDetailsRepository.findByBookingId(anyInt())).thenReturn(Collections.emptyList());
+        // Mock system settings - return null for all keys (will use defaults)
+        when(systemSettingService.getByKey(anyString())).thenReturn(null);
+
+        // When
+        var response = bookingService.create(request, 100);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(1);
+        verify(bookingRepository).save(any());
+        verify(tripRepository).save(any());
+        verify(bookingVehicleDetailsRepository).save(any());
+        verify(webSocketNotificationService).sendGlobalNotification(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void create_whenRoundTrip_shouldCreateTwoTrips() {
+        // Given
+        CreateBookingRequest request = new CreateBookingRequest();
+        request.setCustomer(new org.example.ptcmssbackend.dto.request.Booking.CustomerRequest());
+        request.setDistance(100.0);
+        request.setStatus(BookingStatus.PENDING.name());
+        request.setHireTypeId(2); // ROUND_TRIP
+        request.setUseHighway(false);
+
+        VehicleDetailRequest v = new VehicleDetailRequest();
+        v.setVehicleCategoryId(1);
+        v.setQuantity(1);
+        request.setVehicles(List.of(v));
+
+        // ROUND_TRIP: 2 trips
+        TripRequest t1 = new TripRequest();
+        Instant start1 = Instant.parse("2025-12-10T08:00:00Z");
+        t1.setStartTime(start1);
+        t1.setEndTime(start1.plusSeconds(2 * 3600));
+        t1.setStartLocation("Hà Nội");
+        t1.setEndLocation("Hải Phòng");
+
+        TripRequest t2 = new TripRequest();
+        Instant start2 = Instant.parse("2025-12-10T14:00:00Z");
+        t2.setStartTime(start2);
+        t2.setEndTime(start2.plusSeconds(2 * 3600));
+        t2.setStartLocation("Hải Phòng");
+        t2.setEndLocation("Hà Nội");
+        request.setTrips(List.of(t1, t2));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+        branch.setStatus(org.example.ptcmssbackend.enums.BranchStatus.ACTIVE);
+        
+        org.example.ptcmssbackend.entity.Employees consultant = new org.example.ptcmssbackend.entity.Employees();
+        consultant.setBranch(branch);
+
+        org.example.ptcmssbackend.entity.Customers customer = new org.example.ptcmssbackend.entity.Customers();
+        customer.setId(1);
+
+        org.example.ptcmssbackend.entity.HireTypes hireType = new org.example.ptcmssbackend.entity.HireTypes();
+        hireType.setId(2);
+        hireType.setCode("ROUND_TRIP");
+
+        VehicleCategoryPricing category = new VehicleCategoryPricing();
+        category.setId(1);
+        category.setStatus(org.example.ptcmssbackend.enums.VehicleCategoryStatus.ACTIVE);
+        category.setPricePerKm(new BigDecimal("10000"));
+        category.setBaseFare(new BigDecimal("50000"));
+
+        org.example.ptcmssbackend.entity.Drivers driver1 = new org.example.ptcmssbackend.entity.Drivers();
+        driver1.setId(1);
+        driver1.setLicenseExpiry(null);
+        org.example.ptcmssbackend.entity.Drivers driver2 = new org.example.ptcmssbackend.entity.Drivers();
+        driver2.setId(2);
+        driver2.setLicenseExpiry(null);
+
+        // Mock
+        when(employeeRepository.findById(100)).thenReturn(java.util.Optional.of(consultant));
+        when(customerService.findOrCreateCustomer(any(), any())).thenReturn(customer);
+        when(hireTypesRepository.findById(2)).thenReturn(java.util.Optional.of(hireType));
+        when(vehicleCategoryRepository.findById(1)).thenReturn(java.util.Optional.of(category));
+        when(bookingRepository.save(any())).thenAnswer(inv -> {
+            org.example.ptcmssbackend.entity.Bookings b = inv.getArgument(0);
+            b.setId(1);
+            return b;
+        });
+        when(driverRepository.findByBranchId(1)).thenReturn(List.of(driver1, driver2));
+        when(tripDriverRepository.findAllByDriverId(1)).thenReturn(Collections.emptyList());
+        when(tripDriverRepository.findAllByDriverId(2)).thenReturn(Collections.emptyList());
+        java.util.concurrent.atomic.AtomicInteger tripIdCounter = new java.util.concurrent.atomic.AtomicInteger(100);
+        when(tripRepository.save(any())).thenAnswer(inv -> {
+            org.example.ptcmssbackend.entity.Trips t = inv.getArgument(0);
+            t.setId(tripIdCounter.getAndIncrement());
+            return t;
+        });
+        when(bookingVehicleDetailsRepository.findByBookingId(anyInt())).thenReturn(Collections.emptyList());
+        // Mock system settings - return null for all keys (will use defaults)
+        when(systemSettingService.getByKey(anyString())).thenReturn(null);
+
+        // When
+        var response = bookingService.create(request, 100);
+
+        // Then
+        assertThat(response).isNotNull();
+        verify(tripRepository, times(2)).save(any()); // Should create 2 trips
+        verify(bookingVehicleDetailsRepository).save(any());
+    }
+
+    @Test
+    void create_whenMultipleVehicleCategories_shouldCreateMultipleVehicleDetails() {
+        // Given
+        CreateBookingRequest request = new CreateBookingRequest();
+        request.setCustomer(new org.example.ptcmssbackend.dto.request.Booking.CustomerRequest());
+        request.setDistance(100.0);
+        request.setStatus(BookingStatus.PENDING.name());
+
+        VehicleDetailRequest v1 = new VehicleDetailRequest();
+        v1.setVehicleCategoryId(1);
+        v1.setQuantity(2);
+        VehicleDetailRequest v2 = new VehicleDetailRequest();
+        v2.setVehicleCategoryId(2);
+        v2.setQuantity(1);
+        request.setVehicles(List.of(v1, v2));
+
+        TripRequest t1 = new TripRequest();
+        Instant start = Instant.parse("2025-12-10T08:00:00Z");
+        t1.setStartTime(start);
+        t1.setEndTime(start.plusSeconds(2 * 3600));
+        request.setTrips(List.of(t1));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+        branch.setStatus(org.example.ptcmssbackend.enums.BranchStatus.ACTIVE);
+        
+        org.example.ptcmssbackend.entity.Employees consultant = new org.example.ptcmssbackend.entity.Employees();
+        consultant.setBranch(branch);
+
+        org.example.ptcmssbackend.entity.Customers customer = new org.example.ptcmssbackend.entity.Customers();
+
+        VehicleCategoryPricing cat1 = new VehicleCategoryPricing();
+        cat1.setId(1);
+        cat1.setStatus(org.example.ptcmssbackend.enums.VehicleCategoryStatus.ACTIVE);
+        cat1.setPricePerKm(new BigDecimal("10000"));
+        cat1.setBaseFare(new BigDecimal("50000"));
+
+        VehicleCategoryPricing cat2 = new VehicleCategoryPricing();
+        cat2.setId(2);
+        cat2.setStatus(org.example.ptcmssbackend.enums.VehicleCategoryStatus.ACTIVE);
+        cat2.setPricePerKm(new BigDecimal("15000"));
+        cat2.setBaseFare(new BigDecimal("80000"));
+
+        org.example.ptcmssbackend.entity.Drivers driver = new org.example.ptcmssbackend.entity.Drivers();
+        driver.setId(1);
+        driver.setLicenseExpiry(null);
+
+        // Mock
+        when(employeeRepository.findById(100)).thenReturn(java.util.Optional.of(consultant));
+        when(customerService.findOrCreateCustomer(any(), any())).thenReturn(customer);
+        when(vehicleCategoryRepository.findById(1)).thenReturn(java.util.Optional.of(cat1));
+        when(vehicleCategoryRepository.findById(2)).thenReturn(java.util.Optional.of(cat2));
+        when(bookingRepository.save(any())).thenAnswer(inv -> {
+            org.example.ptcmssbackend.entity.Bookings b = inv.getArgument(0);
+            b.setId(1);
+            return b;
+        });
+        when(driverRepository.findByBranchId(1)).thenReturn(List.of(driver));
+        when(tripDriverRepository.findAllByDriverId(1)).thenReturn(Collections.emptyList());
+        when(tripRepository.save(any())).thenAnswer(inv -> {
+            org.example.ptcmssbackend.entity.Trips t = inv.getArgument(0);
+            t.setId(100);
+            return t;
+        });
+        when(bookingVehicleDetailsRepository.findByBookingId(anyInt())).thenReturn(Collections.emptyList());
+        // Mock system settings - return null for all keys (will use defaults)
+        when(systemSettingService.getByKey(anyString())).thenReturn(null);
+
+        // When
+        var response = bookingService.create(request, 100);
+
+        // Then
+        assertThat(response).isNotNull();
+        verify(bookingVehicleDetailsRepository, times(2)).save(any()); // Should save 2 vehicle details
     }
 
     private Vehicles createVehicle(int id) {
