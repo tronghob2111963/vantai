@@ -164,6 +164,12 @@ export default function DriverProfilePage() {
               setAvatarUrl(null);
             }
           } catch (err) {
+            // Suppress extension-related errors (chrome.runtime.lastError)
+            if (err?.message?.includes("runtime.lastError") || 
+                err?.message?.includes("Receiving end does not exist")) {
+              // Ignore Chrome extension errors
+              return;
+            }
             console.warn("Failed to load avatar:", err);
             if (mounted) setAvatarUrl(null);
           }
