@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   Briefcase,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { logout as apiLogout } from "./api/auth";
 import {
@@ -47,7 +48,7 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Bảng điều khiển", to: "/driver/dashboard", icon: LayoutDashboard },
     { label: "Lịch làm việc", to: "/driver/schedule", icon: CalendarClock },
     { label: "Danh sách chuyến", to: "/driver/trips-list", icon: ClipboardList },
-    { label: "Báo cáo sự cố", to: "/driver/report-incident", icon: AlertTriangle },
+    { label: "Quản lý sự cố", to: "/driver/incidents", icon: AlertTriangle },
     { label: "Xin nghỉ phép", to: "/driver/leave-request", icon: CalendarClock },
     { label: "Yêu cầu thanh toán chi phí", to: "/driver/expense-request", icon: DollarSign },
     { label: "Danh sách yêu cầu", to: "/driver/requests", icon: ClipboardList },
@@ -57,6 +58,7 @@ const SIDEBAR_ITEMS_BY_ROLE = {
   [ROLES.COORDINATOR]: [
     { label: "Bảng điều khiển", to: "/dispatch", icon: LayoutDashboard },
     { label: "Cảnh báo chờ duyệt", to: "/dispatch/notifications-dashboard", icon: Bell },
+    { label: "Sự cố chuyến đi", to: "/dispatch/incidents", icon: AlertTriangle },
     { label: "Danh sách đơn", to: "/coordinator/orders", icon: ClipboardList },
     { label: "Danh sách tài xế", to: "/coordinator/drivers", icon: Users },
     { label: "Danh sách xe", to: "/coordinator/vehicles", icon: CarFront },
@@ -82,6 +84,7 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Danh sách nhân viên", to: "/admin/users", icon: Users },
     { label: "Danh sách xe", to: "/vehicles", icon: CarFront },
     { label: "Danh sách khách hàng", to: "/manager/customers", icon: Users },
+    { label: "Sự cố chuyến đi", to: "/dispatch/incidents", icon: AlertTriangle },
   ],
   // Admin (Quản trị viên - 8 options)
   [ROLES.ADMIN]: [
@@ -126,7 +129,7 @@ import DriverDashboard from "./components/module 2/DriverDashboard.jsx";
 import DriverProfilePage from "./components/module 2/DriverProfilePage.jsx";
 import DriverSchedulePage from "./components/module 2/DriverSchedulePage.jsx";
 import DriverLeaveRequestPage from "./components/module 2/DriverLeaveRequestPage.jsx";
-import DriverReportIncidentPage from "./components/module 2/DriverReportIncidentPage.jsx";
+import DriverIncidentManagementPage from "./components/module 2/DriverIncidentManagementPage.jsx";
 import DriverTripDetailPage from "./components/module 2/DriverTripDetailPage.jsx";
 import DriverTripsListPage from "./components/module 2/DriverTripsListPage.jsx";
 import DriverRequestsPage from "./components/module 2/DriverRequestsPage.jsx";
@@ -153,6 +156,7 @@ import PendingTripsPage from "./components/module 5/PendingTripsPage.jsx";
 import NotificationsDashboard from "./components/module 5/NotificationsDashboard.jsx";
 import RatingManagementPage from "./components/module 5/RatingManagementPage.jsx";
 import DriverRatingsPage from "./components/module 5/DriverRatingsPage.jsx";
+import CoordinatorIncidentListPage from "./components/module 5/CoordinatorIncidentListPage.jsx";
 import CoordinatorOrderListPage from "./components/module 5/CoordinatorOrderListPage.jsx";
 import CoordinatorDriverListPage from "./components/module 5/CoordinatorDriverListPage.jsx";
 import CoordinatorDriverDetailPage from "./components/module 5/CoordinatorDriverDetailPage.jsx";
@@ -680,10 +684,10 @@ export default function AppLayout() {
             }
           />
           <Route
-            path="/driver/report-incident"
+            path="/driver/incidents"
             element={
               <ProtectedRoute roles={[ROLES.DRIVER]}>
-                <DriverReportIncidentPage />
+                <DriverIncidentManagementPage />
               </ProtectedRoute>
             }
           />
@@ -814,6 +818,14 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
                 <NotificationsDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch/incidents"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR, ROLES.MANAGER]}>
+                <CoordinatorIncidentListPage />
               </ProtectedRoute>
             }
           />

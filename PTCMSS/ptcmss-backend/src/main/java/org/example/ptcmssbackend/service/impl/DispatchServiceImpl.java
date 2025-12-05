@@ -960,10 +960,10 @@ public class DispatchServiceImpl implements DispatchService {
                     // (vì mỗi trip có thể yêu cầu loại xe khác nhau)
                     
                     // Lấy loại xe yêu cầu cho trip này
-                    Integer requiredCategoryId = tripIdx < requiredCategoryIds.size() 
-                            ? requiredCategoryIds.get(tripIdx) 
-                            : null;
-                    
+                            Integer requiredCategoryId = tripIdx < requiredCategoryIds.size() 
+                                    ? requiredCategoryIds.get(tripIdx) 
+                                    : null;
+                            
                     // Kiểm tra xem có nhiều loại xe khác nhau không
                     Set<Integer> uniqueCategoryIds = new java.util.HashSet<>(requiredCategoryIds);
                     boolean hasMultipleCategories = uniqueCategoryIds.size() > 1;
@@ -971,12 +971,12 @@ public class DispatchServiceImpl implements DispatchService {
                     if (vehicleId == null || (hasMultipleCategories && tripIdx > 0)) {
                         // Nếu không có vehicleId từ request HOẶC có nhiều loại xe và đang xử lý trip thứ 2 trở đi
                         // → Tự động tìm xe phù hợp cho trip này
-                        tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId, vehicleToTrips);
+                                tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId, vehicleToTrips);
                         
                         if (tripVehicleId == null && requiredCategoryId != null) {
                             log.warn("[Dispatch] No available vehicle found for trip {} with category {}", trip.getId(), requiredCategoryId);
-                        }
-                    } else {
+                            }
+                        } else {
                         // Chỉ dùng vehicleId từ request cho trip đầu tiên (tripIdx == 0)
                         // Và chỉ khi không có nhiều loại xe khác nhau
                         if (tripIdx == 0) {
@@ -989,10 +989,10 @@ public class DispatchServiceImpl implements DispatchService {
                                 } else {
                                     log.warn("[Dispatch] Selected vehicle {} does not match required category {} for trip {}. Will auto-select instead.",
                                             vehicleId, requiredCategoryId, trip.getId());
-                                    tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId, vehicleToTrips);
-                                }
-                            } else {
-                                tripVehicleId = vehicleId;
+                            tripVehicleId = pickBestVehicleForTrip(booking, trip, requiredCategoryId, vehicleToTrips);
+                        }
+                    } else {
+                        tripVehicleId = vehicleId;
                             }
                         } else {
                             // Trip thứ 2 trở đi: tự động tìm xe phù hợp
@@ -1062,16 +1062,17 @@ public class DispatchServiceImpl implements DispatchService {
                         .trips(tripInfos)
                         .build();
                 
-                // Send WebSocket notifications for trip assignment
+                // Send WebSocket notifications for trip assignment (to assigned drivers)
                 try {
                     for (AssignRespone.AssignedTripInfo tripInfo : tripInfos) {
                         if (tripInfo.getDriverId() != null) {
-                            // Get driver user ID
                             Drivers driver = driverRepository.findById(tripInfo.getDriverId()).orElse(null);
                             if (driver != null && driver.getEmployee() != null && driver.getEmployee().getUser() != null) {
                                 Integer driverUserId = driver.getEmployee().getUser().getId();
-                                // Send notification via WebSocket (if service available)
-                                log.info("[Dispatch] Sending notification to driver user {} for trip {}", driverUserId, tripInfo.getTripId());
+                                String title = "Bạn được gán chuyến " + tripInfo.getTripId();
+                                String message = "Vui lòng kiểm tra lịch làm việc và xác nhận.";
+                                webSocketNotificationService.sendUserNotification(driverUserId, title, message, "INFO");
+                                log.info("[Dispatch] Sent notification to driver user {} for trip {}", driverUserId, tripInfo.getTripId());
                             }
                         }
                     }

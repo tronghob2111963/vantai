@@ -6,6 +6,7 @@ import { listHireTypes } from "../../api/hireTypes";
 import { calculatePrice, createBooking, getBooking, pageBookings, checkVehicleAvailability } from "../../api/bookings";
 import { calculateDistance } from "../../api/graphhopper";
 import { getBranchByUserId, listBranches } from "../../api/branches";
+import { listSystemSettings } from "../../api/systemSettings";
 import PlaceAutocomplete from "../common/PlaceAutocomplete";
 import {
     Phone,
@@ -331,8 +332,16 @@ export default function CreateOrderPage() {
     const [checkingAvail, setCheckingAvail] =
         React.useState(false);
 
-    // Real API check-availability với suggestions - CHECK ALL VEHICLES
+    // TẠM TẮT: Check availability real-time vì backend có thể đang giữ xe khi check
+    // Chỉ check availability khi submit order để tránh giữ xe khi chưa đặt cọc
+    // TODO: Backend cần thêm parameter để chỉ check mà không giữ xe
     React.useEffect(() => {
+        // Tắt check real-time - chỉ check khi submit
+        setAvailabilityInfo(null);
+        return;
+        
+        // Code cũ đã comment - có thể bật lại khi backend hỗ trợ check không giữ xe
+        /*
         // Chỉ check khi có ít nhất 1 loại xe được chọn
         const hasValidSelection = vehicleSelections.some(v => v.categoryId && v.quantity > 0);
         if (!startTime || !hasValidSelection || !branchId) {
@@ -424,6 +433,7 @@ export default function CreateOrderPage() {
         // Debounce 500ms
         const timer = setTimeout(checkAvail, 500);
         return () => clearTimeout(timer);
+        */
     }, [startTime, endTime, branchId, hireType, vehicleSelections, categories]);
 
     /* --- Part 4: báo giá --- */
@@ -458,6 +468,10 @@ export default function CreateOrderPage() {
     // Các field mới cho logic tính giá
     const [isHoliday, setIsHoliday] = React.useState(false);
     const [isWeekend, setIsWeekend] = React.useState(false);
+    
+    // System settings cho phụ phí (load từ admin settings)
+    const [holidaySurchargeRate, setHolidaySurchargeRate] = React.useState(0.25); // Mặc định 25%
+    const [weekendSurchargeRate, setWeekendSurchargeRate] = React.useState(0.20); // Mặc định 20%
     
     // Note cho tài xế (ghi chú điểm đón/trả, hướng dẫn...)
     const [bookingNote, setBookingNote] = React.useState("");
@@ -500,14 +514,16 @@ export default function CreateOrderPage() {
         setDropoff(primaryTrip?.endLocation || "");
         setStartTime(primaryTrip?.startTime ? toDatetimeLocalValue(primaryTrip.startTime) : "");
         setEndTime(primaryTrip?.endTime ? toDatetimeLocalValue(primaryTrip.endTime) : "");
+        // Map booking.vehicles to vehicleSelections format
         if (Array.isArray(booking.vehicles) && booking.vehicles.length > 0) {
-            const firstVehicle = booking.vehicles[0];
-            if (firstVehicle?.vehicleCategoryId) {
-                setCategoryId(String(firstVehicle.vehicleCategoryId));
-            }
-            const totalVehicles = booking.vehicles.reduce((sum, v) => sum + (v.quantity || 0), 0);
-            if (totalVehicles > 0) {
-                setVehicleCount(totalVehicles);
+            const mappedVehicles = booking.vehicles
+                .filter(v => v.vehicleCategoryId && v.quantity > 0)
+                .map(v => ({
+                    categoryId: String(v.vehicleCategoryId),
+                    quantity: Number(v.quantity || 1)
+                }));
+            if (mappedVehicles.length > 0) {
+                setVehicleSelections(mappedVehicles);
             }
         }
         if (primaryTrip?.distance != null) {
@@ -700,12 +716,42 @@ export default function CreateOrderPage() {
         }
     }, [hireType, hireTypesList]);
 
-    // Reset số khách nếu vượt quá tổng số chỗ
+    // Load system settings cho phụ phí từ admin settings
     React.useEffect(() => {
-        if (totalSeats > 0 && paxCount > totalSeats) {
-            setPaxCount(Math.max(1, totalSeats));
+        (async () => {
+            try {
+                const settings = await listSystemSettings();
+                if (Array.isArray(settings)) {
+                    const holidaySetting = settings.find(s => s.settingKey === "HOLIDAY_SURCHARGE_RATE");
+                    const weekendSetting = settings.find(s => s.settingKey === "WEEKEND_SURCHARGE_RATE");
+                    
+                    if (holidaySetting && holidaySetting.settingValue) {
+                        const rate = parseFloat(holidaySetting.settingValue);
+                        if (!isNaN(rate)) {
+                            setHolidaySurchargeRate(rate);
+                        }
+                    }
+                    
+                    if (weekendSetting && weekendSetting.settingValue) {
+                        const rate = parseFloat(weekendSetting.settingValue);
+                        if (!isNaN(rate)) {
+                            setWeekendSurchargeRate(rate);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load system settings:", err);
+                // Giữ giá trị mặc định nếu load lỗi
+            }
+        })();
+    }, []);
+
+    // Tự động set số khách = tổng số chỗ khi chọn xe
+    React.useEffect(() => {
+        if (totalSeats > 0) {
+            setPaxCount(totalSeats);
         }
-    }, [totalSeats, paxCount]);
+    }, [totalSeats]);
 
     // Auto-calculate distance when both pickup and dropoff are entered
     React.useEffect(() => {
@@ -815,6 +861,8 @@ export default function CreateOrderPage() {
                     : toIsoZ(endTime);
 
                 // Gửi tất cả loại xe đã chọn
+                // TODO: Backend cần kiểm tra logic tính giá - thuê theo ngày (DAILY) phải rẻ hơn thuê 2 chiều (ROUND_TRIP)
+                // Hiện tại có thể đang tính sai: ROUND_TRIP đắt gấp đôi DAILY
                 const price = await calculatePrice({
                     vehicleCategoryIds: validSelections.map(v => Number(v.categoryId)),
                     quantities: validSelections.map(v => Number(v.quantity || 1)),
@@ -1045,6 +1093,8 @@ export default function CreateOrderPage() {
                 trips: [
                     { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
                 ],
+                // TODO: Backend cần kiểm tra - có thể đang tự động add thêm 1 xe khi hireType = DAILY
+                // Frontend gửi đúng quantity, không tự động tăng
                 vehicles: vehicleSelections
                     .filter(v => v.categoryId)
                     .map(v => ({ vehicleCategoryId: Number(v.categoryId), quantity: Number(v.quantity || 1) })),
@@ -1150,14 +1200,8 @@ export default function CreateOrderPage() {
             }
         }
 
-        if (availabilityInfo && !availabilityInfo.ok) {
-            push(
-                "Cảnh báo: Hệ thống báo hết xe trong khung giờ này.",
-                "error"
-            );
-            return;
-        }
-
+        // Check availability trước khi submit (chỉ check, không giữ xe)
+        // TODO: Backend cần hỗ trợ parameter để chỉ check mà không giữ xe
         setLoadingSubmit(true);
         try {
             const sStart = toIsoZ(startTime);
@@ -1168,7 +1212,45 @@ export default function CreateOrderPage() {
 
             if (!sStart) {
                 push("Thời gian đi không hợp lệ", "error");
+                setLoadingSubmit(false);
                 return;
+            }
+
+            // Check availability cho tất cả loại xe trước khi submit
+            const validSelections = vehicleSelections.filter(v => v.categoryId && v.quantity > 0);
+            if (validSelections.length > 0) {
+                try {
+                    const checkResults = await Promise.all(
+                        validSelections.map(async (selection) => {
+                            const data = await checkVehicleAvailability({
+                                branchId: Number(branchId),
+                                categoryId: Number(selection.categoryId),
+                                startTime: sStart,
+                                endTime: sEnd,
+                                quantity: selection.quantity || 1,
+                            });
+                            return { ...data, categoryId: selection.categoryId, quantity: selection.quantity };
+                        })
+                    );
+                    
+                    const allOk = checkResults.every(r => r.ok);
+                    if (!allOk) {
+                        const firstFailed = checkResults.find(r => !r.ok);
+                        const cat = categories.find(c => c.id === firstFailed.categoryId);
+                        push(
+                            `${cat?.name || 'Xe'}: Không đủ xe trong khung giờ này (${firstFailed.busyCount || 0}/${firstFailed.totalCandidates || 0} đang bận). Vui lòng chọn thời gian khác.`,
+                            "error"
+                        );
+                        setLoadingSubmit(false);
+                        return;
+                    }
+                } catch (checkErr) {
+                    console.error("Check availability error:", checkErr);
+                    // Không block submit nếu check lỗi, chỉ cảnh báo
+                    push("Không thể kiểm tra tính khả dụng xe. Vui lòng thử lại.", "error");
+                    setLoadingSubmit(false);
+                    return;
+                }
             }
 
             const req = {
@@ -1182,6 +1264,8 @@ export default function CreateOrderPage() {
                 trips: [
                     { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
                 ],
+                // TODO: Backend cần kiểm tra - có thể đang tự động add thêm 1 xe khi hireType = DAILY
+                // Frontend gửi đúng quantity, không tự động tăng
                 vehicles: vehicleSelections
                     .filter(v => v.categoryId)
                     .map(v => ({ vehicleCategoryId: Number(v.categoryId), quantity: Number(v.quantity || 1) })),
@@ -1459,7 +1543,7 @@ export default function CreateOrderPage() {
                                         className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                                     />
                                     <span className="text-[13px] text-slate-700">
-                                        Ngày lễ (+25%)
+                                        Ngày lễ (+{Math.round(holidaySurchargeRate * 100)}%)
                                     </span>
                                 </label>
 
@@ -1472,7 +1556,7 @@ export default function CreateOrderPage() {
                                         className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                                     />
                                     <span className="text-[13px] text-slate-700">
-                                        Cuối tuần (+20%)
+                                        Cuối tuần (+{Math.round(weekendSurchargeRate * 100)}%)
                                     </span>
                                 </label>
                             </div>
@@ -1952,64 +2036,6 @@ export default function CreateOrderPage() {
                                         <AvailabilityBadge info={availabilityInfo} />
                                     )}
                                 </div>
-                            </div>
-
-                            {/* Số khách / Số xe */}
-                            {/* Số khách */}
-                            <div>
-                                <div className={labelCls}>
-                                    <Users className="h-3.5 w-3.5 text-slate-400" />
-                                    <span>Số khách</span>
-                                    {totalSeats > 0 && (
-                                        <span className="text-[11px] text-slate-500 font-normal">
-                                            (Tối đa: {totalSeats})
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={decrementPax}
-                                        disabled={paxCount <= 1}
-                                        className={cls(
-                                            "px-2 py-2 rounded-l-md border border-slate-300 bg-white hover:bg-slate-50 transition-colors",
-                                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                                            "focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20"
-                                        )}
-                                    >
-                                        <Minus className="h-4 w-4 text-slate-600" />
-                                    </button>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max={totalSeats > 0 ? totalSeats : undefined}
-                                        value={paxCount}
-                                        onChange={(e) => onChangePax(e.target.value)}
-                                        className={cls(
-                                            inputCls,
-                                            "tabular-nums rounded-none border-x-0 text-center"
-                                        )}
-                                        placeholder="1"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={incrementPax}
-                                        disabled={totalSeats > 0 && paxCount >= totalSeats}
-                                        className={cls(
-                                            "px-2 py-2 rounded-r-md border border-slate-300 bg-white hover:bg-slate-50 transition-colors",
-                                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                                            "focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20"
-                                        )}
-                                    >
-                                        <Plus className="h-4 w-4 text-slate-600" />
-                                    </button>
-                                </div>
-                                {totalSeats > 0 && paxCount > totalSeats && (
-                                    <div className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
-                                        <AlertTriangle className="h-3 w-3" />
-                                        Số khách vượt quá tổng số chỗ ({totalSeats} chỗ)
-                                    </div>
-                                )}
                             </div>
 
                             {/* Note / cảnh báo */}
