@@ -62,7 +62,7 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Danh sách đơn", to: "/coordinator/orders", icon: ClipboardList },
     { label: "Danh sách tài xế", to: "/coordinator/drivers", icon: Users },
     { label: "Danh sách xe", to: "/coordinator/vehicles", icon: CarFront },
-    { label: "Tạo yêu cầu thanh toán", to: "/dispatch/expense-request", icon: DollarSign },
+    { label: "Quản lý yêu cầu", to: "/coordinator/expense-management", icon: DollarSign },
     { label: "Đánh giá tài xế", to: "/dispatch/ratings", icon: BarChart3 },
   ],
   // Accountant (Kế toán - 8 options)
@@ -163,6 +163,7 @@ import CoordinatorDriverDetailPage from "./components/module 5/CoordinatorDriver
 import CoordinatorDriverTripsPage from "./components/module 5/CoordinatorDriverTripsPage.jsx";
 import CoordinatorVehicleListPage from "./components/module 5/CoordinatorVehicleListPage.jsx";
 import CoordinatorVehicleDetailPage from "./components/module 5/CoordinatorVehicleDetailPage.jsx";
+import CoordinatorExpenseManagementPage from "./components/module 5/CoordinatorExpenseManagementPage.jsx";
 
 /* DemoAssign – mở AssignDriverDialog */
 import DemoAssign from "./DemoAssign.jsx";
@@ -832,7 +833,7 @@ export default function AppLayout() {
           <Route
             path="/dispatch/expense-request"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.CONSULTANT, ROLES.DRIVER]}>
                 <ExpenseRequestForm />
               </ProtectedRoute>
             }
@@ -900,6 +901,14 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.COORDINATOR]}>
                 <CoordinatorVehicleDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coordinator/expense-management"
+            element={
+              <ProtectedRoute roles={[ROLES.COORDINATOR]}>
+                <CoordinatorExpenseManagementPage />
               </ProtectedRoute>
             }
           />

@@ -106,12 +106,18 @@ INSERT IGNORE INTO hire_types (hireTypeId, code, name, description, isActive) VA
 (6,'DAILY','Thuê theo ngày','Thuê xe trọn ngày',1);
 
 -- Vehicle Category Pricing
+-- Updated baseFare values (2025-12-06): Reduced to reasonable levels for short trips
+-- Xe 9 chỗ: 900,000 → 200,000 (-78%)
+-- Xe 16 chỗ: 1,100,000 → 400,000 (-64%)
+-- Xe 29 chỗ: 1,800,000 → 600,000 (-67%)
+-- Xe 45 chỗ: 2,500,000 → 800,000 (-68%)
+-- Xe giường nằm: 3,000,000 → 1,000,000 (-67%)
 INSERT IGNORE INTO vehicle_category_pricing (categoryId, categoryName, seats, description, baseFare, pricePerKm, highwayFee, fixedCosts, sameDayFixedPrice, isPremium, premiumSurcharge, effectiveDate, status, createdAt) VALUES
-(1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',900000.00,15000.00,100000.00,0.00,NULL,0,0.00,CURDATE(),'ACTIVE',NOW()),
-(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',1100000.00,30000.00,300000.00,0.00,2500000.00,0,0.00,CURDATE(),'ACTIVE',NOW()),
-(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',1800000.00,40000.00,150000.00,0.00,3000000.00,0,0.00,CURDATE(),'ACTIVE',NOW()),
-(4,'Xe 45 chỗ',45,'Hyundai Universe',2500000.00,50000.00,200000.00,0.00,NULL,0,0.00,CURDATE(),'ACTIVE',NOW()),
-(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',3000000.00,30000.00,250000.00,0.00,NULL,0,0.00,CURDATE(),'ACTIVE',NOW());
+(1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',200000.00,15000.00,100000.00,0.00,NULL,0,0.00,CURDATE(),'ACTIVE',NOW()),
+(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',400000.00,30000.00,300000.00,0.00,2500000.00,0,0.00,CURDATE(),'ACTIVE',NOW()),
+(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',600000.00,40000.00,150000.00,0.00,3000000.00,0,0.00,CURDATE(),'ACTIVE',NOW()),
+(4,'Xe 45 chỗ',45,'Hyundai Universe',800000.00,50000.00,200000.00,0.00,NULL,0,0.00,CURDATE(),'ACTIVE',NOW()),
+(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',1000000.00,30000.00,250000.00,0.00,NULL,0,0.00,CURDATE(),'ACTIVE',NOW());
 
 -- Vehicles (9 total, 3 per branch)
 INSERT IGNORE INTO vehicles (vehicleId, categoryId, branchId, licensePlate, model, brand, capacity, productionYear, registrationDate, inspectionExpiry, insuranceExpiry, odometer, status) VALUES

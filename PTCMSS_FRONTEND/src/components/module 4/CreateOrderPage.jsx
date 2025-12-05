@@ -1109,6 +1109,41 @@ export default function CreateOrderPage() {
                 return;
             }
 
+            // Tự động tạo 2 trips cho ROUND_TRIP (Hai chiều)
+            let tripsToSend = [];
+            if (hireType === "ROUND_TRIP") {
+                // Trip 1: Đi (A → B)
+                tripsToSend.push({
+                    startLocation: pickup,
+                    endLocation: dropoff,
+                    startTime: sStart,
+                    endTime: sEnd
+                });
+                // Trip 2: Về (B → A) - đảo ngược điểm đi/về
+                // Thời gian về: bắt đầu từ thời gian kết thúc chuyến đi (sEnd)
+                // Kết thúc = sEnd + thời gian di chuyển (tương tự chuyến đi)
+                const tripDuration = new Date(sEnd).getTime() - new Date(sStart).getTime();
+                const returnStartTime = sEnd; // Bắt đầu về ngay sau khi đến điểm đến
+                const returnEndTime = new Date(new Date(sEnd).getTime() + tripDuration).toISOString();
+                tripsToSend.push({
+                    startLocation: dropoff,
+                    endLocation: pickup,
+                    startTime: returnStartTime,
+                    endTime: returnEndTime
+                });
+                console.log("🔵 [FRONTEND] ROUND_TRIP: Created 2 trips");
+                console.log("  - Trip 1 (Đi):", pickup, "→", dropoff, sStart, "→", sEnd);
+                console.log("  - Trip 2 (Về):", dropoff, "→", pickup, returnStartTime, "→", returnEndTime);
+            } else {
+                // ONE_WAY hoặc DAILY: chỉ 1 trip
+                tripsToSend.push({
+                    startLocation: pickup,
+                    endLocation: dropoff,
+                    startTime: sStart,
+                    endTime: sEnd
+                });
+            }
+
             const req = {
                 customer: { fullName: customerName, phone, email },
                 branchId: Number(branchId),
@@ -1117,11 +1152,7 @@ export default function CreateOrderPage() {
                 isHoliday: isHoliday,
                 isWeekend: isWeekend,
                 note: bookingNote || null,
-                trips: [
-                    { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
-                ],
-                // TODO: Backend cần kiểm tra - có thể đang tự động add thêm 1 xe khi hireType = DAILY
-                // Frontend gửi đúng quantity, không tự động tăng
+                trips: tripsToSend,
                 vehicles: vehicleSelections
                     .filter(v => v.categoryId)
                     .map(v => ({ vehicleCategoryId: Number(v.categoryId), quantity: Number(v.quantity || 1) })),
@@ -1326,6 +1357,41 @@ export default function CreateOrderPage() {
             }));
             console.log("🔵 [FRONTEND] Vehicles to send to backend:", vehiclesToSend);
 
+            // Tự động tạo 2 trips cho ROUND_TRIP (Hai chiều)
+            let tripsToSend = [];
+            if (hireType === "ROUND_TRIP") {
+                // Trip 1: Đi (A → B)
+                tripsToSend.push({
+                    startLocation: pickup,
+                    endLocation: dropoff,
+                    startTime: sStart,
+                    endTime: sEnd
+                });
+                // Trip 2: Về (B → A) - đảo ngược điểm đi/về
+                // Thời gian về: bắt đầu từ thời gian kết thúc chuyến đi (sEnd)
+                // Kết thúc = sEnd + thời gian di chuyển (tương tự chuyến đi)
+                const tripDuration = new Date(sEnd).getTime() - new Date(sStart).getTime();
+                const returnStartTime = sEnd; // Bắt đầu về ngay sau khi đến điểm đến
+                const returnEndTime = new Date(new Date(sEnd).getTime() + tripDuration).toISOString();
+                tripsToSend.push({
+                    startLocation: dropoff,
+                    endLocation: pickup,
+                    startTime: returnStartTime,
+                    endTime: returnEndTime
+                });
+                console.log("🔵 [FRONTEND] ROUND_TRIP: Created 2 trips");
+                console.log("  - Trip 1 (Đi):", pickup, "→", dropoff, sStart, "→", sEnd);
+                console.log("  - Trip 2 (Về):", dropoff, "→", pickup, returnStartTime, "→", returnEndTime);
+            } else {
+                // ONE_WAY hoặc DAILY: chỉ 1 trip
+                tripsToSend.push({
+                    startLocation: pickup,
+                    endLocation: dropoff,
+                    startTime: sStart,
+                    endTime: sEnd
+                });
+            }
+
             const req = {
                 customer: { fullName: customerName, phone, email },
                 branchId: Number(branchId),
@@ -1334,9 +1400,7 @@ export default function CreateOrderPage() {
                 isHoliday: isHoliday,
                 isWeekend: isWeekend,
                 note: bookingNote || null,
-                trips: [
-                    { startLocation: pickup, endLocation: dropoff, startTime: sStart, endTime: sEnd },
-                ],
+                trips: tripsToSend,
                 vehicles: vehiclesToSend,
                 estimatedCost: Number(estPriceSys || 0),
                 discountAmount: Number(discount || 0),

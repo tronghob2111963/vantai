@@ -1122,7 +1122,7 @@ CREATE TABLE `vehicle_category_pricing` (
 
 LOCK TABLES `vehicle_category_pricing` WRITE;
 /*!40000 ALTER TABLE `vehicle_category_pricing` DISABLE KEYS */;
-INSERT INTO `vehicle_category_pricing` VALUES (1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',900000.00,15000.00,100000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL),(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',1100000.00,30000.00,300000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,2500000.00),(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',1800000.00,40000.00,150000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,3000000.00),(4,'Xe 45 chỗ',45,'Hyundai Universe',2500000.00,50000.00,200000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL),(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',3000000.00,30000.00,250000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL);
+INSERT INTO `vehicle_category_pricing` VALUES (1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',200000.00,15000.00,100000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL),(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',400000.00,30000.00,300000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,2500000.00),(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',600000.00,40000.00,150000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,3000000.00),(4,'Xe 45 chỗ',45,'Hyundai Universe',800000.00,50000.00,200000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL),(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',1000000.00,30000.00,250000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL);
 /*!40000 ALTER TABLE `vehicle_category_pricing` ENABLE KEYS */;
 UNLOCK TABLES;
 

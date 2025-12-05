@@ -1994,8 +1994,8 @@ public class BookingServiceImpl implements BookingService {
         int busy = busyIds != null ? busyIds.size() : 0;
 
         // Reserved quantity by bookings đã cọc nhưng CHƯA gán xe
+        // CHỈ tính từ bookings đã đặt cọc (CONFIRMED, INPROGRESS), KHÔNG tính PENDING (chưa đặt cọc)
         java.util.List<BookingStatus> reservedStatuses = java.util.Arrays.asList(
-                BookingStatus.PENDING,
                 BookingStatus.CONFIRMED,
                 BookingStatus.INPROGRESS
         );
