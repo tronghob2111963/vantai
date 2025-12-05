@@ -7,6 +7,7 @@ import org.example.ptcmssbackend.entity.*;
 import org.example.ptcmssbackend.enums.ApprovalType;
 import org.example.ptcmssbackend.enums.DriverDayOffStatus;
 import org.example.ptcmssbackend.enums.DriverStatus;
+import org.example.ptcmssbackend.enums.TripStatus;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.impl.DriverServiceImpl;
 import org.junit.jupiter.api.AfterEach;
@@ -165,6 +166,212 @@ class DriverServiceImplTest {
         SecurityContext context = mock(SecurityContext.class);
         when(context.getAuthentication()).thenReturn(authentication);
         SecurityContextHolder.setContext(context);
+    }
+
+    // ==================== startTrip() Tests ====================
+
+    @Test
+    void startTrip_whenValidRequest_shouldStartTripSuccessfully() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.SCHEDULED);
+        trip.setStartTime(null);
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(true);
+        when(tripRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        Integer result = driverService.startTrip(tripId, driverId);
+
+        // Then
+        assertThat(result).isEqualTo(tripId);
+        assertThat(trip.getStatus()).isEqualTo(TripStatus.ONGOING);
+        assertThat(trip.getStartTime()).isNotNull();
+        verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void startTrip_whenTripNotFound_shouldThrowException() {
+        // Given
+        Integer tripId = 999;
+        Integer driverId = 1;
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> driverService.startTrip(tripId, driverId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy chuyến đi");
+    }
+
+    @Test
+    void startTrip_whenDriverNotAssigned_shouldThrowException() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.SCHEDULED);
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(false);
+
+        // When & Then
+        assertThatThrownBy(() -> driverService.startTrip(tripId, driverId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Tài xế không được phân công cho chuyến đi này");
+    }
+
+    @Test
+    void startTrip_whenInvalidStatus_shouldThrowException() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.COMPLETED); // Invalid status
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(true);
+
+        // When & Then
+        assertThatThrownBy(() -> driverService.startTrip(tripId, driverId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Chuyến đi không ở trạng thái ĐÃ LÊN LỊCH hoặc ĐÃ PHÂN XE");
+    }
+
+    @Test
+    void startTrip_whenStatusIsAssigned_shouldStartSuccessfully() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.ASSIGNED); // Valid status
+        trip.setStartTime(null);
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(true);
+        when(tripRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        Integer result = driverService.startTrip(tripId, driverId);
+
+        // Then
+        assertThat(result).isEqualTo(tripId);
+        assertThat(trip.getStatus()).isEqualTo(TripStatus.ONGOING);
+        verify(tripRepository).save(trip);
+    }
+
+    // ==================== completeTrip() Tests ====================
+
+    @Test
+    void completeTrip_whenValidRequest_shouldCompleteTripSuccessfully() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.ONGOING);
+        trip.setEndTime(null);
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(true);
+        when(tripRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        Integer result = driverService.completeTrip(tripId, driverId);
+
+        // Then
+        assertThat(result).isEqualTo(tripId);
+        assertThat(trip.getStatus()).isEqualTo(TripStatus.COMPLETED);
+        assertThat(trip.getEndTime()).isNotNull();
+        verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void completeTrip_whenTripNotFound_shouldThrowException() {
+        // Given
+        Integer tripId = 999;
+        Integer driverId = 1;
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> driverService.completeTrip(tripId, driverId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy chuyến đi");
+    }
+
+    @Test
+    void completeTrip_whenDriverNotAssigned_shouldThrowException() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.ONGOING);
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(false);
+
+        // When & Then
+        assertThatThrownBy(() -> driverService.completeTrip(tripId, driverId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Tài xế không được phân công cho chuyến đi này");
+    }
+
+    @Test
+    void completeTrip_whenInvalidStatus_shouldThrowException() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.SCHEDULED); // Invalid status (not ONGOING or ASSIGNED)
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(true);
+
+        // When & Then
+        assertThatThrownBy(() -> driverService.completeTrip(tripId, driverId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Chuyến đi không ở trạng thái ĐANG THỰC HIỆN hoặc ĐÃ PHÂN XE");
+    }
+
+    @Test
+    void completeTrip_whenStatusIsAssigned_shouldCompleteSuccessfully() {
+        // Given
+        Integer tripId = 100;
+        Integer driverId = 1;
+
+        Trips trip = new Trips();
+        trip.setId(tripId);
+        trip.setStatus(TripStatus.ASSIGNED); // Valid status
+        trip.setEndTime(null);
+
+        when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
+        when(tripDriverRepository.existsByTrip_IdAndDriver_Id(tripId, driverId)).thenReturn(true);
+        when(tripRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        Integer result = driverService.completeTrip(tripId, driverId);
+
+        // Then
+        assertThat(result).isEqualTo(tripId);
+        assertThat(trip.getStatus()).isEqualTo(TripStatus.COMPLETED);
+        verify(tripRepository).save(trip);
     }
 }
 
