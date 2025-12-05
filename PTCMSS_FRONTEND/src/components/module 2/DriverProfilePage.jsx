@@ -120,6 +120,9 @@ export default function DriverProfilePage() {
         const data = await getDriverProfileByUser(userId);
         if (!mounted) return;
 
+        console.log("[DriverProfile] Profile data:", data);
+        console.log("[DriverProfile] Avatar from API:", data?.avatar);
+
         setProfile(data);
         setPhone(data.phone || "");
         setAddress(data.address || "");
@@ -135,6 +138,8 @@ export default function DriverProfilePage() {
               ? imgPath 
               : `${apiBase}${imgPath.startsWith("/") ? "" : "/"}${imgPath}`;
             const urlWithCacheBuster = `${fullUrl}${fullUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+            
+            console.log("[DriverProfile] Fetching avatar from:", urlWithCacheBuster);
             
             // Fetch with auth
             let token = localStorage.getItem("access_token") || "";
@@ -156,11 +161,15 @@ export default function DriverProfilePage() {
               cache: "no-store",
             });
             
+            console.log("[DriverProfile] Avatar fetch response:", resp.status, resp.ok);
+            
             if (resp.ok && mounted) {
               const blob = await resp.blob();
               const blobUrl = URL.createObjectURL(blob);
+              console.log("[DriverProfile] Avatar blob URL created:", blobUrl);
               setAvatarUrl(blobUrl);
             } else if (mounted) {
+              console.warn("[DriverProfile] Avatar fetch failed:", resp.status, resp.statusText);
               setAvatarUrl(null);
             }
           } catch (err) {
@@ -170,11 +179,12 @@ export default function DriverProfilePage() {
               // Ignore Chrome extension errors
               return;
             }
-            console.warn("Failed to load avatar:", err);
+            console.warn("[DriverProfile] Failed to load avatar:", err);
             if (mounted) setAvatarUrl(null);
           }
-        } else if (mounted) {
-          setAvatarUrl(null);
+        } else {
+          console.log("[DriverProfile] No avatar in profile data");
+          if (mounted) setAvatarUrl(null);
         }
       } catch (err) {
         setError(
@@ -469,6 +479,14 @@ export default function DriverProfilePage() {
               {/* Avatar + info */}
               <div className="flex items-start gap-4 min-w-[220px]">
                 <div className="relative">
+                  {/* Debug info */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <div className="absolute -top-8 left-0 text-[10px] text-gray-500 z-50 bg-white p-1 rounded border">
+                      Preview: {avatarPreview ? 'Yes' : 'No'}<br/>
+                      AvatarUrl: {avatarUrl ? 'Yes' : 'No'}<br/>
+                      Profile.avatar: {profile?.avatar || 'null'}
+                    </div>
+                  )}
                   <div className="relative">
                     {avatarPreview ? (
                       // Hiển thị preview nếu có
@@ -492,7 +510,13 @@ export default function DriverProfilePage() {
                           src={avatarUrl}
                           alt={fullName}
                           className="w-full h-full object-cover"
-                          onError={() => setAvatarUrl(null)}
+                          onError={(e) => {
+                            console.error("[DriverProfile] Avatar image load error:", e);
+                            setAvatarUrl(null);
+                          }}
+                          onLoad={() => {
+                            console.log("[DriverProfile] Avatar image loaded successfully");
+                          }}
                         />
                       </div>
                     ) : (
