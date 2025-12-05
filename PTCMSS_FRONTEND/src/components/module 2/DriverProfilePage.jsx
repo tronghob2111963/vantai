@@ -16,8 +16,11 @@ import { getCookie } from "../../utils/cookies";
 import {
   getDriverProfileByUser,
   updateDriverProfile,
+  uploadDriverAvatar,
 } from "../../api/drivers";
 import { validatePhone, validateRequired } from "../../utils/validation";
+import UserAvatar from "../../components/common/UserAvatar";
+import { Upload, Camera } from "lucide-react";
 
 /* ===========================================
    Small Helpers
@@ -88,6 +91,7 @@ export default function DriverProfilePage() {
   const [profile, setProfile] = React.useState(null);
   const [phone, setPhone] = React.useState("");
   const [address, setAddress] = React.useState("");
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
 
   const [phoneError, setPhoneError] = React.useState("");
   const [addressError, setAddressError] = React.useState("");
@@ -221,6 +225,52 @@ export default function DriverProfilePage() {
   };
 
   /* ===========================================
+     Avatar upload handler
+  =========================================== */
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      push("Chỉ chấp nhận file ảnh", "error");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      push("Kích thước file không được vượt quá 5MB", "error");
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      const userId = getCookie("userId");
+      if (!userId) {
+        push("Không tìm thấy userId", "error");
+        return;
+      }
+
+      const avatarUrl = await uploadDriverAvatar(parseInt(userId), file);
+      
+      // Reload profile to get updated avatar
+      const updatedProfile = await getDriverProfileByUser(userId);
+      setProfile(updatedProfile);
+      
+      push("Đã cập nhật ảnh đại diện", "success");
+    } catch (err) {
+      push(
+        err?.data?.message || err?.message || "Không thể upload ảnh đại diện",
+        "error"
+      );
+    } finally {
+      setUploadingAvatar(false);
+      // Reset input
+      e.target.value = "";
+    }
+  };
+
+  /* ===========================================
      Derived UI fields
   =========================================== */
   const fullName = profile?.fullName || "Tài xế";
@@ -283,12 +333,42 @@ export default function DriverProfilePage() {
             <div className="relative flex flex-col lg:flex-row lg:items-start gap-6">
               {/* Avatar + info */}
               <div className="flex items-start gap-4 min-w-[220px]">
-                <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100 text-xl font-semibold shadow-sm">
-                  {initialsOf(fullName)}
+                <div className="relative">
+                  <UserAvatar
+                    name={fullName}
+                    avatar={profile?.avatar}
+                    size={64}
+                    className="ring-2 ring-blue-100 shadow-sm"
+                  />
+                  
+                  {/* Upload button overlay */}
+                  <label
+                    className={cls(
+                      "absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-md cursor-pointer transition-colors",
+                      uploadingAvatar
+                        ? "bg-slate-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    )}
+                    title="Tải ảnh đại diện"
+                  >
+                    {uploadingAvatar ? (
+                      <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Camera className="h-3.5 w-3.5 text-white" />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      disabled={uploadingAvatar}
+                      className="hidden"
+                    />
+                  </label>
 
+                  {/* Status badge */}
                   <span
                     className={cls(
-                      "absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] border border-white shadow-sm",
+                      "absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] border-2 border-white shadow-sm font-semibold",
                       status === "ACTIVE"
                         ? "bg-amber-500 text-white"
                         : "bg-slate-400 text-white"
