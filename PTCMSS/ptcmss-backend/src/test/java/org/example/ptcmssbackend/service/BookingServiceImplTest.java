@@ -2,9 +2,18 @@ package org.example.ptcmssbackend.service;
 
 import org.example.ptcmssbackend.dto.request.Booking.CheckAvailabilityRequest;
 import org.example.ptcmssbackend.dto.request.Booking.CreateBookingRequest;
+import org.example.ptcmssbackend.dto.request.Booking.CreatePaymentRequest;
 import org.example.ptcmssbackend.dto.request.Booking.TripRequest;
 import org.example.ptcmssbackend.dto.request.Booking.UpdateBookingRequest;
 import org.example.ptcmssbackend.dto.request.Booking.VehicleDetailRequest;
+import org.example.ptcmssbackend.dto.response.Booking.BookingListResponse;
+import org.example.ptcmssbackend.dto.response.Booking.ConsultantDashboardResponse;
+import org.example.ptcmssbackend.dto.response.common.PageResponse;
+import org.example.ptcmssbackend.entity.*;
+import org.example.ptcmssbackend.enums.TripStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.example.ptcmssbackend.entity.Branches;
 import org.example.ptcmssbackend.entity.VehicleCategoryPricing;
 import org.example.ptcmssbackend.entity.Vehicles;
@@ -793,5 +802,227 @@ class BookingServiceImplTest {
         verify(bookingRepository).save(argThat(b -> {
             return b.getEstimatedCost().compareTo(new BigDecimal("1550000")) == 0;
         }));
+    }
+
+    // ==================== getAll() Tests ====================
+
+    @Test
+    void getAll_whenValidRequest_shouldReturnPaginatedBookings() {
+        // Given
+        String status = "PENDING";
+        Integer branchId = 1;
+        Integer consultantId = 10;
+        Instant startDate = Instant.parse("2025-12-01T00:00:00Z");
+        Instant endDate = Instant.parse("2025-12-31T23:59:59Z");
+        String keyword = "test";
+        int page = 1;
+        int size = 10;
+        String sortBy = "id:desc";
+
+        Bookings booking = new Bookings();
+        booking.setId(1);
+        booking.setStatus(BookingStatus.PENDING);
+        Customers customer = new Customers();
+        customer.setFullName("Test Customer");
+        booking.setCustomer(customer);
+        Branches branch = new Branches();
+        branch.setId(branchId);
+        booking.setBranch(branch);
+
+        Page<Bookings> bookingPage = new PageImpl<>(List.of(booking), Pageable.ofSize(size), 1);
+
+        when(bookingRepository.filterBookings(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(bookingPage);
+
+        // When
+        PageResponse<?> response = bookingService.getAll(status, branchId, consultantId, startDate, endDate, keyword, page, size, sortBy);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getPageNo()).isEqualTo(1);
+        assertThat(response.getPageSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(1);
+        verify(bookingRepository).filterBookings(any(), eq(branchId), eq(consultantId), eq(startDate), eq(endDate), eq(keyword), any());
+    }
+
+    @Test
+    void getAll_whenNoFilters_shouldReturnAllBookings() {
+        // Given
+        Page<Bookings> bookingPage = new PageImpl<>(Collections.emptyList(), Pageable.ofSize(10), 0);
+
+        when(bookingRepository.filterBookings(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(bookingPage);
+
+        // When
+        PageResponse<?> response = bookingService.getAll(null, null, null, null, null, null, 1, 10, null);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getTotalElements()).isEqualTo(0);
+    }
+
+    // ==================== getBookingList() Tests ====================
+
+    @Test
+    void getBookingList_whenValidRequest_shouldReturnList() {
+        // Given
+        String status = "PENDING";
+        Integer branchId = 1;
+        Integer consultantId = 10;
+
+        Bookings booking = new Bookings();
+        booking.setId(1);
+        booking.setStatus(BookingStatus.PENDING);
+        Customers customer = new Customers();
+        customer.setFullName("Test Customer");
+        booking.setCustomer(customer);
+
+        Page<Bookings> bookingPage = new PageImpl<>(List.of(booking));
+
+        when(bookingRepository.filterBookings(any(), eq(branchId), eq(consultantId), any(), any(), any(), any()))
+                .thenReturn(bookingPage);
+
+        // When
+        List<BookingListResponse> response = bookingService.getBookingList(status, branchId, consultantId);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response).hasSize(1);
+    }
+
+    // ==================== getConsultantDashboard() Tests ====================
+
+    @Test
+    void getConsultantDashboard_whenValidRequest_shouldReturnDashboard() {
+        // Given
+        Integer consultantEmployeeId = 10;
+        Integer branchId = 1;
+
+        Bookings booking = new Bookings();
+        booking.setId(1);
+        booking.setStatus(BookingStatus.PENDING);
+        Customers customer = new Customers();
+        customer.setFullName("Test Customer");
+        booking.setCustomer(customer);
+
+        when(bookingRepository.findPendingBookings(branchId, consultantEmployeeId)).thenReturn(List.of(booking));
+        when(bookingRepository.filterBookings(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(booking)));
+        when(bookingRepository.findConfirmedBookings(branchId, consultantEmployeeId)).thenReturn(List.of(booking));
+        when(bookingRepository.countByStatus(any(), any(), any())).thenReturn(1L);
+        when(invoiceRepository.sumConfirmedPaymentsForConsultantAndBranchAndDateRange(any(), any(), any(), any()))
+                .thenReturn(new BigDecimal("1000000"));
+
+        // When
+        ConsultantDashboardResponse response = bookingService.getConsultantDashboard(consultantEmployeeId, branchId);
+
+        // Then
+        assertThat(response).isNotNull();
+        verify(bookingRepository).findPendingBookings(branchId, consultantEmployeeId);
+    }
+
+    // ==================== addPayment() Tests ====================
+
+    @Test
+    void addPayment_whenValidRequest_shouldAddPaymentSuccessfully() {
+        // Given
+        Integer bookingId = 1;
+        Integer employeeId = 10;
+
+        Bookings booking = new Bookings();
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.PENDING);
+        Branches branch = new Branches();
+        branch.setId(1);
+        booking.setBranch(branch);
+        Customers customer = new Customers();
+        customer.setId(1);
+        booking.setCustomer(customer);
+
+        CreatePaymentRequest request = new CreatePaymentRequest();
+        request.setAmount(new BigDecimal("500000"));
+        request.setDeposit(true);
+        request.setNote("Test payment");
+
+        Employees employee = new Employees();
+        employee.setEmployeeId(employeeId);
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.of(booking));
+        when(invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(bookingId)).thenReturn(Collections.emptyList());
+        when(employeeRepository.findById(employeeId)).thenReturn(java.util.Optional.of(employee));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        var response = bookingService.addPayment(bookingId, request, employeeId);
+
+        // Then
+        assertThat(response).isNotNull();
+        verify(invoiceRepository).save(any());
+    }
+
+    @Test
+    void addPayment_whenBookingNotFound_shouldThrowException() {
+        // Given
+        Integer bookingId = 999;
+        CreatePaymentRequest request = new CreatePaymentRequest();
+        request.setAmount(new BigDecimal("500000"));
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> bookingService.addPayment(bookingId, request, 10))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy đơn hàng");
+    }
+
+    // ==================== delete() Tests ====================
+
+    @Test
+    void delete_whenValidRequest_shouldCancelBooking() {
+        // Given
+        Integer bookingId = 1;
+
+        Bookings booking = new Bookings();
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setDepositAmount(new BigDecimal("500000"));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+        booking.setBranch(branch);
+        Customers customer = new Customers();
+        customer.setId(1);
+        booking.setCustomer(customer);
+
+        Trips trip = new Trips();
+        trip.setId(100);
+        trip.setStartTime(Instant.now().plusSeconds(25 * 3600)); // 25 giờ sau
+        trip.setStatus(TripStatus.SCHEDULED);
+        trip.setBooking(booking);
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.of(booking));
+        when(tripRepository.findByBooking_Id(bookingId)).thenReturn(List.of(trip));
+        when(bookingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(systemSettingService.getByKey(anyString())).thenReturn(null);
+
+        // When
+        bookingService.delete(bookingId);
+
+        // Then
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+        verify(bookingRepository).save(booking);
+    }
+
+    @Test
+    void delete_whenBookingNotFound_shouldThrowException() {
+        // Given
+        Integer bookingId = 999;
+
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> bookingService.delete(bookingId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy đơn hàng");
     }
 }
