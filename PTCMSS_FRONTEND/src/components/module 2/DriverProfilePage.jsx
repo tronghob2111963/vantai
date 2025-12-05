@@ -18,6 +18,7 @@ import {
   updateDriverProfile,
   uploadDriverAvatar,
 } from "../../api/drivers";
+import { getMyProfile } from "../../api/profile";
 import { validatePhone, validateRequired } from "../../utils/validation";
 import UserAvatar from "../../components/common/UserAvatar";
 import { Upload, Camera } from "lucide-react";
@@ -123,6 +124,22 @@ export default function DriverProfilePage() {
         console.log("[DriverProfile] Profile data:", data);
         console.log("[DriverProfile] Avatar from API:", data?.avatar);
 
+        // Nếu không có avatar trong driver profile, thử lấy từ user profile (giống header)
+        let avatarPath = data?.avatar;
+        if (!avatarPath) {
+          try {
+            const userProfile = await getMyProfile();
+            avatarPath = userProfile?.avatar || userProfile?.avatarUrl || userProfile?.imgUrl;
+            console.log("[DriverProfile] Avatar from user profile:", avatarPath);
+            // Cập nhật data với avatar từ user profile
+            if (avatarPath) {
+              data.avatar = avatarPath;
+            }
+          } catch (err) {
+            console.warn("[DriverProfile] Failed to get user profile:", err);
+          }
+        }
+
         setProfile(data);
         setPhone(data.phone || "");
         setAddress(data.address || "");
@@ -130,10 +147,10 @@ export default function DriverProfilePage() {
         setAvatarFile(null);
 
         // Load avatar với auth token (giống header)
-        if (data?.avatar) {
+        if (avatarPath) {
           try {
             const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
-            const imgPath = data.avatar;
+            const imgPath = avatarPath;
             const fullUrl = /^https?:\/\//i.test(imgPath) 
               ? imgPath 
               : `${apiBase}${imgPath.startsWith("/") ? "" : "/"}${imgPath}`;
