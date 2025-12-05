@@ -539,9 +539,9 @@ public class AnalyticsService {
                                 SELECT
                                         v.licensePlate AS licensePlate,
                                         COALESCE(trips.totalKm, 0) AS totalKm,
-                                        COALESCE(costs.totalCost, 0) AS totalCost,
+                                        COALESCE(er_costs.totalCost, 0) + COALESCE(inv_costs.totalCost, 0) AS totalCost,
                                         CASE
-                                                WHEN COALESCE(trips.totalKm, 0) > 0 THEN COALESCE(costs.totalCost, 0) / COALESCE(trips.totalKm, 1)
+                                                WHEN COALESCE(trips.totalKm, 0) > 0 THEN (COALESCE(er_costs.totalCost, 0) + COALESCE(inv_costs.totalCost, 0)) / COALESCE(trips.totalKm, 1)
                                                 ELSE 0
                                         END AS costPerKm
                                 FROM vehicles v
@@ -557,16 +557,32 @@ public class AnalyticsService {
                                 ) trips ON v.vehicleId = trips.vehicleId
                                 LEFT JOIN (
                                         SELECT
-                                                e.vehicleId AS vehicleId,
-                                                SUM(e.amount) AS totalCost
-                                        FROM expenses e
-                                        WHERE e.vehicleId IS NOT NULL
-                                          AND e.branchId = ?
-                                          AND e.category IN ('FUEL', 'MAINTENANCE', 'TOLL')
-                                          AND e.status IN ('APPROVED', 'PAID')
-                                          AND e.expenseDate BETWEEN ? AND ?
-                                        GROUP BY e.vehicleId
-                                ) costs ON v.vehicleId = costs.vehicleId
+                                                er.vehicleId AS vehicleId,
+                                                COALESCE(SUM(er.amount), 0) AS totalCost
+                                        FROM expense_requests er
+                                        WHERE er.vehicleId IS NOT NULL
+                                          AND er.branchId = ?
+                                          AND er.status = 'APPROVED'
+                                          AND er.expenseType IN ('FUEL', 'MAINTENANCE', 'TOLL')
+                                          AND er.createdAt BETWEEN ? AND ?
+                                        GROUP BY er.vehicleId
+                                ) er_costs ON v.vehicleId = er_costs.vehicleId
+                                LEFT JOIN (
+                                        SELECT
+                                                tv.vehicleId AS vehicleId,
+                                                COALESCE(SUM(i.amount), 0) AS totalCost
+                                        FROM invoices i
+                                        INNER JOIN bookings b ON i.bookingId = b.bookingId
+                                        INNER JOIN trips t ON t.bookingId = b.bookingId
+                                        INNER JOIN trip_vehicles tv ON tv.tripId = t.tripId
+                                        WHERE i.type = 'EXPENSE'
+                                          AND i.status = 'ACTIVE'
+                                          AND i.paymentStatus IN ('PAID', 'UNPAID')
+                                          AND i.costType IN ('fuel', 'toll', 'maintenance')
+                                          AND i.branchId = ?
+                                          AND i.invoiceDate BETWEEN ? AND ?
+                                        GROUP BY tv.vehicleId
+                                ) inv_costs ON v.vehicleId = inv_costs.vehicleId
                                 WHERE v.branchId = ?
                                   AND v.status <> 'INACTIVE'
                                   AND COALESCE(trips.totalKm, 0) > 0
@@ -577,8 +593,11 @@ public class AnalyticsService {
                                 "licensePlate", rs.getString("licensePlate"),
                                 "totalKm", rs.getBigDecimal("totalKm"),
                                 "totalCost", rs.getBigDecimal("totalCost"),
-                                "costPerKm", rs.getBigDecimal("costPerKm")), tripStart, tripEnd, branchId, invoiceStart,
-                                invoiceEnd, branchId);
+                                "costPerKm", rs.getBigDecimal("costPerKm")), 
+                                tripStart, tripEnd, 
+                                branchId, invoiceStart, invoiceEnd, // expense_requests: branchId, createdAt
+                                branchId, invoiceStart, invoiceEnd, // invoices: branchId, invoiceDate
+                                branchId); // vehicles: branchId
         }
 
         /**

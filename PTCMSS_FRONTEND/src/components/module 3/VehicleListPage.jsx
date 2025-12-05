@@ -88,8 +88,8 @@ const VEHICLE_STATUS = {
 };
 
 const STATUS_LABEL = {
-    AVAILABLE: "Hoạt động",
-    INUSE: "Hoạt động",
+    AVAILABLE: "Sẵn sàng",
+    INUSE: "Đang sử dụng",
     MAINTENANCE: "Bảo trì",
     INACTIVE: "Ngừng hoạt động",
 };

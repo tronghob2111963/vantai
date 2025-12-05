@@ -72,7 +72,7 @@ CREATE TABLE `approval_history` (
   CONSTRAINT `FK16wtf9gshfmvoylj7vgfrttwk` FOREIGN KEY (`approvedBy`) REFERENCES `users` (`userId`),
   CONSTRAINT `FKetd5rr5a5ragndtrnc6vgovlr` FOREIGN KEY (`requestedBy`) REFERENCES `users` (`userId`),
   CONSTRAINT `FKly3gq7psb2v5ia1abopveqv65` FOREIGN KEY (`branchId`) REFERENCES `branches` (`branchId`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -81,7 +81,7 @@ CREATE TABLE `approval_history` (
 
 LOCK TABLES `approval_history` WRITE;
 /*!40000 ALTER TABLE `approval_history` DISABLE KEYS */;
-INSERT INTO `approval_history` VALUES (1,'Đồng ý','DRIVER_DAY_OFF','2025-12-02 16:02:30.000000',1,'Việc gia đình','2025-11-16 16:02:30.000000','APPROVED',2,1,7),(2,'Đồng ý','DRIVER_DAY_OFF','2025-12-02 16:02:30.000000',2,'Khám sức khỏe','2025-11-21 16:02:30.000000','APPROVED',11,2,5),(3,'Từ chối','DRIVER_DAY_OFF','2025-12-02 16:02:30.000000',3,'Nghỉ ốm','2025-11-26 16:02:30.000000','REJECTED',21,3,9),(4,NULL,'EXPENSE_REQUEST',NULL,2,'Yêu cầu tạm ứng: MAINTENANCE - 2500000.00 VNĐ','2025-12-02 09:06:46.344933','PENDING',NULL,3,11);
+INSERT INTO `approval_history` VALUES (1,'Đồng ý','DRIVER_DAY_OFF','2025-12-02 16:02:30.000000',1,'Việc gia đình','2025-11-16 16:02:30.000000','APPROVED',2,1,7),(2,'Đồng ý','DRIVER_DAY_OFF','2025-12-02 16:02:30.000000',2,'Khám sức khỏe','2025-11-21 16:02:30.000000','APPROVED',11,2,5),(3,'Từ chối','DRIVER_DAY_OFF','2025-12-02 16:02:30.000000',3,'Nghỉ ốm','2025-11-26 16:02:30.000000','REJECTED',21,3,9),(5,NULL,'EXPENSE_REQUEST','2025-12-05 18:29:34.899317',3,'Yêu cầu tạm ứng: INSURANCE - 2100000.00 VNĐ','2025-12-05 18:26:43.083584','APPROVED',NULL,2,15),(6,NULL,'EXPENSE_REQUEST',NULL,2,'Yêu cầu tạm ứng: MAINTENANCE - 2500000.00 VNĐ','2025-12-05 18:43:21.741440','PENDING',NULL,3,11);
 /*!40000 ALTER TABLE `approval_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -110,7 +110,7 @@ CREATE TABLE `booking_vehicle_details` (
 
 LOCK TABLES `booking_vehicle_details` WRITE;
 /*!40000 ALTER TABLE `booking_vehicle_details` DISABLE KEYS */;
-INSERT INTO `booking_vehicle_details` VALUES (1,3,1),(2,2,1),(3,3,2),(4,4,1),(5,1,1),(8,1,1),(9,3,1),(10,1,1),(11,1,1),(12,2,1),(13,2,1),(14,3,1),(15,2,1),(16,3,1),(17,3,2),(18,2,1),(19,2,1);
+INSERT INTO `booking_vehicle_details` VALUES (1,3,1),(2,2,1),(3,1,1),(3,3,2),(4,4,1),(5,1,1),(5,3,1),(6,5,1),(7,2,1),(8,1,1),(9,1,1),(9,3,1),(10,1,1),(11,1,1),(12,1,1),(12,2,1),(13,1,1),(13,2,1),(14,1,1),(14,3,1),(15,1,1),(15,2,1),(16,3,1),(16,4,1),(17,3,2),(17,4,1),(18,1,1),(18,4,1),(19,1,1),(19,4,1),(20,4,1);
 /*!40000 ALTER TABLE `booking_vehicle_details` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -132,8 +132,6 @@ CREATE TABLE `bookings` (
   `estimatedCost` decimal(12,2) DEFAULT NULL,
   `depositAmount` decimal(12,2) DEFAULT '0.00',
   `totalCost` decimal(12,2) DEFAULT '0.00',
-  `totalDistance` decimal(10,2) DEFAULT NULL COMMENT 'Total distance of all trips (km)',
-  `totalDuration` int DEFAULT NULL COMMENT 'Total estimated duration (minutes)',
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
   `note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -145,12 +143,11 @@ CREATE TABLE `bookings` (
   KEY `IX_Bookings_BranchId` (`branchId`),
   KEY `IX_Bookings_Customer_Status` (`customerId`,`status`),
   KEY `IX_Bookings_HireType` (`hireTypeId`),
-  KEY `IX_Bookings_Distance` (`totalDistance`),
   CONSTRAINT `fk_book_branch` FOREIGN KEY (`branchId`) REFERENCES `branches` (`branchId`),
   CONSTRAINT `fk_book_cons` FOREIGN KEY (`consultantId`) REFERENCES `employees` (`employeeId`),
   CONSTRAINT `fk_book_cust` FOREIGN KEY (`customerId`) REFERENCES `customers` (`customerId`),
   CONSTRAINT `fk_book_hire` FOREIGN KEY (`hireTypeId`) REFERENCES `hire_types` (`hireTypeId`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -159,7 +156,7 @@ CREATE TABLE `bookings` (
 
 LOCK TABLES `bookings` WRITE;
 /*!40000 ALTER TABLE `bookings` DISABLE KEYS */;
-INSERT INTO `bookings` VALUES (1,1,1,3,1,1,'2025-12-02 16:02:30',1200000.00,600000.00,1200000.00,120.50,180,'COMPLETED','HN-HP 1 chiều','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(2,2,3,21,2,0,'2025-12-02 16:02:30',3000000.00,1500000.00,3000000.00,95.00,120,'CONFIRMED','HCM-NB 2 chiều','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(3,3,2,12,5,1,'2025-12-02 16:02:30',1800000.00,900000.00,1800000.00,35.00,60,'PENDING','Đưa đón sân bay','2025-12-02 16:02:30','2025-12-02 16:02:30',0,1),(4,4,1,4,4,0,'2025-12-02 16:02:30',25000000.00,10000000.00,25000000.00,300.00,480,'INPROGRESS','Hợp đồng định kỳ','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(5,5,1,3,6,1,'2025-12-02 16:02:30',3500000.00,1750000.00,3500000.00,120.00,480,'CONFIRMED','Thuê theo ngày','2025-12-02 16:02:30','2025-12-02 16:02:30',1,0),(6,6,3,22,3,1,'2025-12-02 16:02:30',15000000.00,5000000.00,15000000.00,500.00,1440,'PENDING','Tour miền Tây 3N2Đ','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(7,1,1,3,2,1,'2025-12-02 16:02:30',2200000.00,1000000.00,2200000.00,180.00,240,'CANCELLED','HN-NB 2 chiều','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(8,2,3,21,1,0,'2025-12-02 16:02:30',900000.00,450000.00,900000.00,20.00,40,'CONFIRMED','Trong nội thành','2025-12-02 16:02:30','2025-12-02 16:02:30',0,1),(9,3,2,13,5,1,'2025-12-02 16:02:30',1200000.00,600000.00,1200000.00,40.00,60,'COMPLETED','Đón sân bay','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(10,7,1,3,2,0,'2025-12-02 09:23:15',40069500.00,0.00,40069500.00,NULL,NULL,'COMPLETED',NULL,'2025-12-02 09:23:15','2025-12-02 09:29:18',0,0);
+INSERT INTO `bookings` VALUES (1,1,1,3,1,1,'2025-12-02 16:02:30',1200000.00,600000.00,1200000.00,'COMPLETED','HN-HP 1 chiều','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(2,2,3,21,2,0,'2025-12-02 16:02:30',3000000.00,1500000.00,3000000.00,'CONFIRMED','HCM-NB 2 chiều','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(3,3,2,12,5,1,'2025-12-02 16:02:30',1800000.00,900000.00,1800000.00,'PENDING','Đưa đón sân bay','2025-12-02 16:02:30','2025-12-02 16:02:30',0,1),(4,4,1,4,4,0,'2025-12-02 16:02:30',25000000.00,10000000.00,25000000.00,'INPROGRESS','Hợp đồng định kỳ','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(5,5,1,3,6,1,'2025-12-02 16:02:30',3500000.00,1750000.00,3500000.00,'CONFIRMED','Thuê theo ngày','2025-12-02 16:02:30','2025-12-02 16:02:30',1,0),(6,6,3,22,3,1,'2025-12-02 16:02:30',15000000.00,5000000.00,15000000.00,'PENDING','Tour miền Tây 3N2Đ','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(7,1,1,3,2,1,'2025-12-02 16:02:30',2200000.00,1000000.00,2200000.00,'CANCELLED','HN-NB 2 chiều','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(8,2,3,21,1,0,'2025-12-02 16:02:30',900000.00,450000.00,900000.00,'CONFIRMED','Trong nội thành','2025-12-02 16:02:30','2025-12-02 16:02:30',0,1),(9,3,2,13,5,1,'2025-12-02 16:02:30',1200000.00,600000.00,1200000.00,'COMPLETED','Đón sân bay','2025-12-02 16:02:30','2025-12-02 16:02:30',0,0),(10,7,1,3,2,0,'2025-12-02 09:23:15',40069500.00,0.00,40069500.00,'COMPLETED',NULL,'2025-12-02 09:23:15','2025-12-02 09:29:18',0,0),(11,7,3,21,6,0,'2025-12-05 07:54:27',1164600.00,0.00,1164600.00,'PENDING',NULL,'2025-12-05 07:54:27','2025-12-05 07:54:27',0,0),(12,7,3,21,1,0,'2025-12-05 08:24:40',26083500.00,0.00,26083500.00,'PENDING',NULL,'2025-12-05 08:24:40','2025-12-05 08:24:40',0,0),(13,7,3,21,1,0,'2025-12-05 08:31:08',23246100.00,0.00,23246100.00,'PENDING','ok','2025-12-05 08:31:08','2025-12-05 08:31:08',0,0),(14,7,2,12,2,0,'2025-12-05 08:33:30',5811300.00,0.00,5811300.00,'COMPLETED',NULL,'2025-12-05 08:33:30','2025-12-05 08:34:17',0,0),(15,7,2,12,1,0,'2025-12-05 08:47:16',18022320.00,0.00,18022320.00,'COMPLETED',NULL,'2025-12-05 08:47:16','2025-12-05 08:47:43',0,1),(16,7,2,12,1,0,'2025-12-05 17:12:50',993000.00,0.00,993000.00,'PENDING',NULL,'2025-12-05 17:12:50','2025-12-05 17:12:50',0,1),(17,7,2,12,1,0,'2025-12-05 17:27:32',970000.00,0.00,970000.00,'PENDING','chạy cẩn thận nha baby','2025-12-05 17:27:32','2025-12-05 17:27:32',0,0),(18,7,2,12,1,0,'2025-12-05 17:37:05',1221000.00,0.00,1221000.00,'PENDING',NULL,'2025-12-05 17:37:05','2025-12-05 17:37:05',0,0),(19,7,2,12,2,0,'2025-12-05 17:43:45',1376670.00,0.00,1376670.00,'PENDING',NULL,'2025-12-05 17:43:45','2025-12-05 17:43:45',0,1),(20,7,2,12,2,0,'2025-12-05 17:59:44',134086250.00,0.00,134086250.00,'PENDING',NULL,'2025-12-05 17:59:44','2025-12-05 17:59:44',0,0);
 /*!40000 ALTER TABLE `bookings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -442,7 +439,7 @@ CREATE TABLE `expense_requests` (
   CONSTRAINT `FK7khe3dqqvqxxxc3wya8ahxawu` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles` (`vehicleId`),
   CONSTRAINT `FKi50xdwp7fq4x2u1qgkmu9ssny` FOREIGN KEY (`branchId`) REFERENCES `branches` (`branchId`),
   CONSTRAINT `FKtiu8dsnng66t861etnc0wkc6m` FOREIGN KEY (`requesterId`) REFERENCES `users` (`userId`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -451,71 +448,13 @@ CREATE TABLE `expense_requests` (
 
 LOCK TABLES `expense_requests` WRITE;
 /*!40000 ALTER TABLE `expense_requests` DISABLE KEYS */;
-INSERT INTO `expense_requests` VALUES (1,750000.00,'2025-12-02 16:02:30.000000','2025-11-30 16:02:30.000000','Xin tạm ứng phí ETC',NULL,'APPROVED','TOLL','2025-12-02 16:02:30.000000',2,1,2,2),(2,2500000.00,NULL,'2025-12-02 16:02:30.000000','Tạm ứng bảo dưỡng',NULL,'PENDING','MAINTENANCE',NULL,NULL,3,11,5);
+INSERT INTO `expense_requests` VALUES (1,750000.00,'2025-12-02 16:02:30.000000','2025-11-30 16:02:30.000000','Xin tạm ứng phí ETC',NULL,'APPROVED','TOLL','2025-12-02 16:02:30.000000',2,1,2,2),(2,2500000.00,NULL,'2025-12-02 16:02:30.000000','Tạm ứng bảo dưỡng',NULL,'PENDING','MAINTENANCE',NULL,NULL,3,11,5),(3,2100000.00,NULL,'2025-12-05 18:23:15.886037',NULL,NULL,'APPROVED','INSURANCE','2025-12-05 18:29:34.910796',NULL,2,15,5),(4,10000000.00,NULL,'2025-12-05 18:38:40.604769','ok nhé babby',NULL,'APPROVED','MAINTENANCE','2025-12-05 18:39:22.601204',NULL,2,15,5);
 /*!40000 ALTER TABLE `expense_requests` ENABLE KEYS */;
 UNLOCK TABLES;
 
---
--- Table structure for table `expenses`
---
-
-DROP TABLE IF EXISTS `expenses`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `expenses` (
-  `expenseId` int NOT NULL AUTO_INCREMENT,
-  `expenseCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã chi phí',
-  `branchId` int NOT NULL,
-  `vehicleId` int DEFAULT NULL COMMENT 'Xe liên quan',
-  `driverId` int DEFAULT NULL COMMENT 'Tài xế',
-  `tripId` int DEFAULT NULL COMMENT 'Chuyến đi',
-  `bookingId` int DEFAULT NULL COMMENT 'Đơn hàng',
-  `expenseType` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Loại chi phí',
-  `category` enum('FUEL','MAINTENANCE','SALARY','PARKING','INSURANCE','TOLL','OTHER') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'OTHER',
-  `amount` decimal(18,2) NOT NULL COMMENT 'Số tiền',
-  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `receiptUrl` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Chứng từ',
-  `status` enum('PENDING','APPROVED','REJECTED','PAID') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
-  `approvedBy` int DEFAULT NULL,
-  `approvedAt` datetime DEFAULT NULL,
-  `rejectedReason` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `paidAt` datetime DEFAULT NULL,
-  `expenseDate` datetime NOT NULL COMMENT 'Ngày phát sinh chi phí',
-  `note` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdBy` int DEFAULT NULL,
-  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`expenseId`),
-  UNIQUE KEY `UK_expense_code` (`expenseCode`),
-  KEY `FK_exp_branch` (`branchId`),
-  KEY `FK_exp_vehicle` (`vehicleId`),
-  KEY `FK_exp_driver` (`driverId`),
-  KEY `FK_exp_trip` (`tripId`),
-  KEY `FK_exp_booking` (`bookingId`),
-  KEY `FK_exp_approvedBy` (`approvedBy`),
-  KEY `FK_exp_createdBy` (`createdBy`),
-  KEY `IX_expenses_status` (`status`),
-  KEY `IX_expenses_category` (`category`),
-  KEY `IX_expenses_expenseDate` (`expenseDate`),
-  CONSTRAINT `FK_exp_approvedBy` FOREIGN KEY (`approvedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL,
-  CONSTRAINT `FK_exp_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`) ON DELETE SET NULL,
-  CONSTRAINT `FK_exp_branch` FOREIGN KEY (`branchId`) REFERENCES `branches` (`branchId`),
-  CONSTRAINT `FK_exp_createdBy` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL,
-  CONSTRAINT `FK_exp_driver` FOREIGN KEY (`driverId`) REFERENCES `drivers` (`driverId`) ON DELETE SET NULL,
-  CONSTRAINT `FK_exp_trip` FOREIGN KEY (`tripId`) REFERENCES `trips` (`tripId`) ON DELETE SET NULL,
-  CONSTRAINT `FK_exp_vehicle` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles` (`vehicleId`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Chi phí thực tế - Module 6';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `expenses`
---
-
-LOCK TABLES `expenses` WRITE;
-/*!40000 ALTER TABLE `expenses` DISABLE KEYS */;
-INSERT INTO `expenses` VALUES (2,'EXP-2025-0002',3,8,11,8,8,'TOLL','TOLL',150000.00,'Phí cao tốc','/receipts/exp2.jpg','PAID',21,'2025-12-02 16:02:30',NULL,'2025-12-02 16:02:30','2025-12-01 16:02:30','',21,'2025-12-02 16:02:30','2025-12-02 16:02:30');
-/*!40000 ALTER TABLE `expenses` ENABLE KEYS */;
-UNLOCK TABLES;
+-- Bảng expenses đã được xóa
+-- Đã thay thế bằng expense_requests và invoices (type = EXPENSE)
+-- Script xóa: PTCMSS/db_scripts/drop_expenses_table.sql
 
 --
 -- Table structure for table `hire_types`
@@ -543,42 +482,6 @@ LOCK TABLES `hire_types` WRITE;
 /*!40000 ALTER TABLE `hire_types` DISABLE KEYS */;
 INSERT INTO `hire_types` VALUES (1,'ONE_WAY','Thuê 1 chiều','Thuê xe đi 1 chiều',1),(2,'ROUND_TRIP','Thuê 2 chiều (trong ngày)','Thuê xe đi và về trong ngày',1),(3,'MULTI_DAY','Thuê nhiều ngày','Thuê xe theo gói nhiều ngày',1),(4,'PERIODIC','Thuê định kỳ','Thuê lặp lại (đưa đón nhân viên, học sinh)',1),(5,'AIRPORT_TRANSFER','Đưa/đón sân bay','Gói đưa đón sân bay 1 chiều',1),(6,'DAILY','Thuê theo ngày','Thuê xe trọn ngày',1);
 /*!40000 ALTER TABLE `hire_types` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `invoice_items`
---
-
-DROP TABLE IF EXISTS `invoice_items`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `invoice_items` (
-  `itemId` int NOT NULL AUTO_INCREMENT,
-  `invoiceId` int NOT NULL,
-  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Mô tả dòng hóa đơn',
-  `quantity` decimal(10,2) NOT NULL DEFAULT '1.00' COMMENT 'Số lượng',
-  `unitPrice` decimal(18,2) NOT NULL COMMENT 'Đơn giá',
-  `amount` decimal(18,2) GENERATED ALWAYS AS ((`quantity` * `unitPrice`)) STORED COMMENT 'Thành tiền (tự động)',
-  `taxRate` decimal(5,2) DEFAULT '0.00' COMMENT 'Thuế suất (%)',
-  `taxAmount` decimal(18,2) DEFAULT '0.00' COMMENT 'Tiền thuế',
-  `note` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`itemId`),
-  KEY `FK_item_invoice` (`invoiceId`),
-  KEY `IX_invoice_items_invoiceId` (`invoiceId`),
-  CONSTRAINT `FK_item_invoice` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Chi tiết dòng hóa đơn - Module 6';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `invoice_items`
---
-
-LOCK TABLES `invoice_items` WRITE;
-/*!40000 ALTER TABLE `invoice_items` DISABLE KEYS */;
-INSERT INTO `invoice_items` (`itemId`, `invoiceId`, `description`, `quantity`, `unitPrice`, `taxRate`, `taxAmount`, `note`, `createdAt`, `updatedAt`) VALUES (1,1,'Vận chuyển HN-HP (đặt cọc)',1.00,600000.00,8.00,48000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(2,2,'Vận chuyển HN-HP (thu nốt)',1.00,600000.00,8.00,48000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(3,3,'Vận chuyển HCM-NB (cọc)',1.00,1500000.00,8.00,120000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(4,4,'Vận chuyển HCM-NB (thu nốt)',1.00,1500000.00,8.00,120000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(5,5,'Đưa/đón sân bay (cọc)',1.00,900000.00,8.00,72000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(6,6,'Đưa/đón sân bay (thu nốt)',1.00,900000.00,8.00,72000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(7,7,'Hợp đồng định kỳ (cọc)',1.00,10000000.00,8.00,800000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(8,8,'Hợp đồng định kỳ (thu nốt)',1.00,15000000.00,8.00,1200000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(9,9,'Thuê theo ngày (cọc)',1.00,1750000.00,8.00,140000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(10,10,'Tour miền Tây (cọc)',1.00,5000000.00,8.00,400000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(11,11,'Tour miền Tây (thu nốt)',1.00,10000000.00,8.00,800000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30'),(12,12,'Đón sân bay',1.00,600000.00,8.00,48000.00,NULL,'2025-12-02 16:02:30','2025-12-02 16:02:30');
-/*!40000 ALTER TABLE `invoice_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -639,7 +542,7 @@ CREATE TABLE `invoices` (
   CONSTRAINT `fk_inv_customer` FOREIGN KEY (`customerId`) REFERENCES `customers` (`customerId`),
   CONSTRAINT `fk_inv_reqDriver` FOREIGN KEY (`requestedBy`) REFERENCES `drivers` (`driverId`),
   CONSTRAINT `invoices_chk_1` CHECK ((`amount` > 0))
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -648,7 +551,7 @@ CREATE TABLE `invoices` (
 
 LOCK TABLES `invoices` WRITE;
 /*!40000 ALTER TABLE `invoices` DISABLE KEYS */;
-INSERT INTO `invoices` VALUES (1,1,1,1,'INCOME',NULL,1,600000.00,'PAID','ACTIVE','2025-11-22 16:02:30','2025-12-02 16:02:30',NULL,'Đặt cọc Booking 1',NULL,3,2,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HN-2025-0001','NET_7',NULL,'2025-12-02 16:02:30.000000','contact@abc.com',NULL,0.00,NULL),(2,1,1,1,'INCOME',NULL,0,600000.00,'PAID','ACTIVE','2025-11-23 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 1',NULL,3,2,'2025-12-02 16:02:30',NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0002','NET_0',NULL,'2025-12-02 16:02:30.000000','contact@abc.com',NULL,0.00,NULL),(3,3,2,2,'INCOME',NULL,1,1500000.00,'PAID','ACTIVE','2025-12-01 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 2',NULL,21,23,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HCM-2025-0001','NET_7',NULL,'2025-12-02 16:02:30.000000','info@huongviet.vn',NULL,0.00,NULL),(4,3,2,2,'INCOME',NULL,0,1500000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 2',NULL,21,NULL,NULL,NULL,NULL,NULL,'OVERDUE','2025-12-09','INV-HCM-2025-0002','NET_7',NULL,NULL,'info@huongviet.vn',NULL,0.00,NULL),(5,2,3,3,'INCOME',NULL,1,900000.00,'PAID','ACTIVE','2025-11-30 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 3',NULL,12,14,'2025-12-02 16:02:30',NULL,NULL,NULL,NULL,'2025-12-09','INV-DN-2025-0001','NET_7',NULL,NULL,'hr@xyz.com',NULL,0.00,NULL),(6,2,3,3,'INCOME',NULL,0,900000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 3',NULL,12,NULL,NULL,NULL,NULL,NULL,'NORMAL','2025-12-09','INV-DN-2025-0002','NET_7',NULL,NULL,'hr@xyz.com',NULL,0.00,NULL),(7,1,4,4,'INCOME',NULL,1,10000000.00,'PAID','ACTIVE','2025-11-29 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 4',NULL,4,5,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-16','INV-HN-2025-0003','NET_14',NULL,NULL,'nguyen.family@gmail.com',NULL,0.00,NULL),(8,1,4,4,'INCOME',NULL,0,15000000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 4',NULL,4,NULL,NULL,NULL,NULL,NULL,'NORMAL','2025-12-16','INV-HN-2025-0004','NET_14',NULL,NULL,'nguyen.family@gmail.com',NULL,0.00,NULL),(9,1,5,5,'INCOME',NULL,1,1750000.00,'PAID','ACTIVE','2025-12-01 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 5',NULL,3,5,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HN-2025-0005','NET_7',NULL,NULL,'school@vinschool.edu.vn',NULL,0.00,NULL),(10,3,6,6,'INCOME',NULL,1,5000000.00,'PAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 6',NULL,22,23,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HCM-2025-0003','NET_7',NULL,NULL,'tour@suntravel.vn',NULL,0.00,NULL),(11,3,6,6,'INCOME',NULL,0,10000000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 6',NULL,22,NULL,NULL,NULL,NULL,NULL,'OVERDUE','2025-12-09','INV-HCM-2025-0004','NET_7',NULL,NULL,'tour@suntravel.vn',NULL,0.00,NULL),(12,2,9,3,'INCOME',NULL,0,600000.00,'PAID','ACTIVE','2025-11-29 16:02:30','2025-12-02 16:02:30',NULL,'Thanh toán Booking 9',NULL,13,14,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-DN-2025-0003','NET_7',NULL,NULL,'hr@xyz.com',NULL,0.00,NULL),(13,1,10,7,'INCOME',NULL,0,20035000.00,'PAID','ACTIVE','2025-12-02 09:27:53','2025-12-02 09:27:53',NULL,NULL,NULL,6,NULL,NULL,NULL,NULL,NULL,NULL,'2025-12-02','INV-HN-2025-0006','NET_7',NULL,NULL,NULL,NULL,0.00,NULL);
+INSERT INTO `invoices` VALUES (1,1,1,1,'INCOME',NULL,1,600000.00,'PAID','ACTIVE','2025-11-22 16:02:30','2025-12-02 16:02:30',NULL,'Đặt cọc Booking 1',NULL,3,2,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HN-2025-0001','NET_7',NULL,'2025-12-02 16:02:30.000000','contact@abc.com',NULL,0.00,NULL),(2,1,1,1,'INCOME',NULL,0,600000.00,'PAID','ACTIVE','2025-11-23 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 1',NULL,3,2,'2025-12-02 16:02:30',NULL,NULL,NULL,NULL,NULL,'INV-HN-2025-0002','NET_0',NULL,'2025-12-02 16:02:30.000000','contact@abc.com',NULL,0.00,NULL),(3,3,2,2,'INCOME',NULL,1,1500000.00,'PAID','ACTIVE','2025-12-01 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 2',NULL,21,23,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HCM-2025-0001','NET_7',NULL,'2025-12-02 16:02:30.000000','info@huongviet.vn',NULL,0.00,NULL),(4,3,2,2,'INCOME',NULL,0,1500000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 2',NULL,21,NULL,NULL,NULL,NULL,NULL,'OVERDUE','2025-12-09','INV-HCM-2025-0002','NET_7',NULL,NULL,'info@huongviet.vn',NULL,0.00,NULL),(5,2,3,3,'INCOME',NULL,1,900000.00,'PAID','ACTIVE','2025-11-30 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 3',NULL,12,14,'2025-12-02 16:02:30',NULL,NULL,NULL,NULL,'2025-12-09','INV-DN-2025-0001','NET_7',NULL,NULL,'hr@xyz.com',NULL,0.00,NULL),(6,2,3,3,'INCOME',NULL,0,900000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 3',NULL,12,NULL,NULL,NULL,NULL,NULL,'NORMAL','2025-12-09','INV-DN-2025-0002','NET_7',NULL,NULL,'hr@xyz.com',NULL,0.00,NULL),(7,1,4,4,'INCOME',NULL,1,10000000.00,'PAID','ACTIVE','2025-11-29 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 4',NULL,4,5,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-16','INV-HN-2025-0003','NET_14',NULL,NULL,'nguyen.family@gmail.com',NULL,0.00,NULL),(8,1,4,4,'INCOME',NULL,0,15000000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 4',NULL,4,NULL,NULL,NULL,NULL,NULL,'NORMAL','2025-12-16','INV-HN-2025-0004','NET_14',NULL,NULL,'nguyen.family@gmail.com',NULL,0.00,NULL),(9,1,5,5,'INCOME',NULL,1,1750000.00,'PAID','ACTIVE','2025-12-01 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 5',NULL,3,5,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HN-2025-0005','NET_7',NULL,NULL,'school@vinschool.edu.vn',NULL,0.00,NULL),(10,3,6,6,'INCOME',NULL,1,5000000.00,'PAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Cọc Booking 6',NULL,22,23,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-HCM-2025-0003','NET_7',NULL,NULL,'tour@suntravel.vn',NULL,0.00,NULL),(11,3,6,6,'INCOME',NULL,0,10000000.00,'UNPAID','ACTIVE','2025-12-02 16:02:30','2025-12-02 16:02:30',NULL,'Thu nốt Booking 6',NULL,22,NULL,NULL,NULL,NULL,NULL,'OVERDUE','2025-12-09','INV-HCM-2025-0004','NET_7',NULL,NULL,'tour@suntravel.vn',NULL,0.00,NULL),(12,2,9,3,'INCOME',NULL,0,600000.00,'PAID','ACTIVE','2025-11-29 16:02:30','2025-12-02 16:02:30',NULL,'Thanh toán Booking 9',NULL,13,14,'2025-12-02 16:02:30',NULL,NULL,NULL,'NORMAL','2025-12-09','INV-DN-2025-0003','NET_7',NULL,NULL,'hr@xyz.com',NULL,0.00,NULL),(13,1,10,7,'INCOME',NULL,0,20035000.00,'PAID','ACTIVE','2025-12-02 09:27:53','2025-12-02 09:27:53',NULL,NULL,NULL,6,NULL,NULL,NULL,NULL,NULL,NULL,'2025-12-02','INV-HN-2025-0006','NET_7',NULL,NULL,NULL,NULL,0.00,NULL),(14,2,14,7,'INCOME',NULL,1,2906000.00,'PAID','ACTIVE','2025-12-05 08:33:47','2025-12-05 08:33:47',NULL,NULL,NULL,12,NULL,NULL,NULL,NULL,NULL,NULL,'2025-12-05','INV-DN-2025-0004','NET_7',NULL,NULL,NULL,NULL,0.00,NULL),(15,2,15,7,'INCOME',NULL,1,18022320.00,'PAID','ACTIVE','2025-12-05 08:47:25','2025-12-05 08:47:25',NULL,NULL,NULL,12,NULL,NULL,NULL,NULL,NULL,NULL,'2025-12-05','INV-DN-2025-0005','NET_7',NULL,NULL,NULL,NULL,0.00,NULL);
 /*!40000 ALTER TABLE `invoices` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -669,7 +572,7 @@ CREATE TABLE `notifications` (
   PRIMARY KEY (`notificationId`),
   KEY `fk_notif_user` (`userId`),
   CONSTRAINT `fk_notif_user` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -678,7 +581,7 @@ CREATE TABLE `notifications` (
 
 LOCK TABLES `notifications` WRITE;
 /*!40000 ALTER TABLE `notifications` DISABLE KEYS */;
-INSERT INTO `notifications` VALUES (1,2,'Yêu cầu nghỉ phép','Tài xế HN A vừa tạo yêu cầu nghỉ phép.','2025-12-02 16:02:30',0),(2,21,'Booking đã xác nhận','Booking #2 đã được xác nhận.','2025-12-02 16:02:30',0),(3,7,'Yêu cầu Nghỉ phép đã được duyệt','Yêu cầu nghỉ phép #1 đã được duyệt.','2025-12-02 16:02:30',0);
+INSERT INTO `notifications` VALUES (1,2,'Yêu cầu nghỉ phép','Tài xế HN A vừa tạo yêu cầu nghỉ phép.','2025-12-02 16:02:30',0),(2,21,'Booking đã xác nhận','Booking #2 đã được xác nhận.','2025-12-02 16:02:30',0),(3,7,'Yêu cầu Nghỉ phép đã được duyệt','Yêu cầu nghỉ phép #1 đã được duyệt.','2025-12-02 16:02:30',0),(5,15,'Yêu cầu chi phí đã được duyệt','Yêu cầu thanh toán Bảo hiểm - 2.100.000 đ của bạn đã được duyệt.','2025-12-05 18:29:35',0),(7,15,'Yêu cầu chi phí đã được duyệt','Yêu cầu thanh toán Bảo dưỡng - 10.000.000 đ của bạn đã được duyệt.','2025-12-05 18:39:23',0);
 /*!40000 ALTER TABLE `notifications` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -709,7 +612,7 @@ CREATE TABLE `payment_history` (
   KEY `FK585ytbhwcbntuhs3h16jih71p` (`invoiceId`),
   CONSTRAINT `FK585ytbhwcbntuhs3h16jih71p` FOREIGN KEY (`invoiceId`) REFERENCES `invoices` (`invoiceId`),
   CONSTRAINT `FKrl36wsp0mglanfdwamk3cl9cv` FOREIGN KEY (`createdBy`) REFERENCES `employees` (`employeeId`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -718,7 +621,7 @@ CREATE TABLE `payment_history` (
 
 LOCK TABLES `payment_history` WRITE;
 /*!40000 ALTER TABLE `payment_history` DISABLE KEYS */;
-INSERT INTO `payment_history` VALUES (1,600000.00,'070122047995','Sacombank','Kế toán HN','2025-12-02 16:02:30.000000','Cọc Booking 1','2025-11-22 16:02:30.000000','BANK_TRANSFER','REC-2025-0001',NULL,5,1,'CONFIRMED'),(2,600000.00,NULL,NULL,'Kế toán HN','2025-12-02 16:02:30.000000','Thu nốt Booking 1','2025-11-23 16:02:30.000000','CASH','REC-2025-0002',NULL,5,2,'CONFIRMED'),(3,1500000.00,'070122047995','Sacombank','Kế toán HCM','2025-12-02 16:02:30.000000','Cọc Booking 2','2025-12-01 16:02:30.000000','QR','REC-2025-0003',NULL,23,3,'CONFIRMED'),(4,900000.00,NULL,NULL,'Kế toán DN','2025-12-02 16:02:30.000000','Cọc Booking 3','2025-11-30 16:02:30.000000','CASH','REC-2025-0004',NULL,14,5,'CONFIRMED'),(5,1750000.00,NULL,NULL,'Kế toán HN','2025-12-02 16:02:30.000000','Cọc Booking 5','2025-12-01 16:02:30.000000','QR','REC-2025-0005',NULL,5,9,'CONFIRMED'),(6,5000000.00,NULL,NULL,'Kế toán HCM','2025-12-02 16:02:30.000000','Cọc Booking 6','2025-12-02 16:02:30.000000','QR','REC-2025-0006',NULL,23,10,'CONFIRMED'),(7,600000.00,NULL,NULL,'Kế toán DN','2025-12-02 16:02:30.000000','Thanh toán Booking 9','2025-11-29 16:02:30.000000','CASH','REC-2025-0007',NULL,14,12,'CONFIRMED'),(8,20035000.00,NULL,NULL,NULL,'2025-12-02 09:27:53.028560','[Thu tiền] ','2025-12-02 09:27:53.019516','CASH','REC-20251202-0001',NULL,6,13,'CONFIRMED');
+INSERT INTO `payment_history` VALUES (1,600000.00,'070122047995','Sacombank','Kế toán HN','2025-12-02 16:02:30.000000','Cọc Booking 1','2025-11-22 16:02:30.000000','BANK_TRANSFER','REC-2025-0001',NULL,5,1,'CONFIRMED'),(2,600000.00,NULL,NULL,'Kế toán HN','2025-12-02 16:02:30.000000','Thu nốt Booking 1','2025-11-23 16:02:30.000000','CASH','REC-2025-0002',NULL,5,2,'CONFIRMED'),(3,1500000.00,'070122047995','Sacombank','Kế toán HCM','2025-12-02 16:02:30.000000','Cọc Booking 2','2025-12-01 16:02:30.000000','QR','REC-2025-0003',NULL,23,3,'CONFIRMED'),(4,900000.00,NULL,NULL,'Kế toán DN','2025-12-02 16:02:30.000000','Cọc Booking 3','2025-11-30 16:02:30.000000','CASH','REC-2025-0004',NULL,14,5,'CONFIRMED'),(5,1750000.00,NULL,NULL,'Kế toán HN','2025-12-02 16:02:30.000000','Cọc Booking 5','2025-12-01 16:02:30.000000','QR','REC-2025-0005',NULL,5,9,'CONFIRMED'),(6,5000000.00,NULL,NULL,'Kế toán HCM','2025-12-02 16:02:30.000000','Cọc Booking 6','2025-12-02 16:02:30.000000','QR','REC-2025-0006',NULL,23,10,'CONFIRMED'),(7,600000.00,NULL,NULL,'Kế toán DN','2025-12-02 16:02:30.000000','Thanh toán Booking 9','2025-11-29 16:02:30.000000','CASH','REC-2025-0007',NULL,14,12,'CONFIRMED'),(8,20035000.00,NULL,NULL,NULL,'2025-12-02 09:27:53.028560','[Thu tiền] ','2025-12-02 09:27:53.019516','CASH','REC-20251202-0001',NULL,6,13,'CONFIRMED'),(9,2906000.00,NULL,NULL,NULL,'2025-12-05 08:33:46.698892','[Đặt cọc] ','2025-12-05 08:33:46.695570','CASH','REC-20251205-0001',NULL,12,14,'CONFIRMED'),(10,18022320.00,NULL,NULL,NULL,'2025-12-05 08:47:25.266768','[Đặt cọc] ','2025-12-05 08:47:25.261761','CASH','REC-20251205-0001',NULL,12,15,'CONFIRMED');
 /*!40000 ALTER TABLE `payment_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -810,7 +713,7 @@ CREATE TABLE `system_settings` (
   UNIQUE KEY `settingKey` (`settingKey`),
   KEY `fk_sys_updBy` (`updatedBy`),
   CONSTRAINT `fk_sys_updBy` FOREIGN KEY (`updatedBy`) REFERENCES `employees` (`employeeId`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -819,43 +722,8 @@ CREATE TABLE `system_settings` (
 
 LOCK TABLES `system_settings` WRITE;
 /*!40000 ALTER TABLE `system_settings` DISABLE KEYS */;
-INSERT INTO `system_settings` VALUES (1,'VAT_RATE','0.08','2025-01-01',NULL,'decimal','Billing','Tỷ lệ VAT 8%',1,'2025-12-02 16:02:30','ACTIVE'),(2,'DEFAULT_HIGHWAY','true','2025-01-01',NULL,'boolean','Booking','Mặc định cao tốc',1,'2025-12-02 16:02:30','ACTIVE'),(3,'MAX_DRIVING_HOURS_PER_DAY','10','2025-01-01',NULL,'int','Driver','Tối đa giờ lái/ngày',1,'2025-12-02 16:02:30','ACTIVE'),(4,'ROUND_TRIP_MULTIPLIER','1.5','2025-01-01',NULL,'decimal','Pricing','Hệ số 2 chiều',1,'2025-12-02 16:02:30','ACTIVE');
+INSERT INTO `system_settings` VALUES (1,'VAT_RATE','0.08','2025-01-01',NULL,'decimal','Billing','Tỷ lệ VAT 8%',1,'2025-12-02 16:02:30','ACTIVE'),(2,'DEFAULT_HIGHWAY','false','2025-01-01',NULL,'boolean','Booking','Mặc định cao tốc',NULL,'2025-12-05 07:49:41',NULL),(3,'MAX_DRIVING_HOURS_PER_DAY','10','2025-01-01',NULL,'int','Driver','Tối đa giờ lái/ngày',1,'2025-12-02 16:02:30','ACTIVE'),(4,'ROUND_TRIP_MULTIPLIER','1.5','2025-01-01',NULL,'decimal','Pricing','Hệ số 2 chiều',1,'2025-12-02 16:02:30','ACTIVE'),(5,'DEFAULT_DEPOSIT_PERCENT','0.50','2025-01-01',NULL,'decimal','Billing','Tỷ lệ đặt cọc mặc định (50% tổng tiền)',1,'2025-12-05 14:47:56','ACTIVE'),(6,'CANCELLATION_FULL_DEPOSIT_LOSS_HOURS','24','2025-01-01',NULL,'int','Booking','Số giờ trước khi bắt đầu để mất toàn bộ tiền cọc',1,'2025-12-05 14:47:56','ACTIVE'),(7,'CANCELLATION_PARTIAL_DEPOSIT_LOSS_HOURS','48','2025-01-01',NULL,'int','Booking','Số giờ trước khi bắt đầu để mất một phần tiền cọc',1,'2025-12-05 14:47:56','ACTIVE'),(8,'CANCELLATION_PARTIAL_DEPOSIT_PERCENT','0.30','2025-01-01',NULL,'decimal','Booking','Tỷ lệ mất cọc khi hủy trong khoảng thời gian (30%)',1,'2025-12-05 14:47:56','ACTIVE'),(9,'BOOKING_MAJOR_MODIFICATION_MIN_HOURS','72','2025-01-01',NULL,'int','Booking','Số giờ tối thiểu trước khi bắt đầu để sửa đổi lớn (72h = 3 ngày)',1,'2025-12-05 14:47:56','ACTIVE'),(10,'BOOKING_MINOR_MODIFICATION_MIN_HOURS','24','2025-01-01',NULL,'int','Booking','Số giờ tối thiểu trước khi bắt đầu để sửa đổi nhỏ (24h = 1 ngày)',1,'2025-12-05 14:47:56','ACTIVE'),(11,'SAME_DAY_TRIP_START_HOUR','6','2025-01-01',NULL,'int','Booking','Giờ bắt đầu để tính chuyến trong ngày (6h sáng)',1,'2025-12-05 14:47:56','ACTIVE'),(12,'SAME_DAY_TRIP_END_HOUR','23','2025-01-01',NULL,'int','Booking','Giờ kết thúc để tính chuyến trong ngày (23h tối)',1,'2025-12-05 14:47:56','ACTIVE'),(13,'HOLIDAY_SURCHARGE_RATE','0.25','2025-01-01',NULL,'decimal','Pricing','Phụ thu ngày lễ (25%)',1,'2025-12-05 14:47:56','ACTIVE'),(14,'WEEKEND_SURCHARGE_RATE','0.20','2025-01-01',NULL,'decimal','Pricing','Phụ thu cuối tuần (20%)',1,'2025-12-05 14:47:56','ACTIVE'),(15,'INTER_PROVINCE_DISTANCE_KM','100','2025-01-01',NULL,'int','Pricing','Khoảng cách tối thiểu để tính liên tỉnh (km)',1,'2025-12-05 14:47:56','ACTIVE'),(16,'MAX_CONTINUOUS_DRIVING_HOURS','4','2025-01-01',NULL,'int','Driver','Tối đa giờ lái liên tục (4 giờ)',1,'2025-12-05 14:47:56','ACTIVE'),(17,'MAX_DRIVING_HOURS_PER_WEEK','48','2025-01-01',NULL,'int','Driver','Tối đa giờ lái/tuần (48 giờ)',1,'2025-12-05 14:47:56','ACTIVE'),(18,'MAX_DRIVER_LEAVE_DAYS','2','2025-01-01',NULL,'int','Driver','Số ngày nghỉ tối đa tài xế có thể xin (2 ngày)',1,'2025-12-05 14:47:56','ACTIVE'),(19,'SINGLE_DRIVER_MAX_DISTANCE_KM','300','2025-01-01',NULL,'int','Driver','Khoảng cách tối đa cho 1 tài xế (300km)',1,'2025-12-05 14:47:56','ACTIVE');
 /*!40000 ALTER TABLE `system_settings` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `trip_assignment_history`
---
-
-DROP TABLE IF EXISTS `trip_assignment_history`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `trip_assignment_history` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `action` enum('ACCEPT','ASSIGN','CANCEL','REASSIGN','UNASSIGN') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `createdAt` datetime(6) NOT NULL,
-  `note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `driverId` int DEFAULT NULL,
-  `tripId` int NOT NULL,
-  `vehicleId` int DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `FKhwtv199ytfy4jega6nh3l1kh4` (`driverId`),
-  KEY `FKae1wfffiefexi6uy5i2pfhuuw` (`tripId`),
-  KEY `FKj0e2kbcuh7oib4mrkhlivdspj` (`vehicleId`),
-  CONSTRAINT `FKae1wfffiefexi6uy5i2pfhuuw` FOREIGN KEY (`tripId`) REFERENCES `trips` (`tripId`),
-  CONSTRAINT `FKhwtv199ytfy4jega6nh3l1kh4` FOREIGN KEY (`driverId`) REFERENCES `drivers` (`driverId`),
-  CONSTRAINT `FKj0e2kbcuh7oib4mrkhlivdspj` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles` (`vehicleId`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `trip_assignment_history`
---
-
-LOCK TABLES `trip_assignment_history` WRITE;
-/*!40000 ALTER TABLE `trip_assignment_history` DISABLE KEYS */;
-INSERT INTO `trip_assignment_history` VALUES (1,'ASSIGN','2025-12-02 16:02:30.000000','Gán tài xế HN B',2,4,3),(2,'ACCEPT','2025-12-02 16:02:30.000000','Tài xế chấp nhận chuyến',2,4,3);
-/*!40000 ALTER TABLE `trip_assignment_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -869,14 +737,11 @@ CREATE TABLE `trip_drivers` (
   `tripId` int NOT NULL,
   `driverId` int NOT NULL,
   `driverRole` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'Main Driver',
-  `startTime` datetime DEFAULT NULL,
-  `endTime` datetime DEFAULT NULL,
   `note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`tripId`,`driverId`),
   KEY `IX_TripDrivers_Driver` (`driverId`,`tripId`),
   CONSTRAINT `fk_td_driver` FOREIGN KEY (`driverId`) REFERENCES `drivers` (`driverId`),
-  CONSTRAINT `fk_td_trip` FOREIGN KEY (`tripId`) REFERENCES `trips` (`tripId`),
-  CONSTRAINT `trip_drivers_chk_1` CHECK (((`startTime` is null) or (`endTime` is null) or (`startTime` < `endTime`)))
+  CONSTRAINT `fk_td_trip` FOREIGN KEY (`tripId`) REFERENCES `trips` (`tripId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -886,7 +751,7 @@ CREATE TABLE `trip_drivers` (
 
 LOCK TABLES `trip_drivers` WRITE;
 /*!40000 ALTER TABLE `trip_drivers` DISABLE KEYS */;
-INSERT INTO `trip_drivers` VALUES (2,9,'Main Driver',NULL,NULL,'HCM A chạy Trip #2'),(4,2,'Main Driver',NULL,NULL,'HN B chạy Trip #4'),(5,1,'Main Driver',NULL,NULL,'HN A chạy Trip #5'),(6,10,'Main Driver',NULL,NULL,'HCM B chạy Trip #6'),(8,11,'Main Driver',NULL,NULL,'HCM C chạy Trip #8'),(11,8,'Main Driver',NULL,NULL,'DN D chạy Trip #11'),(12,4,'Main Driver',NULL,NULL,'HN D chạy Trip #12');
+INSERT INTO `trip_drivers` VALUES (2,9,'Main Driver','HCM A chạy Trip #2'),(4,2,'Main Driver','HN B chạy Trip #4'),(5,1,'Main Driver','HN A chạy Trip #5'),(6,10,'Main Driver','HCM B chạy Trip #6'),(8,11,'Main Driver','HCM C chạy Trip #8'),(11,8,'Main Driver','DN D chạy Trip #11'),(12,4,'Main Driver','HN D chạy Trip #12'),(13,4,'Main Driver',NULL),(17,8,'Main Driver',NULL),(18,8,'Main Driver',NULL);
 /*!40000 ALTER TABLE `trip_drivers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -905,12 +770,18 @@ CREATE TABLE `trip_incidents` (
   `severity` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `driverId` int NOT NULL,
   `tripId` int NOT NULL,
+  `resolution_action` enum('CANCEL_TRIP','CONTACT_DRIVER','OTHER','REASSIGN_TRIP','SEND_EMERGENCY_SUPPORT','SEND_REPLACEMENT_VEHICLE') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `resolution_note` text COLLATE utf8mb4_unicode_ci,
+  `resolved_at` datetime(6) DEFAULT NULL,
+  `resolved_by` int DEFAULT NULL,
   PRIMARY KEY (`incidentId`),
   KEY `FKpd1vr15pph016u9lcwtkj0mol` (`driverId`),
   KEY `FKrw0wv0rtalo5l4vwis2rf4isa` (`tripId`),
+  KEY `FK32xsoudd4m90yiiksap55okri` (`resolved_by`),
+  CONSTRAINT `FK32xsoudd4m90yiiksap55okri` FOREIGN KEY (`resolved_by`) REFERENCES `users` (`userId`),
   CONSTRAINT `FKpd1vr15pph016u9lcwtkj0mol` FOREIGN KEY (`driverId`) REFERENCES `drivers` (`driverId`),
   CONSTRAINT `FKrw0wv0rtalo5l4vwis2rf4isa` FOREIGN KEY (`tripId`) REFERENCES `trips` (`tripId`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -919,7 +790,7 @@ CREATE TABLE `trip_incidents` (
 
 LOCK TABLES `trip_incidents` WRITE;
 /*!40000 ALTER TABLE `trip_incidents` DISABLE KEYS */;
-INSERT INTO `trip_incidents` VALUES (1,'2025-12-02 16:02:30.000000','Va chạm nhẹ, không thương tích',_binary '','LOW',2,4);
+INSERT INTO `trip_incidents` VALUES (1,'2025-12-02 16:02:30.000000','Va chạm nhẹ, không thương tích',_binary '','LOW',2,4,NULL,NULL,NULL,NULL),(2,'2025-12-05 09:48:45.383278','[Tai nạn giao thông] xe bị hư nên k chạy dc\nĐịa điểm: 10.031054, 105.774654',_binary '','MAJOR',8,17,NULL,NULL,NULL,NULL),(3,'2025-12-05 09:57:48.522834','[Tai nạn giao thông] té gãy tay r help help t\nĐịa điểm: 10.318867, 105.043249',_binary '','CRITICAL',8,17,'CONTACT_DRIVER',NULL,'2025-12-05 14:53:57.846963',15),(4,'2025-12-05 10:08:24.676050','[Tai nạn giao thông] ádasdasdasdasdasdasfdv\nĐịa điểm: 10.409431, 106.653762',_binary '','MAJOR',8,17,'OTHER','đợi xíu đi bro','2025-12-05 15:07:00.745181',15);
 /*!40000 ALTER TABLE `trip_incidents` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -942,7 +813,7 @@ CREATE TABLE `trip_vehicles` (
   KEY `IX_TripVehicles_Vehicle` (`vehicleId`,`tripId`),
   CONSTRAINT `fk_tv_trip` FOREIGN KEY (`tripId`) REFERENCES `trips` (`tripId`),
   CONSTRAINT `fk_tv_vehicle` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles` (`vehicleId`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -951,7 +822,7 @@ CREATE TABLE `trip_vehicles` (
 
 LOCK TABLES `trip_vehicles` WRITE;
 /*!40000 ALTER TABLE `trip_vehicles` DISABLE KEYS */;
-INSERT INTO `trip_vehicles` VALUES (2,2,7,'2025-12-02 16:02:30','Gán Limousine HCM cho Trip #2'),(4,4,3,'2025-12-02 16:02:30','Gán Samco cho Trip #4'),(5,5,1,'2025-12-02 16:02:30','Gán DCar cho Trip #5'),(6,6,9,'2025-12-02 16:02:30','Gán Mobihome cho Trip #6'),(8,8,8,'2025-12-02 16:02:30','Gán County cho Trip #8'),(10,10,7,'2025-12-02 16:02:30','Gán Limousine HCM cho Trip #10'),(11,11,6,'2025-12-02 16:02:30','Gán Universe cho Trip #11'),(12,12,1,'2025-12-02 16:02:30','Gán DCar cho Trip #12');
+INSERT INTO `trip_vehicles` VALUES (2,2,7,'2025-12-02 16:02:30','Gán Limousine HCM cho Trip #2'),(4,4,3,'2025-12-02 16:02:30','Gán Samco cho Trip #4'),(5,5,1,'2025-12-02 16:02:30','Gán DCar cho Trip #5'),(6,6,9,'2025-12-02 16:02:30','Gán Mobihome cho Trip #6'),(8,8,8,'2025-12-02 16:02:30','Gán County cho Trip #8'),(10,10,7,'2025-12-02 16:02:30','Gán Limousine HCM cho Trip #10'),(11,11,6,'2025-12-02 16:02:30','Gán Universe cho Trip #11'),(12,12,1,'2025-12-02 16:02:30','Gán DCar cho Trip #12'),(13,13,1,'2025-12-05 08:25:19',NULL),(14,17,4,'2025-12-05 08:34:29',NULL),(15,18,4,'2025-12-05 08:48:00',NULL);
 /*!40000 ALTER TABLE `trip_vehicles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -971,26 +842,15 @@ CREATE TABLE `trips` (
   `startLocation` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `endLocation` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `distance` decimal(10,2) DEFAULT NULL COMMENT 'Distance in kilometers from SerpAPI',
-  `startLatitude` decimal(10,8) DEFAULT NULL COMMENT 'Start location latitude',
-  `startLongitude` decimal(11,8) DEFAULT NULL COMMENT 'Start location longitude',
-  `endLatitude` decimal(10,8) DEFAULT NULL COMMENT 'End location latitude',
-  `endLongitude` decimal(11,8) DEFAULT NULL COMMENT 'End location longitude',
-  `estimatedDuration` int DEFAULT NULL COMMENT 'Estimated duration in minutes from SerpAPI',
-  `actualDuration` int DEFAULT NULL COMMENT 'Actual duration in minutes after completed',
-  `routeData` json DEFAULT NULL COMMENT 'Detailed route information from SerpAPI',
   `trafficStatus` enum('LIGHT','MODERATE','HEAVY','UNKNOWN') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'UNKNOWN' COMMENT 'Traffic status at booking time',
-  `incidentalCosts` decimal(10,2) DEFAULT '0.00',
   `status` enum('SCHEDULED','ASSIGNED','ONGOING','COMPLETED','CANCELLED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'SCHEDULED',
   PRIMARY KEY (`tripId`),
   KEY `IX_Trips_BookingId` (`bookingId`),
   KEY `IX_Trips_Status_Start` (`status`,`startTime`),
   KEY `IX_Trips_Distance` (`distance`),
-  KEY `IX_Trips_StartLocation_Coords` (`startLatitude`,`startLongitude`),
-  KEY `IX_Trips_EndLocation_Coords` (`endLatitude`,`endLongitude`),
-  KEY `IX_Trips_EstimatedDuration` (`estimatedDuration`),
   CONSTRAINT `fk_trip_booking` FOREIGN KEY (`bookingId`) REFERENCES `bookings` (`bookingId`),
   CONSTRAINT `trips_chk_1` CHECK (((`startTime` is null) or (`endTime` is null) or (`startTime` < `endTime`)))
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -999,7 +859,7 @@ CREATE TABLE `trips` (
 
 LOCK TABLES `trips` WRITE;
 /*!40000 ALTER TABLE `trips` DISABLE KEYS */;
-INSERT INTO `trips` VALUES (2,2,0,'2025-12-02 16:02:30',NULL,'Quận 1, TP. HCM','Ninh Bình',95.00,NULL,NULL,NULL,NULL,120,NULL,NULL,'LIGHT',0.00,'ASSIGNED'),(4,4,0,'2025-12-02 16:02:30',NULL,'KCN Thăng Long','Nội thành Hà Nội',30.00,NULL,NULL,NULL,NULL,60,NULL,NULL,'HEAVY',0.00,'ONGOING'),(5,5,1,'2025-12-01 16:02:30',NULL,'Times City, Hà Nội','Sân bay Nội Bài',45.00,NULL,NULL,NULL,NULL,90,NULL,NULL,'MODERATE',0.00,'ASSIGNED'),(6,6,1,'2025-12-02 16:02:30',NULL,'Quận 10, TP. HCM','Cần Thơ',180.00,NULL,NULL,NULL,NULL,240,NULL,NULL,'UNKNOWN',0.00,'SCHEDULED'),(8,8,0,'2025-12-02 16:02:30',NULL,'Quận 7, TP. HCM','Quận 1, TP. HCM',20.00,NULL,NULL,NULL,NULL,40,NULL,NULL,'LIGHT',0.00,'ASSIGNED'),(10,2,1,'2025-12-02 16:02:30',NULL,'TP. HCM','Ninh Bình',95.00,NULL,NULL,NULL,NULL,120,NULL,NULL,'MODERATE',0.00,'SCHEDULED'),(11,6,1,'2025-12-02 16:02:30',NULL,'Cần Thơ','Bến Tre',160.00,NULL,NULL,NULL,NULL,210,NULL,NULL,'UNKNOWN',0.00,'SCHEDULED'),(12,5,1,'2025-12-01 16:02:30',NULL,'Hà Nội','Vĩnh Phúc',75.00,NULL,NULL,NULL,NULL,120,NULL,NULL,'LIGHT',0.00,'ASSIGNED'),(13,10,0,'2025-12-03 09:22:00',NULL,'Hoàn Kiếm Lake, Hoàn Kiếm Lake, Hanoi, Vietnam','Trung Tâm, Trung Tâm, Lâm Đồng Province, Vietnam',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'UNKNOWN',NULL,'SCHEDULED');
+INSERT INTO `trips` VALUES (2,2,0,'2025-12-02 16:02:30',NULL,'Quận 1, TP. HCM','Ninh Bình',95.00,'LIGHT','ASSIGNED'),(4,4,0,'2025-12-02 16:02:30',NULL,'KCN Thăng Long','Nội thành Hà Nội',30.00,'HEAVY','ONGOING'),(5,5,1,'2025-12-01 16:02:30',NULL,'Times City, Hà Nội','Sân bay Nội Bài',45.00,'MODERATE','ASSIGNED'),(6,6,1,'2025-12-02 16:02:30',NULL,'Quận 10, TP. HCM','Cần Thơ',180.00,'UNKNOWN','SCHEDULED'),(8,8,0,'2025-12-02 16:02:30',NULL,'Quận 7, TP. HCM','Quận 1, TP. HCM',20.00,'LIGHT','ASSIGNED'),(10,2,1,'2025-12-02 16:02:30',NULL,'TP. HCM','Ninh Bình',95.00,'MODERATE','SCHEDULED'),(11,6,1,'2025-12-02 16:02:30',NULL,'Cần Thơ','Bến Tre',160.00,'UNKNOWN','SCHEDULED'),(12,5,1,'2025-12-01 16:02:30',NULL,'Hà Nội','Vĩnh Phúc',75.00,'LIGHT','ASSIGNED'),(13,10,0,'2025-12-03 09:22:00',NULL,'Hoàn Kiếm Lake, Hoàn Kiếm Lake, Hanoi, Vietnam','Trung Tâm, Trung Tâm, Lâm Đồng Province, Vietnam',NULL,'UNKNOWN','ASSIGNED'),(14,11,0,'2025-12-18 00:00:00','2025-12-26 00:00:00','Can Tho International Airport, Can Tho International Airport, Nguyễn Chí Thanh, Cần Thơ, Vietnam','Bến phà Ninh Kiều, Bến phà Ninh Kiều, Hai Bà Trưng, Cần Thơ, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(15,12,0,'2025-12-11 08:24:00','2025-12-11 10:24:00','Bắc Giang Province, Bắc Giang Province, Bac Ninh Province, Vietnam','An Giang Province, An Giang Province, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(16,13,0,'2025-12-05 10:31:00','2025-12-05 12:31:00','Hanoi Train Station, Hanoi Train Station, Le Duan Road, Hanoi, Hà Nội, Vietnam','Xã An Ninh, Xã An Ninh, Tây Ninh Province, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(17,14,0,'2025-12-05 12:33:00','2025-12-13 08:33:00','Giang Thành District, Giang Thành District, An Giang Province, Vietnam','Tây Ninh Province, Tây Ninh Province, Vietnam',NULL,'UNKNOWN','ASSIGNED'),(18,15,0,'2025-12-14 08:47:00','2025-12-14 10:47:00','Phường Sóc Trăng, Phường Sóc Trăng, Cần Thơ, Vietnam','Đức Phổ, Đức Phổ, Quang Ngai province, Vietnam',NULL,'UNKNOWN','ASSIGNED'),(19,16,0,'2025-12-06 01:00:00','2025-12-06 03:00:00','Hẻm 95 Mậu Thân, Hẻm 95 Mậu Thân, Cần Thơ, Vietnam','Cổng A Đại học Cần Thơ, Cổng A Đại học Cần Thơ, Đường 3 Tháng 2, Cần Thơ, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(20,17,0,'2025-12-08 17:26:00','2025-12-08 19:26:00','Hẻm 95 Mậu Thân, Hẻm 95 Mậu Thân, Cần Thơ, Vietnam','Trường Đại học Cần Thơ, Trường Đại học Cần Thơ, Đường 30 Tháng 4, Cần Thơ, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(21,18,0,'2025-12-18 17:36:00','2025-12-18 19:36:00','Hẻm 95 Mậu Thân, Hẻm 95 Mậu Thân, Cần Thơ, Vietnam','Trường Đại học Cần Thơ, Trường Đại học Cần Thơ, Đường 30 Tháng 4, Cần Thơ, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(22,19,0,'2025-12-13 08:33:00','2025-12-13 17:43:00','Đại học FPT Cần Thơ, Đại học FPT Cần Thơ, Nguyễn Văn Cừ, Cần Thơ, Vietnam','Đại học Nam Cần Thơ, Đại học Nam Cần Thơ, Nguyễn Văn Cừ, Cần Thơ, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(23,20,0,'2025-12-07 17:59:00','2025-12-09 17:59:00','Hanoi, Hanoi, Vietnam','Cà Mau, Cà Mau, Cà Mau Province, Vietnam',NULL,'UNKNOWN','SCHEDULED'),(24,20,0,'2025-12-09 17:59:00','2025-12-11 17:59:00','Cà Mau, Cà Mau, Cà Mau Province, Vietnam','Hanoi, Hanoi, Vietnam',NULL,'UNKNOWN','SCHEDULED');
 /*!40000 ALTER TABLE `trips` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1037,7 +897,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,1,'Admin Tổng','admin','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','admin@ptcmss.com','0900000001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(2,2,'Manager HN','manager_hn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','manager.hn@ptcmss.com','0900001001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(3,3,'Consultant HN 1','consultant_hn1','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c1.hn@ptcmss.com','0900001002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(4,3,'Consultant HN 2','consultant_hn2','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c2.hn@ptcmss.com','0900001003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(5,5,'Accountant HN','accountant_hn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','acc.hn@ptcmss.com','0900001004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(6,6,'Coordinator HN','coord_hn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','coord.hn@ptcmss.com','0900001005',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(7,4,'Tài xế HN A','driver_hn_a','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.a@ptcmss.com','0912345001',NULL,'ok sssssssA','ACTIVE',1,NULL,'2025-12-02 16:02:30'),(8,4,'Tài xế HN B','driver_hn_b','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.b@ptcmss.com','0912345002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(9,4,'Tài xế HN C','driver_hn_c','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.c@ptcmss.com','0912345003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(10,4,'Tài xế HN D','driver_hn_d','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.d@ptcmss.com','0912345004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(11,2,'Manager DN','manager_dn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','manager.dn@ptcmss.com','0900002001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(12,3,'Consultant DN 1','consultant_dn1','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c1.dn@ptcmss.com','0900002002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(13,3,'Consultant DN 2','consultant_dn2','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c2.dn@ptcmss.com','0900002003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(14,5,'Accountant DN','accountant_dn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','acc.dn@ptcmss.com','0900002004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(15,6,'Coordinator DN','coord_dn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','coord.dn@ptcmss.com','0900002005',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(16,4,'Tài xế DN A','driver_dn_a','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.a@ptcmss.com','0912345101',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(17,4,'Tài xế DN B','driver_dn_b','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.b@ptcmss.com','0912345102',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(18,4,'Tài xế DN C','driver_dn_c','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.c@ptcmss.com','0912345103',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(19,4,'Tài xế DN D','driver_dn_d','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.d@ptcmss.com','0912345104',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(20,2,'Manager HCM','manager_hcm','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','manager.hcm@ptcmss.com','0900003001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(21,3,'Consultant HCM 1','consultant_hcm1','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c1.hcm@ptcmss.com','0900003002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(22,3,'Consultant HCM 2','consultant_hcm2','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c2.hcm@ptcmss.com','0900003003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(23,5,'Accountant HCM','accountant_hcm','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','acc.hcm@ptcmss.com','0900003004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(24,6,'Coordinator HCM','coord_hcm','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','coord.hcm@ptcmss.com','0900003005',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(25,4,'Tài xế HCM A','driver_hcm_a','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.a@ptcmss.com','0912345201',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(26,4,'Tài xế HCM B','driver_hcm_b','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.b@ptcmss.com','0912345202',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(27,4,'Tài xế HCM C','driver_hcm_c','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.c@ptcmss.com','0912345203',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(28,4,'Tài xế HCM D','driver_hcm_d','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.d@ptcmss.com','0912345204',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30');
+INSERT INTO `users` VALUES (1,1,'Admin Tổng','admin','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','admin@ptcmss.com','0900000001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(2,2,'Manager HN','manager_hn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','manager.hn@ptcmss.com','0900001001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(3,3,'Consultant HN 1','consultant_hn1','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c1.hn@ptcmss.com','0900001002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(4,3,'Consultant HN 2','consultant_hn2','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c2.hn@ptcmss.com','0900001003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(5,5,'Accountant HN','accountant_hn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','acc.hn@ptcmss.com','0900001004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(6,6,'Coordinator HN','coord_hn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','coord.hn@ptcmss.com','0900001005',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(7,4,'Tài xế HN A','driver_hn_a','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.a@ptcmss.com','0912345001',NULL,'ok sssssssA','ACTIVE',1,NULL,'2025-12-02 16:02:30'),(8,4,'Tài xế HN B','driver_hn_b','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.b@ptcmss.com','0912345002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(9,4,'Tài xế HN C','driver_hn_c','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.c@ptcmss.com','0912345003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(10,4,'Tài xế HN D','driver_hn_d','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hn.d@ptcmss.com','0912345004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(11,2,'Manager DN','manager_dn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','manager.dn@ptcmss.com','0900002001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(12,3,'Consultant DN 1','consultant_dn1','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c1.dn@ptcmss.com','0900002002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(13,3,'Consultant DN 2','consultant_dn2','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c2.dn@ptcmss.com','0900002003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(14,5,'Accountant DN','accountant_dn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','acc.dn@ptcmss.com','0900002004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(15,6,'Coordinator DN','coord_dn','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','coord.dn@ptcmss.com','0900002005',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(16,4,'Tài xế DN A','driver_dn_a','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.a@ptcmss.com','0912345101',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(17,4,'Tài xế DN B','driver_dn_b','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.b@ptcmss.com','0912345102',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(18,4,'Tài xế DN C','driver_dn_c','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.c@ptcmss.com','0912345103',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(19,4,'Tài xế DN D','driver_dn_d','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.dn.d@ptcmss.com','0912345104','/uploads/62da70b7-9c0c-4d37-b7ec-7e33f1fe4145_7309bef7-e6b6-4cf1-a1f2-9b255e671da0.jpg',NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(20,2,'Manager HCM','manager_hcm','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','manager.hcm@ptcmss.com','0900003001',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(21,3,'Consultant HCM 1','consultant_hcm1','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c1.hcm@ptcmss.com','0900003002',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(22,3,'Consultant HCM 2','consultant_hcm2','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','c2.hcm@ptcmss.com','0900003003',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(23,5,'Accountant HCM','accountant_hcm','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','acc.hcm@ptcmss.com','0900003004',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(24,6,'Coordinator HCM','coord_hcm','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','coord.hcm@ptcmss.com','0900003005',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(25,4,'Tài xế HCM A','driver_hcm_a','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.a@ptcmss.com','0912345201',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(26,4,'Tài xế HCM B','driver_hcm_b','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.b@ptcmss.com','0912345202',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(27,4,'Tài xế HCM C','driver_hcm_c','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.c@ptcmss.com','0912345203',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30'),(28,4,'Tài xế HCM D','driver_hcm_d','$2a$10$6GS3l5b0VDGXI9dm3GaPN.1uGCEbwXExR.uJEHp9KmeduOZmEq3HC','driver.hcm.d@ptcmss.com','0912345204',NULL,NULL,'ACTIVE',1,NULL,'2025-12-02 16:02:30');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1122,7 +982,7 @@ CREATE TABLE `vehicle_category_pricing` (
 
 LOCK TABLES `vehicle_category_pricing` WRITE;
 /*!40000 ALTER TABLE `vehicle_category_pricing` DISABLE KEYS */;
-INSERT INTO `vehicle_category_pricing` VALUES (1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',900000.00,15000.00,100000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL),(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',1100000.00,30000.00,300000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,2500000.00),(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',1800000.00,40000.00,150000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,3000000.00),(4,'Xe 45 chỗ',45,'Hyundai Universe',2500000.00,50000.00,200000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL),(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',3000000.00,30000.00,250000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,NULL);
+INSERT INTO `vehicle_category_pricing` VALUES (1,'Xe 9 chỗ (Limousine)',9,'DCar/Solati Limousine',200000.00,15000.00,NULL,NULL,NULL,'ACTIVE','2025-12-02 16:02:30',NULL,NULL,30000.00),(2,'Xe 16 chỗ',16,'Ford Transit, Mercedes Sprinter',400000.00,30000.00,300000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,2500000.00),(3,'Xe 29 chỗ',29,'Hyundai County, Samco Isuzu',600000.00,40000.00,150000.00,0.00,'2025-12-02','ACTIVE','2025-12-02 16:02:30',0,0.00,3000000.00),(4,'Xe 45 chỗ',45,'Hyundai Universe',800000.00,50000.00,NULL,NULL,NULL,'ACTIVE','2025-12-02 16:02:30',NULL,NULL,30000.00),(5,'Xe giường nằm (40 chỗ)',40,'Xe giường nằm Thaco/Hyundai',1000000.00,30000.00,NULL,NULL,NULL,'ACTIVE','2025-12-02 16:02:30',NULL,NULL,30000.00);
 /*!40000 ALTER TABLE `vehicle_category_pricing` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1230,4 +1090,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 21:47:42
+-- Dump completed on 2025-12-06  2:31:39

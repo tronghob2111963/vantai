@@ -26,6 +26,7 @@ import org.example.ptcmssbackend.enums.TripStatus;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.ApprovalService;
 import org.example.ptcmssbackend.service.DriverService;
+import org.example.ptcmssbackend.service.WebSocketNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +34,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +53,7 @@ public class DriverServiceImpl implements DriverService {
     private final DriverRatingsRepository driverRatingsRepository;
     private final org.example.ptcmssbackend.service.GraphHopperService graphHopperService;
     private final org.example.ptcmssbackend.repository.InvoiceRepository invoiceRepository;
+    private final WebSocketNotificationService webSocketNotificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -345,6 +346,7 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional
     public DriverDayOffResponse requestDayOff(Integer driverId, DriverDayOffRequest request) {
         log.info("[DriverDayOff] Request day off for driver {}", driverId);
         var driver = driverRepository.findById(driverId)
@@ -358,22 +360,24 @@ public class DriverServiceImpl implements DriverService {
         dayOff.setStatus(DriverDayOffStatus.PENDING);
 
         var saved = driverDayOffRepository.save(dayOff);
-        
-        // Tạo approval request để điều phối viên duyệt
-        try {
-            var user = driver.getEmployee().getUser();
-            var branch = driver.getBranch();
-            approvalService.createApprovalRequest(
-                    ApprovalType.DRIVER_DAY_OFF,
-                    saved.getId(),
-                    user,
-                    request.getReason(),
-                    branch
-            );
-            log.info("[DriverDayOff] Created approval request for day off {}", saved.getId());
-        } catch (Exception e) {
-            log.error("[DriverDayOff] Failed to create approval request: {}", e.getMessage());
+
+        // Tạo approval request để điều phối viên duyệt (rollback nếu thiếu thông tin bắt buộc)
+        var employee = driver.getEmployee();
+        var user = employee != null ? employee.getUser() : null;
+        var branch = driver.getBranch();
+        if (user == null || branch == null) {
+            log.error("[DriverDayOff] Missing user or branch for driver {}, cannot create approval", driverId);
+            throw new RuntimeException("Không thể tạo yêu cầu phê duyệt vì thiếu thông tin tài xế/chi nhánh");
         }
+
+        approvalService.createApprovalRequest(
+                ApprovalType.DRIVER_DAY_OFF,
+                saved.getId(),
+                user,
+                request.getReason(),
+                branch
+        );
+        log.info("[DriverDayOff] Created approval request for day off {}", saved.getId());
         
         return new DriverDayOffResponse(saved);
     }
@@ -500,6 +504,54 @@ public class DriverServiceImpl implements DriverService {
 
         var saved = tripIncidentRepository.save(incident);
 
+        // Notify coordinators cùng chi nhánh qua websocket
+        try {
+            Integer branchId = trip.getBooking() != null && trip.getBooking().getBranch() != null
+                    ? trip.getBooking().getBranch().getId()
+                    : null;
+
+            String title = "Báo cáo sự cố chuyến " + request.getTripId();
+            String msg = "Tài xế " + driver.getId() + " báo: " + request.getDescription();
+
+            if (branchId != null) {
+                var coordinators = employeeRepository.findByRoleNameAndBranchId("Coordinator", branchId);
+                var managers = employeeRepository.findByRoleNameAndBranchId("Manager", branchId);
+
+                java.util.Set<Integer> notifiedUserIds = new java.util.HashSet<>();
+
+                if (coordinators != null) {
+                    coordinators.stream()
+                            .filter(e -> e.getUser() != null)
+                            .forEach(e -> {
+                                Integer uid = e.getUser().getId();
+                                if (notifiedUserIds.add(uid)) {
+                                    webSocketNotificationService.sendUserNotification(uid, title, msg, "WARN");
+                                }
+                            });
+                }
+
+                if (managers != null) {
+                    managers.stream()
+                            .filter(e -> e.getUser() != null)
+                            .forEach(e -> {
+                                Integer uid = e.getUser().getId();
+                                if (notifiedUserIds.add(uid)) {
+                                    webSocketNotificationService.sendUserNotification(uid, title, msg, "WARN");
+                                }
+                            });
+                }
+
+                if (notifiedUserIds.isEmpty()) {
+                    // fallback: gửi global nếu không tìm thấy điều phối/manager
+                    webSocketNotificationService.sendGlobalNotification(title, msg, "WARN");
+                }
+            } else {
+                webSocketNotificationService.sendGlobalNotification(title, msg, "WARN");
+            }
+        } catch (Exception e) {
+            log.warn("[TripIncident] Failed to send websocket notification for trip {}: {}", request.getTripId(), e.getMessage());
+        }
+
         return new TripIncidentResponse(saved);
     }
 
@@ -538,8 +590,9 @@ public class DriverServiceImpl implements DriverService {
     public List<DriverResponse> getDriversByBranchId(Integer branchId) {
         log.info("[Driver] Get drivers by branch {}", branchId);
 
-        var branch = branchRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh"));
+        if (!branchRepository.existsById(branchId)) {
+            throw new RuntimeException("Không tìm thấy chi nhánh");
+        }
         return driverRepository.findAllByBranchId(branchId);
     }
 }

@@ -161,6 +161,9 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
                     saved.getId(), syncErr.getMessage(), syncErr);
         }
         
+        // Cập nhật notification ban đầu gửi cho accountants
+        updateAccountantNotifications(saved, "APPROVED", note);
+        
         // Gửi notification cho requester (Driver/Coordinator) khi được duyệt
         sendNotificationToRequester(saved, "APPROVED", "Yêu cầu chi phí của bạn đã được duyệt");
         
@@ -199,6 +202,9 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
                     saved.getId(), syncErr.getMessage(), syncErr);
         }
         
+        // Cập nhật notification ban đầu gửi cho accountants
+        updateAccountantNotifications(saved, "REJECTED", note);
+        
         // Gửi notification cho requester (Driver/Coordinator) khi bị từ chối
         sendNotificationToRequester(saved, "REJECTED", "Yêu cầu chi phí của bạn đã bị từ chối");
         
@@ -233,8 +239,10 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
                     Notifications notification = new Notifications();
                     notification.setUser(accountant.getUser());
                     notification.setTitle("Yêu cầu thanh toán chi phí mới");
+                    // Thêm expense request ID vào message để dễ dàng tìm và cập nhật sau này
                     notification.setMessage(String.format(
-                            "Có yêu cầu thanh toán %s - %s từ %s cần duyệt.",
+                            "[ID:%d] Có yêu cầu thanh toán %s - %s từ %s cần duyệt.",
+                            expenseRequest.getId(),
                             expenseType,
                             amountStr,
                             requesterName
@@ -261,6 +269,91 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
         } catch (Exception e) {
             // Không throw exception để không ảnh hưởng đến flow chính
             log.error("[ExpenseRequest] Error sending notifications to accountants: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Cập nhật notification ban đầu gửi cho accountants khi yêu cầu được duyệt/từ chối
+     */
+    private void updateAccountantNotifications(ExpenseRequests expenseRequest, String status, String note) {
+        try {
+            Integer branchId = expenseRequest.getBranch() != null ? expenseRequest.getBranch().getId() : null;
+            if (branchId == null) {
+                log.warn("[ExpenseRequest] Cannot update notifications: branchId is null");
+                return;
+            }
+
+            // Tìm tất cả Accountants trong chi nhánh
+            List<Employees> accountants = employeeRepository.findByRoleNameAndBranchId("Accountant", branchId);
+            
+            String requesterName = expenseRequest.getRequester() != null 
+                    ? expenseRequest.getRequester().getFullName() 
+                    : "Người dùng";
+            String expenseType = getExpenseTypeLabel(expenseRequest.getType());
+            String amountStr = formatVND(expenseRequest.getAmount());
+            
+            // Tìm và cập nhật notification ban đầu
+            for (Employees accountant : accountants) {
+                if (accountant.getUser() != null && accountant.getUser().getId() != null) {
+                    Integer accountantUserId = accountant.getUser().getId();
+                    
+                    // Tìm notification có title "Yêu cầu thanh toán chi phí mới" và message chứa expense request ID
+                    List<Notifications> notifications = notificationRepository.findByUser_IdOrderByCreatedAtDesc(accountantUserId);
+                    String expenseRequestIdMarker = "[ID:" + expenseRequest.getId() + "]";
+                    for (Notifications notification : notifications) {
+                        // Kiểm tra xem notification có liên quan đến expense request này không (dựa trên ID trong message)
+                        if ("Yêu cầu thanh toán chi phí mới".equals(notification.getTitle()) &&
+                            notification.getMessage() != null &&
+                            notification.getMessage().contains(expenseRequestIdMarker) &&
+                            !notification.getIsRead()) { // Chỉ cập nhật notification chưa đọc
+                            
+                            // Cập nhật title và message
+                            if ("APPROVED".equals(status)) {
+                                notification.setTitle("Yêu cầu thanh toán đã được duyệt");
+                                String newMessage = String.format(
+                                        "[ID:%d] Yêu cầu thanh toán %s - %s từ %s đã được duyệt.",
+                                        expenseRequest.getId(), expenseType, amountStr, requesterName
+                                );
+                                if (note != null && !note.isEmpty()) {
+                                    newMessage += " Ghi chú: " + note;
+                                }
+                                notification.setMessage(newMessage);
+                            } else if ("REJECTED".equals(status)) {
+                                notification.setTitle("Yêu cầu thanh toán đã bị từ chối");
+                                String newMessage = String.format(
+                                        "[ID:%d] Yêu cầu thanh toán %s - %s từ %s đã bị từ chối.",
+                                        expenseRequest.getId(), expenseType, amountStr, requesterName
+                                );
+                                if (note != null && !note.isEmpty()) {
+                                    newMessage += " Lý do: " + note;
+                                }
+                                notification.setMessage(newMessage);
+                            }
+                            
+                            notificationRepository.save(notification);
+                            
+                            // Gửi WebSocket notification để cập nhật real-time
+                            webSocketNotificationService.sendUserNotification(
+                                    accountantUserId,
+                                    notification.getTitle(),
+                                    notification.getMessage(),
+                                    "EXPENSE_REQUEST_" + status
+                            );
+                            
+                            log.debug("[ExpenseRequest] Updated notification for accountant: {}", accountant.getUser().getUsername());
+                            break; // Chỉ cập nhật notification đầu tiên tìm thấy
+                        }
+                    }
+                }
+            }
+            
+            if (!accountants.isEmpty()) {
+                log.info("[ExpenseRequest] Updated notifications for {} accountants about expense request #{} - status: {}", 
+                        accountants.size(), expenseRequest.getId(), status);
+            }
+        } catch (Exception e) {
+            // Không throw exception để không ảnh hưởng đến flow chính
+            log.error("[ExpenseRequest] Error updating accountant notifications: {}", e.getMessage(), e);
         }
     }
 
