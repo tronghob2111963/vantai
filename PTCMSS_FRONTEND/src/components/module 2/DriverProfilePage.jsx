@@ -562,7 +562,7 @@ export default function DriverProfilePage() {
                         : "bg-slate-400 text-white"
                     )}
                   >
-                    {status === "ACTIVE" ? "ON" : "OFF"}
+                    {/* {status === "ACTIVE" ? "ON" : "OFF"} */}
                   </span>
                 </div>
 
