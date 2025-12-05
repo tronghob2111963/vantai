@@ -292,6 +292,49 @@ class BookingServiceImplTest {
         verify(tripRepository, never()).save(any());
     }
 
+    @Test
+    void getById_whenBookingExists_shouldReturnBookingResponse() {
+        // Given
+        Integer bookingId = 1;
+        org.example.ptcmssbackend.entity.Bookings booking = new org.example.ptcmssbackend.entity.Bookings();
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.PENDING);
+        
+        Branches branch = new Branches();
+        branch.setId(1);
+        branch.setBranchName("Chi nhánh Hà Nội");
+        booking.setBranch(branch);
+        
+        org.example.ptcmssbackend.entity.Customers customer = new org.example.ptcmssbackend.entity.Customers();
+        customer.setId(1);
+        customer.setFullName("Nguyễn Văn A");
+        booking.setCustomer(customer);
+        
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.of(booking));
+        when(tripRepository.findByBooking_Id(bookingId)).thenReturn(Collections.emptyList());
+        when(bookingVehicleDetailsRepository.findByBookingId(bookingId)).thenReturn(Collections.emptyList());
+
+        // When
+        var response = bookingService.getById(bookingId);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(bookingId);
+        verify(bookingRepository).findById(bookingId);
+    }
+
+    @Test
+    void getById_whenBookingNotFound_shouldThrowException() {
+        // Given
+        Integer bookingId = 999;
+        when(bookingRepository.findById(bookingId)).thenReturn(java.util.Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> bookingService.getById(bookingId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy đơn hàng");
+    }
+
     private Vehicles createVehicle(int id) {
         Vehicles vehicle = new Vehicles();
         vehicle.setId(id);
