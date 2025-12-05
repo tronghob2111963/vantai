@@ -23,6 +23,7 @@ import {
     AlertTriangle,
     Save,
     X,
+    Gauge,
 } from "lucide-react";
 
 /**
@@ -432,6 +433,20 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false, isC
                             disabled={readOnly}
                         />
                     </div>
+
+                    {/* Odometer (Quãng đường đã chạy) - Read-only */}
+                    <div>
+                        <div className="text-[12px] text-slate-600 mb-1">
+                            Quãng đường đã chạy (km)
+                        </div>
+                        <input
+                            type="text"
+                            className="rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-[13px] text-slate-500 font-medium cursor-not-allowed w-full"
+                            value={form.odometer != null ? form.odometer.toLocaleString("vi-VN") : "—"}
+                            readOnly
+                            disabled
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -467,6 +482,18 @@ function VehicleProfileTab({ form, setForm, onSave, dirty, readOnly = false, isC
                             </span>
                         </span>
                     </div>
+
+                    {form.odometer != null && (
+                        <div className="flex items-center gap-1 text-slate-600">
+                            <Gauge className="h-3.5 w-3.5 text-emerald-500" />
+                            <span>
+                                Quãng đường:{" "}
+                                <span className="text-slate-800 font-medium">
+                                    {form.odometer.toLocaleString("vi-VN")} km
+                                </span>
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -789,6 +816,7 @@ export default function VehicleDetailPage() {
         model: "",
         year: "",
         capacity: null,
+        odometer: null,
         reg_due_date: "",
         ins_due_date: "",
         _branchOptions: [],
@@ -833,6 +861,7 @@ export default function VehicleDetailPage() {
                     model: v.model || "",
                     year: v.productionYear != null ? String(v.productionYear) : "",
                     capacity: finalCapacity,
+                    odometer: v.odometer != null ? Number(v.odometer) : null,
                     reg_due_date: v.inspectionExpiry || "",
                     ins_due_date: v.insuranceExpiry || "",
                     _branchOptions: brs.map(b => ({ id: b.id, name: b.branchName || b.name || b.branch_name })),
@@ -1007,9 +1036,9 @@ export default function VehicleDetailPage() {
         } else if (activeTab === "COSTS" && vehicleId) {
             // Always reload when switching to COSTS tab to ensure fresh data
             console.log("🔍 [VehicleDetailPage] Switching to COSTS tab, loading expenses and maintenance");
-            loadExpenses();
-            loadMaintenance();
-        }
+                loadExpenses();
+                loadMaintenance();
+            }
     }, [activeTab, vehicleId, tripsData.length, loadTrips, loadExpenses, loadMaintenance]);
 
     // Combine expenses and maintenance for COSTS tab
@@ -1064,6 +1093,7 @@ export default function VehicleDetailPage() {
                 model: vehicleForm.model,
                 year: vehicleForm.year,
                 capacity: vehicleForm.capacity != null ? Number(vehicleForm.capacity) : null,
+                // odometer không được update (chỉ đọc)
                 reg_due_date: vehicleForm.reg_due_date,
                 ins_due_date: vehicleForm.ins_due_date,
             });

@@ -66,7 +66,6 @@ public class DispatchServiceImpl implements DispatchService {
     private final VehicleRepository vehicleRepository;
     private final DriverDayOffRepository driverDayOffRepository;
     private final BookingService bookingService; // để tái dùng hàm assign của BookingService
-    private final TripAssignmentHistoryRepository tripAssignmentHistoryRepository;
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     private final SystemSettingService systemSettingService;
     private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
@@ -1510,29 +1509,6 @@ public class DispatchServiceImpl implements DispatchService {
             vehicleModel = v.getModel();
         }
 
-        // Lịch sử điều phối
-        List<TripAssignmentHistory> histories =
-                tripAssignmentHistoryRepository.findByTrip_IdOrderByCreatedAtDesc(tripId);
-
-        List<TripDetailResponse.AssignmentHistoryItem> historyItems =
-                histories.stream().map(h -> {
-                    String hDriverName = null;
-                    String hVehiclePlate = null;
-                    if (h.getDriver() != null && h.getDriver().getEmployee() != null
-                            && h.getDriver().getEmployee().getUser() != null) {
-                        hDriverName = h.getDriver().getEmployee().getUser().getFullName();
-                    }
-                    if (h.getVehicle() != null) {
-                        hVehiclePlate = h.getVehicle().getLicensePlate();
-                    }
-                    return TripDetailResponse.AssignmentHistoryItem.builder()
-                            .time(h.getCreatedAt())
-                            .action(h.getAction())
-                            .driverName(hDriverName)
-                            .vehiclePlate(hVehiclePlate)
-                            .note(h.getNote())
-                            .build();
-                }).collect(Collectors.toList());
 
         // Tính số tiền còn lại cần thanh toán
         // Sử dụng cùng logic với BookingServiceImpl để đảm bảo nhất quán
@@ -1584,7 +1560,6 @@ public class DispatchServiceImpl implements DispatchService {
                 .remainingAmount(remainingAmount)
                 .rating(rating)
                 .ratingComment(ratingComment)
-                .history(historyItems)
                 .build();
     }
 

@@ -40,8 +40,6 @@ class DispatchServiceImplTest {
     @Mock
     private BookingService bookingService;
     @Mock
-    private TripAssignmentHistoryRepository tripAssignmentHistoryRepository;
-    @Mock
     private org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     @Mock
     private SystemSettingService systemSettingService;

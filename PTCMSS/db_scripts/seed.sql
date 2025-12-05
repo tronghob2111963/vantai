@@ -1,5 +1,8 @@
 -- PTCMSS Seed Data - 3 branches, 10 employees each, and complete related data
 -- Assumes schema already created. Uses INSERT IGNORE to avoid duplicate errors.
+-- 
+-- NOTE: Warnings about duplicate entries are NORMAL when running this script multiple times.
+-- INSERT IGNORE will skip existing records and only show warnings, not errors.
 
 -- Roles
 INSERT IGNORE INTO roles (roleId, roleName, description, status) VALUES
@@ -52,6 +55,7 @@ INSERT IGNORE INTO branches (branchId, branchName, location, managerId, status, 
 (4,'Chi nhánh Hải Phòng','10 Lê Hồng Phong, Ngô Quyền, Hải Phòng',NULL,'INACTIVE',NOW(),'0225-123456');
 
 -- Employees (28: mỗi user có 1 employee record tương ứng)
+-- Note: Using alias syntax instead of VALUES() to avoid deprecation warning
 INSERT INTO employees (employeeId, userId, branchId, roleId, status) VALUES
 -- Admin (userId 1)
 (1,1,1,1,'ACTIVE'),
@@ -85,10 +89,11 @@ INSERT INTO employees (employeeId, userId, branchId, roleId, status) VALUES
 (26,26,3,4,'ACTIVE'), -- Driver HCM B
 (27,27,3,4,'ACTIVE'), -- Driver HCM C
 (28,28,3,4,'ACTIVE')  -- Driver HCM D
+AS new_emp
 ON DUPLICATE KEY UPDATE
-    branchId = VALUES(branchId),
-    roleId = VALUES(roleId),
-    status = VALUES(status);
+    branchId = new_emp.branchId,
+    roleId = new_emp.roleId,
+    status = new_emp.status;
 
 -- Update branch managers after employees are created (to avoid circular FK dependency)
 UPDATE branches SET managerId = 2 WHERE branchId = 1;  -- Manager HN
@@ -157,16 +162,17 @@ INSERT IGNORE INTO customers (customerId, fullName, phone, email, address, note,
 (6,'Công ty Du lịch Mặt Trời','0987000123','tour@suntravel.vn','TP. HCM',NULL,NOW(),21,'ACTIVE');
 
 -- Bookings (9)
-INSERT IGNORE INTO bookings (bookingId, customerId, branchId, consultantId, hireTypeId, useHighway, bookingDate, estimatedCost, depositAmount, totalCost, totalDistance, totalDuration, status, note, createdAt, updatedAt, isHoliday, isWeekend) VALUES
-(1,1,1,3,1,1,NOW(),1200000.00,600000.00,1200000.00,120.50,180,'COMPLETED','HN-HP 1 chiều',NOW(),NOW(),0,0),
-(2,2,3,21,2,0,NOW(),3000000.00,1500000.00,3000000.00,95.00,120,'CONFIRMED','HCM-NB 2 chiều',NOW(),NOW(),0,0),
-(3,3,2,12,5,1,NOW(),1800000.00,900000.00,1800000.00,35.00,60,'PENDING','Đưa đón sân bay',NOW(),NOW(),0,1),
-(4,4,1,4,4,0,NOW(),25000000.00,10000000.00,25000000.00,300.00,480,'INPROGRESS','Hợp đồng định kỳ',NOW(),NOW(),0,0),
-(5,5,1,3,6,1,NOW(),3500000.00,1750000.00,3500000.00,120.00,480,'CONFIRMED','Thuê theo ngày',NOW(),NOW(),1,0),
-(6,6,3,22,3,1,NOW(),15000000.00,5000000.00,15000000.00,500.00,1440,'PENDING','Tour miền Tây 3N2Đ',NOW(),NOW(),0,0),
-(7,1,1,3,2,1,NOW(),2200000.00,1000000.00,2200000.00,180.00,240,'CANCELLED','HN-NB 2 chiều',NOW(),NOW(),0,0),
-(8,2,3,21,1,0,NOW(),900000.00,450000.00,900000.00,20.00,40,'CONFIRMED','Trong nội thành',NOW(),NOW(),0,1),
-(9,3,2,13,5,1,NOW(),1200000.00,600000.00,1200000.00,40.00,60,'COMPLETED','Đón sân bay',NOW(),NOW(),0,0);
+-- Note: Removed columns: totalDistance, totalDuration
+INSERT IGNORE INTO bookings (bookingId, customerId, branchId, consultantId, hireTypeId, useHighway, bookingDate, estimatedCost, depositAmount, totalCost, status, note, createdAt, updatedAt, isHoliday, isWeekend) VALUES
+(1,1,1,3,1,1,NOW(),1200000.00,600000.00,1200000.00,'COMPLETED','HN-HP 1 chiều',NOW(),NOW(),0,0),
+(2,2,3,21,2,0,NOW(),3000000.00,1500000.00,3000000.00,'CONFIRMED','HCM-NB 2 chiều',NOW(),NOW(),0,0),
+(3,3,2,12,5,1,NOW(),1800000.00,900000.00,1800000.00,'PENDING','Đưa đón sân bay',NOW(),NOW(),0,1),
+(4,4,1,4,4,0,NOW(),25000000.00,10000000.00,25000000.00,'INPROGRESS','Hợp đồng định kỳ',NOW(),NOW(),0,0),
+(5,5,1,3,6,1,NOW(),3500000.00,1750000.00,3500000.00,'CONFIRMED','Thuê theo ngày',NOW(),NOW(),1,0),
+(6,6,3,22,3,1,NOW(),15000000.00,5000000.00,15000000.00,'PENDING','Tour miền Tây 3N2Đ',NOW(),NOW(),0,0),
+(7,1,1,3,2,1,NOW(),2200000.00,1000000.00,2200000.00,'CANCELLED','HN-NB 2 chiều',NOW(),NOW(),0,0),
+(8,2,3,21,1,0,NOW(),900000.00,450000.00,900000.00,'CONFIRMED','Trong nội thành',NOW(),NOW(),0,1),
+(9,3,2,13,5,1,NOW(),1200000.00,600000.00,1200000.00,'COMPLETED','Đón sân bay',NOW(),NOW(),0,0);
 
 -- Booking Vehicle Details (chi tiết loại xe cho mỗi booking)
 -- Schema: booking_vehicle_details(bookingId, vehicleCategoryId, quantity)
@@ -182,34 +188,37 @@ INSERT IGNORE INTO booking_vehicle_details (bookingId, vehicleCategoryId, quanti
 (9,1,1);  -- Booking 9: 1 xe 9 chỗ Limousine
 
 -- Trips (12)
-INSERT IGNORE INTO trips (tripId, bookingId, useHighway, startTime, endTime, startLocation, endLocation, distance, startLatitude, startLongitude, endLatitude, endLongitude, estimatedDuration, actualDuration, routeData, trafficStatus, incidentalCosts, status) VALUES
-(1,1,1,DATE_SUB(NOW(),INTERVAL 10 DAY),DATE_SUB(NOW(),INTERVAL 10 DAY),'Hoàn Kiếm, Hà Nội','Hải Phòng',120.50,NULL,NULL,NULL,NULL,180,175,NULL,'MODERATE',0.00,'COMPLETED'),
-(2,2,0,NOW(),NULL,'Quận 1, TP. HCM','Ninh Bình',95.00,NULL,NULL,NULL,NULL,120,NULL,NULL,'LIGHT',0.00,'ASSIGNED'),
-(3,3,1,DATE_SUB(NOW(),INTERVAL 2 DAY),DATE_SUB(NOW(),INTERVAL 2 DAY),'Sân bay Đà Nẵng','Trung tâm TP ĐN',35.00,NULL,NULL,NULL,NULL,60,58,NULL,'LIGHT',0.00,'COMPLETED'),
-(4,4,0,NOW(),NULL,'KCN Thăng Long','Nội thành Hà Nội',30.00,NULL,NULL,NULL,NULL,60,NULL,NULL,'HEAVY',0.00,'ONGOING'),
-(5,5,1,DATE_SUB(NOW(),INTERVAL 1 DAY),NULL,'Times City, Hà Nội','Sân bay Nội Bài',45.00,NULL,NULL,NULL,NULL,90,NULL,NULL,'MODERATE',0.00,'ASSIGNED'),
-(6,6,1,NOW(),NULL,'Quận 10, TP. HCM','Cần Thơ',180.00,NULL,NULL,NULL,NULL,240,NULL,NULL,'UNKNOWN',0.00,'SCHEDULED'),
-(7,7,1,DATE_SUB(NOW(),INTERVAL 5 DAY),DATE_SUB(NOW(),INTERVAL 5 DAY),'Hà Nội','Ninh Bình',180.00,NULL,NULL,NULL,NULL,240,250,NULL,'LIGHT',0.00,'CANCELLED'),
-(8,8,0,NOW(),NULL,'Quận 7, TP. HCM','Quận 1, TP. HCM',20.00,NULL,NULL,NULL,NULL,40,NULL,NULL,'LIGHT',0.00,'ASSIGNED'),
-(9,9,1,DATE_SUB(NOW(),INTERVAL 3 DAY),DATE_SUB(NOW(),INTERVAL 3 DAY),'Sân bay Đà Nẵng','Hải Châu, Đà Nẵng',40.00,NULL,NULL,NULL,NULL,60,62,NULL,'MODERATE',0.00,'COMPLETED'),
-(10,2,1,NOW(),NULL,'TP. HCM','Ninh Bình',95.00,NULL,NULL,NULL,NULL,120,NULL,NULL,'MODERATE',0.00,'SCHEDULED'),
-(11,6,1,NOW(),NULL,'Cần Thơ','Bến Tre',160.00,NULL,NULL,NULL,NULL,210,NULL,NULL,'UNKNOWN',0.00,'SCHEDULED'),
-(12,5,1,DATE_SUB(NOW(),INTERVAL 1 DAY),NULL,'Hà Nội','Vĩnh Phúc',75.00,NULL,NULL,NULL,NULL,120,NULL,NULL,'LIGHT',0.00,'ASSIGNED');
+-- Note: Removed columns: startLatitude, startLongitude, endLatitude, endLongitude, estimatedDuration, actualDuration, routeData, incidentalCosts
+-- Note: Constraint trips_chk_1 requires startTime < endTime (or one of them is NULL)
+INSERT IGNORE INTO trips (tripId, bookingId, useHighway, startTime, endTime, startLocation, endLocation, distance, trafficStatus, status) VALUES
+(1,1,1,DATE_SUB(NOW(),INTERVAL 10 DAY),DATE_SUB(NOW(),INTERVAL 9 DAY),'Hoàn Kiếm, Hà Nội','Hải Phòng',120.50,'MODERATE','COMPLETED'),
+(2,2,0,NOW(),NULL,'Quận 1, TP. HCM','Ninh Bình',95.00,'LIGHT','ASSIGNED'),
+(3,3,1,DATE_SUB(NOW(),INTERVAL 2 DAY),DATE_SUB(NOW(),INTERVAL 2 DAY) + INTERVAL 1 HOUR,'Sân bay Đà Nẵng','Trung tâm TP ĐN',35.00,'LIGHT','COMPLETED'),
+(4,4,0,NOW(),NULL,'KCN Thăng Long','Nội thành Hà Nội',30.00,'HEAVY','ONGOING'),
+(5,5,1,DATE_SUB(NOW(),INTERVAL 1 DAY),NULL,'Times City, Hà Nội','Sân bay Nội Bài',45.00,'MODERATE','ASSIGNED'),
+(6,6,1,NOW(),NULL,'Quận 10, TP. HCM','Cần Thơ',180.00,'UNKNOWN','SCHEDULED'),
+(7,7,1,DATE_SUB(NOW(),INTERVAL 5 DAY),DATE_SUB(NOW(),INTERVAL 5 DAY) + INTERVAL 4 HOUR,'Hà Nội','Ninh Bình',180.00,'LIGHT','CANCELLED'),
+(8,8,0,NOW(),NULL,'Quận 7, TP. HCM','Quận 1, TP. HCM',20.00,'LIGHT','ASSIGNED'),
+(9,9,1,DATE_SUB(NOW(),INTERVAL 3 DAY),DATE_SUB(NOW(),INTERVAL 3 DAY) + INTERVAL 1 HOUR,'Sân bay Đà Nẵng','Hải Châu, Đà Nẵng',40.00,'MODERATE','COMPLETED'),
+(10,2,1,NOW(),NULL,'TP. HCM','Ninh Bình',95.00,'MODERATE','SCHEDULED'),
+(11,6,1,NOW(),NULL,'Cần Thơ','Bến Tre',160.00,'UNKNOWN','SCHEDULED'),
+(12,5,1,DATE_SUB(NOW(),INTERVAL 1 DAY),NULL,'Hà Nội','Vĩnh Phúc',75.00,'LIGHT','ASSIGNED');
 
 -- Trip Drivers
-INSERT IGNORE INTO trip_drivers (tripId, driverId, driverRole, startTime, endTime, note) VALUES
-(1,1,'Main Driver',NULL,NULL,'HN A chạy Trip #1'),
-(2,9,'Main Driver',NULL,NULL,'HCM A chạy Trip #2'),
-(3,5,'Main Driver',NULL,NULL,'DN A chạy Trip #3'),
-(4,2,'Main Driver',NULL,NULL,'HN B chạy Trip #4'),
-(5,1,'Main Driver',NULL,NULL,'HN A chạy Trip #5'),
-(6,10,'Main Driver',NULL,NULL,'HCM B chạy Trip #6'),
-(7,3,'Main Driver',NULL,NULL,'HN C chạy Trip #7'),
-(8,11,'Main Driver',NULL,NULL,'HCM C chạy Trip #8'),
-(9,7,'Main Driver',NULL,NULL,'DN C chạy Trip #9'),
-(10,12,'Main Driver',NULL,NULL,'HCM D chạy Trip #10'),
-(11,8,'Main Driver',NULL,NULL,'DN D chạy Trip #11'),
-(12,4,'Main Driver',NULL,NULL,'HN D chạy Trip #12');
+-- Note: Removed columns: startTime, endTime
+INSERT IGNORE INTO trip_drivers (tripId, driverId, driverRole, note) VALUES
+(1,1,'Main Driver','HN A chạy Trip #1'),
+(2,9,'Main Driver','HCM A chạy Trip #2'),
+(3,5,'Main Driver','DN A chạy Trip #3'),
+(4,2,'Main Driver','HN B chạy Trip #4'),
+(5,1,'Main Driver','HN A chạy Trip #5'),
+(6,10,'Main Driver','HCM B chạy Trip #6'),
+(7,3,'Main Driver','HN C chạy Trip #7'),
+(8,11,'Main Driver','HCM C chạy Trip #8'),
+(9,7,'Main Driver','DN C chạy Trip #9'),
+(10,12,'Main Driver','HCM D chạy Trip #10'),
+(11,8,'Main Driver','DN D chạy Trip #11'),
+(12,4,'Main Driver','HN D chạy Trip #12');
 
 -- Trip Vehicles
 INSERT IGNORE INTO trip_vehicles (tripVehicleId, tripId, vehicleId, assignedAt, note) VALUES
@@ -244,7 +253,7 @@ INSERT IGNORE INTO system_settings (settingId, settingKey, settingValue, effecti
 (5,'DEFAULT_DEPOSIT_PERCENT','0.50','2025-01-01',NULL,'decimal','Billing','Tỷ lệ đặt cọc mặc định (50% tổng tiền)',1,NOW(),'ACTIVE'),
 
 -- Booking Settings
-(2,'DEFAULT_HIGHWAY','true','2025-01-01',NULL,'boolean','Booking','Mặc định cao tốc',1,NOW(),'ACTIVE'),
+(2,'DEFAULT_HIGHWAY','false','2025-01-01',NULL,'boolean','Booking','Mặc định cao tốc',NULL,NOW(),NULL),
 (6,'CANCELLATION_FULL_DEPOSIT_LOSS_HOURS','24','2025-01-01',NULL,'int','Booking','Số giờ trước khi bắt đầu để mất toàn bộ tiền cọc',1,NOW(),'ACTIVE'),
 (7,'CANCELLATION_PARTIAL_DEPOSIT_LOSS_HOURS','48','2025-01-01',NULL,'int','Booking','Số giờ trước khi bắt đầu để mất một phần tiền cọc',1,NOW(),'ACTIVE'),
 (8,'CANCELLATION_PARTIAL_DEPOSIT_PERCENT','0.30','2025-01-01',NULL,'decimal','Booking','Tỷ lệ mất cọc khi hủy trong khoảng thời gian (30%)',1,NOW(),'ACTIVE'),
@@ -279,11 +288,8 @@ INSERT IGNORE INTO approval_history (historyId, approvalNote, approvalType, proc
 (2,'Đồng ý','DRIVER_DAY_OFF',NOW(),2,'Khám sức khỏe',DATE_SUB(NOW(),INTERVAL 11 DAY),'APPROVED',11,2,5),
 (3,'Từ chối','DRIVER_DAY_OFF',NOW(),3,'Nghỉ ốm',DATE_SUB(NOW(),INTERVAL 6 DAY),'REJECTED',21,3,9);
 
--- Expenses (empty but present)
--- Example expenses
-INSERT IGNORE INTO expenses (expenseId, expenseCode, branchId, vehicleId, driverId, tripId, bookingId, expenseType, category, amount, description, receiptUrl, status, approvedBy, approvedAt, rejectedReason, paidAt, expenseDate, note, createdBy, createdAt, updatedAt) VALUES
-(1,'EXP-2025-0001',1,2,1,1,1,'FUEL','FUEL',1000000.00,'Đổ dầu','/receipts/exp1.jpg','APPROVED',2,NOW(),NULL,NOW(),DATE_SUB(NOW(),INTERVAL 10 DAY),'',1,NOW(),NOW()),
-(2,'EXP-2025-0002',3,8,11,8,8,'TOLL','TOLL',150000.00,'Phí cao tốc','/receipts/exp2.jpg','PAID',21,NOW(),NULL,NOW(),DATE_SUB(NOW(),INTERVAL 1 DAY),'',21,NOW(),NOW());
+-- Expenses table has been removed from schema
+-- Use expense_requests and invoices (type = EXPENSE) instead
 
 -- Expense Requests
 INSERT IGNORE INTO expense_requests (expenseRequestId, amount, approvedAt, createdAt, note, rejectionReason, status, expenseType, updatedAt, approvedBy, branchId, requesterId, vehicleId) VALUES
@@ -311,20 +317,7 @@ INSERT IGNORE INTO invoices (invoiceId, branchId, bookingId, customerId, type, c
 (11,3,6,6,'INCOME',NULL,0,10000000.00,'UNPAID','ACTIVE',NOW(),NOW(),NULL,'Thu nốt Booking 6',NULL,22,NULL,NULL,NULL,NULL,NULL,'OVERDUE',DATE_ADD(CURDATE(),INTERVAL 7 DAY),'INV-HCM-2025-0004','NET_7',NULL,NULL,'tour@suntravel.vn',NULL,0.00,NULL),
 (12,2,9,3,'INCOME',NULL,0,600000.00,'PAID','ACTIVE',DATE_SUB(NOW(),INTERVAL 3 DAY),NOW(),NULL,'Thanh toán Booking 9',NULL,13,14,NOW(),NULL,NULL,NULL,'NORMAL',DATE_ADD(CURDATE(),INTERVAL 7 DAY),'INV-DN-2025-0003','NET_7',NULL,NULL,'hr@xyz.com',NULL,0.00,NULL);
 
--- Invoice Items
-INSERT IGNORE INTO invoice_items (itemId, invoiceId, description, quantity, unitPrice, taxRate, taxAmount, note, createdAt, updatedAt) VALUES
-(1,1,'Vận chuyển HN-HP (đặt cọc)',1.00,600000.00,8.00,48000.00,NULL,NOW(),NOW()),
-(2,2,'Vận chuyển HN-HP (thu nốt)',1.00,600000.00,8.00,48000.00,NULL,NOW(),NOW()),
-(3,3,'Vận chuyển HCM-NB (cọc)',1.00,1500000.00,8.00,120000.00,NULL,NOW(),NOW()),
-(4,4,'Vận chuyển HCM-NB (thu nốt)',1.00,1500000.00,8.00,120000.00,NULL,NOW(),NOW()),
-(5,5,'Đưa/đón sân bay (cọc)',1.00,900000.00,8.00,72000.00,NULL,NOW(),NOW()),
-(6,6,'Đưa/đón sân bay (thu nốt)',1.00,900000.00,8.00,72000.00,NULL,NOW(),NOW()),
-(7,7,'Hợp đồng định kỳ (cọc)',1.00,10000000.00,8.00,800000.00,NULL,NOW(),NOW()),
-(8,8,'Hợp đồng định kỳ (thu nốt)',1.00,15000000.00,8.00,1200000.00,NULL,NOW(),NOW()),
-(9,9,'Thuê theo ngày (cọc)',1.00,1750000.00,8.00,140000.00,NULL,NOW(),NOW()),
-(10,10,'Tour miền Tây (cọc)',1.00,5000000.00,8.00,400000.00,NULL,NOW(),NOW()),
-(11,11,'Tour miền Tây (thu nốt)',1.00,10000000.00,8.00,800000.00,NULL,NOW(),NOW()),
-(12,12,'Đón sân bay',1.00,600000.00,8.00,48000.00,NULL,NOW(),NOW());
+-- Invoice Items table has been removed from schema
     
 -- Payment History
 INSERT IGNORE INTO payment_history (paymentId, amount, bankAccount, bankName, cashierName, createdAt, note, paymentDate, paymentMethod, receiptNumber, referenceNumber, createdBy, invoiceId, confirmationStatus) VALUES
@@ -349,10 +342,7 @@ INSERT IGNORE INTO debt_reminder_history (reminderId, invoiceId, reminderDate, r
 INSERT IGNORE INTO trip_incidents (incidentId, createdAt, description, resolved, severity, driverId, tripId) VALUES
 (1,NOW(),'Va chạm nhẹ, không thương tích',b'1','LOW',2,4);
 
--- Trip Assignment History
-INSERT IGNORE INTO trip_assignment_history (id, action, createdAt, note, driverId, tripId, vehicleId) VALUES
-(1,'ASSIGN',NOW(),'Gán tài xế HN B',2,4,3),
-(2,'ACCEPT',NOW(),'Tài xế chấp nhận chuyến',2,4,3);
+-- Trip Assignment History table has been removed from schema
 
 -- Notifications for approvals
 INSERT IGNORE INTO notifications (notificationId, userId, title, message, createdAt, isRead) VALUES
