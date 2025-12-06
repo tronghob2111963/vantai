@@ -1,8 +1,12 @@
 package org.example.ptcmssbackend.service;
 
+import org.example.ptcmssbackend.dto.request.dispatch.AssignRequest;
+import org.example.ptcmssbackend.dto.response.Booking.BookingResponse;
+import org.example.ptcmssbackend.dto.response.dispatch.AssignRespone;
 import org.example.ptcmssbackend.dto.response.dispatch.PendingTripResponse;
 import org.example.ptcmssbackend.entity.*;
 import org.example.ptcmssbackend.enums.BookingStatus;
+import org.example.ptcmssbackend.enums.PaymentConfirmationStatus;
 import org.example.ptcmssbackend.enums.TripStatus;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.impl.DispatchServiceImpl;
@@ -12,13 +16,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DispatchServiceImplTest {
@@ -133,6 +139,201 @@ class DispatchServiceImplTest {
         assertThat(r.getBranchId()).isEqualTo(branchId);
         assertThat(r.getCustomerName()).isEqualTo("Nguyễn Văn A");
         assertThat(r.getBookingStatus()).isEqualTo(BookingStatus.PENDING);
+    }
+
+    // ==================== assign() Tests ====================
+
+    @Test
+    void assign_whenValidRequestWithDeposit_shouldAssignSuccessfully() {
+        // Given
+        AssignRequest request = new AssignRequest();
+        request.setBookingId(1);
+        request.setDriverId(10);
+        request.setVehicleId(20);
+        request.setTripIds(List.of(100));
+
+        Bookings booking = new Bookings();
+        booking.setId(1);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setDepositAmount(new BigDecimal("500000"));
+        booking.setTotalCost(new BigDecimal("2000000"));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+        booking.setBranch(branch);
+
+        Customers customer = new Customers();
+        customer.setId(1);
+        booking.setCustomer(customer);
+
+        Trips trip = new Trips();
+        trip.setId(100);
+        trip.setStatus(TripStatus.SCHEDULED);
+        trip.setBooking(booking);
+
+        Drivers driver = new Drivers();
+        driver.setId(10);
+        Employees driverEmployee = new Employees();
+        Users driverUser = new Users();
+        driverUser.setId(101);
+        driverEmployee.setUser(driverUser);
+        driver.setEmployee(driverEmployee);
+
+        Vehicles vehicle = new Vehicles();
+        vehicle.setId(20);
+        vehicle.setLicensePlate("29A-111.11");
+
+        Invoices depositInvoice = new Invoices();
+        depositInvoice.setId(1);
+        depositInvoice.setIsDeposit(true);
+        depositInvoice.setAmount(new BigDecimal("500000"));
+
+        PaymentHistory payment = new PaymentHistory();
+        payment.setId(1);
+        payment.setInvoice(depositInvoice);
+        payment.setAmount(new BigDecimal("500000"));
+        payment.setConfirmationStatus(PaymentConfirmationStatus.CONFIRMED);
+
+        BookingResponse bookingResponse = BookingResponse.builder()
+                .id(1)
+                .build();
+
+        // Mock
+        when(bookingRepository.findById(1)).thenReturn(java.util.Optional.of(booking));
+        when(invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(1)).thenReturn(List.of(depositInvoice));
+        when(paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(1)).thenReturn(List.of(payment));
+        when(invoiceRepository.calculateConfirmedPaidAmountByBookingId(1)).thenReturn(new BigDecimal("500000"));
+        when(tripRepository.findByBooking_Id(1)).thenReturn(List.of(trip));
+        when(bookingService.assign(eq(1), any())).thenReturn(bookingResponse);
+
+        // When
+        AssignRespone response = dispatchService.assign(request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getBookingId()).isEqualTo(1);
+        verify(bookingService).assign(eq(1), any());
+    }
+
+    @Test
+    void assign_whenBookingNotFound_shouldThrowException() {
+        // Given
+        AssignRequest request = new AssignRequest();
+        request.setBookingId(999);
+        request.setDriverId(10);
+        request.setVehicleId(20);
+
+        when(bookingRepository.findById(999)).thenReturn(java.util.Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> dispatchService.assign(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy đơn hàng");
+    }
+
+    @Test
+    void assign_whenNoDepositAndLessThan30Percent_shouldThrowException() {
+        // Given
+        AssignRequest request = new AssignRequest();
+        request.setBookingId(1);
+        request.setDriverId(10);
+        request.setVehicleId(20);
+
+        Bookings booking = new Bookings();
+        booking.setId(1);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setTotalCost(new BigDecimal("2000000"));
+        booking.setDepositAmount(BigDecimal.ZERO);
+
+        Invoices invoice = new Invoices();
+        invoice.setId(1);
+        invoice.setIsDeposit(false);
+        invoice.setAmount(new BigDecimal("500000")); // Chỉ 25% (< 30%)
+
+        PaymentHistory payment = new PaymentHistory();
+        payment.setId(1);
+        payment.setInvoice(invoice);
+        payment.setAmount(new BigDecimal("500000"));
+        payment.setConfirmationStatus(PaymentConfirmationStatus.CONFIRMED);
+
+        // Mock
+        when(bookingRepository.findById(1)).thenReturn(java.util.Optional.of(booking));
+        when(invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(1)).thenReturn(List.of(invoice));
+        when(paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(1)).thenReturn(List.of(payment));
+
+        // When & Then
+        assertThatThrownBy(() -> dispatchService.assign(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Đơn hàng chưa đủ điều kiện gán chuyến");
+    }
+
+    @Test
+    void assign_whenNoTrips_shouldThrowException() {
+        // Given
+        AssignRequest request = new AssignRequest();
+        request.setBookingId(1);
+        request.setDriverId(10);
+        request.setVehicleId(20);
+
+        Bookings booking = new Bookings();
+        booking.setId(1);
+        booking.setStatus(BookingStatus.COMPLETED); // COMPLETED skip payment check
+
+        // Mock
+        when(bookingRepository.findById(1)).thenReturn(java.util.Optional.of(booking));
+        when(tripRepository.findByBooking_Id(1)).thenReturn(Collections.emptyList());
+
+        // When & Then
+        assertThatThrownBy(() -> dispatchService.assign(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không tìm thấy chuyến đi cho đơn hàng");
+    }
+
+    @Test
+    void assign_whenCompletedBooking_shouldSkipPaymentCheck() {
+        // Given
+        AssignRequest request = new AssignRequest();
+        request.setBookingId(1);
+        request.setDriverId(10);
+        request.setVehicleId(20);
+        request.setTripIds(List.of(100));
+
+        Bookings booking = new Bookings();
+        booking.setId(1);
+        booking.setStatus(BookingStatus.COMPLETED); // COMPLETED skip payment check
+
+        Branches branch = new Branches();
+        branch.setId(1);
+        booking.setBranch(branch);
+
+        Trips trip = new Trips();
+        trip.setId(100);
+        trip.setStatus(TripStatus.SCHEDULED);
+        trip.setBooking(booking);
+
+        Drivers driver = new Drivers();
+        driver.setId(10);
+
+        Vehicles vehicle = new Vehicles();
+        vehicle.setId(20);
+
+        BookingResponse bookingResponse = BookingResponse.builder()
+                .id(1)
+                .build();
+
+        // Mock
+        when(bookingRepository.findById(1)).thenReturn(java.util.Optional.of(booking));
+        when(tripRepository.findByBooking_Id(1)).thenReturn(List.of(trip));
+        when(bookingService.assign(eq(1), any())).thenReturn(bookingResponse);
+
+        // When
+        AssignRespone response = dispatchService.assign(request);
+
+        // Then
+        assertThat(response).isNotNull();
+        // Verify payment check was skipped (no invoice repository calls)
+        verify(invoiceRepository, never()).findByBooking_IdOrderByCreatedAtDesc(anyInt());
+        verify(bookingService).assign(eq(1), any());
     }
 }
 

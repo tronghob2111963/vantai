@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.User.CreateUserRequest;
 import org.example.ptcmssbackend.dto.request.User.UpdateUserRequest;
+import org.example.ptcmssbackend.dto.request.User.ChangePasswordRequest;
 import org.example.ptcmssbackend.dto.response.User.UserResponse;
 import org.example.ptcmssbackend.entity.Branches;
 import org.example.ptcmssbackend.entity.Employees;
@@ -21,6 +22,7 @@ import org.example.ptcmssbackend.service.UserService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -42,7 +44,8 @@ public class UserServiceImpl implements UserService {
     private final BranchesRepository branchesRepository;
     private final EmployeeRepository employeeRepository;
     private final EmailService emailService;
-    private final LocalImageService localImageService; //
+    private final LocalImageService localImageService;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -115,6 +118,7 @@ public class UserServiceImpl implements UserService {
             emailService.sendVerificationEmail(
                     user.getEmail(),
                     user.getFullName(),
+                    user.getUsername(), // Truyền username vào email
                     verificationUrl
             );
             log.info("Verification email sent successfully");
@@ -249,6 +253,34 @@ public class UserServiceImpl implements UserService {
         }
         
         return user.getId();
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(Integer id, ChangePasswordRequest request) {
+        Users user = usersRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        
+        // Kiểm tra mật khẩu hiện tại
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu hiện tại không đúng");
+        }
+        
+        // Kiểm tra mật khẩu mới và xác nhận mật khẩu khớp nhau
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("Mật khẩu mới và xác nhận mật khẩu không khớp");
+        }
+        
+        // Kiểm tra mật khẩu mới khác mật khẩu hiện tại
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu mới phải khác mật khẩu hiện tại");
+        }
+        
+        // Cập nhật mật khẩu mới
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        usersRepository.save(user);
+        
+        log.info("Password changed successfully for user ID: {}", id);
     }
 
     @Override

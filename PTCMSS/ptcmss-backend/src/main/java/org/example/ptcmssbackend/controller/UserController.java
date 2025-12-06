@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.ptcmssbackend.dto.request.User.CreateUserRequest;
 import org.example.ptcmssbackend.dto.request.User.UpdateProfileRequest;
 import org.example.ptcmssbackend.dto.request.User.UpdateUserRequest;
+import org.example.ptcmssbackend.dto.request.User.ChangePasswordRequest;
 import org.example.ptcmssbackend.dto.response.User.UserResponse;
 import org.example.ptcmssbackend.dto.response.common.ResponseData;
 import org.example.ptcmssbackend.enums.UserStatus;
@@ -121,6 +122,19 @@ public class UserController {
     ) {
         String url = userService.updateAvatar(id, file);
         return new ResponseData<>(HttpStatus.OK.value(), "Cập nhật ảnh đại diện thành công", url);
+    }
+
+    /**
+     * User tự đổi mật khẩu
+     */
+    @PostMapping("/{id}/change-password")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','COORDINATOR','DRIVER','ACCOUNTANT')")
+    public ResponseData<Void> changePassword(
+            @PathVariable Integer id,
+            @RequestBody ChangePasswordRequest request
+    ) {
+        userService.changePassword(id, request);
+        return new ResponseData<>(HttpStatus.OK.value(), "Đổi mật khẩu thành công");
     }
 }
 
