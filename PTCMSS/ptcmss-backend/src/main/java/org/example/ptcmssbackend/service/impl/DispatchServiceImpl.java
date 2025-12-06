@@ -114,6 +114,13 @@ public class DispatchServiceImpl implements DispatchService {
                 continue;
             }
 
+            // CHỈ HIỂN THỊ CÁC TRIPS CÓ BOOKING ĐÃ ĐẶT CỌC
+            // Lý do: Tránh hiển thị các đơn chưa cọc, chỉ điều phối các đơn đã cọc
+            if (!hasDepositPaid(b)) {
+                log.debug("[Dispatch] Skipping trip {} - booking {} has no confirmed deposit", t.getId(), b.getId());
+                continue;
+            }
+
             result.add(PendingTripResponse.builder()
                     .tripId(t.getId())
                     .bookingId(b.getId())
@@ -173,6 +180,12 @@ public class DispatchServiceImpl implements DispatchService {
             
             Bookings b = t.getBooking();
             if (!DISPATCHABLE_BOOKING_STATUSES.contains(b.getStatus())) {
+                continue;
+            }
+            
+            // CHỈ HIỂN THỊ CÁC TRIPS CÓ BOOKING ĐÃ ĐẶT CỌC
+            if (!hasDepositPaid(b)) {
+                log.debug("[Dispatch] Skipping trip {} - booking {} has no confirmed deposit", t.getId(), b.getId());
                 continue;
             }
             
@@ -2053,6 +2066,51 @@ public class DispatchServiceImpl implements DispatchService {
 
         public T getCandidate() { return candidate; }
         public int getScore() { return score; }
+    }
+    
+    /**
+     * Kiểm tra booking đã đặt cọc chưa (có invoice deposit đã được xác nhận thanh toán)
+     * @param booking Booking cần kiểm tra
+     * @return true nếu booking đã có deposit được xác nhận thanh toán, false nếu chưa
+     */
+    private boolean hasDepositPaid(Bookings booking) {
+        if (booking == null) {
+            return false;
+        }
+        
+        // Nếu booking đã COMPLETED, cho phép hiển thị (đã hoàn thành nên không cần check cọc)
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            return true;
+        }
+        
+        // Lấy tất cả invoices của booking
+        List<org.example.ptcmssbackend.entity.Invoices> allInvoices = 
+            invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(booking.getId());
+        
+        if (allInvoices == null || allInvoices.isEmpty()) {
+            return false;
+        }
+        
+        // Kiểm tra có invoice deposit nào đã được xác nhận thanh toán không
+        for (var inv : allInvoices) {
+            // Chỉ kiểm tra invoice deposit (isDeposit = true)
+            if (Boolean.TRUE.equals(inv.getIsDeposit())) {
+                // Kiểm tra có payment nào đã được CONFIRMED không
+                var payments = paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(inv.getId());
+                if (payments != null) {
+                    for (var payment : payments) {
+                        if (payment.getConfirmationStatus() == 
+                            org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED) {
+                            log.debug("[Dispatch] Booking {} has confirmed deposit payment", booking.getId());
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        log.debug("[Dispatch] Booking {} has no confirmed deposit", booking.getId());
+        return false;
     }
     
     /**

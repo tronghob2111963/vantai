@@ -324,13 +324,18 @@ export default function AdminDashboard() {
                             </span>
                         </div>
                         <div className="p-4">
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={branchComparison} margin={{ left: 20, right: 10, top: 10, bottom: 10 }}>
+                            {branchComparison && branchComparison.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={branchComparison} margin={{ left: 20, right: 10, top: 10, bottom: 60 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                     <XAxis
                                         dataKey="branchName"
                                         stroke="#64748b"
                                         style={{ fontSize: "12px" }}
+                                        angle={-45}
+                                        textAnchor="end"
+                                        height={60}
+                                        interval={0}
                                     />
                                     <YAxis
                                         stroke="#64748b"
@@ -351,6 +356,11 @@ export default function AdminDashboard() {
                                     <Bar dataKey="expense" name="Chi phí" fill="#ef4444" />
                                 </BarChart>
                             </ResponsiveContainer>
+                            ) : (
+                                <div className="text-center py-8 text-slate-500 text-sm">
+                                    Không có dữ liệu chi nhánh
+                                </div>
+                            )}
                         </div>
                     </div>
 

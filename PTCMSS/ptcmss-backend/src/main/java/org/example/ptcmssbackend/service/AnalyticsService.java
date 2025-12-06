@@ -12,6 +12,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -130,25 +132,93 @@ public class AnalyticsService {
 
         /**
          * Get revenue trend for last 12 months
+         * Always returns 12 months, even if some months have no data (shows 0)
+         * Includes expenses from both invoices and expense_requests
          */
         public List<RevenueTrendDTO> getRevenueTrend() {
+                // Query invoice data for last 12 months
                 String sql = "SELECT " +
                                 "DATE_FORMAT(invoiceDate, '%Y-%m') as month, " +
                                 "SUM(CASE WHEN type = 'INCOME' AND paymentStatus = 'PAID' THEN amount ELSE 0 END) as revenue, " +
-                                "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as expense, " +
-                                "SUM(CASE WHEN type = 'INCOME' AND paymentStatus = 'PAID' THEN amount ELSE 0 END) - " +
-                                "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as netProfit " +
+                                "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as expense " +
                                 "FROM invoices " +
                                 "WHERE status = 'ACTIVE' AND invoiceDate >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) " +
                                 "GROUP BY DATE_FORMAT(invoiceDate, '%Y-%m') " +
                                 "ORDER BY month";
 
-                return jdbcTemplate.query(sql, (rs, rowNum) -> RevenueTrendDTO.builder()
-                                .month(rs.getString("month"))
-                                .revenue(rs.getBigDecimal("revenue"))
-                                .expense(rs.getBigDecimal("expense"))
-                                .netProfit(rs.getBigDecimal("netProfit"))
-                                .build());
+                // Get invoice data from database
+                Map<String, RevenueTrendDTO> dataMap = new HashMap<>();
+                jdbcTemplate.query(sql, (rs, rowNum) -> {
+                        String month = rs.getString("month");
+                        BigDecimal revenue = rs.getBigDecimal("revenue") != null ? rs.getBigDecimal("revenue") : BigDecimal.ZERO;
+                        BigDecimal expense = rs.getBigDecimal("expense") != null ? rs.getBigDecimal("expense") : BigDecimal.ZERO;
+                        dataMap.put(month, RevenueTrendDTO.builder()
+                                        .month(month)
+                                        .revenue(revenue)
+                                        .expense(expense)
+                                        .netProfit(revenue.subtract(expense))
+                                        .build());
+                        return null;
+                });
+
+                // Query expense_requests data for last 12 months (APPROVED only)
+                String expenseRequestSql = "SELECT " +
+                                "DATE_FORMAT(createdAt, '%Y-%m') as month, " +
+                                "SUM(amount) as expense " +
+                                "FROM expense_requests " +
+                                "WHERE status = 'APPROVED' AND createdAt >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) " +
+                                "GROUP BY DATE_FORMAT(createdAt, '%Y-%m') " +
+                                "ORDER BY month";
+
+                // Add expense_requests to existing data
+                jdbcTemplate.query(expenseRequestSql, (rs, rowNum) -> {
+                        String month = rs.getString("month");
+                        BigDecimal expenseFromRequests = rs.getBigDecimal("expense") != null ? rs.getBigDecimal("expense") : BigDecimal.ZERO;
+                        
+                        if (dataMap.containsKey(month)) {
+                                // Add expense_requests to existing expense
+                                RevenueTrendDTO existing = dataMap.get(month);
+                                BigDecimal totalExpense = existing.getExpense().add(expenseFromRequests);
+                                BigDecimal netProfit = existing.getRevenue().subtract(totalExpense);
+                                dataMap.put(month, RevenueTrendDTO.builder()
+                                                .month(month)
+                                                .revenue(existing.getRevenue())
+                                                .expense(totalExpense)
+                                                .netProfit(netProfit)
+                                                .build());
+                        } else {
+                                // Create new entry with only expense_requests
+                                dataMap.put(month, RevenueTrendDTO.builder()
+                                                .month(month)
+                                                .revenue(BigDecimal.ZERO)
+                                                .expense(expenseFromRequests)
+                                                .netProfit(BigDecimal.ZERO.subtract(expenseFromRequests))
+                                                .build());
+                        }
+                        return null;
+                });
+
+                // Generate all 12 months and merge with data
+                List<RevenueTrendDTO> result = new ArrayList<>();
+                LocalDateTime now = LocalDateTime.now();
+                for (int i = 11; i >= 0; i--) {
+                        YearMonth yearMonth = YearMonth.from(now.minusMonths(i));
+                        String monthKey = yearMonth.toString(); // Format: "2025-01"
+                        
+                        if (dataMap.containsKey(monthKey)) {
+                                result.add(dataMap.get(monthKey));
+                        } else {
+                                // Month with no data - add with zeros
+                                result.add(RevenueTrendDTO.builder()
+                                                .month(monthKey)
+                                                .revenue(BigDecimal.ZERO)
+                                                .expense(BigDecimal.ZERO)
+                                                .netProfit(BigDecimal.ZERO)
+                                                .build());
+                        }
+                }
+
+                return result;
         }
 
         /**
@@ -163,9 +233,6 @@ public class AnalyticsService {
                                 "b.branchId, b.branchName, b.location, " +
                                 "COALESCE(SUM(CASE WHEN i.type = 'INCOME' AND i.paymentStatus = 'PAID' THEN i.amount ELSE 0 END), 0) as revenue, " +
                                 "COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' THEN i.amount ELSE 0 END), 0) as expense, " +
-                                "COALESCE(SUM(CASE WHEN i.type = 'INCOME' AND i.paymentStatus = 'PAID' THEN i.amount ELSE 0 END), 0) - " +
-                                "COALESCE(SUM(CASE WHEN i.type = 'EXPENSE' THEN i.amount ELSE 0 END), 0) as netProfit, "
-                                +
                                 "COUNT(DISTINCT bk.bookingId) as totalBookings, " +
                                 "COUNT(DISTINCT t.tripId) as totalTrips, " +
                                 "COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.tripId END) as completedTrips, "
@@ -189,7 +256,7 @@ public class AnalyticsService {
                                 "GROUP BY b.branchId, b.branchName, b.location " +
                                 "ORDER BY revenue DESC";
 
-                return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                List<BranchComparisonDTO> results = jdbcTemplate.query(sql, (rs, rowNum) -> {
                         Integer totalVehicles = rs.getInt("totalVehicles");
                         Integer vehiclesInUse = rs.getInt("vehiclesInUse");
                         Double vehicleUtilRate = totalVehicles > 0 ? (vehiclesInUse * 100.0 / totalVehicles) : 0.0;
@@ -198,13 +265,21 @@ public class AnalyticsService {
                         Integer driversOnTrip = rs.getInt("driversOnTrip");
                         Double driverUtilRate = totalDrivers > 0 ? (driversOnTrip * 100.0 / totalDrivers) : 0.0;
 
+                        String branchName = rs.getString("branchName");
+                        if (branchName == null || branchName.trim().isEmpty()) {
+                                branchName = "Chi nhánh " + rs.getInt("branchId");
+                        }
+                        
+                        BigDecimal revenue = rs.getBigDecimal("revenue") != null ? rs.getBigDecimal("revenue") : BigDecimal.ZERO;
+                        BigDecimal expense = rs.getBigDecimal("expense") != null ? rs.getBigDecimal("expense") : BigDecimal.ZERO;
+                        
                         return BranchComparisonDTO.builder()
                                         .branchId(rs.getInt("branchId"))
-                                        .branchName(rs.getString("branchName"))
-                                        .location(rs.getString("location"))
-                                        .revenue(rs.getBigDecimal("revenue"))
-                                        .expense(rs.getBigDecimal("expense"))
-                                        .netProfit(rs.getBigDecimal("netProfit"))
+                                        .branchName(branchName)
+                                        .location(rs.getString("location") != null ? rs.getString("location") : "")
+                                        .revenue(revenue)
+                                        .expense(expense)
+                                        .netProfit(revenue.subtract(expense))
                                         .totalBookings(rs.getInt("totalBookings"))
                                         .totalTrips(rs.getInt("totalTrips"))
                                         .completedTrips(rs.getInt("completedTrips"))
@@ -216,6 +291,41 @@ public class AnalyticsService {
                                         .driverUtilizationRate(driverUtilRate)
                                         .build();
                 }, startDate, endDate, startDate, endDate);
+
+                // Query expense_requests for the period and add to branch expenses
+                Instant startInstant = startDate.atZone(ZoneId.systemDefault()).toInstant();
+                Instant endInstant = endDate.atZone(ZoneId.systemDefault()).toInstant();
+                
+                String expenseRequestSql = "SELECT " +
+                                "branchId, " +
+                                "SUM(amount) as expense " +
+                                "FROM expense_requests " +
+                                "WHERE status = 'APPROVED' AND createdAt BETWEEN ? AND ? " +
+                                "GROUP BY branchId";
+
+                Map<Integer, BigDecimal> expenseRequestMap = new HashMap<>();
+                jdbcTemplate.query(expenseRequestSql, (rs, rowNum) -> {
+                        Integer branchId = rs.getInt("branchId");
+                        BigDecimal expense = rs.getBigDecimal("expense") != null ? rs.getBigDecimal("expense") : BigDecimal.ZERO;
+                        expenseRequestMap.put(branchId, expense);
+                        return null;
+                }, Timestamp.from(startInstant), Timestamp.from(endInstant));
+
+                // Add expense_requests to branch expenses
+                for (BranchComparisonDTO branch : results) {
+                        BigDecimal expenseFromRequests = expenseRequestMap.getOrDefault(branch.getBranchId(), BigDecimal.ZERO);
+                        BigDecimal totalExpense = branch.getExpense().add(expenseFromRequests);
+                        BigDecimal netProfit = branch.getRevenue().subtract(totalExpense);
+                        
+                        // Update expense and netProfit
+                        branch.setExpense(totalExpense);
+                        branch.setNetProfit(netProfit);
+                }
+
+                // Re-sort by revenue after updating expenses
+                results.sort((a, b) -> b.getRevenue().compareTo(a.getRevenue()));
+
+                return results;
         }
 
         /**
@@ -401,26 +511,93 @@ public class AnalyticsService {
 
         /**
          * Get revenue trend for branch (last 12 months)
+         * Includes expenses from both invoices and expense_requests
          */
         public List<RevenueTrendDTO> getBranchRevenueTrend(Integer branchId) {
+                // Query invoice data for last 12 months
                 String sql = "SELECT " +
                                 "DATE_FORMAT(invoiceDate, '%Y-%m') as month, " +
                                 "SUM(CASE WHEN type = 'INCOME' AND paymentStatus = 'PAID' THEN amount ELSE 0 END) as revenue, " +
-                                "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as expense, " +
-                                "SUM(CASE WHEN type = 'INCOME' AND paymentStatus = 'PAID' THEN amount ELSE 0 END) - " +
-                                "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as netProfit " +
+                                "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as expense " +
                                 "FROM invoices " +
                                 "WHERE status = 'ACTIVE' AND branchId = ? AND invoiceDate >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) "
                                 +
                                 "GROUP BY DATE_FORMAT(invoiceDate, '%Y-%m') " +
                                 "ORDER BY month";
 
-                return jdbcTemplate.query(sql, (rs, rowNum) -> RevenueTrendDTO.builder()
-                                .month(rs.getString("month"))
-                                .revenue(rs.getBigDecimal("revenue"))
-                                .expense(rs.getBigDecimal("expense"))
-                                .netProfit(rs.getBigDecimal("netProfit"))
-                                .build(), branchId);
+                // Get invoice data from database
+                Map<String, RevenueTrendDTO> dataMap = new HashMap<>();
+                jdbcTemplate.query(sql, (rs, rowNum) -> {
+                        String month = rs.getString("month");
+                        BigDecimal revenue = rs.getBigDecimal("revenue") != null ? rs.getBigDecimal("revenue") : BigDecimal.ZERO;
+                        BigDecimal expense = rs.getBigDecimal("expense") != null ? rs.getBigDecimal("expense") : BigDecimal.ZERO;
+                        dataMap.put(month, RevenueTrendDTO.builder()
+                                        .month(month)
+                                        .revenue(revenue)
+                                        .expense(expense)
+                                        .netProfit(revenue.subtract(expense))
+                                        .build());
+                        return null;
+                }, branchId);
+
+                // Query expense_requests data for last 12 months (APPROVED only, filtered by branch)
+                String expenseRequestSql = "SELECT " +
+                                "DATE_FORMAT(createdAt, '%Y-%m') as month, " +
+                                "SUM(amount) as expense " +
+                                "FROM expense_requests " +
+                                "WHERE status = 'APPROVED' AND branchId = ? AND createdAt >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) " +
+                                "GROUP BY DATE_FORMAT(createdAt, '%Y-%m') " +
+                                "ORDER BY month";
+
+                // Add expense_requests to existing data
+                jdbcTemplate.query(expenseRequestSql, (rs, rowNum) -> {
+                        String month = rs.getString("month");
+                        BigDecimal expenseFromRequests = rs.getBigDecimal("expense") != null ? rs.getBigDecimal("expense") : BigDecimal.ZERO;
+                        
+                        if (dataMap.containsKey(month)) {
+                                // Add expense_requests to existing expense
+                                RevenueTrendDTO existing = dataMap.get(month);
+                                BigDecimal totalExpense = existing.getExpense().add(expenseFromRequests);
+                                BigDecimal netProfit = existing.getRevenue().subtract(totalExpense);
+                                dataMap.put(month, RevenueTrendDTO.builder()
+                                                .month(month)
+                                                .revenue(existing.getRevenue())
+                                                .expense(totalExpense)
+                                                .netProfit(netProfit)
+                                                .build());
+                        } else {
+                                // Create new entry with only expense_requests
+                                dataMap.put(month, RevenueTrendDTO.builder()
+                                                .month(month)
+                                                .revenue(BigDecimal.ZERO)
+                                                .expense(expenseFromRequests)
+                                                .netProfit(BigDecimal.ZERO.subtract(expenseFromRequests))
+                                                .build());
+                        }
+                        return null;
+                }, branchId);
+
+                // Generate all 12 months and merge with data
+                List<RevenueTrendDTO> result = new ArrayList<>();
+                LocalDateTime now = LocalDateTime.now();
+                for (int i = 11; i >= 0; i--) {
+                        YearMonth yearMonth = YearMonth.from(now.minusMonths(i));
+                        String monthKey = yearMonth.toString(); // Format: "2025-01"
+                        
+                        if (dataMap.containsKey(monthKey)) {
+                                result.add(dataMap.get(monthKey));
+                        } else {
+                                // Month with no data - add with zeros
+                                result.add(RevenueTrendDTO.builder()
+                                                .month(monthKey)
+                                                .revenue(BigDecimal.ZERO)
+                                                .expense(BigDecimal.ZERO)
+                                                .netProfit(BigDecimal.ZERO)
+                                                .build());
+                        }
+                }
+
+                return result;
         }
 
         /**

@@ -151,13 +151,19 @@
             </div>
 
             <div class="content">
-                <p>Bạn đã được tạo tài khoản nhân viên tại hệ thống <strong>TranspoManager</strong>.</p>
-                <p>Để bắt đầu sử dụng hệ thống, vui lòng xác thực tài khoản bằng cách nhấn vào nút bên dưới:</p>
+                <p>Bạn đã được tạo tài khoản nhân viên tại hệ thống <strong>TranspoManager</strong> của chúng tôi.</p>
+                <p>Để bắt đầu sử dụng hệ thống, vui lòng xác thực tài khoản và thiết lập mật khẩu lần đầu bằng cách nhấn vào nút bên dưới:</p>
+            </div>
+
+            <!-- Username Info Box -->
+            <div class="info-box" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #0079BC; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                <p style="color: #0c4a6e; font-size: 14px; margin: 0 0 10px 0;"><strong>👤 Tên đăng nhập của bạn:</strong></p>
+                <p style="color: #0079BC; font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; margin: 0;" th:text="${username}">username</p>
             </div>
 
             <div class="button-container">
                 <a th:href="${verifyUrl}" class="verify-button" target="_blank">
-                    Xác thực tài khoản
+                    ✨ Xác thực tài khoản ngay
                 </a>
             </div>
 

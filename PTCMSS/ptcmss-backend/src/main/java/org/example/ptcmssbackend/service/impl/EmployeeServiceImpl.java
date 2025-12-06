@@ -320,10 +320,12 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (savedUser.getEmail() != null && !savedUser.getEmail().isEmpty()) {
             try {
                 String baseUrl = "http://localhost:8080"; // TODO: Get from config
+                // Link verification sẽ vừa verify email vừa cho phép set password
                 String verificationUrl = baseUrl + "/api/auth/verify?token=" + savedUser.getVerificationToken();
                 emailService.sendVerificationEmail(
                         savedUser.getEmail(),
                         savedUser.getFullName(),
+                        savedUser.getUsername(), // Truyền username vào email
                         verificationUrl
                 );
                 System.out.println("✉️ Verification email sent to: " + savedUser.getEmail());
