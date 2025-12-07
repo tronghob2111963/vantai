@@ -443,7 +443,7 @@ class InvoiceServiceImplTest {
                 .thenReturn(invoices);
         when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
             Integer id = inv.getArgument(0);
-            return invoices.stream().filter(inv -> inv.getId().equals(id)).findFirst();
+            return invoices.stream().filter(invoice -> invoice.getId().equals(id)).findFirst();
         });
         when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
         when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
@@ -470,7 +470,7 @@ class InvoiceServiceImplTest {
                 .thenReturn(invoices);
         when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
             Integer id = inv.getArgument(0);
-            return invoices.stream().filter(inv -> inv.getId().equals(id)).findFirst();
+            return invoices.stream().filter(invoice -> invoice.getId().equals(id)).findFirst();
         });
         when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
         when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
@@ -499,7 +499,7 @@ class InvoiceServiceImplTest {
                 .thenReturn(invoices);
         when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
             Integer id = inv.getArgument(0);
-            return invoices.stream().filter(inv -> inv.getId().equals(id)).findFirst();
+            return invoices.stream().filter(invoice -> invoice.getId().equals(id)).findFirst();
         });
         when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
         when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
