@@ -325,20 +325,24 @@ function RevExpChart({ data = [] }) {
     const innerW = W - padding.l - padding.r;
     const innerH = H - padding.t - padding.b;
 
-    const maxY =
-        Math.max(
-            ...data.map((d) => Math.max(d.revenue, d.expense))
-        ) * 1.3;
+    // Fix: Handle empty data or all zeros
+    const values = data.length > 0 
+        ? data.map((d) => Math.max(Number(d.revenue || 0), Number(d.expense || 0)))
+        : [0];
+    const maxValue = Math.max(...values);
+    const maxY = maxValue > 0 ? maxValue * 1.3 : 100; // Default to 100 if all zeros
 
-    const barGroupW = innerW / data.length;
+    // Fix: Prevent division by zero
+    const dataLength = Math.max(1, data.length);
+    const barGroupW = innerW / dataLength;
     const barW = Math.min(
         20,
         Math.max(10, barGroupW * 0.34)
     );
-    const yTo = (val) =>
-        padding.t +
-        innerH -
-        (val / maxY) * innerH;
+    const yTo = (val) => {
+        if (maxY <= 0) return padding.t + innerH; // Bottom of chart if no data
+        return padding.t + innerH - (val / maxY) * innerH;
+    };
 
     // net path points
     const netPoints = data.map((d, i) => {
@@ -387,17 +391,20 @@ function RevExpChart({ data = [] }) {
             )}
 
             {/* bars (Doanh thu & Chi phí) */}
-            {data.map((d, i) => {
+            {data.length > 0 ? data.map((d, i) => {
                 const x0 = padding.l + i * barGroupW + (barGroupW - barW * 2 - 6) / 2;
                 const ry = 3;
 
-                const yRev = yTo(d.revenue || 0);
-                const yExp = yTo(d.expense || 0);
-                const hRev = innerH - (yRev - padding.t);
-                const hExp = innerH - (yExp - padding.t);
+                const revenue = Number(d.revenue || 0);
+                const expense = Number(d.expense || 0);
+                const yRev = yTo(revenue);
+                const yExp = yTo(expense);
+                const hRev = Math.max(0, innerH - (yRev - padding.t));
+                const hExp = Math.max(0, innerH - (yExp - padding.t));
 
-                // Validate to prevent NaN
-                if (isNaN(yRev) || isNaN(yExp) || isNaN(hRev) || isNaN(hExp)) {
+                // Validate to prevent NaN or invalid values
+                if (isNaN(yRev) || isNaN(yExp) || isNaN(hRev) || isNaN(hExp) || 
+                    !isFinite(yRev) || !isFinite(yExp) || !isFinite(hRev) || !isFinite(hExp)) {
                     return null;
                 }
 
@@ -425,11 +432,21 @@ function RevExpChart({ data = [] }) {
                             textAnchor="middle"
                             className="fill-slate-500 text-[10px] font-medium"
                         >
-                            {d.month}
+                            {d.month || `T${i + 1}`}
                         </text>
                     </g>
                 );
-            })}
+            }) : (
+                // Empty state
+                <text
+                    x={W / 2}
+                    y={H / 2}
+                    textAnchor="middle"
+                    className="fill-slate-400 text-sm"
+                >
+                    Không có dữ liệu
+                </text>
+            )}
 
             {/* net line */}
             {netPath.trim() && !netPath.includes('NaN') && (
@@ -1556,31 +1573,66 @@ export default function AccountantDashboard() {
         const revenueChart = dashboardData.revenueChart || [];
         const expenseChart = dashboardData.expenseChart || [];
         
-        // Combine revenue and expense by date
+        // Combine revenue and expense by month (group daily data by month)
         const dateMap = {};
+        
+        // Process revenue data - accumulate by month
         revenueChart.forEach((item) => {
-            const month = item.date ? item.date.substring(5, 7) : "01";
-            if (!dateMap[month]) {
-                dateMap[month] = { month, revenue: 0, expense: 0 };
+            if (!item || !item.date) return;
+            try {
+                // Parse date (format: YYYY-MM-DD)
+                const dateStr = item.date.toString();
+                const month = dateStr.length >= 7 ? dateStr.substring(5, 7) : "01";
+                if (!dateMap[month]) {
+                    dateMap[month] = { month, revenue: 0, expense: 0 };
+                }
+                // Accumulate revenue (convert to millions)
+                dateMap[month].revenue += Number(item.value || 0) / 1000000;
+            } catch (e) {
+                console.warn("Error parsing revenue date:", item.date, e);
             }
-            dateMap[month].revenue = Number(item.value || 0) / 1000000; // Convert to millions
-        });
-        expenseChart.forEach((item) => {
-            const month = item.date ? item.date.substring(5, 7) : "01";
-            if (!dateMap[month]) {
-                dateMap[month] = { month, revenue: 0, expense: 0 };
-            }
-            dateMap[month].expense = Number(item.value || 0) / 1000000; // Convert to millions
         });
         
-        // Generate months from data or use current year
+        // Process expense data - accumulate by month
+        expenseChart.forEach((item) => {
+            if (!item || !item.date) return;
+            try {
+                // Parse date (format: YYYY-MM-DD)
+                const dateStr = item.date.toString();
+                const month = dateStr.length >= 7 ? dateStr.substring(5, 7) : "01";
+                if (!dateMap[month]) {
+                    dateMap[month] = { month, revenue: 0, expense: 0 };
+                }
+                // Accumulate expense (convert to millions)
+                dateMap[month].expense += Number(item.value || 0) / 1000000;
+            } catch (e) {
+                console.warn("Error parsing expense date:", item.date, e);
+            }
+        });
+        
+        // Generate months array - only show months that have data or current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentMonthStr = String(currentMonth).padStart(2, '0');
         const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
-        const result = months.map((m) => {
-            if (dateMap[m]) return dateMap[m];
+        
+        // If we have data, use all months, otherwise show last 6 months
+        const hasData = Object.keys(dateMap).length > 0;
+        const monthsToShow = hasData 
+            ? months 
+            : months.slice(Math.max(0, currentMonth - 6), currentMonth);
+        
+        const result = monthsToShow.map((m) => {
+            if (dateMap[m]) {
+                return {
+                    month: m,
+                    revenue: Number(dateMap[m].revenue.toFixed(2)),
+                    expense: Number(dateMap[m].expense.toFixed(2))
+                };
+            }
             return { month: m, revenue: 0, expense: 0 };
         });
         
-        return result;
+        return result.length > 0 ? result : [{ month: currentMonthStr, revenue: 0, expense: 0 }];
     }, [dashboardData.revenueChart, dashboardData.expenseChart]);
 
     return (
