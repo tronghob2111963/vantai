@@ -65,7 +65,7 @@ export default function SetPasswordPage() {
           </div>
 
           {!token ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 flex gap-2">
+            <div className="rounded-lg border border-info-200 bg-info-50 p-4 text-sm text-info-900 flex gap-2">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
               <div>
                 Liên kết xác thực không hợp lệ hoặc đã được sử dụng trước đó.

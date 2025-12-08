@@ -293,7 +293,7 @@ const DriverRatingsPage = () => {
                                                     Đã đánh giá
                                                 </span>
                                             ) : (
-                                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary-100 text-primary-800">
                                                     Chưa đánh giá
                                                 </span>
                                             )}
@@ -452,7 +452,7 @@ const DriverRatingsPage = () => {
                                             >
                                                 <Star
                                                     size={32}
-                                                    className={star <= ratingForm.punctualityRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                                    className={star <= ratingForm.punctualityRating ? 'fill-primary-500 text-primary-500' : 'text-gray-300'}
                                                 />
                                             </button>
                                         ))}
@@ -474,7 +474,7 @@ const DriverRatingsPage = () => {
                                             >
                                                 <Star
                                                     size={32}
-                                                    className={star <= ratingForm.attitudeRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                                    className={star <= ratingForm.attitudeRating ? 'fill-primary-500 text-primary-500' : 'text-gray-300'}
                                                 />
                                             </button>
                                         ))}
@@ -496,7 +496,7 @@ const DriverRatingsPage = () => {
                                             >
                                                 <Star
                                                     size={32}
-                                                    className={star <= ratingForm.safetyRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                                    className={star <= ratingForm.safetyRating ? 'fill-primary-500 text-primary-500' : 'text-gray-300'}
                                                 />
                                             </button>
                                         ))}
@@ -518,7 +518,7 @@ const DriverRatingsPage = () => {
                                             >
                                                 <Star
                                                     size={32}
-                                                    className={star <= ratingForm.complianceRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                                    className={star <= ratingForm.complianceRating ? 'fill-primary-500 text-primary-500' : 'text-gray-300'}
                                                 />
                                             </button>
                                         ))}

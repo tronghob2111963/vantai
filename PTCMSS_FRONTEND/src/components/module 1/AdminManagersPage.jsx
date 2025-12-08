@@ -108,13 +108,13 @@ export default function AdminManagersPage() {
       {/* SUCCESS TOAST */}
       {showSuccess && (
         <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="bg-gradient-to-r from-amber-50 to-green-50 border border-amber-200 shadow-xl rounded-xl p-4 flex gap-3 items-center min-w-[320px]">
-            <div className="h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+          <div className="bg-gradient-to-r from-amber-50 to-green-50 border border-info-200 shadow-xl rounded-xl p-4 flex gap-3 items-center min-w-[320px]">
+            <div className="h-10 w-10 rounded-full bg-info-500 flex items-center justify-center flex-shrink-0">
               <CheckCircle className="text-white" size={20} />
             </div>
             <div className="flex-1">
-              <div className="font-bold text-amber-900">Thành công!</div>
-              <div className="text-sm text-amber-700">Tạo người dùng thành công</div>
+              <div className="font-bold text-info-900">Thành công!</div>
+              <div className="text-sm text-info-700">Tạo người dùng thành công</div>
             </div>
           </div>
         </div>

@@ -259,7 +259,7 @@ export default function QrPaymentSettings() {
             </button>
           </div>
           {bankError && (
-            <p className="mt-1 text-sm text-amber-600">{bankError}</p>
+            <p className="mt-1 text-sm text-primary-600">{bankError}</p>
           )}
           <p className="mt-1 text-xs text-slate-500">
             Dữ liệu lấy trực tiếp từ VietQR API. Chọn tên ngân hàng, hệ thống sẽ tự điền mã.

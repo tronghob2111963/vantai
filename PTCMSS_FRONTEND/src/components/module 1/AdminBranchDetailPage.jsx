@@ -11,8 +11,8 @@ const cls = (...a) => a.filter(Boolean).join(" ");
 function StatusPill({ status }) {
   if (status === "ACTIVE") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium border bg-amber-50 text-amber-700 border-amber-200">
-        <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium border bg-info-50 text-info-700 border-info-200">
+        <ShieldCheck className="h-3.5 w-3.5 text-primary-600" />
         <span>Đang hoạt động</span>
       </span>
     );
@@ -43,7 +43,7 @@ function Toasts({ toasts }) {
           key={t.id}
           className={cls(
             "rounded-lg px-3 py-2 text-sm border shadow-lg bg-white",
-            t.kind === "success" && "bg-amber-50 border-amber-200 text-amber-700",
+            t.kind === "success" && "bg-info-50 border-info-200 text-info-700",
             t.kind === "error" && "bg-rose-50 border-rose-200 text-rose-700",
             t.kind === "info" && "bg-blue-50 border-blue-200 text-blue-700"
           )}

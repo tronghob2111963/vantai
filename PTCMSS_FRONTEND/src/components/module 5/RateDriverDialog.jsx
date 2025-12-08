@@ -98,7 +98,7 @@ const RateDriverDialog = ({ trip, onClose, onSuccess, existingRating = null }) =
                     >
                         <Star
                             size={28}
-                            className={star <= value ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                            className={star <= value ? 'fill-primary-500 text-primary-500' : 'text-gray-300'}
                         />
                     </button>
                 ))}
