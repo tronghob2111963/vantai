@@ -308,7 +308,7 @@ export default function CoordinatorVehicleDetailPage() {
                                             )}
                                         </select>
                                         {vehicle?.status === "INUSE" && (
-                                            <p className="text-xs text-amber-600 mt-1">
+                                            <p className="text-xs text-primary-600 mt-1">
                                                 ⚠️ Xe đang trong chuyến, không thể thay đổi trạng thái
                                             </p>
                                         )}

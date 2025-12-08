@@ -213,7 +213,7 @@ function Toasts({ toasts }) {
                     className={cls(
                         "rounded-md px-3 py-2 text-sm shadow border",
                         t.kind === "success" &&
-                        "bg-amber-50 border-amber-300 text-amber-700",
+                        "bg-emerald-50 border-emerald-300 text-emerald-700",
                         t.kind === "error" &&
                         "bg-rose-50 border-rose-300 text-rose-700",
                         t.kind === "info" &&
@@ -566,7 +566,7 @@ function KpiCard({ title, value, delta, up }) {
                     className={cls(
                         "text-xs flex items-center gap-1 font-medium",
                         up
-                            ? "text-amber-600"
+                            ? "text-primary-600"
                             : "text-rose-600"
                     )}
                 >
@@ -1744,7 +1744,7 @@ export default function AccountantDashboard() {
                 {/* Biểu đồ Doanh thu vs Chi phí */}
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                     <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-sm text-slate-600 flex items-center gap-2">
-                        <BadgeDollarSign className="h-4 w-4 text-amber-600" />
+                        <BadgeDollarSign className="h-4 w-4 text-primary-600" />
                         <span className="font-medium text-slate-700">
                             Doanh thu vs Chi phí
                             (tháng)
@@ -1792,7 +1792,7 @@ export default function AccountantDashboard() {
                 {/* header của queue */}
                 <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-sm text-slate-600 flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <ReceiptText className="h-4 w-4 text-amber-600" />
+                        <ReceiptText className="h-4 w-4 text-primary-600" />
                         <div className="font-medium text-slate-700">
                             Yêu cầu chi phí
                             chờ duyệt
@@ -1929,7 +1929,7 @@ export default function AccountantDashboard() {
                             Yêu cầu thanh toán chờ xác nhận
                         </div>
                         {pendingPayments.length > 0 && (
-                            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500 text-white">
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary-500 text-white">
                                 {pendingPayments.length}
                             </span>
                         )}
@@ -1976,7 +1976,7 @@ export default function AccountantDashboard() {
                                             <span className="text-lg font-bold text-slate-900 tabular-nums">
                                                 {fmtVND(payment.amount || 0)} đ
                                             </span>
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-amber-50 text-amber-700 border border-amber-300">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-info-50 text-info-700 border border-info-300">
                                                 <Clock className="h-3 w-3" />
                                                 Chờ xác nhận
                                             </span>

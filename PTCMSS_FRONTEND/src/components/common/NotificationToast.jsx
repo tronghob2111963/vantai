@@ -136,7 +136,7 @@ function ToastItem({ notification, onDismiss }) {
       case 'ERROR':
         return <AlertCircle className="h-5 w-5 text-red-600" />;
       case 'WARNING':
-        return <AlertTriangle className="h-5 w-5 text-amber-600" />;
+        return <AlertTriangle className="h-5 w-5 text-primary-600" />;
       case 'BOOKING_UPDATE':
         return <Info className="h-5 w-5 text-blue-600" />;
       case 'PAYMENT_UPDATE':
@@ -156,7 +156,7 @@ function ToastItem({ notification, onDismiss }) {
       case 'ERROR':
         return 'border-red-200 bg-red-50';
       case 'WARNING':
-        return 'border-amber-200 bg-amber-50';
+        return 'border-info-200 bg-info-50';
       case 'BOOKING_UPDATE':
         return 'border-blue-200 bg-blue-50';
       case 'DISPATCH_UPDATE':

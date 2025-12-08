@@ -53,7 +53,7 @@ function Toasts({ toasts }) {
                     key={t.id}
                     className={cls(
                         "rounded-md px-3 py-2 text-sm shadow border",
-                        t.kind === "success" && "bg-amber-50 border-amber-300 text-amber-700",
+                        t.kind === "success" && "bg-info-50 border-info-300 text-info-700",
                         t.kind === "error" && "bg-rose-50 border-rose-300 text-rose-700",
                         t.kind === "info" && "bg-white border-slate-300 text-slate-700"
                     )}
@@ -258,7 +258,7 @@ export default function DebtManagementPage() {
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
                     <div className="text-[11px] text-slate-500 mb-1">31-60 ngày</div>
-                    <div className="text-xl font-semibold text-amber-700 tabular-nums">
+                    <div className="text-xl font-semibold text-info-700 tabular-nums">
                         {fmtVND(agingBuckets.bucket31_60 || 0)} đ
                     </div>
                 </div>
@@ -415,7 +415,7 @@ export default function DebtManagementPage() {
                                                         setSelectedDebt(debt);
                                                         setShowPromiseModal(true);
                                                     }}
-                                                    className="px-2 py-1 rounded text-[11px] bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100"
+                                                    className="px-2 py-1 rounded text-[11px] bg-info-50 text-info-700 border border-info-300 hover:bg-info-100"
                                                     title="Hẹn thanh toán"
                                                 >
                                                     <Calendar className="h-3 w-3 inline" />

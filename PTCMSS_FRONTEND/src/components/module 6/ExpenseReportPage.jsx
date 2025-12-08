@@ -98,7 +98,7 @@ function Toasts({ toasts }) {
                         "rounded-md px-3 py-2 text-sm shadow border",
                         t.kind ===
                         "success" &&
-                        "bg-amber-50 border-amber-300 text-amber-700",
+                        "bg-info-50 border-info-300 text-info-700",
                         t.kind ===
                         "error" &&
                         "bg-rose-50 border-rose-300 text-rose-700",
@@ -150,7 +150,7 @@ const PALETTE = [
     {
         slice: "fill-emerald-500/80",
         legend:
-            "bg-amber-500/80 border-amber-400/30",
+            "bg-info-500/80 border-primary-400/30",
     },
     {
         slice: "fill-sky-400/80",
@@ -165,7 +165,7 @@ const PALETTE = [
     {
         slice: "fill-amber-400/80",
         legend:
-            "bg-amber-400/80 border-amber-300/30",
+            "bg-primary-400/80 border-info-300/30",
     },
     {
         slice: "fill-purple-400/80",
@@ -502,7 +502,7 @@ function FiltersBar({
                     </select>
                     </div>
                     {branchDisabled && (
-                        <div className={`text-[11px] ${branchError ? "text-rose-600" : "text-amber-600"}`}>
+                        <div className={`text-[11px] ${branchError ? "text-rose-600" : "text-primary-600"}`}>
                             {branchLoading
                                 ? "Đang xác định chi nhánh bạn phụ trách..."
                                 : branchError || branchHelperText || "Chỉ xem dữ liệu chi nhánh bạn phụ trách."}

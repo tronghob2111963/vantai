@@ -443,8 +443,8 @@ export default function ReportRevenuePage() {
 
                 {/* Hiển thị chi nhánh cho Manager/Accountant */}
                 {isRestrictedView && (
-                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <div className="flex items-center gap-2 text-[13px] text-amber-800">
+                    <div className="mt-3 p-3 bg-info-50 border border-info-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-[13px] text-info-800">
                             <Building2 className="h-4 w-4" />
                             <span className="font-medium">Chi nhánh:</span>
                             <span>{userBranchName || "Đang tải..."}</span>

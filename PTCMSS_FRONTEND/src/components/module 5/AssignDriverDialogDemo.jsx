@@ -52,11 +52,11 @@ export default function AssignDriverDialogDemo() {
                             </div>
                         </div>
 
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                            <h2 className="font-semibold text-amber-900 mb-2">
+                        <div className="bg-info-50 border border-info-200 rounded-lg p-4">
+                            <h2 className="font-semibold text-info-900 mb-2">
                                  Lưu ý
                             </h2>
-                            <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                            <ul className="text-sm text-info-800 space-y-1 list-disc list-inside">
                                 <li>Cần có trip ID và booking ID thật trong database</li>
                                 <li>Cần đăng nhập với role ADMIN/MANAGER/COORDINATOR</li>
                                 <li>Backend phải đang chạy tại localhost:8080</li>

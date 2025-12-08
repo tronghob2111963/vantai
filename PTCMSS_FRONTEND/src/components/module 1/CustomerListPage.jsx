@@ -618,7 +618,7 @@ function CustomerTripsModal({ customer, trips, loading, error, onClose }) {
 
     const getTripStatusColor = (status) => {
         const colorMap = {
-            PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+            PENDING: "bg-info-50 text-info-700 border-info-200",
             ASSIGNED: "bg-sky-50 text-sky-700 border-sky-200",
             IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
             COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -706,9 +706,9 @@ function CustomerTripsModal({ customer, trips, loading, error, onClose }) {
                                                 )}
                                             </div>
                                             {hasRating && (
-                                                <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-200">
-                                                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                                                    <span className="text-sm font-semibold text-yellow-700">
+                                                <div className="flex items-center gap-1 bg-info-50 px-3 py-1.5 rounded-lg border border-info-200">
+                                                    <Star className="h-4 w-4 text-primary-500 fill-primary-500" />
+                                                    <span className="text-sm font-semibold text-info-700">
                                                         {rating.overallRating?.toFixed(1) || "—"}
                                                     </span>
                                                 </div>
@@ -772,7 +772,7 @@ function CustomerTripsModal({ customer, trips, loading, error, onClose }) {
                                         {hasRating ? (
                                             <div className="mt-4 pt-4 border-t border-slate-200">
                                                 <div className="flex items-center gap-2 mb-3">
-                                                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                                                    <Star className="h-4 w-4 text-primary-500 fill-primary-500" />
                                                     <span className="text-sm font-semibold text-slate-900">
                                                         Đánh giá tài xế
                                                     </span>
@@ -791,7 +791,7 @@ function CustomerTripsModal({ customer, trips, loading, error, onClose }) {
                                                                         key={star}
                                                                         className={`h-3 w-3 ${
                                                                             star <= rating.punctualityRating
-                                                                                ? "text-yellow-400 fill-yellow-400"
+                                                                                ? "text-primary-500 fill-primary-500"
                                                                                 : "text-slate-300"
                                                                         }`}
                                                                     />
@@ -808,7 +808,7 @@ function CustomerTripsModal({ customer, trips, loading, error, onClose }) {
                                                                         key={star}
                                                                         className={`h-3 w-3 ${
                                                                             star <= rating.attitudeRating
-                                                                                ? "text-yellow-400 fill-yellow-400"
+                                                                                ? "text-primary-500 fill-primary-500"
                                                                                 : "text-slate-300"
                                                                         }`}
                                                                     />
@@ -825,7 +825,7 @@ function CustomerTripsModal({ customer, trips, loading, error, onClose }) {
                                                                         key={star}
                                                                         className={`h-3 w-3 ${
                                                                             star <= rating.safetyRating
-                                                                                ? "text-yellow-400 fill-yellow-400"
+                                                                                ? "text-primary-500 fill-primary-500"
                                                                                 : "text-slate-300"
                                                                         }`}
                                                                     />
@@ -842,7 +842,7 @@ function CustomerTripsModal({ customer, trips, loading, error, onClose }) {
                                                                         key={star}
                                                                         className={`h-3 w-3 ${
                                                                             star <= rating.complianceRating
-                                                                                ? "text-yellow-400 fill-yellow-400"
+                                                                                ? "text-primary-500 fill-primary-500"
                                                                                 : "text-slate-300"
                                                                         }`}
                                                                     />

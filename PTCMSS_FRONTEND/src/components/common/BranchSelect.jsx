@@ -96,7 +96,7 @@ export default function BranchSelect({
             )}
 
             {!loading && !loadError && branches.length === 0 && (
-                <div className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                <div className="text-xs text-primary-600 mt-1.5 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     <span>Chưa có chi nhánh nào</span>
                 </div>

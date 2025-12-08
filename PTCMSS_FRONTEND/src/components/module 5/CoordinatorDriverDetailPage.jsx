@@ -383,7 +383,7 @@ export default function CoordinatorDriverDetailPage() {
                                             ))}
                                         </select>
                                         {driver?.status === "ON_TRIP" && (
-                                            <p className="text-xs text-amber-600 mt-1">
+                                            <p className="text-xs text-primary-600 mt-1">
                                                 ⚠️ Tài xế đang trong chuyến, không thể thay đổi trạng thái
                                             </p>
                                         )}
@@ -397,7 +397,7 @@ export default function CoordinatorDriverDetailPage() {
                                         : driver?.status === "ON_TRIP"
                                             ? "bg-blue-50 text-blue-700"
                                             : driver?.status === "OFF_DUTY"
-                                                ? "bg-amber-50 text-amber-700"
+                                                ? "bg-info-50 text-info-700"
                                                 : "bg-slate-100 text-slate-600"
                                         }`}>
                                         {ALL_STATUS_LABELS[driver?.status] || driver?.status || "—"}

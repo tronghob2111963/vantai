@@ -152,7 +152,7 @@ const DriverRatingManagement = () => {
             );
         }
         return (
-            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+            <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">
                 ⏳ Chưa đánh giá
             </span>
         );
@@ -181,14 +181,14 @@ const DriverRatingManagement = () => {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+                <div className="bg-white rounded-lg shadow p-6 border-l-4 border-primary-500">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-gray-600 mb-1">Chưa đánh giá</p>
                             <p className="text-3xl font-bold text-gray-800">{stats.pending}</p>
                         </div>
-                        <div className="bg-yellow-100 p-3 rounded-full">
-                            <Star className="text-yellow-600" size={24} />
+                        <div className="bg-primary-100 p-3 rounded-full">
+                            <Star className="text-primary-600" size={24} />
                         </div>
                     </div>
                 </div>
@@ -323,7 +323,7 @@ const DriverRatingManagement = () => {
                     <button
                         onClick={() => setFilterStatus('pending')}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'pending'
-                                ? 'bg-yellow-600 text-white'
+                                ? 'bg-primary-600 text-white'
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                     >
