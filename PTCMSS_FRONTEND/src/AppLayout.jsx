@@ -42,6 +42,7 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Tạo đơn hàng", to: "/orders/new", icon: ClipboardList },
     { label: "Danh sách xe", to: "/consultant/vehicles", icon: CarFront },
     { label: "Danh sách tài xế", to: "/consultant/drivers", icon: Users },
+    { label: "Đánh giá tài xế", to: "/consultant/ratings", icon: BarChart3 },
   ],
   // Driver (Tài xế - 8 options)
   [ROLES.DRIVER]: [
@@ -63,7 +64,6 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Danh sách tài xế", to: "/coordinator/drivers", icon: Users },
     { label: "Danh sách xe", to: "/coordinator/vehicles", icon: CarFront },
     { label: "Quản lý yêu cầu", to: "/coordinator/expense-management", icon: DollarSign },
-    { label: "Đánh giá tài xế", to: "/dispatch/ratings", icon: BarChart3 },
   ],
   // Accountant (Kế toán - 8 options)
   [ROLES.ACCOUNTANT]: [
@@ -839,17 +839,26 @@ export default function AppLayout() {
             }
           />
           <Route
+            path="/consultant/ratings"
+            element={
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.CONSULTANT]}>
+                <RatingManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Backward compatibility: dispatch ratings now redirect to consultant view */}
+          <Route
             path="/dispatch/ratings"
             element={
               <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
-                <RatingManagementPage />
+                <Navigate to="/consultant/ratings" replace />
               </ProtectedRoute>
             }
           />
           <Route
             path="/drivers/:driverId/ratings"
             element={
-              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.COORDINATOR]}>
+              <ProtectedRoute roles={[ROLES.ADMIN, ROLES.CONSULTANT]}>
                 <DriverRatingsPage />
               </ProtectedRoute>
             }

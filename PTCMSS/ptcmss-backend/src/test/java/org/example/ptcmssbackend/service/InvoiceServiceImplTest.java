@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -76,9 +77,6 @@ class InvoiceServiceImplTest {
         branch.setBranchName("Chi nhánh Hà Nội");
 
         when(branchesRepository.findById(1)).thenReturn(Optional.of(branch));
-        when(customerRepository.findById(anyInt())).thenReturn(Optional.empty());
-        when(bookingRepository.findById(anyInt())).thenReturn(Optional.empty());
-        when(employeeRepository.findById(anyInt())).thenReturn(Optional.empty());
         when(invoiceRepository.save(any())).thenAnswer(inv -> {
             Invoices invEntity = inv.getArgument(0);
             invEntity.setId(100);
@@ -530,6 +528,7 @@ class InvoiceServiceImplTest {
         invoice.setAmount(new BigDecimal("1000000"));
         invoice.setPaymentStatus(PaymentStatus.UNPAID);
         invoice.setStatus(InvoiceStatus.ACTIVE);
+        invoice.setType(InvoiceType.INCOME);
         Branches branch = new Branches();
         branch.setId(1);
         invoice.setBranch(branch);
@@ -717,9 +716,8 @@ class InvoiceServiceImplTest {
 
         when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
         when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId))
-                .thenReturn(BigDecimal.ZERO) // Before payment
-                .thenReturn(new BigDecimal("1000000")); // After payment
-        when(employeeRepository.findByRoleNameAndBranchId(anyString(), anyInt())).thenReturn(Collections.emptyList());
+                .thenReturn(BigDecimal.ZERO)
+                .thenReturn(new BigDecimal("1000000"));
         when(paymentHistoryRepository.save(any())).thenAnswer(inv -> {
             PaymentHistory ph = inv.getArgument(0);
             ph.setId(200);
@@ -733,7 +731,7 @@ class InvoiceServiceImplTest {
 
         // Then
         assertThat(response).isNotNull();
-        // Note: The status update happens in calculateBalance, which is called after save
+        assertThat(response.getConfirmationStatus()).isEqualTo("CONFIRMED");
         verify(invoiceRepository).save(any());
     }
 
@@ -1094,6 +1092,1052 @@ class InvoiceServiceImplTest {
 
         // Then
         assertThat(count).isEqualTo(5L);
+    }
+
+    // ==================== generateInvoiceNumber() Tests ====================
+
+    @Test
+    void generateInvoiceNumber_whenValidBranch_shouldGenerateCorrectFormat() {
+        // Given
+        Integer branchId = 1;
+        LocalDate invoiceDate = LocalDate.of(2025, 12, 4);
+        
+        Branches branch = new Branches();
+        branch.setId(branchId);
+        branch.setBranchName("Chi nhánh Hà Nội");
+        
+        when(branchesRepository.findById(branchId)).thenReturn(Optional.of(branch));
+        when(invoiceRepository.findMaxSequenceNumber(branchId, "INV-HN-2025-%")).thenReturn(5);
+
+        // When
+        String invoiceNumber = invoiceService.generateInvoiceNumber(branchId, invoiceDate);
+
+        // Then
+        assertThat(invoiceNumber).isNotNull();
+        assertThat(invoiceNumber).startsWith("INV-HN-2025-");
+        assertThat(invoiceNumber).isEqualTo("INV-HN-2025-0006");
+        verify(branchesRepository).findById(branchId);
+        verify(invoiceRepository).findMaxSequenceNumber(branchId, "INV-HN-2025-%");
+    }
+
+    @Test
+    void generateInvoiceNumber_whenFirstInvoice_shouldStartFrom0001() {
+        // Given
+        Integer branchId = 2;
+        LocalDate invoiceDate = LocalDate.of(2025, 12, 4);
+        
+        Branches branch = new Branches();
+        branch.setId(branchId);
+        branch.setBranchName("Chi nhánh Đà Nẵng");
+        
+        when(branchesRepository.findById(branchId)).thenReturn(Optional.of(branch));
+        when(invoiceRepository.findMaxSequenceNumber(branchId, "INV-DN-2025-%")).thenReturn(null);
+
+        // When
+        String invoiceNumber = invoiceService.generateInvoiceNumber(branchId, invoiceDate);
+
+        // Then
+        assertThat(invoiceNumber).isEqualTo("INV-DN-2025-0001");
+    }
+
+    @Test
+    void generateInvoiceNumber_whenBranchNotFound_shouldThrowException() {
+        // Given
+        Integer branchId = 999;
+        LocalDate invoiceDate = LocalDate.of(2025, 12, 4);
+        
+        when(branchesRepository.findById(branchId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> invoiceService.generateInvoiceNumber(branchId, invoiceDate))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Branch not found");
+    }
+
+    @Test
+    void generateInvoiceNumber_whenDifferentBranchNames_shouldUseCorrectCode() {
+        // Given
+        LocalDate invoiceDate = LocalDate.of(2025, 12, 4);
+        
+        // Test HCM branch
+        Branches hcmBranch = new Branches();
+        hcmBranch.setId(3);
+        hcmBranch.setBranchName("Chi nhánh TP. HCM");
+        
+        when(branchesRepository.findById(3)).thenReturn(Optional.of(hcmBranch));
+        when(invoiceRepository.findMaxSequenceNumber(3, "INV-HCM-2025-%")).thenReturn(10);
+
+        // When
+        String hcmInvoiceNumber = invoiceService.generateInvoiceNumber(3, invoiceDate);
+
+        // Then
+        assertThat(hcmInvoiceNumber).isEqualTo("INV-HCM-2025-0011");
+    }
+
+    // ==================== checkAndUpdateOverdueInvoices() Tests ====================
+
+    @Test
+    void checkAndUpdateOverdueInvoices_whenUnpaidInvoicesOverdue_shouldMarkAsOverdue() {
+        // Given
+        LocalDate today = LocalDate.now();
+        LocalDate pastDate = today.minusDays(5);
+        
+        Invoices overdueInvoice1 = new Invoices();
+        overdueInvoice1.setId(100);
+        overdueInvoice1.setInvoiceNumber("INV-001");
+        overdueInvoice1.setDueDate(pastDate);
+        overdueInvoice1.setPaymentStatus(PaymentStatus.UNPAID);
+        
+        Invoices overdueInvoice2 = new Invoices();
+        overdueInvoice2.setId(101);
+        overdueInvoice2.setInvoiceNumber("INV-002");
+        overdueInvoice2.setDueDate(pastDate);
+        overdueInvoice2.setPaymentStatus(PaymentStatus.UNPAID);
+        
+        List<Invoices> overdueInvoices = List.of(overdueInvoice1, overdueInvoice2);
+        
+        when(invoiceRepository.findUnpaidInvoicesBeforeDate(today, null))
+                .thenReturn(overdueInvoices);
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        invoiceService.checkAndUpdateOverdueInvoices();
+
+        // Then
+        assertThat(overdueInvoice1.getPaymentStatus()).isEqualTo(PaymentStatus.OVERDUE);
+        assertThat(overdueInvoice2.getPaymentStatus()).isEqualTo(PaymentStatus.OVERDUE);
+        verify(invoiceRepository, times(2)).save(any());
+    }
+
+    @Test
+    void checkAndUpdateOverdueInvoices_whenInvoiceNotOverdue_shouldNotUpdate() {
+        // Given
+        LocalDate today = LocalDate.now();
+        LocalDate futureDate = today.plusDays(5);
+        
+        Invoices futureInvoice = new Invoices();
+        futureInvoice.setId(100);
+        futureInvoice.setInvoiceNumber("INV-001");
+        futureInvoice.setDueDate(futureDate);
+        futureInvoice.setPaymentStatus(PaymentStatus.UNPAID);
+        
+        List<Invoices> invoices = List.of(futureInvoice);
+        
+        when(invoiceRepository.findUnpaidInvoicesBeforeDate(today, null))
+                .thenReturn(invoices);
+
+        // When
+        invoiceService.checkAndUpdateOverdueInvoices();
+
+        // Then
+        assertThat(futureInvoice.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+        verify(invoiceRepository, never()).save(any());
+    }
+
+    @Test
+    void checkAndUpdateOverdueInvoices_whenNoDueDate_shouldNotUpdate() {
+        // Given
+        LocalDate today = LocalDate.now();
+        
+        Invoices invoiceWithoutDueDate = new Invoices();
+        invoiceWithoutDueDate.setId(100);
+        invoiceWithoutDueDate.setInvoiceNumber("INV-001");
+        invoiceWithoutDueDate.setDueDate(null);
+        invoiceWithoutDueDate.setPaymentStatus(PaymentStatus.UNPAID);
+        
+        List<Invoices> invoices = List.of(invoiceWithoutDueDate);
+        
+        when(invoiceRepository.findUnpaidInvoicesBeforeDate(today, null))
+                .thenReturn(invoices);
+
+        // When
+        invoiceService.checkAndUpdateOverdueInvoices();
+
+        // Then
+        assertThat(invoiceWithoutDueDate.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+        verify(invoiceRepository, never()).save(any());
+    }
+
+    @Test
+    void checkAndUpdateOverdueInvoices_whenNoUnpaidInvoices_shouldDoNothing() {
+        // Given
+        LocalDate today = LocalDate.now();
+        
+        when(invoiceRepository.findUnpaidInvoicesBeforeDate(today, null))
+                .thenReturn(Collections.emptyList());
+
+        // When
+        invoiceService.checkAndUpdateOverdueInvoices();
+
+        // Then
+        verify(invoiceRepository, never()).save(any());
+    }
+
+    // ==================== checkAndUpdateOverdueInvoicesAfter48h() Tests ====================
+
+    @Test
+    void checkAndUpdateOverdueInvoicesAfter48h_whenUnpaidInvoicesWithCompletedTrips_shouldMarkAsOverdue() {
+        // Given
+        Instant cutoffTime = Instant.now().minus(48, java.time.temporal.ChronoUnit.HOURS);
+        Instant oldTripTime = cutoffTime.minus(10, java.time.temporal.ChronoUnit.HOURS);
+        
+        Invoices unpaidInvoice = new Invoices();
+        unpaidInvoice.setId(100);
+        unpaidInvoice.setInvoiceNumber("INV-001");
+        unpaidInvoice.setAmount(new BigDecimal("1000000"));
+        unpaidInvoice.setPaymentStatus(PaymentStatus.UNPAID);
+        
+        List<Invoices> unpaidInvoices = List.of(unpaidInvoice);
+        
+        when(invoiceRepository.findUnpaidInvoicesWithCompletedTripsOlderThan(any(Instant.class), any()))
+                .thenReturn(unpaidInvoices);
+        when(invoiceRepository.findById(100)).thenReturn(Optional.of(unpaidInvoice));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100))
+                .thenReturn(BigDecimal.ZERO);
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        invoiceService.checkAndUpdateOverdueInvoicesAfter48h();
+
+        // Then
+        assertThat(unpaidInvoice.getPaymentStatus()).isEqualTo(PaymentStatus.OVERDUE);
+        verify(invoiceRepository).save(unpaidInvoice);
+    }
+
+    @Test
+    void checkAndUpdateOverdueInvoicesAfter48h_whenInvoiceFullyPaid_shouldNotMarkAsOverdue() {
+        // Given
+        
+        Invoices paidInvoice = new Invoices();
+        paidInvoice.setId(100);
+        paidInvoice.setInvoiceNumber("INV-001");
+        paidInvoice.setAmount(new BigDecimal("1000000"));
+        paidInvoice.setPaymentStatus(PaymentStatus.UNPAID);
+        
+        List<Invoices> invoices = List.of(paidInvoice);
+        
+        when(invoiceRepository.findUnpaidInvoicesWithCompletedTripsOlderThan(any(Instant.class), any()))
+                .thenReturn(invoices);
+        when(invoiceRepository.findById(100)).thenReturn(Optional.of(paidInvoice));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100))
+                .thenReturn(new BigDecimal("1000000"));
+
+        // When
+        invoiceService.checkAndUpdateOverdueInvoicesAfter48h();
+
+        // Then
+        assertThat(paidInvoice.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+        verify(invoiceRepository, never()).save(any());
+    }
+
+    @Test
+    void checkAndUpdateOverdueInvoicesAfter48h_whenNoInvoices_shouldDoNothing() {
+        // Given
+        when(invoiceRepository.findUnpaidInvoicesWithCompletedTripsOlderThan(any(Instant.class), any()))
+                .thenReturn(Collections.emptyList());
+
+        // When
+        invoiceService.checkAndUpdateOverdueInvoicesAfter48h();
+
+        // Then
+        verify(invoiceRepository, never()).save(any());
+    }
+
+    // ==================== createInvoice() Additional Tests ====================
+
+    @Test
+    void createInvoice_whenWithCustomer_shouldLinkCustomer() {
+        // Given
+        CreateInvoiceRequest request = new CreateInvoiceRequest();
+        request.setBranchId(1);
+        request.setCustomerId(10);
+        request.setType("INCOME");
+        request.setAmount(new BigDecimal("1000000"));
+        request.setSubtotal(new BigDecimal("1000000"));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+
+        Customers customer = new Customers();
+        customer.setId(10);
+        customer.setFullName("Nguyễn Văn A");
+
+        when(branchesRepository.findById(1)).thenReturn(Optional.of(branch));
+        when(customerRepository.findById(10)).thenReturn(Optional.of(customer));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> {
+            Invoices invEntity = inv.getArgument(0);
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            invEntity.setCustomer(customer);
+            return invEntity;
+        });
+        when(invoiceRepository.findById(100)).thenAnswer(inv -> {
+            Invoices invEntity = new Invoices();
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            invEntity.setCustomer(customer);
+            invEntity.setType(InvoiceType.INCOME);
+            invEntity.setAmount(new BigDecimal("1000000"));
+            invEntity.setStatus(InvoiceStatus.ACTIVE);
+            invEntity.setPaymentStatus(PaymentStatus.UNPAID);
+            return Optional.of(invEntity);
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100)).thenReturn(BigDecimal.ZERO);
+
+        // When
+        InvoiceResponse response = invoiceService.createInvoice(request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getCustomerId()).isEqualTo(10);
+        verify(customerRepository).findById(10);
+    }
+
+    @Test
+    void createInvoice_whenWithCreatedBy_shouldLinkEmployee() {
+        // Given
+        CreateInvoiceRequest request = new CreateInvoiceRequest();
+        request.setBranchId(1);
+        request.setCreatedBy(5);
+        request.setType("INCOME");
+        request.setAmount(new BigDecimal("1000000"));
+        request.setSubtotal(new BigDecimal("1000000"));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+
+        Employees employee = new Employees();
+        employee.setEmployeeId(5);
+
+        when(branchesRepository.findById(1)).thenReturn(Optional.of(branch));
+        when(employeeRepository.findById(5)).thenReturn(Optional.of(employee));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> {
+            Invoices invEntity = inv.getArgument(0);
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            invEntity.setCreatedBy(employee);
+            return invEntity;
+        });
+        when(invoiceRepository.findById(100)).thenAnswer(inv -> {
+            Invoices invEntity = new Invoices();
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            invEntity.setCreatedBy(employee);
+            invEntity.setType(InvoiceType.INCOME);
+            invEntity.setAmount(new BigDecimal("1000000"));
+            invEntity.setStatus(InvoiceStatus.ACTIVE);
+            invEntity.setPaymentStatus(PaymentStatus.UNPAID);
+            return Optional.of(invEntity);
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100)).thenReturn(BigDecimal.ZERO);
+
+        // When
+        InvoiceResponse response = invoiceService.createInvoice(request);
+
+        // Then
+        assertThat(response).isNotNull();
+        verify(employeeRepository).findById(5);
+    }
+
+    @Test
+    void createInvoice_whenWithDueDate_shouldSetDueDate() {
+        // Given
+        CreateInvoiceRequest request = new CreateInvoiceRequest();
+        request.setBranchId(1);
+        request.setType("INCOME");
+        request.setAmount(new BigDecimal("1000000"));
+        request.setSubtotal(new BigDecimal("1000000"));
+        request.setDueDate(LocalDate.now().plusDays(30));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+
+        when(branchesRepository.findById(1)).thenReturn(Optional.of(branch));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> {
+            Invoices invEntity = inv.getArgument(0);
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            return invEntity;
+        });
+        when(invoiceRepository.findById(100)).thenAnswer(inv -> {
+            Invoices invEntity = new Invoices();
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            invEntity.setType(InvoiceType.INCOME);
+            invEntity.setAmount(new BigDecimal("1000000"));
+            invEntity.setStatus(InvoiceStatus.ACTIVE);
+            invEntity.setPaymentStatus(PaymentStatus.UNPAID);
+            invEntity.setDueDate(request.getDueDate());
+            return Optional.of(invEntity);
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100)).thenReturn(BigDecimal.ZERO);
+
+        // When
+        InvoiceResponse response = invoiceService.createInvoice(request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getDueDate()).isEqualTo(request.getDueDate());
+    }
+
+    // ==================== recordPayment() Additional Tests ====================
+
+    @Test
+    void recordPayment_whenWithCreatedBy_shouldLinkEmployee() {
+        // Given
+        Integer invoiceId = 100;
+        RecordPaymentRequest request = new RecordPaymentRequest();
+        request.setAmount(new BigDecimal("500000"));
+        request.setPaymentMethod("CASH");
+        request.setCreatedBy(5);
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+        invoice.setStatus(InvoiceStatus.ACTIVE);
+        Branches branch = new Branches();
+        branch.setId(1);
+        invoice.setBranch(branch);
+
+        Employees employee = new Employees();
+        employee.setEmployeeId(5);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId)).thenReturn(BigDecimal.ZERO);
+        when(employeeRepository.findById(5)).thenReturn(Optional.of(employee));
+        when(employeeRepository.findByRoleNameAndBranchId(anyString(), anyInt())).thenReturn(Collections.emptyList());
+        when(paymentHistoryRepository.save(any())).thenAnswer(inv -> {
+            PaymentHistory ph = inv.getArgument(0);
+            ph.setId(200);
+            ph.setCreatedBy(employee);
+            return ph;
+        });
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        PaymentHistoryResponse response = invoiceService.recordPayment(invoiceId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        verify(employeeRepository).findById(5);
+    }
+
+    @Test
+    void recordPayment_whenWithConfirmationStatus_shouldSetStatus() {
+        // Given
+        Integer invoiceId = 100;
+        RecordPaymentRequest request = new RecordPaymentRequest();
+        request.setAmount(new BigDecimal("500000"));
+        request.setPaymentMethod("CASH");
+        request.setConfirmationStatus("CONFIRMED");
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+        invoice.setStatus(InvoiceStatus.ACTIVE);
+        Branches branch = new Branches();
+        branch.setId(1);
+        invoice.setBranch(branch);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId))
+                .thenReturn(BigDecimal.ZERO)
+                .thenReturn(new BigDecimal("500000"));
+        when(paymentHistoryRepository.save(any())).thenAnswer(inv -> {
+            PaymentHistory ph = inv.getArgument(0);
+            ph.setId(200);
+            ph.setConfirmationStatus(PaymentConfirmationStatus.CONFIRMED);
+            return ph;
+        });
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        PaymentHistoryResponse response = invoiceService.recordPayment(invoiceId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getConfirmationStatus()).isEqualTo("CONFIRMED");
+        verify(paymentHistoryRepository).save(any());
+    }
+
+    @Test
+    void recordPayment_whenInvalidConfirmationStatus_shouldDefaultToPending() {
+        // Given
+        Integer invoiceId = 100;
+        RecordPaymentRequest request = new RecordPaymentRequest();
+        request.setAmount(new BigDecimal("500000"));
+        request.setPaymentMethod("CASH");
+        request.setConfirmationStatus("INVALID_STATUS");
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+        invoice.setStatus(InvoiceStatus.ACTIVE);
+        Branches branch = new Branches();
+        branch.setId(1);
+        invoice.setBranch(branch);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId)).thenReturn(BigDecimal.ZERO);
+        when(employeeRepository.findByRoleNameAndBranchId(anyString(), anyInt())).thenReturn(Collections.emptyList());
+        when(paymentHistoryRepository.save(any())).thenAnswer(inv -> {
+            PaymentHistory ph = inv.getArgument(0);
+            ph.setId(200);
+            ph.setConfirmationStatus(PaymentConfirmationStatus.PENDING);
+            return ph;
+        });
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        PaymentHistoryResponse response = invoiceService.recordPayment(invoiceId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getConfirmationStatus()).isEqualTo("PENDING");
+    }
+
+    // ==================== confirmPayment() Additional Tests ====================
+
+    @Test
+    void confirmPayment_whenRejectingPayment_shouldUpdateInvoiceStatusIfNeeded() {
+        // Given
+        Integer paymentId = 200;
+        String status = "REJECTED";
+
+        Invoices invoice = new Invoices();
+        invoice.setId(100);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.PAID); // Đang là PAID
+
+        PaymentHistory payment = new PaymentHistory();
+        payment.setId(paymentId);
+        payment.setInvoice(invoice);
+        payment.setAmount(new BigDecimal("500000"));
+        payment.setConfirmationStatus(PaymentConfirmationStatus.CONFIRMED);
+
+        when(paymentHistoryRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+        when(invoiceRepository.findById(100)).thenReturn(Optional.of(invoice));
+        when(paymentHistoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100))
+                .thenReturn(new BigDecimal("500000")); // Sau khi reject, chỉ còn 500k confirmed
+
+        // When
+        invoiceService.confirmPayment(paymentId, status);
+
+        // Then
+        assertThat(payment.getConfirmationStatus()).isEqualTo(PaymentConfirmationStatus.REJECTED);
+        assertThat(invoice.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID); // Phải chuyển về UNPAID
+        verify(invoiceRepository).save(invoice);
+    }
+
+    // ==================== getInvoices() Additional Tests ====================
+
+    @Test
+    void getInvoices_whenWithDateRange_shouldFilterByDate() {
+        // Given
+        LocalDate startDate = LocalDate.of(2025, 12, 1);
+        LocalDate endDate = LocalDate.of(2025, 12, 31);
+        
+        Invoices invoice = createTestInvoice(100, "INV-001", PaymentStatus.UNPAID);
+        List<Invoices> invoices = List.of(invoice);
+
+        when(invoiceRepository.findInvoicesWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(invoices);
+        when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
+            Integer id = inv.getArgument(0);
+            return invoices.stream().filter(invItem -> invItem.getId().equals(id)).findFirst();
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
+        when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+
+        // When
+        org.springframework.data.domain.Page<org.example.ptcmssbackend.dto.response.Invoice.InvoiceListResponse> result =
+                invoiceService.getInvoices(null, null, null, null, startDate, endDate, null, null, pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        verify(invoiceRepository).findInvoicesWithFilters(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getInvoices_whenWithCustomerId_shouldFilterByCustomer() {
+        // Given
+        Integer customerId = 10;
+        Invoices invoice = createTestInvoice(100, "INV-001", PaymentStatus.UNPAID);
+        List<Invoices> invoices = List.of(invoice);
+
+        when(invoiceRepository.findInvoicesWithFilters(any(), any(), any(), any(), any(), eq(customerId), any()))
+                .thenReturn(invoices);
+        when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
+            Integer id = inv.getArgument(0);
+            return invoices.stream().filter(invItem -> invItem.getId().equals(id)).findFirst();
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
+        when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+
+        // When
+        org.springframework.data.domain.Page<org.example.ptcmssbackend.dto.response.Invoice.InvoiceListResponse> result =
+                invoiceService.getInvoices(null, null, null, null, null, null, customerId, null, pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        verify(invoiceRepository).findInvoicesWithFilters(any(), any(), any(), any(), any(), eq(customerId), any());
+    }
+
+    @Test
+    void getInvoices_whenWithPagination_shouldReturnPagedResults() {
+        // Given
+        Invoices invoice1 = createTestInvoice(100, "INV-001", PaymentStatus.UNPAID);
+        Invoices invoice2 = createTestInvoice(101, "INV-002", PaymentStatus.PAID);
+        Invoices invoice3 = createTestInvoice(102, "INV-003", PaymentStatus.UNPAID);
+        List<Invoices> invoices = List.of(invoice1, invoice2, invoice3);
+
+        when(invoiceRepository.findInvoicesWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(invoices);
+        when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
+            Integer id = inv.getArgument(0);
+            return invoices.stream().filter(invItem -> invItem.getId().equals(id)).findFirst();
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
+        when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 2);
+
+        // When
+        org.springframework.data.domain.Page<org.example.ptcmssbackend.dto.response.Invoice.InvoiceListResponse> result =
+                invoiceService.getInvoices(null, null, null, null, null, null, null, null, pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getContent().size()).isEqualTo(2); // Page size = 2
+    }
+
+    // ==================== recordPayment() Additional Edge Cases ====================
+
+    @Test
+    void recordPayment_whenWithAllPaymentDetails_shouldSaveAllFields() {
+        // Given
+        Integer invoiceId = 100;
+        RecordPaymentRequest request = new RecordPaymentRequest();
+        request.setAmount(new BigDecimal("500000"));
+        request.setPaymentMethod("BANK_TRANSFER");
+        request.setBankName("Vietcombank");
+        request.setBankAccount("1234567890");
+        request.setReferenceNumber("REF-12345");
+        request.setCashierName("Nguyễn Văn A");
+        request.setReceiptNumber("REC-001");
+        request.setNote("Test payment note");
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+        invoice.setStatus(InvoiceStatus.ACTIVE);
+        Branches branch = new Branches();
+        branch.setId(1);
+        invoice.setBranch(branch);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId)).thenReturn(BigDecimal.ZERO);
+        when(employeeRepository.findByRoleNameAndBranchId(anyString(), anyInt())).thenReturn(Collections.emptyList());
+        when(paymentHistoryRepository.save(any())).thenAnswer(inv -> {
+            PaymentHistory ph = inv.getArgument(0);
+            ph.setId(200);
+            return ph;
+        });
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        PaymentHistoryResponse response = invoiceService.recordPayment(invoiceId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        verify(paymentHistoryRepository).save(argThat(ph -> 
+            ph.getBankName().equals("Vietcombank") &&
+            ph.getBankAccount().equals("1234567890") &&
+            ph.getReferenceNumber().equals("REF-12345") &&
+            ph.getCashierName().equals("Nguyễn Văn A") &&
+            ph.getReceiptNumber().equals("REC-001") &&
+            ph.getNote().equals("Test payment note")
+        ));
+    }
+
+    @Test
+    void recordPayment_whenPaymentEqualsBalance_shouldMarkAsPaid() {
+        // Given
+        Integer invoiceId = 100;
+        RecordPaymentRequest request = new RecordPaymentRequest();
+        request.setAmount(new BigDecimal("1000000"));
+        request.setPaymentMethod("CASH");
+        request.setConfirmationStatus("CONFIRMED");
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+        invoice.setStatus(InvoiceStatus.ACTIVE);
+        Branches branch = new Branches();
+        branch.setId(1);
+        invoice.setBranch(branch);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId))
+                .thenReturn(BigDecimal.ZERO)
+                .thenReturn(new BigDecimal("1000000"));
+        when(paymentHistoryRepository.save(any())).thenAnswer(inv -> {
+            PaymentHistory ph = inv.getArgument(0);
+            ph.setId(200);
+            ph.setConfirmationStatus(PaymentConfirmationStatus.CONFIRMED);
+            return ph;
+        });
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        invoiceService.recordPayment(invoiceId, request);
+
+        // Then
+        assertThat(invoice.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        verify(invoiceRepository).save(invoice);
+    }
+
+    // ==================== sendInvoice() Additional Tests ====================
+
+    @Test
+    void sendInvoice_whenEmailServiceFails_shouldThrowException() throws Exception {
+        // Given
+        Integer invoiceId = 100;
+        SendInvoiceRequest request = new SendInvoiceRequest();
+        request.setEmail("customer@example.com");
+        request.setMessage("Test message");
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setInvoiceNumber("INV-001");
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setDueDate(LocalDate.now().plusDays(7));
+        Customers customer = new Customers();
+        customer.setFullName("Nguyễn Văn A");
+        invoice.setCustomer(customer);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        doThrow(new RuntimeException("Email service unavailable"))
+                .when(emailService).sendInvoiceEmail(anyString(), anyString(), anyString(), 
+                        anyString(), anyString(), anyString(), anyString());
+
+        // When & Then
+        assertThatThrownBy(() -> invoiceService.sendInvoice(invoiceId, request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Không thể gửi email");
+    }
+
+    @Test
+    void sendInvoice_whenCustomerIsNull_shouldUseDefaultName() throws Exception {
+        // Given
+        Integer invoiceId = 100;
+        SendInvoiceRequest request = new SendInvoiceRequest();
+        request.setEmail("customer@example.com");
+        request.setMessage("Test message");
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setInvoiceNumber("INV-001");
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setDueDate(LocalDate.now().plusDays(7));
+        invoice.setCustomer(null); // No customer
+        invoice.setNote(null);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        doNothing().when(emailService).sendInvoiceEmail(anyString(), anyString(), anyString(), 
+                anyString(), anyString(), anyString(), anyString());
+
+        // When
+        invoiceService.sendInvoice(invoiceId, request);
+
+        // Then
+        verify(emailService).sendInvoiceEmail(eq("customer@example.com"), eq("Quý khách"), 
+                eq("INV-001"), anyString(), anyString(), anyString(), eq("Test message"));
+    }
+
+    // ==================== getInvoices() Additional Edge Cases ====================
+
+    @Test
+    void getInvoices_whenEmptyResults_shouldReturnEmptyPage() {
+        // Given
+        when(invoiceRepository.findInvoicesWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Collections.emptyList());
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+
+        // When
+        org.springframework.data.domain.Page<org.example.ptcmssbackend.dto.response.Invoice.InvoiceListResponse> result =
+                invoiceService.getInvoices(null, null, null, null, null, null, null, null, pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getTotalElements()).isEqualTo(0);
+        assertThat(result.getContent()).isEmpty();
+    }
+
+    @Test
+    void getInvoices_whenKeywordMatchesInvoiceNumber_shouldFilterCorrectly() {
+        // Given
+        Invoices invoice = createTestInvoice(100, "INV-2025-001", PaymentStatus.UNPAID);
+        List<Invoices> invoices = List.of(invoice);
+
+        when(invoiceRepository.findInvoicesWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(invoices);
+        when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
+            Integer id = inv.getArgument(0);
+            return invoices.stream().filter(invItem -> invItem.getId().equals(id)).findFirst();
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
+        when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+
+        // When
+        org.springframework.data.domain.Page<org.example.ptcmssbackend.dto.response.Invoice.InvoiceListResponse> result =
+                invoiceService.getInvoices(null, null, null, null, null, null, null, "2025-001", pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void getInvoices_whenKeywordMatchesBookingCode_shouldFilterCorrectly() {
+        // Given
+        Invoices invoice = createTestInvoice(100, "INV-001", PaymentStatus.UNPAID);
+        Bookings booking = new Bookings();
+        booking.setId(50);
+        invoice.setBooking(booking);
+        List<Invoices> invoices = List.of(invoice);
+
+        when(invoiceRepository.findInvoicesWithFilters(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(invoices);
+        when(invoiceRepository.findById(anyInt())).thenAnswer(inv -> {
+            Integer id = inv.getArgument(0);
+            return invoices.stream().filter(invItem -> invItem.getId().equals(id)).findFirst();
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(anyInt())).thenReturn(BigDecimal.ZERO);
+        when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(anyInt())).thenReturn(0);
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+
+        // When
+        org.springframework.data.domain.Page<org.example.ptcmssbackend.dto.response.Invoice.InvoiceListResponse> result =
+                invoiceService.getInvoices(null, null, null, null, null, null, null, "ORD-50", pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getTotalElements()).isEqualTo(1);
+    }
+
+    // ==================== createInvoice() Additional Edge Cases ====================
+
+    @Test
+    void createInvoice_whenWithVatAmount_shouldSetVatAmount() {
+        // Given
+        CreateInvoiceRequest request = new CreateInvoiceRequest();
+        request.setBranchId(1);
+        request.setType("INCOME");
+        request.setAmount(new BigDecimal("1100000"));
+        request.setSubtotal(new BigDecimal("1000000"));
+        request.setVatAmount(new BigDecimal("100000"));
+
+        Branches branch = new Branches();
+        branch.setId(1);
+
+        when(branchesRepository.findById(1)).thenReturn(Optional.of(branch));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> {
+            Invoices invEntity = inv.getArgument(0);
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            return invEntity;
+        });
+        when(invoiceRepository.findById(100)).thenAnswer(inv -> {
+            Invoices invEntity = new Invoices();
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            invEntity.setType(InvoiceType.INCOME);
+            invEntity.setAmount(new BigDecimal("1100000"));
+            invEntity.setSubtotal(new BigDecimal("1000000"));
+            invEntity.setVatAmount(new BigDecimal("100000"));
+            invEntity.setStatus(InvoiceStatus.ACTIVE);
+            invEntity.setPaymentStatus(PaymentStatus.UNPAID);
+            return Optional.of(invEntity);
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100)).thenReturn(BigDecimal.ZERO);
+
+        // When
+        InvoiceResponse response = invoiceService.createInvoice(request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getVatAmount()).isEqualTo(new BigDecimal("100000"));
+    }
+
+    @Test
+    void createInvoice_whenWithPaymentTerms_shouldSetDueDate() {
+        // Given
+        CreateInvoiceRequest request = new CreateInvoiceRequest();
+        request.setBranchId(1);
+        request.setType("INCOME");
+        request.setAmount(new BigDecimal("1000000"));
+        request.setSubtotal(new BigDecimal("1000000"));
+        request.setPaymentTerms("NET_30");
+
+        Branches branch = new Branches();
+        branch.setId(1);
+
+        when(branchesRepository.findById(1)).thenReturn(Optional.of(branch));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> {
+            Invoices invEntity = inv.getArgument(0);
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setInvoiceDate(Instant.now());
+            return invEntity;
+        });
+        when(invoiceRepository.findById(100)).thenAnswer(inv -> {
+            Invoices invEntity = new Invoices();
+            invEntity.setId(100);
+            invEntity.setInvoiceNumber("INV-2025-001");
+            invEntity.setBranch(branch);
+            invEntity.setType(InvoiceType.INCOME);
+            invEntity.setAmount(new BigDecimal("1000000"));
+            invEntity.setPaymentTerms("NET_30");
+            invEntity.setStatus(InvoiceStatus.ACTIVE);
+            invEntity.setPaymentStatus(PaymentStatus.UNPAID);
+            invEntity.setInvoiceDate(Instant.now());
+            invEntity.setDueDate(LocalDate.now().plusDays(30));
+            return Optional.of(invEntity);
+        });
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(100)).thenReturn(BigDecimal.ZERO);
+
+        // When
+        InvoiceResponse response = invoiceService.createInvoice(request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getPaymentTerms()).isEqualTo("NET_30");
+    }
+
+    // ==================== updateInvoice() Additional Tests ====================
+
+    @Test
+    void updateInvoice_whenWithVatAmount_shouldUpdateVatAmount() {
+        // Given
+        Integer invoiceId = 100;
+        CreateInvoiceRequest request = new CreateInvoiceRequest();
+        request.setVatAmount(new BigDecimal("200000"));
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+        invoice.setStatus(InvoiceStatus.ACTIVE);
+        invoice.setType(InvoiceType.INCOME);
+        Branches branch = new Branches();
+        branch.setId(1);
+        invoice.setBranch(branch);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId)).thenReturn(BigDecimal.ZERO);
+        when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(invoiceId)).thenReturn(0);
+
+        // When
+        InvoiceResponse response = invoiceService.updateInvoice(invoiceId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(invoice.getVatAmount()).isEqualTo(new BigDecimal("200000"));
+    }
+
+    @Test
+    void updateInvoice_whenWithPaymentTerms_shouldUpdatePaymentTerms() {
+        // Given
+        Integer invoiceId = 100;
+        CreateInvoiceRequest request = new CreateInvoiceRequest();
+        request.setPaymentTerms("NET_60");
+
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setAmount(new BigDecimal("1000000"));
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+        invoice.setStatus(InvoiceStatus.ACTIVE);
+        invoice.setType(InvoiceType.INCOME);
+        Branches branch = new Branches();
+        branch.setId(1);
+        invoice.setBranch(branch);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(invoiceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentHistoryRepository.sumConfirmedByInvoiceId(invoiceId)).thenReturn(BigDecimal.ZERO);
+        when(paymentHistoryRepository.countPendingPaymentsByInvoiceId(invoiceId)).thenReturn(0);
+
+        // When
+        InvoiceResponse response = invoiceService.updateInvoice(invoiceId, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(invoice.getPaymentTerms()).isEqualTo("NET_60");
+    }
+
+    // ==================== isOverdue() Additional Tests ====================
+
+    @Test
+    void isOverdue_whenDueDateIsToday_shouldReturnFalse() {
+        // Given
+        Integer invoiceId = 100;
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setDueDate(LocalDate.now());
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+
+        // When
+        boolean result = invoiceService.isOverdue(invoiceId);
+
+        // Then
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void isOverdue_whenDueDateIsNull_shouldReturnFalse() {
+        // Given
+        Integer invoiceId = 100;
+        Invoices invoice = new Invoices();
+        invoice.setId(invoiceId);
+        invoice.setDueDate(null);
+        invoice.setPaymentStatus(PaymentStatus.UNPAID);
+
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+
+        // When
+        boolean result = invoiceService.isOverdue(invoiceId);
+
+        // Then
+        assertThat(result).isFalse();
     }
 
     // ==================== Helper Methods ====================
