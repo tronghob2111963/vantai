@@ -1207,7 +1207,7 @@ function DetailDialog({ item, type, onClose, onAcknowledge, onApprove, onReject,
                                         className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-medium"
                                     >
                                         <CheckCheck className="h-4 w-4" />
-                                        Xác nhận đã biết
+                                        Xác nhận đã xử lý
                                     </button>
                                 </div>
                             )}

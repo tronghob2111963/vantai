@@ -403,9 +403,31 @@ function QuoteInfoCard({ quote }) {
 }
 
 /* 4. Thanh toán / Cọc */
-function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, isConsultant = false, isCoordinator = false }) {
+function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, isConsultant = false, isCoordinator = false, pickupTime = null }) {
     const remain = Math.max(0, Number(payment.remaining || 0));
     const paid = Math.max(0, Number(payment.paid || 0));
+    
+    // Kiểm tra xem đơn hàng đã quá thời gian bắt đầu chưa
+    const isStartTimePassed = React.useMemo(() => {
+        if (!pickupTime) return false; // Không có thời gian thì coi như chưa quá
+        
+        try {
+            // Parse ngày giống như fmtDateTime: replace space thành T để parse đúng ISO format
+            const safe = String(pickupTime).replace(" ", "T");
+            const pickupDate = new Date(safe);
+            const now = new Date();
+            
+            // Kiểm tra xem parse có thành công không
+            if (!isNaN(pickupDate.getTime())) {
+                // Nếu thời gian bắt đầu đã qua (nhỏ hơn hoặc bằng thời gian hiện tại)
+                return pickupDate <= now;
+            }
+        } catch (e) {
+            console.error("Error parsing pickup time:", e);
+        }
+        
+        return false; // Nếu parse lỗi thì coi như chưa quá
+    }, [pickupTime]);
 
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-4 shadow-sm">
@@ -445,8 +467,12 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, i
                 </div>
             )}
 
-            {/* Nút hành động - Chỉ hiển thị khi còn tiền chưa thanh toán và không phải Coordinator */}
-            {remain > 0 && !isCoordinator && (
+            {/* Nút hành động - Chỉ hiển thị khi:
+                1. Còn tiền chưa thanh toán
+                2. Không phải Coordinator
+                3. Chưa quá thời gian bắt đầu
+            */}
+            {remain > 0 && !isCoordinator && !isStartTimePassed && (
                 <>
                     <div className="grid grid-cols-2 gap-3">
                         <button
@@ -473,6 +499,14 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, i
                             : "Ghi nhận tiền mặt/chuyển khoản hoặc gửi mã QR để khách tự thanh toán."}
                     </div>
                 </>
+            )}
+            
+            {/* Thông báo khi đơn đã quá thời gian bắt đầu */}
+            {remain > 0 && !isCoordinator && isStartTimePassed && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-700 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>Đơn hàng đã quá thời gian bắt đầu. Không thể đặt cọc hoặc tạo QR thanh toán.</span>
+                </div>
             )}
             
             {/* Thông báo cho Coordinator khi còn tiền chưa thanh toán */}
@@ -1368,6 +1402,7 @@ export default function OrderDetailPage() {
                         onGenerateQr={openQrModal}
                         isConsultant={isConsultant}
                         isCoordinator={isCoordinator}
+                        pickupTime={order.trip?.pickup_time}
                     />
                 )}
             </div>
