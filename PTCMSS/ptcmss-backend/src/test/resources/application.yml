@@ -1,17 +1,12 @@
 spring:
-  profiles:
-    active: test
-
----
-spring:
   config:
     activate:
       on-profile: test
   datasource:
-    url: jdbc:h2:mem:ptcmss_test;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:ptcmss_test;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=STATUS,TYPE
     driverClassName: org.h2.Driver
     username: sa
-    password:
+    password: 
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -19,7 +14,72 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+        use_sql_comments: true
+        format_sql: false
   sql:
     init:
       mode: never
+  mail:
+    host: localhost
+    port: 1025
+    username: test@test.com
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+jwt:
+  expriMinutes: 3600
+  expireDate: 5
+  accesskey: 2mfGKBhdCa0K8X2uV1Fzn9o6sR8V0s5GUelGlxsFQAc=
+  refreshkey: /AqIfLpfbWqy36D3VBmkskYtmnpsJrLpRx00WVRnJlE=
+
+graphhopper:
+  api-key: test-api-key-for-testing
+
+serpapi:
+  key: test-serpapi-key-for-testing
+
+payment:
+  qr:
+    provider-url: https://img.vietqr.io/image
+    bank-code: 970403
+    account-number: 070122047995
+    account-name: TEST ACCOUNT
+    template: compact
+    description-prefix: PTCMSS
+    expires-in-minutes: 120
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+openapi:
+  service:
+    api-docs: Computer_sell
+    server: http://localhost:8080
+    title: Transport Application
+    version: 1.0.0
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    mail:
+      enabled: false
 
