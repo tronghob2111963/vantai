@@ -193,6 +193,26 @@ function SidebarNav() {
     return SIDEBAR_ITEMS_BY_ROLE[role] || [];
   }, [role]);
 
+  // Chỉ highlight mục khớp đường dẫn dài nhất để tránh chọn cả trang cha/lẫn trang con
+  const activeIndex = React.useMemo(() => {
+    let bestIdx = -1;
+    let bestLen = -1;
+    const path = location.pathname;
+    menuItems.forEach((item, idx) => {
+      const to = item.to || "";
+      if (!to) return;
+      const exact = path === to;
+      const prefix = path.startsWith(to.endsWith("/") ? to : `${to}/`);
+      if (exact || prefix) {
+        if (to.length > bestLen) {
+          bestLen = to.length;
+          bestIdx = idx;
+        }
+      }
+    });
+    return bestIdx;
+  }, [location.pathname, menuItems]);
+
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm fixed left-0 top-0 bottom-0 z-10">
       {/* brand / account mini */}
@@ -210,8 +230,7 @@ function SidebarNav() {
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
         {menuItems.map((item, index) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.to || 
-            (item.to !== "/" && location.pathname.startsWith(item.to));
+          const isActive = index === activeIndex;
           
           return (
             <NavLink
