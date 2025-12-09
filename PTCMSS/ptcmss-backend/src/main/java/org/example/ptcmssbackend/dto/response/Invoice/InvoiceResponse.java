@@ -18,11 +18,8 @@ public class InvoiceResponse {
     private String customerPhone;
     private String customerEmail;
     private String type; // INCOME, EXPENSE
-    private String costType;
     private Boolean isDeposit;
     private BigDecimal amount;
-    private BigDecimal subtotal;
-    private BigDecimal vatAmount;
     private String paymentStatus; // UNPAID, PAID, REFUNDED, OVERDUE
     private String status; // ACTIVE, CANCELLED
     private String paymentTerms;

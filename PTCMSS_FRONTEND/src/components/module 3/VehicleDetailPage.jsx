@@ -944,15 +944,16 @@ export default function VehicleDetailPage() {
             console.log("🔍 [VehicleDetailPage] Parsed expenses:", expenses);
             
             // Map backend data to frontend format
+            // costType đã bị xóa - có thể null cho Invoices, chỉ ExpenseRequests có expenseType
             const mappedExpenses = expenses.map((e) => ({
                 id: e.expenseId || e.id,
                 date: e.expenseDate || e.date || e.expense_date,
-                type: e.costType || e.type,
-                type_label: e.costType === "FUEL" ? "Xăng dầu" :
-                    e.costType === "TOLL" ? "Cầu đường" :
-                        e.costType === "REPAIR" ? "Sửa chữa" :
-                            e.costType === "MAINTENANCE" ? "Bảo trì" :
-                                e.type_label || e.costType || "Khác",
+                type: e.costType || e.expenseType || e.type || "OTHER",
+                type_label: (e.costType || e.expenseType) === "FUEL" ? "Xăng dầu" :
+                    (e.costType || e.expenseType) === "TOLL" ? "Cầu đường" :
+                        (e.costType || e.expenseType) === "REPAIR" ? "Sửa chữa" :
+                            (e.costType || e.expenseType) === "MAINTENANCE" ? "Bảo trì" :
+                                e.type_label || e.costType || e.expenseType || "Khác",
                 note: e.description || e.note || "—",
                 amount: e.amount || 0,
             }));

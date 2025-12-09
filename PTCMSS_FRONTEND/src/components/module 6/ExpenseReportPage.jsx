@@ -1333,10 +1333,12 @@ export default function ExpenseReportPage() {
         setLoading(true);
         setError(null);
         try {
+            // costType đã bị xóa khỏi database - không gửi filter này lên backend
+            // Backend sẽ trả về tất cả expenses, không phân loại theo costType nữa
             const data = await getExpenseReport({
                 branchId: branchId || undefined,
                 vehicleId: vehicleId || undefined,
-                costType: catFilter || undefined,
+                // costType: catFilter || undefined, // Đã bị xóa - không filter nữa
                 startDate: fromDate || undefined,
                 endDate: toDate || undefined,
                 period: period || undefined,
@@ -1391,13 +1393,14 @@ export default function ExpenseReportPage() {
         );
 
     // Transform expenses from API
+    // costType đã bị xóa - tất cả Invoices sẽ có costType = null, chỉ ExpenseRequests có expenseType
     const filteredExpenses = React.useMemo(() => {
         return (reportData.expenses || []).map((exp) => ({
             id: exp.invoiceId,
             date: exp.invoiceDate ? new Date(exp.invoiceDate).toISOString().slice(0, 10) : "",
             branch: exp.branchName || "—",
             vehicle: exp.vehicleLicensePlate || "—",
-            category: exp.costType || "OTHER",
+            category: exp.costType || exp.expenseType || "OTHER", // costType có thể null, fallback sang expenseType hoặc OTHER
             amount: Number(exp.amount || 0),
             notes: exp.note || "—",
         }));
@@ -1442,10 +1445,11 @@ export default function ExpenseReportPage() {
             return;
         }
         try {
+            // costType đã bị xóa - không gửi filter này lên backend
             await exportExpenseReportToExcel({
                 branchId: branchId || undefined,
                 vehicleId: vehicleId || undefined,
-                costType: catFilter || undefined,
+                // costType: catFilter || undefined, // Đã bị xóa - không filter nữa
                 startDate: fromDate || undefined,
                 endDate: toDate || undefined,
                 period: period || undefined,

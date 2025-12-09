@@ -19,17 +19,11 @@ public class CreateInvoiceRequest {
     @NotNull
     private String type; // INCOME, EXPENSE
 
-    private String costType; // For expense: fuel, toll, maintenance, etc.
-
     private Boolean isDeposit = false;
 
     @NotNull
     @Min(0)
     private BigDecimal amount;
-
-    private BigDecimal subtotal;
-
-    private BigDecimal vatAmount;
 
     private String paymentTerms = "NET_7"; // NET_7, NET_14, NET_30, NET_60
 

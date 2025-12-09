@@ -36,24 +36,6 @@ public interface InvoiceRepository extends JpaRepository<Invoices, Integer> {
     List<Invoices> findExpensesByVehicleId(@Param("vehicleId") Integer vehicleId, @Param("type") InvoiceType type);
 
     /**
-     * Lấy danh sách expenses theo costType (fuel, toll, maintenance)
-     */
-    @Query("SELECT i FROM Invoices i " +
-            "WHERE i.type = :type " +
-            "AND i.costType = :costType " +
-            "AND i.booking IS NOT NULL " +
-            "AND i.booking.id IN (" +
-            "  SELECT t.booking.id FROM TripVehicles tv " +
-            "  JOIN tv.trip t " +
-            "  WHERE tv.vehicle.id = :vehicleId" +
-            ") " +
-            "ORDER BY i.invoiceDate DESC")
-    List<Invoices> findExpensesByVehicleIdAndCostType(
-            @Param("vehicleId") Integer vehicleId,
-            @Param("type") InvoiceType type,
-            @Param("costType") String costType);
-
-    /**
      * Tổng tiền đã thanh toán (INCOME, PAID) theo bookingId
      */
     @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoices i " +
