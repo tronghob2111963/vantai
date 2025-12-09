@@ -600,11 +600,11 @@ export default function EditOrderPage() {
             try {
                 const result = await calculateDistance(pickup, dropoff);
                 setDistanceKm(String(result.distance));
-                pushToast(`Distance: ${result.formattedDistance} (~${result.formattedDuration})`, "success");
+                pushToast(`Khoảng cách: ${result.formattedDistance} (~${result.formattedDuration})`, "success");
             } catch (error) {
                 console.error("Distance calculation error:", error);
-                setDistanceError("Unable to calculate distance automatically.");
-                pushToast("Unable to calculate distance automatically", "error");
+                setDistanceError("Không tính được khoảng cách tự động.");
+                pushToast("Không tính được khoảng cách tự động", "error");
             } finally {
                 setCalculatingDistance(false);
             }

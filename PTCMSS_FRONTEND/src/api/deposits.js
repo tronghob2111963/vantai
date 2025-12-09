@@ -12,10 +12,10 @@ export function createDeposit(bookingId, body) {
   // Validate required fields
   if (!body.branchId) {
     console.error("[createDeposit] Missing branchId in body:", body);
-    throw new Error("branchId is required");
+    throw new Error("Vui lòng chọn chi nhánh trước khi tạo phiếu cọc.");
   }
   if (!body.amount) {
-    throw new Error("amount is required");
+    throw new Error("Vui lòng nhập số tiền cọc.");
   }
 
   // Transform frontend format to backend CreateInvoiceRequest

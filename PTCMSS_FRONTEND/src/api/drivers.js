@@ -60,7 +60,7 @@ export function reportIncident({ driverId, tripId, severity, description }) {
 }
 
 export function listDriversByBranch(branchId) {
-  if (branchId == null || branchId === "") throw new Error("BRANCH_ID_REQUIRED");
+  if (branchId == null || branchId === "") throw new Error("Vui lòng chọn chi nhánh trước khi tải danh sách tài xế.");
   return apiFetch(`/api/drivers/branch/${branchId}`);
 }
 

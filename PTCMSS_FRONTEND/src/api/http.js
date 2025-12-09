@@ -51,10 +51,10 @@ export async function apiFetch(path, { method = "GET", headers = {}, body, auth 
   }
 
   if (!resp.ok) {
-    const err = new Error("API_ERROR");
+    const err = new Error("Lỗi máy chủ");
     err.status = resp.status;
     err.data = data;
-    err.message = data?.message || data?.error || `HTTP ${resp.status}: ${resp.statusText}`;
+    err.message = data?.message || data?.error || `Lỗi máy chủ (HTTP ${resp.status}: ${resp.statusText})`;
     
     // Silently ignore 404/500 errors for branch/user endpoint (user may not have branch)
     if (path.includes('/branches/user/') && (resp.status === 404 || resp.status === 500)) {
@@ -101,7 +101,7 @@ export async function apiFetch(path, { method = "GET", headers = {}, body, auth 
 
     if (isOk) return "data" in data ? data.data : data;
 
-    const err = new Error(data.message || "API_ERROR");
+    const err = new Error(data.message || "Lỗi máy chủ");
     err.status = code;
     err.data = data;
     throw err;
