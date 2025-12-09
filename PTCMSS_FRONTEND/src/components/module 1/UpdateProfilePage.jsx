@@ -586,6 +586,9 @@ export default function UpdateProfilePage() {
                         setCurrentPassword(e.target.value);
                         setPasswordError("");
                       }}
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      inputMode="text"
                       className="w-full border border-slate-200 rounded-xl px-4 py-3 pl-10 pr-10 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 focus:border-[#0079BC]/50"
                       placeholder="Nhập mật khẩu hiện tại"
                     />
@@ -612,6 +615,9 @@ export default function UpdateProfilePage() {
                         setNewPassword(e.target.value);
                         setPasswordError("");
                       }}
+                      autoComplete="new-password"
+                      autoCapitalize="none"
+                      inputMode="text"
                       className="w-full border border-slate-200 rounded-xl px-4 py-3 pl-10 pr-10 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 focus:border-[#0079BC]/50"
                       placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
                     />
@@ -638,6 +644,9 @@ export default function UpdateProfilePage() {
                         setConfirmPassword(e.target.value);
                         setPasswordError("");
                       }}
+                      autoComplete="new-password"
+                      autoCapitalize="none"
+                      inputMode="text"
                       className="w-full border border-slate-200 rounded-xl px-4 py-3 pl-10 pr-10 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0079BC]/20 focus:border-[#0079BC]/50"
                       placeholder="Nhập lại mật khẩu mới"
                     />
