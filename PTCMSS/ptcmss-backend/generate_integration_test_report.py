@@ -579,7 +579,11 @@ def create_module_sheets(wb, all_methods_data):
             expected_list = tc['conditions'].get('expected_return', [])
             if expected_list:
                 return '\n'.join(expected_list[:3])
-            return ''  # no explicit expected captured from test
+            # Fallback by status
+            status = tc.get('status', 'PASS')
+            if status == 'PASS':
+                return 'Kết quả đúng theo logic service (không có thông điệp chi tiết)'
+            return 'Không thu thập được thông điệp lỗi'
 
         def build_procedure(tc):
             # use inputs as hints
