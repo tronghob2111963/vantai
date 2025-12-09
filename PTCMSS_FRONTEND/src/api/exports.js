@@ -59,9 +59,10 @@ export async function exportRevenueReportToExcel({
 }
 
 // Export expense report to Excel
+// NOTE: costType đã bị xóa khỏi database - không gửi filter này nữa
 export async function exportExpenseReportToExcel({
   branchId,
-  costType,
+  costType, // Deprecated - không còn được backend sử dụng
   vehicleId,
   startDate,
   endDate,
@@ -69,7 +70,8 @@ export async function exportExpenseReportToExcel({
 } = {}) {
   const params = new URLSearchParams();
   if (branchId != null) params.append("branchId", String(branchId));
-  if (costType) params.append("costType", costType);
+  // costType đã bị xóa - không gửi filter này nữa
+  // if (costType) params.append("costType", costType);
   if (vehicleId != null) params.append("vehicleId", String(vehicleId));
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);
@@ -124,9 +126,10 @@ export async function exportRevenueReportToCsv({
 }
 
 // Export expense report to CSV
+// NOTE: costType đã bị xóa khỏi database - không gửi filter này nữa
 export async function exportExpenseReportToCsv({
   branchId,
-  costType,
+  costType, // Deprecated - không còn được backend sử dụng
   vehicleId,
   startDate,
   endDate,
@@ -134,7 +137,8 @@ export async function exportExpenseReportToCsv({
 } = {}) {
   const params = new URLSearchParams();
   if (branchId != null) params.append("branchId", String(branchId));
-  if (costType) params.append("costType", costType);
+  // costType đã bị xóa - không gửi filter này nữa
+  // if (costType) params.append("costType", costType);
   if (vehicleId != null) params.append("vehicleId", String(vehicleId));
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);

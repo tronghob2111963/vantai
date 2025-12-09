@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.HashMap;
 
 @Slf4j
 @Service
@@ -151,11 +152,12 @@ public class AccountingServiceImpl implements AccountingService {
         );
 
         // Filter by expense type if provided
-        if (request.getExpenseType() != null) {
-            expenses = expenses.stream()
-                    .filter(e -> request.getExpenseType().equals(e.getCostType()))
-                    .collect(Collectors.toList());
-        }
+        // costType đã được xóa - không filter theo expenseType nữa
+        // if (request.getExpenseType() != null) {
+        //     expenses = expenses.stream()
+        //             .filter(e -> request.getExpenseType().equals(e.getCostType()))
+        //             .collect(Collectors.toList());
+        // }
 
         // Get expense requests from drivers/coordinators (APPROVED only)
         List<ExpenseRequests> expenseRequests;
@@ -208,7 +210,8 @@ public class AccountingServiceImpl implements AccountingService {
 
         // Add invoice expenses
         expenses.forEach(inv -> {
-            String category = inv.getCostType() != null ? inv.getCostType() : "OTHER";
+            // costType đã được xóa - group tất cả vào "OTHER"
+            String category = "OTHER";
             expenseByCategory.merge(category, inv.getAmount(), BigDecimal::add);
         });
 
@@ -240,7 +243,7 @@ public class AccountingServiceImpl implements AccountingService {
                             ? inv.getBranch().getBranchName()
                             : null);
                     item.setVehicleLicensePlate(null);
-                    item.setCostType(inv.getCostType());
+                    item.setCostType(null); // costType đã được xóa
                     item.setAmount(inv.getAmount());
                     item.setNote(inv.getNote());
                     return item;
@@ -507,12 +510,15 @@ public class AccountingServiceImpl implements AccountingService {
         List<Invoices> expenses = invoiceRepository.findInvoicesWithFilters(
                 branchId, InvoiceType.EXPENSE, InvoiceStatus.ACTIVE, start, end, null, null);
 
-        return expenses.stream()
-                .filter(e -> e.getCostType() != null)
-                .collect(Collectors.groupingBy(
-                        Invoices::getCostType,
-                        Collectors.reducing(BigDecimal.ZERO, Invoices::getAmount, BigDecimal::add)
-                ));
+        // costType đã được xóa - group tất cả vào "OTHER"
+        BigDecimal total = expenses.stream()
+                .map(Invoices::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Map<String, BigDecimal> result = new HashMap<>();
+        if (total.compareTo(BigDecimal.ZERO) > 0) {
+            result.put("OTHER", total);
+        }
+        return result;
     }
 
     private List<AccountingDashboardResponse.PendingApprovalItem> getPendingApprovals(Integer branchId) {
@@ -644,12 +650,15 @@ public class AccountingServiceImpl implements AccountingService {
     }
 
     private Map<String, BigDecimal> getExpenseByCategoryMap(List<Invoices> expenses) {
-        return expenses.stream()
-                .filter(e -> e.getCostType() != null)
-                .collect(Collectors.groupingBy(
-                        Invoices::getCostType,
-                        Collectors.reducing(BigDecimal.ZERO, Invoices::getAmount, BigDecimal::add)
-                ));
+        // costType đã được xóa - group by "OTHER" cho tất cả expenses
+        BigDecimal total = expenses.stream()
+                .map(Invoices::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Map<String, BigDecimal> result = new HashMap<>();
+        if (total.compareTo(BigDecimal.ZERO) > 0) {
+            result.put("OTHER", total);
+        }
+        return result;
     }
 
     private List<ExpenseReportResponse.ChartDataPoint> getExpenseByDate(
@@ -697,7 +706,8 @@ public class AccountingServiceImpl implements AccountingService {
     private List<ExpenseReportResponse.TopExpenseItem> getTopExpenseItems(List<Invoices> expenses) {
         Map<String, ExpenseReportResponse.TopExpenseItem> itemMap = new HashMap<>();
         for (Invoices exp : expenses) {
-            String costType = exp.getCostType() != null ? exp.getCostType() : "OTHER";
+            // costType đã được xóa - dùng "OTHER" cho tất cả
+            String costType = "OTHER";
             itemMap.computeIfAbsent(costType, type -> {
                 ExpenseReportResponse.TopExpenseItem item = new ExpenseReportResponse.TopExpenseItem();
                 item.setExpenseType(type);

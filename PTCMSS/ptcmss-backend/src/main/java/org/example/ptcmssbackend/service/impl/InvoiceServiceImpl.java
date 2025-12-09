@@ -84,11 +84,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new RuntimeException("Loại hóa đơn không hợp lệ: " + request.getType());
         }
         invoice.setType(invoiceType);
-        invoice.setCostType(request.getCostType());
         invoice.setIsDeposit(request.getIsDeposit() != null ? request.getIsDeposit() : false);
         invoice.setAmount(request.getAmount());
-        invoice.setSubtotal(request.getSubtotal());
-        invoice.setVatAmount(request.getVatAmount() != null ? request.getVatAmount() : BigDecimal.ZERO);
         invoice.setPaymentTerms(request.getPaymentTerms() != null ? request.getPaymentTerms() : "NET_7");
         invoice.setPaymentStatus(PaymentStatus.UNPAID);
         invoice.setStatus(InvoiceStatus.ACTIVE);
@@ -190,8 +187,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Update fields
         if (request.getAmount() != null) invoice.setAmount(request.getAmount());
-        if (request.getSubtotal() != null) invoice.setSubtotal(request.getSubtotal());
-        if (request.getVatAmount() != null) invoice.setVatAmount(request.getVatAmount());
+        // subtotal và vatAmount đã được xóa
         if (request.getPaymentTerms() != null) invoice.setPaymentTerms(request.getPaymentTerms());
         if (request.getDueDate() != null) invoice.setDueDate(request.getDueDate());
         if (request.getNote() != null) invoice.setNote(request.getNote());
@@ -413,11 +409,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         response.setCustomerPhone(invoice.getCustomer() != null ? invoice.getCustomer().getPhone() : null);
         response.setCustomerEmail(invoice.getCustomer() != null ? invoice.getCustomer().getEmail() : null);
         response.setType(invoice.getType().toString());
-        response.setCostType(invoice.getCostType());
         response.setIsDeposit(invoice.getIsDeposit());
         response.setAmount(invoice.getAmount());
-        response.setSubtotal(invoice.getSubtotal());
-        response.setVatAmount(invoice.getVatAmount());
         response.setPaymentStatus(invoice.getPaymentStatus().toString());
         response.setStatus(invoice.getStatus().toString());
         response.setPaymentTerms(invoice.getPaymentTerms());
@@ -574,13 +567,8 @@ public class InvoiceServiceImpl implements InvoiceService {
                 // Ưu tiên: invoice.getRequestedBy() (driver) > driver từ booking > payment.getCreatedBy() (employee)
                 Integer driverUserId = null;
                 
-                // Cách 1: Từ invoice.requestedBy (nếu có)
-                if (invoice != null && invoice.getRequestedBy() != null && invoice.getRequestedBy().getEmployee() != null 
-                    && invoice.getRequestedBy().getEmployee().getUser() != null) {
-                    driverUserId = invoice.getRequestedBy().getEmployee().getUser().getId();
-                }
-                // Cách 2: Tìm driver từ booking (driver được assign cho trip của booking)
-                else if (bookingId != null && invoice != null && invoice.getBooking() != null) {
+                // Tìm driver từ booking (driver được assign cho trip của booking)
+                if (bookingId != null && invoice != null && invoice.getBooking() != null) {
                     try {
                         // Tìm trips của booking
                         List<Trips> trips = tripRepository.findByBooking_Id(bookingId);
