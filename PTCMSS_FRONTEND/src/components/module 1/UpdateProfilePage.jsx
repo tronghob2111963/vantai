@@ -242,6 +242,11 @@ export default function UpdateProfilePage() {
       setPasswordError("Mật khẩu mới phải có ít nhất 6 ký tự");
       return;
     }
+
+    if (newPassword === currentPassword) {
+      setPasswordError("Mật khẩu mới không được trùng mật khẩu hiện tại");
+      return;
+    }
     
     if (newPassword !== confirmPassword) {
       setPasswordError("Mật khẩu mới và xác nhận mật khẩu không khớp");
