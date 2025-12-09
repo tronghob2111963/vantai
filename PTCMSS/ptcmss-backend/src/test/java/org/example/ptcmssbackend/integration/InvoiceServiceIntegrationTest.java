@@ -116,8 +116,6 @@ class InvoiceServiceIntegrationTest {
         request.setBranchId(testBranch.getId());
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1000000"));
-        request.setSubtotal(new BigDecimal("1000000"));
-        request.setVatAmount(new BigDecimal("100000"));
         request.setIsDeposit(false);
         request.setCustomerId(testCustomer.getId());
         request.setCreatedBy(testEmployee.getEmployeeId());
@@ -155,7 +153,6 @@ class InvoiceServiceIntegrationTest {
         createRequest.setBranchId(testBranch.getId());
         createRequest.setType("INCOME");
         createRequest.setAmount(new BigDecimal("1000000"));
-        createRequest.setSubtotal(new BigDecimal("1000000"));
         
         InvoiceResponse created = invoiceService.createInvoice(createRequest);
 
@@ -183,7 +180,6 @@ class InvoiceServiceIntegrationTest {
         createRequest.setBranchId(testBranch.getId());
         createRequest.setType("INCOME");
         createRequest.setAmount(new BigDecimal("1000000"));
-        createRequest.setSubtotal(new BigDecimal("1000000"));
         
         InvoiceResponse invoice = invoiceService.createInvoice(createRequest);
 
@@ -210,7 +206,6 @@ class InvoiceServiceIntegrationTest {
         createRequest.setBranchId(testBranch.getId());
         createRequest.setType("INCOME");
         createRequest.setAmount(new BigDecimal("1000000"));
-        createRequest.setSubtotal(new BigDecimal("1000000"));
         
         InvoiceResponse invoice = invoiceService.createInvoice(createRequest);
 
@@ -232,7 +227,6 @@ class InvoiceServiceIntegrationTest {
             request.setBranchId(testBranch.getId());
             request.setType("INCOME");
             request.setAmount(new BigDecimal("1000000"));
-            request.setSubtotal(new BigDecimal("1000000"));
             invoiceService.createInvoice(request);
         }
 
@@ -262,7 +256,6 @@ class InvoiceServiceIntegrationTest {
         createRequest.setBranchId(testBranch.getId());
         createRequest.setType("INCOME");
         createRequest.setAmount(new BigDecimal("1000000"));
-        createRequest.setSubtotal(new BigDecimal("1000000"));
         
         InvoiceResponse invoice = invoiceService.createInvoice(createRequest);
 
@@ -286,7 +279,6 @@ class InvoiceServiceIntegrationTest {
         createRequest.setBranchId(testBranch.getId());
         createRequest.setType("INCOME");
         createRequest.setAmount(new BigDecimal("1000000"));
-        createRequest.setSubtotal(new BigDecimal("1000000"));
         
         InvoiceResponse invoice = invoiceService.createInvoice(createRequest);
 
@@ -310,7 +302,6 @@ class InvoiceServiceIntegrationTest {
         createRequest.setBranchId(testBranch.getId());
         createRequest.setType("INCOME");
         createRequest.setAmount(new BigDecimal("1000000"));
-        createRequest.setSubtotal(new BigDecimal("1000000"));
         
         InvoiceResponse invoice = invoiceService.createInvoice(createRequest);
 
@@ -318,8 +309,6 @@ class InvoiceServiceIntegrationTest {
         updateRequest.setBranchId(testBranch.getId());
         updateRequest.setType("INCOME");
         updateRequest.setAmount(new BigDecimal("1500000"));
-        updateRequest.setSubtotal(new BigDecimal("1500000"));
-        updateRequest.setVatAmount(new BigDecimal("150000"));
 
         // When
         InvoiceResponse response = invoiceService.updateInvoice(invoice.getInvoiceId(), updateRequest);

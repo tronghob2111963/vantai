@@ -69,7 +69,6 @@ class InvoiceServiceImplTest {
         request.setBranchId(1);
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1000000"));
-        request.setSubtotal(new BigDecimal("1000000"));
         request.setIsDeposit(false);
 
         Branches branch = new Branches();
@@ -152,7 +151,6 @@ class InvoiceServiceImplTest {
         request.setBookingId(10);
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1000000"));
-        request.setSubtotal(new BigDecimal("1000000"));
 
         Branches branch = new Branches();
         branch.setId(1);
@@ -1353,7 +1351,6 @@ class InvoiceServiceImplTest {
         request.setCustomerId(10);
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1000000"));
-        request.setSubtotal(new BigDecimal("1000000"));
 
         Branches branch = new Branches();
         branch.setId(1);
@@ -1403,7 +1400,6 @@ class InvoiceServiceImplTest {
         request.setCreatedBy(5);
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1000000"));
-        request.setSubtotal(new BigDecimal("1000000"));
 
         Branches branch = new Branches();
         branch.setId(1);
@@ -1450,7 +1446,6 @@ class InvoiceServiceImplTest {
         request.setBranchId(1);
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1000000"));
-        request.setSubtotal(new BigDecimal("1000000"));
         request.setDueDate(LocalDate.now().plusDays(30));
 
         Branches branch = new Branches();
@@ -1959,8 +1954,6 @@ class InvoiceServiceImplTest {
         request.setBranchId(1);
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1100000"));
-        request.setSubtotal(new BigDecimal("1000000"));
-        request.setVatAmount(new BigDecimal("100000"));
 
         Branches branch = new Branches();
         branch.setId(1);
@@ -1979,8 +1972,6 @@ class InvoiceServiceImplTest {
             invEntity.setBranch(branch);
             invEntity.setType(InvoiceType.INCOME);
             invEntity.setAmount(new BigDecimal("1100000"));
-            invEntity.setSubtotal(new BigDecimal("1000000"));
-            invEntity.setVatAmount(new BigDecimal("100000"));
             invEntity.setStatus(InvoiceStatus.ACTIVE);
             invEntity.setPaymentStatus(PaymentStatus.UNPAID);
             return Optional.of(invEntity);
@@ -1992,7 +1983,7 @@ class InvoiceServiceImplTest {
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.getVatAmount()).isEqualTo(new BigDecimal("100000"));
+        // VAT amount field has been removed
     }
 
     @Test
@@ -2002,7 +1993,6 @@ class InvoiceServiceImplTest {
         request.setBranchId(1);
         request.setType("INCOME");
         request.setAmount(new BigDecimal("1000000"));
-        request.setSubtotal(new BigDecimal("1000000"));
         request.setPaymentTerms("NET_30");
 
         Branches branch = new Branches();
@@ -2047,7 +2037,6 @@ class InvoiceServiceImplTest {
         // Given
         Integer invoiceId = 100;
         CreateInvoiceRequest request = new CreateInvoiceRequest();
-        request.setVatAmount(new BigDecimal("200000"));
 
         Invoices invoice = new Invoices();
         invoice.setId(invoiceId);
@@ -2069,7 +2058,7 @@ class InvoiceServiceImplTest {
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(invoice.getVatAmount()).isEqualTo(new BigDecimal("200000"));
+        // VAT amount field has been removed
     }
 
     @Test

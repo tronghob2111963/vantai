@@ -7,16 +7,8 @@ package org.example.ptcmssbackend.enums;
  */
 public enum DriverStatus {
     ACTIVE,      // Hoạt động - Coordinator có thể chuyển
-    AVAILABLE,   // Sẵn sàng (legacy)
+    AVAILABLE,   // Sẵn sàng
     ON_TRIP,     // Đang chạy - Chỉ hệ thống cập nhật
     OFF_DUTY,    // Nghỉ - Chỉ hệ thống cập nhật
-    INACTIVE,    // Không hoạt động - Coordinator có thể chuyển
-    
-    // Legacy TitleCase variants (for backward compatibility)
-    Available,
-    OnTrip,
-    Inactive,
-    
-    // Legacy uppercase variants
-    ONTRIP
+    INACTIVE     // Không hoạt động - Coordinator có thể chuyển
 }

@@ -405,7 +405,7 @@ class AccountingServiceImplTest {
         Invoices expense1 = createTestInvoice(100, PaymentStatus.PAID);
         expense1.setType(InvoiceType.EXPENSE);
         expense1.setAmount(new BigDecimal("200000"));
-        expense1.setCostType("FUEL");
+        // costType field has been removed from Invoices entity
 
         List<Invoices> expenses = List.of(expense1);
         List<ExpenseRequests> expenseRequests = Collections.emptyList();
