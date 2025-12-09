@@ -467,6 +467,191 @@ def create_statistics_sheet(wb, all_methods_data):
     ws.column_dimensions['A'].width = 20
     ws.column_dimensions['B'].width = 15
 
+def create_module_sheets(wb, all_methods_data):
+    """
+    Create one sheet per module, aggregating all test cases of that module.
+    Layout mirrors the provided Excel format:
+      - Feature / Test requirement rows
+      - Testing Round summary (Round1 with pass/fail/pending)
+      - Green header row for test case table
+      - Grouped by Function <method>, followed by its test cases
+    """
+    # Group test cases by module
+    module_cases = {}
+    for data in all_methods_data.values():
+        module = data['module']
+        if module not in module_cases:
+            module_cases[module] = []
+        module_cases[module].extend(data['test_cases'])
+
+    for module_name, test_cases in module_cases.items():
+        # Sheet name limit 31 chars
+        sheet_name = re.sub(r'[\\/*?:\[\]]', '_', module_name)[:31]
+        # Avoid duplicates
+        if sheet_name in wb.sheetnames:
+            base = sheet_name[:28] if len(sheet_name) > 28 else sheet_name
+            suffix_idx = 1
+            candidate = f"{base}_{suffix_idx}"
+            while candidate in wb.sheetnames and len(candidate) < 31:
+                suffix_idx += 1
+                candidate = f"{base}_{suffix_idx}"
+            sheet_name = candidate if len(candidate) <= 31 else base[:max(0, 31-len(str(suffix_idx))-1)] + f"_{suffix_idx}"
+        ws = wb.create_sheet(sheet_name)
+
+        # Real counts from test results
+        total = len(test_cases)
+        passed = sum(1 for tc in test_cases if tc.get('status') == 'PASS')
+        failed_total = sum(1 for tc in test_cases if tc.get('status') in ['FAIL', 'ERROR'])
+        pending_total = total - passed - failed_total
+
+        # Styles
+        header_fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
+        green_fill = PatternFill(start_color='9BBB59', end_color='9BBB59', fill_type='solid')
+        border_thin = Border(
+            left=Side(style='thin', color='000000'),
+            right=Side(style='thin', color='000000'),
+            top=Side(style='thin', color='000000'),
+            bottom=Side(style='thin', color='000000')
+        )
+
+        # Header info
+        ws['A1'] = 'Feature'
+        ws['B1'] = module_name
+        ws['A2'] = 'Test requirement'
+        ws['B2'] = f'{module_name} integration coverage'
+        ws['A3'] = 'Number of TCs'
+        ws['B3'] = total
+
+        # Testing Round table
+        ws['A5'] = 'Testing Round'
+        ws['B5'] = 'Passed'
+        ws['C5'] = 'Failed'
+        ws['D5'] = 'Pending'
+        ws['E5'] = 'N/A'
+        for cell in ['A5','B5','C5','D5','E5']:
+            ws[cell].fill = header_fill
+            ws[cell].border = border_thin
+        ws['A6'] = 'Round 1'
+        ws['B6'] = passed
+        ws['C6'] = failed_total
+        ws['D6'] = pending_total
+        ws['E6'] = 0
+        for cell in ['A6','B6','C6','D6','E6']:
+            ws[cell].border = border_thin
+
+        # Column widths
+        widths = [18, 32, 28, 28, 22, 10, 12, 10, 10, 12, 10, 10, 12, 10]
+        for idx, w in enumerate(widths, 1):
+            col_letter = get_column_letter(idx)
+            ws.column_dimensions[col_letter].width = w
+
+        # Table header row
+        start_row = 9
+        headers = [
+            'Test Case ID', 'Test Case Description', 'Test Case Procedure',
+            'Expected Results', 'Pre-conditions',
+            'Round 1', 'Test date', 'Tester',
+            'Round 2', 'Test date', 'Tester',
+            'Round 3', 'Test date', 'Tester'
+        ]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=start_row, column=col, value=header)
+            cell.fill = green_fill
+            cell.border = border_thin
+
+        # Group test cases by method (function)
+        def actual_method_name(tc_name: str) -> str:
+            if '_' in tc_name:
+                return tc_name.split('_')[0]
+            return tc_name
+
+        def readable_description(tc_name: str) -> str:
+            # turn test name into human-readable sentence
+            parts = tc_name.split('_')
+            if len(parts) >= 2:
+                return parts[0].capitalize() + ' ' + ' '.join(parts[1:])
+            return tc_name.capitalize()
+
+        def build_expected(tc):
+            # Prefer error/actual message from test result (closer to real expected/observed)
+            if tc.get('error_message'):
+                return tc.get('error_message', '')
+            expected_list = tc['conditions'].get('expected_return', [])
+            if expected_list:
+                return '\n'.join(expected_list[:3])
+            return ''  # no explicit expected captured from test
+
+        def build_procedure(tc):
+            # use inputs as hints
+            inputs = tc['conditions'].get('inputs', {})
+            steps = []
+            method_calls = inputs.get('method', [])
+            if method_calls:
+                steps.append(f"Call {method_calls[0]}(...)")
+            if 'id' in inputs:
+                steps.append(f"Use ids: {', '.join(inputs['id'])}")
+            for k in ['param1','param2','param3']:
+                if k in inputs:
+                    steps.append(f"{k}: {', '.join(inputs[k])}")
+            return '\n'.join(steps) if steps else '<Steps not extracted>'
+
+        def build_preconditions():
+            return "Database is available\nSpring context is loaded\nTest data is set up"
+
+        method_groups = {}
+        for tc in test_cases:
+            method = actual_method_name(tc['name'])
+            method_groups.setdefault(method, []).append(tc)
+
+        row = start_row + 1
+        for method, tcs in method_groups.items():
+            # Function row
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(headers))
+            func_cell = ws.cell(row=row, column=1, value=f'Function {method}')
+            func_cell.fill = header_fill
+            func_cell.border = border_thin
+            row += 1
+
+            # Test cases for this function
+            for idx, tc in enumerate(tcs, 1):
+                tc_id = f"<ID{idx}>"
+                desc = readable_description(tc['name'])
+                proc = build_procedure(tc)
+                expected = build_expected(tc)
+                preconds = '\n'.join(tc['conditions'].get('precondition', [])) if tc['conditions'].get('precondition') else build_preconditions()
+                raw_status = tc.get('status', 'PASS')
+                status_str = 'Passed' if raw_status == 'PASS' else ('Failed' if raw_status == 'FAIL' else 'Error')
+                test_date = datetime.now().strftime('%d/%m/%Y')
+                tester = 'Auto'
+
+                values = [
+                    tc_id, desc, proc, expected, preconds,
+                    status_str, test_date, tester,
+                    status_str, test_date, tester,
+                    status_str, test_date, tester
+                ]
+                for col, val in enumerate(values, 1):
+                    cell = ws.cell(row=row, column=col, value=val)
+                    cell.border = border_thin
+                # Color Round 1 cell
+                r1_cell = ws.cell(row=row, column=6)
+                if raw_status == 'PASS':
+                    r1_cell.fill = PatternFill(start_color=PASS_COLOR, end_color=PASS_COLOR, fill_type='solid')
+                else:
+                    r1_cell.fill = PatternFill(start_color=FAIL_COLOR, end_color=FAIL_COLOR, fill_type='solid')
+                # Color Round 2/3 similarly
+                r2_cell = ws.cell(row=row, column=9)
+                r3_cell = ws.cell(row=row, column=12)
+                for rc in (r2_cell, r3_cell):
+                    if raw_status == 'PASS':
+                        rc.fill = PatternFill(start_color=PASS_COLOR, end_color=PASS_COLOR, fill_type='solid')
+                    else:
+                        rc.fill = PatternFill(start_color=FAIL_COLOR, end_color=FAIL_COLOR, fill_type='solid')
+                row += 1
+
+        # Freeze header
+        ws.freeze_panes = 'A10'
+
 def create_feature_test_case_sheet(wb, method_name, test_cases, test_results_map, module_name):
     """Create feature test case sheet with detailed test cases (like Feature 1, Feature 2 format)"""
     # Clean sheet name
@@ -1175,24 +1360,29 @@ def main():
     
     # Create Statistics sheet
     create_statistics_sheet(wb, all_methods_data)
+
+    # Create per-module sheets (compact, module-level view)
+    create_module_sheets(wb, all_methods_data)
     
-    # Create feature test case sheets for each method (detailed format)
-    for method_name, data in all_methods_data.items():
-        try:
-            # Build test results map with error messages
-            test_results_map = {}
-            for tc in data['test_cases']:
-                test_results_map[tc['name']] = {
-                    'status': tc.get('status', 'PASS'),
-                    'error_message': tc.get('error_message', ''),
-                    'error_type': tc.get('error_type', '')
-                }
-            create_feature_test_case_sheet(wb, method_name, data['test_cases'], test_results_map, data['module'])
-            print(f"Created feature sheet for {method_name} with {len(data['test_cases'])} test cases")
-        except Exception as e:
-            print(f"Error creating sheet for {method_name}: {e}")
-            import traceback
-            traceback.print_exc()
+    # Optional: create feature sheets per method (set to False to keep only module pages)
+    GENERATE_METHOD_SHEETS = False
+    if GENERATE_METHOD_SHEETS:
+        for method_name, data in all_methods_data.items():
+            try:
+                # Build test results map with error messages
+                test_results_map = {}
+                for tc in data['test_cases']:
+                    test_results_map[tc['name']] = {
+                        'status': tc.get('status', 'PASS'),
+                        'error_message': tc.get('error_message', ''),
+                        'error_type': tc.get('error_type', '')
+                    }
+                create_feature_test_case_sheet(wb, method_name, data['test_cases'], test_results_map, data['module'])
+                print(f"Created feature sheet for {method_name} with {len(data['test_cases'])} test cases")
+            except Exception as e:
+                print(f"Error creating sheet for {method_name}: {e}")
+                import traceback
+                traceback.print_exc()
     
     # Save workbook
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

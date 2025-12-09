@@ -23,7 +23,7 @@ async function downloadFile(url, filename) {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       credentials: "include",
     });
-    if (!response.ok) throw new Error("Failed to download file");
+    if (!response.ok) throw new Error("Không thể tải tệp. Vui lòng thử lại.");
     const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
