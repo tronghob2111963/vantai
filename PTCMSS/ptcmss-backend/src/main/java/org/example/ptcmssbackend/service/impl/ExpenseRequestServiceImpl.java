@@ -22,17 +22,22 @@ import org.example.ptcmssbackend.repository.UsersRepository;
 import org.example.ptcmssbackend.repository.VehicleRepository;
 import org.example.ptcmssbackend.repository.ApprovalHistoryRepository;
 import org.example.ptcmssbackend.service.ExpenseRequestService;
+import org.example.ptcmssbackend.service.LocalImageService;
 import org.example.ptcmssbackend.service.WebSocketNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -47,9 +52,17 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
     private final NotificationRepository notificationRepository;
     private final WebSocketNotificationService webSocketNotificationService;
     private final ApprovalHistoryRepository approvalHistoryRepository;
+    private final LocalImageService localImageService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     @Override
     @Transactional
     public ExpenseRequestResponse createExpenseRequest(CreateExpenseRequest request) {
+        return createExpenseRequest(request, null);
+    }
+    
+    @Override
+    @Transactional
+    public ExpenseRequestResponse createExpenseRequest(CreateExpenseRequest request, List<MultipartFile> files) {
         Branches branch = branchesRepository.findById(request.getBranchId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy chi nhánh: " + request.getBranchId()));
 
@@ -73,6 +86,31 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
         entity.setAmount(request.getAmount());
         entity.setNote(request.getNote());
         entity.setStatus(ExpenseRequestStatus.PENDING);
+        
+        // Upload và lưu receipt images
+        if (files != null && !files.isEmpty()) {
+            List<String> imageUrls = new ArrayList<>();
+            for (MultipartFile file : files) {
+                if (file != null && !file.isEmpty()) {
+                    try {
+                        String imageUrl = localImageService.saveImage(file);
+                        imageUrls.add(imageUrl);
+                    } catch (Exception e) {
+                        log.error("[ExpenseRequest] Error uploading file: {}", e.getMessage(), e);
+                        // Continue with other files even if one fails
+                    }
+                }
+            }
+            
+            // Lưu danh sách URL dưới dạng JSON array
+            if (!imageUrls.isEmpty()) {
+                try {
+                    entity.setReceiptImages(objectMapper.writeValueAsString(imageUrls));
+                } catch (JsonProcessingException e) {
+                    log.error("[ExpenseRequest] Error serializing receipt images: {}", e.getMessage(), e);
+                }
+            }
+        }
 
         ExpenseRequests saved = expenseRequestRepository.save(entity);
         
@@ -83,6 +121,17 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
     }
 
     private ExpenseRequestResponse mapToResponse(ExpenseRequests entity) {
+        // Parse receipt images from JSON string
+        List<String> receiptImages = new ArrayList<>();
+        if (entity.getReceiptImages() != null && !entity.getReceiptImages().isEmpty()) {
+            try {
+                receiptImages = objectMapper.readValue(entity.getReceiptImages(), 
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            } catch (Exception e) {
+                log.warn("[ExpenseRequest] Error parsing receipt images: {}", e.getMessage());
+            }
+        }
+        
         return ExpenseRequestResponse.builder()
                 .id(entity.getId())
                 .type(entity.getType())
@@ -104,6 +153,7 @@ public class ExpenseRequestServiceImpl implements ExpenseRequestService {
                                 .orElse(null)
                 )
                 .createdAt(entity.getCreatedAt())
+                .receiptImages(receiptImages)
                 .build();
     }
     

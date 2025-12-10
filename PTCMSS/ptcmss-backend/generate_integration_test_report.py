@@ -498,7 +498,7 @@ def create_module_sheets(wb, all_methods_data):
             sheet_name = candidate if len(candidate) <= 31 else base[:max(0, 31-len(str(suffix_idx))-1)] + f"_{suffix_idx}"
         ws = wb.create_sheet(sheet_name)
 
-        # Real counts from test results
+        # Real counts from test results (1 round of execution)
         total = len(test_cases)
         passed = sum(1 for tc in test_cases if tc.get('status') == 'PASS')
         failed_total = sum(1 for tc in test_cases if tc.get('status') in ['FAIL', 'ERROR'])
@@ -531,12 +531,19 @@ def create_module_sheets(wb, all_methods_data):
         for cell in ['A5','B5','C5','D5','E5']:
             ws[cell].fill = header_fill
             ws[cell].border = border_thin
+        # Round 1 stats (actual)
         ws['A6'] = 'Round 1'
         ws['B6'] = passed
         ws['C6'] = failed_total
         ws['D6'] = pending_total
         ws['E6'] = 0
         for cell in ['A6','B6','C6','D6','E6']:
+            ws[cell].border = border_thin
+
+        # Round 2 & 3 (not executed yet)
+        ws['A7'] = 'Round 2'; ws['B7'] = 0; ws['C7'] = 0; ws['D7'] = 0; ws['E7'] = 0
+        ws['A8'] = 'Round 3'; ws['B8'] = 0; ws['C8'] = 0; ws['D8'] = 0; ws['E8'] = 0
+        for cell in ['A7','B7','C7','D7','E7','A8','B8','C8','D8','E8']:
             ws[cell].border = border_thin
 
         # Column widths
@@ -546,7 +553,7 @@ def create_module_sheets(wb, all_methods_data):
             ws.column_dimensions[col_letter].width = w
 
         # Table header row
-        start_row = 9
+        start_row = 11
         headers = [
             'Test Case ID', 'Test Case Description', 'Test Case Procedure',
             'Expected Results', 'Pre-conditions',
@@ -617,8 +624,9 @@ def create_module_sheets(wb, all_methods_data):
             row += 1
 
             # Test cases for this function
-            for idx, tc in enumerate(tcs, 1):
-                tc_id = f"<ID{idx}>"
+            for tc in tcs:
+                # Use original test case name as ID to tránh trùng lặp giữa các function
+                tc_id = tc['name']
                 desc = readable_description(tc['name'])
                 proc = build_procedure(tc)
                 expected = build_expected(tc)
@@ -631,8 +639,8 @@ def create_module_sheets(wb, all_methods_data):
                 values = [
                     tc_id, desc, proc, expected, preconds,
                     status_str, test_date, tester,
-                    status_str, test_date, tester,
-                    status_str, test_date, tester
+                    '', '', '',  # Round 2 placeholders
+                    '', '', ''   # Round 3 placeholders
                 ]
                 for col, val in enumerate(values, 1):
                     cell = ws.cell(row=row, column=col, value=val)
@@ -643,18 +651,11 @@ def create_module_sheets(wb, all_methods_data):
                     r1_cell.fill = PatternFill(start_color=PASS_COLOR, end_color=PASS_COLOR, fill_type='solid')
                 else:
                     r1_cell.fill = PatternFill(start_color=FAIL_COLOR, end_color=FAIL_COLOR, fill_type='solid')
-                # Color Round 2/3 similarly
-                r2_cell = ws.cell(row=row, column=9)
-                r3_cell = ws.cell(row=row, column=12)
-                for rc in (r2_cell, r3_cell):
-                    if raw_status == 'PASS':
-                        rc.fill = PatternFill(start_color=PASS_COLOR, end_color=PASS_COLOR, fill_type='solid')
-                    else:
-                        rc.fill = PatternFill(start_color=FAIL_COLOR, end_color=FAIL_COLOR, fill_type='solid')
+                # Round 2/3 left blank (not executed)
                 row += 1
 
         # Freeze header
-        ws.freeze_panes = 'A10'
+        ws.freeze_panes = 'A12'
 
 def create_feature_test_case_sheet(wb, method_name, test_cases, test_results_map, module_name):
     """Create feature test case sheet with detailed test cases (like Feature 1, Feature 2 format)"""
