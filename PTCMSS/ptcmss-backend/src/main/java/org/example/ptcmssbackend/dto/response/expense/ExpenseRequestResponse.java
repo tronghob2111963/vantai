@@ -5,6 +5,8 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
+
 @Data
 @Builder
 public class ExpenseRequestResponse {
@@ -20,4 +22,5 @@ public class ExpenseRequestResponse {
     private Integer requesterUserId;
     private String requesterName;
     private Instant createdAt;
+    private List<String> receiptImages; // List of image URLs
 }
