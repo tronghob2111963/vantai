@@ -43,14 +43,31 @@ public class DriverController {
     @Operation(summary = "Dashboard tài xế", description = "Hiển thị chuyến đi hiện tại và lịch trình sắp tới của tài xế.")
     @GetMapping("/{driverId}/dashboard")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','DRIVER','COORDINATOR')")
-    public ResponseData<DriverDashboardResponse> getDriverDashboard(
+    public ResponseEntity<ResponseData<DriverDashboardResponse>> getDriverDashboard(
             @Parameter(description = "ID tài xế") @PathVariable Integer driverId) {
         try{
-            return new ResponseData<>(HttpStatus.OK.value(),
+            DriverDashboardResponse dashboard = driverService.getDashboard(driverId);
+            return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(),
                     "Get driver dashboard successfully",
-                    driverService.getDashboard(driverId));
+                    dashboard));
+        } catch (RuntimeException e) {
+            log.error("Get driver dashboard failed for driverId {}: {}", driverId, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("Không tìm thấy")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new ResponseData<>(HttpStatus.NOT_FOUND.value(),
+                                e.getMessage(),
+                                null));
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseData<>(HttpStatus.BAD_REQUEST.value(),
+                            e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy dashboard tài xế",
+                            null));
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.error("Get driver dashboard failed for driverId {}: {}", driverId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseData<>(HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "Lỗi hệ thống khi lấy dashboard tài xế",
+                            null));
         }
     }
 
@@ -100,16 +117,34 @@ public class DriverController {
     @Operation(summary = "Xem hồ sơ theo userId", description = "Dùng khi FE chỉ có userId trong session")
     @GetMapping("/by-user/{userId}/profile")
     @PreAuthorize("hasAnyRole('DRIVER', 'MANAGER', 'ADMIN')")
-    public ResponseData<DriverProfileResponse> getDriverProfileByUser(
+    public ResponseEntity<ResponseData<DriverProfileResponse>> getDriverProfileByUser(
             @Parameter(description = "ID user") @PathVariable Integer userId) {
         try {
-            log.info("Get driver profile by userId successfully");
-            return new ResponseData<>(HttpStatus.OK.value(),
+            log.info("Get driver profile by userId: {}", userId);
+            DriverProfileResponse profile = driverService.getProfileByUserId(userId);
+            return ResponseEntity.ok(new ResponseData<>(HttpStatus.OK.value(),
                     "Get driver profile by userId successfully",
-                    driverService.getProfileByUserId(userId));
+                    profile));
+        } catch (RuntimeException e) {
+            log.error("Get driver profile by userId failed for userId {}: {}", userId, e.getMessage());
+            // Trả về 404 nếu không tìm thấy driver
+            if (e.getMessage() != null && e.getMessage().contains("Không tìm thấy")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new ResponseData<>(HttpStatus.NOT_FOUND.value(),
+                                e.getMessage(),
+                                null));
+            }
+            // Trả về 400 cho các lỗi khác
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseData<>(HttpStatus.BAD_REQUEST.value(),
+                            e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy thông tin tài xế",
+                            null));
         } catch (Exception e) {
-            log.error("Get driver profile by userId failed", e);
-            throw new RuntimeException(e);
+            log.error("Get driver profile by userId failed for userId {}: {}", userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseData<>(HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "Lỗi hệ thống khi lấy thông tin tài xế",
+                            null));
         }
     }
 
