@@ -141,4 +141,24 @@ public class AuthController {
                     .build());
         }
     }
+
+    // ---------------- LOGOUT ----------------
+    @Operation(
+            summary = "Đăng xuất",
+            description = "Đăng xuất người dùng. Frontend sẽ xóa token khỏi localStorage.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Đăng xuất thành công")
+            }
+    )
+    @PostMapping("/logout")
+    public ResponseEntity<org.example.ptcmssbackend.dto.response.common.ApiResponse<String>> logout() {
+        log.info("[LOGOUT] Logout request received");
+        // Logout chỉ cần trả về success, frontend sẽ xóa token
+        // Nếu cần invalidate token trên server, có thể thêm logic ở đây
+        return ResponseEntity.ok(org.example.ptcmssbackend.dto.response.common.ApiResponse.<String>builder()
+                .success(true)
+                .message("Đăng xuất thành công")
+                .data("Đã đăng xuất")
+                .build());
+    }
 }

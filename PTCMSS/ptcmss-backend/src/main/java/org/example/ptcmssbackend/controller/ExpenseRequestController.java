@@ -7,7 +7,6 @@ import org.example.ptcmssbackend.dto.response.common.ResponseData;
 import org.example.ptcmssbackend.dto.response.expense.ExpenseRequestResponse;
 import org.example.ptcmssbackend.service.ExpenseRequestService;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +27,7 @@ public class ExpenseRequestController {
      * Kế toán chỉ duyệt, không tạo yêu cầu
      * Hỗ trợ upload ảnh chứng từ (multipart/form-data)
      */
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CONSULTANT','DRIVER','COORDINATOR')")
     public ResponseEntity<ResponseData<ExpenseRequestResponse>> createExpenseRequest(
             @RequestParam("type") String type,
