@@ -29,10 +29,12 @@ CREATE TABLE `app_settings` (
   `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `setting_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `updated_at` datetime(6) DEFAULT NULL,
-  `updated_by` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
   `setting_value` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `UK7p82g7l6uve2vd8l30djhxpel` (`setting_key`)
+  UNIQUE KEY `UK7p82g7l6uve2vd8l30djhxpel` (`setting_key`),
+  KEY `fk_app_settings_updated_by` (`updated_by`),
+  CONSTRAINT `fk_app_settings_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `employees` (`employeeId`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -42,7 +44,7 @@ CREATE TABLE `app_settings` (
 
 LOCK TABLES `app_settings` WRITE;
 /*!40000 ALTER TABLE `app_settings` DISABLE KEYS */;
-INSERT INTO `app_settings` VALUES (1,'Tiền tố nội dung chuyển khoản','qr.description_prefix','2025-12-02 16:02:30.000000','admin','VANTAI'),(2,'Mã ngân hàng theo chuẩn VietQR','qr.bank_code','2025-12-02 16:02:30.000000','admin','970403'),(3,'Tên chủ tài khoản','qr.account_name','2025-12-02 16:02:30.000000','admin','CONG TY VANTAI'),(4,'Số tài khoản ngân hàng','qr.account_number','2025-12-02 16:02:30.000000','admin','070122047995');
+INSERT INTO `app_settings` VALUES (1,'Tiền tố nội dung chuyển khoản','qr.description_prefix','2025-12-02 16:02:30.000000',1,'VANTAI'),(2,'Mã ngân hàng theo chuẩn VietQR','qr.bank_code','2025-12-02 16:02:30.000000',1,'970403'),(3,'Tên chủ tài khoản','qr.account_name','2025-12-02 16:02:30.000000',1,'CONG TY VANTAI'),(4,'Số tài khoản ngân hàng','qr.account_number','2025-12-02 16:02:30.000000',1,'070122047995');
 /*!40000 ALTER TABLE `app_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
