@@ -1994,19 +1994,16 @@ public class BookingServiceImpl implements BookingService {
         int busy = busyIds != null ? busyIds.size() : 0;
 
         // Reserved quantity by bookings đã cọc nhưng CHƯA gán xe
-        // CHỈ tính từ bookings đã đặt cọc (CONFIRMED, INPROGRESS), KHÔNG tính PENDING (chưa đặt cọc)
-        java.util.List<BookingStatus> reservedStatuses = java.util.Arrays.asList(
-                BookingStatus.CONFIRMED,
-                BookingStatus.INPROGRESS
-        );
-        Integer reservedQty = bookingVehicleDetailsRepository.countReservedQuantityWithoutAssignedVehicles(
+        // Tính từ các booking đã đặt cọc (paidAmount > 0) bất kể status (trừ CANCELLED)
+        // Điều này đảm bảo các đơn đã đặt cọc được giữ xe, kể cả khi status vẫn là PENDING/QUOTATION_SENT
+        Integer reservedQtyByDeposit = bookingVehicleDetailsRepository.countReservedQuantityByDepositWithoutAssignedVehicles(
                 branchId,
                 categoryId,
                 start,
-                end,
-                reservedStatuses
+                end
         );
-        int reserved = reservedQty != null ? reservedQty : 0;
+        
+        int reserved = (reservedQtyByDeposit != null ? reservedQtyByDeposit : 0);
 
         int available = Math.max(0, total - busy - reserved);
         boolean ok = available >= needed;

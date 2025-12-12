@@ -630,11 +630,11 @@ export default function ManagerDashboardPro() {
                     />
 
                     <KpiBlock
-                        label="Biên lợi nhuận"
-                        value={profitMargin.toFixed(1) + " %"}
-                        sub="(Lợi nhuận / Doanh thu)"
+                        label="Công nợ phải thu"
+                        value={fmtVND(dashboardData?.arBalance || 0) + " đ"}
+                        sub="Tổng công nợ phải thu (A/R)"
                         deltaPct={null}
-                        up={profitMargin >= 0}
+                        up={true}
                         icon={<Gauge className="h-3.5 w-3.5 text-indigo-600" />}
                     />
 

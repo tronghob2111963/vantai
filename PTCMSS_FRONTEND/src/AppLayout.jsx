@@ -35,18 +35,19 @@ import { useNotifications } from "./hooks/useNotifications";
 
 // Menu items cho từng role - hiển thị flat list, không dùng accordion
 const SIDEBAR_ITEMS_BY_ROLE = {
-  // Consultant (Tư vấn viên - 5 options)
+  // Consultant (Tư vấn viên - 7 options)
   [ROLES.CONSULTANT]: [
-    { label: "Bảng điều khiển", to: "/orders/dashboard", icon: LayoutDashboard },
+    { label: "Bảng điều khiển", to: "/orders/dashboard", icon: LayoutDashboard, exact: true },
     { label: "Danh sách đơn hàng", to: "/orders", icon: ClipboardList },
     { label: "Tạo đơn hàng", to: "/orders/new", icon: ClipboardList },
+    { label: "Danh sách khách hàng", to: "/consultant/customers", icon: Users },
     { label: "Danh sách xe", to: "/consultant/vehicles", icon: CarFront },
     { label: "Danh sách tài xế", to: "/consultant/drivers", icon: Users },
     { label: "Đánh giá tài xế", to: "/consultant/ratings", icon: BarChart3 },
   ],
   // Driver (Tài xế - 8 options)
   [ROLES.DRIVER]: [
-    { label: "Bảng điều khiển", to: "/driver/dashboard", icon: LayoutDashboard },
+    { label: "Bảng điều khiển", to: "/driver/dashboard", icon: LayoutDashboard, exact: true },
     { label: "Lịch làm việc", to: "/driver/schedule", icon: CalendarClock },
     { label: "Danh sách chuyến", to: "/driver/trips-list", icon: ClipboardList },
     { label: "Quản lý sự cố", to: "/driver/incidents", icon: AlertTriangle },
@@ -57,7 +58,7 @@ const SIDEBAR_ITEMS_BY_ROLE = {
   ],
   // Coordinator (Điều phối viên - 7 options)
   [ROLES.COORDINATOR]: [
-    { label: "Bảng điều khiển", to: "/dispatch", icon: LayoutDashboard },
+    { label: "Bảng điều khiển", to: "/dispatch", icon: LayoutDashboard, exact: true },
     { label: "Cảnh báo chờ duyệt", to: "/dispatch/notifications-dashboard", icon: Bell },
     { label: "Sự cố chuyến đi", to: "/dispatch/incidents", icon: AlertTriangle },
     { label: "Danh sách đơn", to: "/coordinator/orders", icon: ClipboardList },
@@ -67,7 +68,7 @@ const SIDEBAR_ITEMS_BY_ROLE = {
   ],
   // Accountant (Kế toán - 8 options)
   [ROLES.ACCOUNTANT]: [
-    { label: "Bảng điều khiển", to: "/accounting", icon: LayoutDashboard },
+    { label: "Bảng điều khiển", to: "/accounting", icon: LayoutDashboard, exact: true },
     { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", icon: BarChart3 },
     { label: "Báo cáo chi phí", to: "/accounting/expenses", icon: DollarSign },
     { label: "Danh sách hóa đơn", to: "/accounting/invoices", icon: ClipboardList },
@@ -76,11 +77,12 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Danh sách nhân viên", to: "/accountant/users", icon: Users },
     { label: "Danh sách xe", to: "/accountant/vehicles", icon: CarFront },
   ],
-  // Manager (Quản lý - 6 options)
+  // Manager (Quản lý - 8 options)
   [ROLES.MANAGER]: [
-    { label: "Bảng điều khiển", to: "/analytics/manager", icon: LayoutDashboard },
+    { label: "Bảng điều khiển", to: "/analytics/manager", icon: LayoutDashboard, exact: true },
     { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", icon: BarChart3 },
     { label: "Báo cáo chi phí", to: "/accounting/expenses", icon: DollarSign },
+    { label: "Danh sách đơn hàng", to: "/manager/orders", icon: ClipboardList },
     { label: "Danh sách nhân viên", to: "/admin/users", icon: Users },
     { label: "Danh sách xe", to: "/vehicles", icon: CarFront },
     { label: "Danh sách khách hàng", to: "/manager/customers", icon: Users },
@@ -236,6 +238,7 @@ function SidebarNav() {
             <NavLink
               key={`${item.to}-${index}`}
               to={item.to}
+              end={item.exact}
               className={({ isActive: navActive }) => {
                 const active = navActive || isActive;
                 const base = "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-200 ease-in-out";
@@ -943,6 +946,14 @@ export default function AppLayout() {
 
           {/* Consultant specific routes */}
           <Route
+            path="/consultant/customers"
+            element={
+              <ProtectedRoute roles={[ROLES.CONSULTANT]}>
+                <CustomerListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/consultant/vehicles"
             element={
               <ProtectedRoute roles={[ROLES.CONSULTANT]}>
@@ -986,6 +997,14 @@ export default function AppLayout() {
           />
 
           {/* Manager specific routes */}
+          <Route
+            path="/manager/orders"
+            element={
+              <ProtectedRoute roles={[ROLES.MANAGER]}>
+                <ConsultantOrderListPage readOnly />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/manager/customers"
             element={
