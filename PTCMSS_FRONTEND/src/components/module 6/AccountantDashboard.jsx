@@ -1773,16 +1773,16 @@ export default function AccountantDashboard() {
                         up={true}
                     />
                     <KpiCard
-                        title="Công nợ phải trả (A/P)"
-                        value={Number(dashboardData.apBalance || 0)}
-                        delta={0}
-                        up={false}
+                    title="Tổng chi phí"
+                    value={Number(dashboardData.totalExpense || 0)}
+                    delta={0}
+                    up={false}
                     />
                     <KpiCard
-                        title="Lợi nhuận ròng"
-                        value={Number(dashboardData.netProfit || 0)}
-                        delta={dashboardData.expenseToRevenueRatio ? Number(dashboardData.expenseToRevenueRatio) : 0}
-                        up={Number(dashboardData.netProfit || 0) >= 0}
+                    title="Tổng doanh thu"
+                    value={Number(dashboardData.totalRevenue || 0)}
+                    delta={dashboardData.collectionRate ? Number(dashboardData.collectionRate) : 0}
+                    up={true}
                     />
                 </div>
             </div>
