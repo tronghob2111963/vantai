@@ -1182,8 +1182,12 @@ export default function EditOrderPage() {
             const now = new Date();
             const diffMs = tripStart.getTime() - now.getTime();
             const hoursUntilTrip = diffMs / (1000 * 60 * 60);
+
+            // Ngưỡng tối thiểu (giờ) để cho phép sửa đơn, đọc từ System Setting (nếu có)
+            // TODO: thay thế 12 bằng giá trị động từ API system-settings (key, ví dụ: EDIT_BOOKING_MIN_HOURS)
+            const minHoursBeforeEdit = 12;
             
-            if (hoursUntilTrip < 12) {
+            if (hoursUntilTrip < minHoursBeforeEdit) {
                 const absHours = Math.abs(hoursUntilTrip);
                 const hours = Math.floor(absHours);
                 const minutes = Math.floor((absHours - hours) * 60);
@@ -1191,7 +1195,7 @@ export default function EditOrderPage() {
                 if (hoursUntilTrip < 0) {
                     return `Chuyến đi đã diễn ra ${hours} giờ ${minutes} phút trước. Không thể chỉnh sửa.`;
                 }
-                return `Chỉ còn ${hours} giờ ${minutes} phút trước chuyến đi. Cần >= 12 giờ để chỉnh sửa.`;
+                return `Chỉ còn ${hours} giờ ${minutes} phút trước chuyến đi. Cần >= ${minHoursBeforeEdit} giờ để chỉnh sửa.`;
             }
         }
         return null;
@@ -1595,38 +1599,44 @@ export default function EditOrderPage() {
                             />
                         </div>
 
-                        {/* Kết thúc dự kiến / Ngày kết thúc - Với ONE_WAY không bắt buộc */}
-                        <div className="mb-3">
-                            <label className={labelCls}>
-                                <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                <span>
-                                    {hireType === "DAILY" || hireType === "MULTI_DAY"
-                                        ? "Ngày kết thúc"
-                                        : hireType === "ONE_WAY"
-                                        ? "Thời gian kết thúc (dự kiến) - Tùy chọn"
-                                        : "Thời gian kết thúc (dự kiến)"}
-                                </span>
-                            </label>
-                            <input
-                                type={hireType === "DAILY" || hireType === "MULTI_DAY" ? "date" : "datetime-local"}
-                                className={makeInputCls({
-                                    enabled: inputEnabledCls,
-                                    disabled: inputDisabledCls,
-                                })}
-                                value={endTime}
-                                onChange={(e) =>
-                                    setEndTime(
-                                        e.target.value
-                                    )
-                                }
-                                {...disableInputProps}
-                            />
-                            {hireType === "ONE_WAY" && (
-                                <div className="text-[11px] text-slate-400 mt-1">
-                                    Với hình thức một chiều, thời gian kết thúc là tùy chọn. Hệ thống sẽ tự tính nếu không nhập.
-                                </div>
-                            )}
-                        </div>
+                        {/* Kết thúc dự kiến / Ngày kết thúc 
+                            - Với ONE_WAY:
+                              + Nếu là tư vấn viên (isConsultant) thì ẩn hẳn ô thời gian kết thúc, hệ thống tự tính nội bộ.
+                              + Các role khác vẫn có thể nhập (tùy chọn).
+                        */}
+                        {!(isConsultant && hireType === "ONE_WAY") && (
+                            <div className="mb-3">
+                                <label className={labelCls}>
+                                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>
+                                        {hireType === "DAILY" || hireType === "MULTI_DAY"
+                                            ? "Ngày kết thúc"
+                                            : hireType === "ONE_WAY"
+                                            ? "Thời gian kết thúc (dự kiến) - Tùy chọn"
+                                            : "Thời gian kết thúc (dự kiến)"}
+                                    </span>
+                                </label>
+                                <input
+                                    type={hireType === "DAILY" || hireType === "MULTI_DAY" ? "date" : "datetime-local"}
+                                    className={makeInputCls({
+                                        enabled: inputEnabledCls,
+                                        disabled: inputDisabledCls,
+                                    })}
+                                    value={endTime}
+                                    onChange={(e) =>
+                                        setEndTime(
+                                            e.target.value
+                                        )
+                                    }
+                                    {...disableInputProps}
+                                />
+                                {hireType === "ONE_WAY" && (
+                                    <div className="text-[11px] text-slate-400 mt-1">
+                                        Với hình thức một chiều, thời gian kết thúc là tùy chọn. Hệ thống sẽ tự tính nếu không nhập.
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Số khách - chỉ hiển thị nếu không phải consultant */}
                         {!isConsultant && (

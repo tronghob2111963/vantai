@@ -74,6 +74,29 @@ const cls = (...a) => a.filter(Boolean).join(" ");
 const fmtVND = (n) =>
     new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(n || 0)));
 
+// Đọc số tiền bằng tiếng Việt đơn giản (triệu / tỷ) cho UI
+function readAmountVi(n) {
+    const value = Math.max(0, Number(n || 0));
+    if (!Number.isFinite(value) || value <= 0) return "Chưa có giá hệ thống";
+
+    const billion = 1_000_000_000;
+    const million = 1_000_000;
+
+    if (value >= billion) {
+        const main = value / billion;
+        const rounded = Math.round(main * 10) / 10; // làm tròn 1 chữ số thập phân
+        return `${rounded.toString().replace(".", ",")} tỷ đồng`;
+    }
+
+    if (value >= million) {
+        const main = value / million;
+        const rounded = Math.round(main * 10) / 10;
+        return `${rounded.toString().replace(".", ",")} triệu đồng`;
+    }
+
+    return `${fmtVND(value)} đồng`;
+}
+
 function stripAccents(str = "") {
     try {
         return str
@@ -397,7 +420,7 @@ export default function CreateOrderPage() {
                         needed: firstFailed.needed,
                         totalCandidates: firstFailed.totalCandidates || 0,
                         busyCount: firstFailed.busyCount || 0,
-                        text: `${cat?.name || 'Xe'}: Hết xe (${firstFailed.busyCount || 0}/${firstFailed.totalCandidates || 0} đang bận)`,
+                        text: `${cat?.name || 'Xe'}: Hết xe (hiện chỉ còn ${firstFailed.availableCount || 0} xe trong khoảng thời gian này)`,
                         branch: branchId,
                         // Suggestions từ kết quả đầu tiên bị fail
                         alternativeCategories: firstFailed.alternativeCategories,
@@ -828,7 +851,7 @@ export default function CreateOrderPage() {
     }, [startTime, endTime, hireType]);
 
     // calculate via backend when possible
-    React.useEffect(() => {
+    const recalcPrice = React.useCallback(async () => {
         const run = async () => {
             // Cần đủ thông tin cơ bản để tính giá
             const validSelections = vehicleSelections.filter(v => v.categoryId && v.quantity > 0);
@@ -911,8 +934,12 @@ export default function CreateOrderPage() {
                 setCalculatingPrice(false);
             }
         };
-        run();
-    }, [hireTypeId, isHoliday, isWeekend, startTime, endTime, quotedPriceTouched, distanceKm, vehicleSelections, hireType]);
+        await run();
+    }, [hireTypeId, isHoliday, isWeekend, startTime, endTime, quotedPriceTouched, distanceKm, vehicleSelections, hireType, calculatePrice]);
+
+    React.useEffect(() => {
+        recalcPrice();
+    }, [recalcPrice]);
 
     /* --- submit states --- */
     const [loadingDraft, setLoadingDraft] =
@@ -1070,28 +1097,34 @@ export default function CreateOrderPage() {
             // Validate endTime nếu không phải ONE_WAY
             if (hireType !== "ONE_WAY" && endTime) {
                 const endDate = new Date(endTime);
-                
-                // Check if end time is after start time
-                if (endDate <= startDate) {
-                    setTimeError("Thời gian về phải sau thời gian đi");
-                    push("Thời gian về phải sau thời gian đi", "error");
-                    return;
-                } else {
-                    setTimeError(""); // Clear error nếu hợp lệ
-                }
 
-                // Check minimum duration based on hire type
-                const durationHours = (endDate - startDate) / (1000 * 60 * 60);
-                let minDuration = 2; // Minimum 2 hours for round trip
-                
+                // Đối với thuê theo ngày (DAILY / MULTI_DAY): chỉ cần ngày kết thúc >= ngày bắt đầu
                 if (hireType === "DAILY" || hireType === "MULTI_DAY") {
-                    minDuration = 8; // Minimum 8 hours for daily hire
-                }
-                
-                if (durationHours < minDuration) {
-                    const hireTypeLabel = hireType === "ROUND_TRIP" ? "hai chiều" : "theo ngày";
-                    push(`Thời gian thuê ${hireTypeLabel} tối thiểu ${minDuration} giờ`, "error");
-                    return;
+                    if (endDate < startDate) {
+                        setTimeError("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu");
+                        push("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu", "error");
+                        return;
+                    } else {
+                        setTimeError(""); // Clear error nếu hợp lệ
+                    }
+                    // Không check tối thiểu X giờ cho thuê theo ngày vì có case thuê trong ngày
+                } else {
+                    // ROUND_TRIP: cần thời gian về > thời gian đi và tối thiểu một số giờ
+                    if (endDate <= startDate) {
+                        setTimeError("Thời gian về phải sau thời gian đi");
+                        push("Thời gian về phải sau thời gian đi", "error");
+                        return;
+                    } else {
+                        setTimeError(""); // Clear error nếu hợp lệ
+                    }
+
+                    const durationHours = (endDate - startDate) / (1000 * 60 * 60);
+                    const minDuration = 2; // Minimum 2 hours for round trip
+
+                    if (durationHours < minDuration) {
+                        push(`Thời gian thuê hai chiều tối thiểu ${minDuration} giờ`, "error");
+                        return;
+                    }
                 }
             }
         }
@@ -1729,6 +1762,17 @@ export default function CreateOrderPage() {
                                     Đang tính...
                                 </span>
                             ) : null}
+                            {!calculatingPrice && (
+                                <button
+                                    type="button"
+                                    onClick={recalcPrice}
+                                    className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-medium text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-colors"
+                                    title="Tính lại giá hệ thống dựa trên tuyến, thời gian và số xe hiện tại"
+                                >
+                                    <RefreshCw className="h-3 w-3" />
+                                    <span>Tính lại giá</span>
+                                </button>
+                            )}
                         </div>
 
                         <div className="grid md:grid-cols-3 gap-4 text-[13px]">
@@ -1740,9 +1784,8 @@ export default function CreateOrderPage() {
                                 <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 tabular-nums font-semibold text-slate-900">
                                     {fmtVND(estPriceSys)} đ
                                 </div>
-                                <div className="text-[11px] text-slate-400 mt-1">
-                                    Tự động tính theo tuyến /
-                                    loại xe.
+                                <div className="text-[11px] text-slate-500 mt-1">
+                                    {readAmountVi(estPriceSys)}
                                 </div>
                             </div>
 
@@ -2126,7 +2169,7 @@ export default function CreateOrderPage() {
                                                     <div className="mt-2 flex items-center">
                                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-red-100 text-red-700 border border-red-200">
                                                             <CarFront className="h-3.5 w-3.5" />
-                                                            {cat?.name}: Hết xe ({thisVehicleResult?.busyCount || 0}/{thisVehicleResult?.totalCandidates || 0} đang bận) ({thisVehicleResult?.availableCount || 0} xe)
+                                                            {cat?.name}: Hết xe (hiện chỉ còn {thisVehicleResult?.availableCount || 0} xe trong khoảng thời gian này)
                                                         </span>
                                                     </div>
                                                 )}

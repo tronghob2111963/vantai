@@ -77,6 +77,29 @@ const fmtVND = (n) =>
         Math.max(0, Number(n || 0))
     ) + " đ";
 
+// Đọc số tiền bằng tiếng Việt đơn giản (triệu / tỷ) cho UI
+function readAmountVi(n) {
+    const value = Math.max(0, Number(n || 0));
+    if (!Number.isFinite(value) || value <= 0) return "Chưa có gợi ý số tiền";
+
+    const billion = 1_000_000_000;
+    const million = 1_000_000;
+
+    if (value >= billion) {
+        const main = value / billion;
+        const rounded = Math.round(main * 10) / 10;
+        return `${rounded.toString().replace(".", ",")} tỷ đồng`;
+    }
+
+    if (value >= million) {
+        const main = value / million;
+        const rounded = Math.round(main * 10) / 10;
+        return `${rounded.toString().replace(".", ",")} triệu đồng`;
+    }
+
+    return `${new Intl.NumberFormat("vi-VN").format(value)} đồng`;
+}
+
 /* ---------- status pill ---------- */
 const ORDER_STATUS_LABEL = {
     DRAFT: "Nháp",
@@ -284,15 +307,18 @@ function TripInfoCard({ trip, hireTypeName, useHighway }) {
                                     {trip.dropoff || "—"}
                                 </div>
 
-                                <div className="mt-1 flex items-center gap-1 text-[12px] text-slate-500">
-                                    <Clock className="h-3.5 w-3.5 text-slate-400" />
-                                    <span>
-                                        Thời gian về:{" "}
-                                        <span className="font-medium text-slate-900 tabular-nums">
-                                            {fmtDateTime(trip.dropoff_eta)}
+                                {/* Với thuê 1 chiều có thể không có thời gian về rõ ràng -> chỉ hiển thị nếu backend có dropoff_eta */}
+                                {trip.dropoff_eta && (
+                                    <div className="mt-1 flex items-center gap-1 text-[12px] text-slate-500">
+                                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                                        <span>
+                                            Thời gian về:{" "}
+                                            <span className="font-medium text-slate-900 tabular-nums">
+                                                {fmtDateTime(trip.dropoff_eta)}
+                                            </span>
                                         </span>
-                                    </span>
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -686,8 +712,46 @@ function QrPaymentModal({
                             value={amountStr}
                             onChange={(e) => setAmountStr(e.target.value)}
                         />
-                        <div className="text-[11px] text-slate-500">
-                            Gợi ý: {fmtVND(defaultAmount || 0)}
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1 gap-2 flex-wrap">
+                            <span className="text-slate-600">
+                                {defaultAmount > 0
+                                    ? `Gợi ý: ${fmtVND(defaultAmount)} (${readAmountVi(defaultAmount)})`
+                                    : "Chưa có gợi ý số tiền"}
+                            </span>
+                            {defaultAmount > 0 && (
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setAmountStr(
+                                                String(
+                                                    Math.round(
+                                                        (defaultAmount * 0.3) / 1000
+                                                    ) * 1000
+                                                )
+                                            )
+                                        }
+                                        className="inline-flex items-center justify-center rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-colors"
+                                    >
+                                        30%
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setAmountStr(
+                                                String(
+                                                    Math.round(
+                                                        (defaultAmount * 0.5) / 1000
+                                                    ) * 1000
+                                                )
+                                            )
+                                        }
+                                        className="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-colors"
+                                    >
+                                        50%
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -1496,6 +1560,8 @@ export default function OrderDetailPage() {
                             bookingId: order.id,
                             tripId: defaultTripId,
                             tripIds: unassignedTripIds.length > 0 ? unassignedTripIds : undefined,
+                            // Truyền đầy đủ thông tin chi tiết của các trip chưa gán
+                            trips: unassignedTrips,
                             code: order.code,
                             pickup_time: order.trip?.pickup_time,
                             vehicle_type: vehicleCategoryForTrip,

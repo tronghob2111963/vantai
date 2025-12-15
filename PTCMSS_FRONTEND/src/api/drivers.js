@@ -19,8 +19,13 @@ export function getDriverDashboard(driverId) {
   return apiFetch(`/api/drivers/${driverId}/dashboard`);
 }
 
-export function getDriverSchedule(driverId) {
-  return apiFetch(`/api/drivers/${driverId}/schedule`);
+export function getDriverSchedule(driverId, { startDate, endDate } = {}) {
+  const params = new URLSearchParams();
+  if (startDate) params.append("startDate", startDate);
+  if (endDate) params.append("endDate", endDate);
+  const qs = params.toString();
+  const suffix = qs ? `?${qs}` : "";
+  return apiFetch(`/api/drivers/${driverId}/schedule${suffix}`);
 }
 
 export function requestDayOff(driverId, payload) {

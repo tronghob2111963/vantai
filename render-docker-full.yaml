@@ -1,0 +1,82 @@
+services:
+  # MySQL Database Container (Web Service)
+  # ⚠️ LƯU Ý: MySQL container sẽ tốn phí hơn managed database
+  # Free tier chỉ có 750 giờ/tháng, nên nếu chạy 3 services sẽ hết quota nhanh
+  - type: web
+    name: ptcmss-mysql
+    env: docker
+    dockerfilePath: ./PTCMSS/docker-compose.yml
+    dockerContext: ./PTCMSS
+    plan: starter
+    region: singapore
+    # Sử dụng MySQL image trực tiếp
+    dockerCommand: docker run -d \
+      -e MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root} \
+      -e MYSQL_DATABASE=${MYSQL_DATABASE:-ptcmss_db} \
+      --name ptcmss-mysql \
+      -p 3306:3306 \
+      mysql:8.0.43-debian
+    envVars:
+      - key: MYSQL_ROOT_PASSWORD
+        value: root
+        sync: false
+      - key: MYSQL_DATABASE
+        value: ptcmss_db
+    # ⚠️ KHÔNG KHUYẾN NGHỊ: MySQL container trên Render tốn nhiều tài nguyên
+    # Tốt hơn là dùng managed database hoặc external MySQL service
+
+  # Backend Service (Spring Boot) - Dùng Docker
+  - type: web
+    name: ptcmss-backend
+    env: docker
+    dockerfilePath: ./PTCMSS/ptcmss-backend/Dockerfile
+    dockerContext: ./PTCMSS/ptcmss-backend
+    plan: starter
+    region: singapore
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      # Kết nối đến MySQL container (sử dụng internal hostname)
+      # ⚠️ LƯU Ý: Render services không thể giao tiếp trực tiếp qua hostname
+      # Cần dùng external URL hoặc managed database
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+        # Format: jdbc:mysql://ptcmss-mysql.onrender.com:3306/ptcmss_db?useSSL=true&...
+        # Hoặc dùng external MySQL service URL
+      - key: SPRING_DATASOURCE_USERNAME
+        value: root
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+        # Set trong Render Dashboard
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_JPA_SHOW_SQL
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 86400000
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+    healthCheckPath: /actuator/health
+
+  # Frontend Service (React + Vite) - Dùng Docker
+  - type: web
+    name: ptcmss-frontend
+    env: docker
+    dockerfilePath: ./PTCMSS_FRONTEND/Dockerfile
+    dockerContext: ./PTCMSS_FRONTEND
+    plan: starter
+    region: singapore
+    envVars:
+      - key: VITE_API_BASE
+        sync: false
+        # Set sau khi backend deploy xong
+        # Format: https://ptcmss-backend.onrender.com
+

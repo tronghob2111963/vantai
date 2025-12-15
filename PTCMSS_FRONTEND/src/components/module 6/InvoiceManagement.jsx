@@ -1797,9 +1797,25 @@ export default function InvoiceManagement() {
 
     // Xác nhận thanh toán
     const onConfirmPayment = async (paymentId, status) => {
+        const isConfirm = status === "CONFIRMED";
+        const actionLabel = isConfirm ? "ĐÃ NHẬN" : "CHƯA NHẬN ĐƯỢC";
+        const confirmText = isConfirm
+            ? "Bạn có chắc chắn đã nhận đủ số tiền này và muốn xác nhận 'ĐÃ NHẬN'?"
+            : "Bạn có chắc chắn muốn đánh dấu 'CHƯA NHẬN ĐƯỢC' cho khoản thanh toán này?";
+
+        // Popup xác nhận trước khi cập nhật trạng thái
+        // (áp dụng cho tất cả nơi gọi onConfirmPayment: modal pending + lịch sử thanh toán)
+        const ok = window.confirm(confirmText);
+        if (!ok) return;
+
         try {
             await confirmPayment(paymentId, status);
-            push(`${status === "CONFIRMED" ? "Đã xác nhận nhận tiền" : "Đã đánh dấu chưa nhận được tiền"}`, "success");
+            push(
+                isConfirm
+                    ? "Đã xác nhận nhận tiền"
+                    : "Đã đánh dấu chưa nhận được tiền",
+                "success"
+            );
             // Reload payment history
             if (selectedInvoiceId) {
                 const history = await getPaymentHistory(selectedInvoiceId);

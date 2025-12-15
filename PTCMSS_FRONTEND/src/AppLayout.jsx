@@ -240,7 +240,8 @@ function SidebarNav() {
               to={item.to}
               end={item.exact}
               className={({ isActive: navActive }) => {
-                const active = navActive || isActive;
+                // Chỉ dùng activeIndex (isActive) để tránh nhiều tab cùng sáng màu
+                const active = isActive || (item.exact && navActive);
                 const base = "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-200 ease-in-out";
                 if (active) {
                   return [

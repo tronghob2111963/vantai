@@ -1,0 +1,67 @@
+services:
+  # Backend Service (Spring Boot) - Deploy bằng Docker
+  - type: web
+    name: ptcmss-backend
+    env: docker  # ✅ Đã dùng Docker!
+    dockerfilePath: ./PTCMSS/ptcmss-backend/Dockerfile
+    dockerContext: ./PTCMSS/ptcmss-backend
+    plan: starter
+    region: singapore
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: ptcmss-database
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: ptcmss-database
+          property: username
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: ptcmss-database
+          property: password
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_JPA_SHOW_SQL
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 86400000
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+    healthCheckPath: /actuator/health
+
+  # Frontend Service (React + Vite) - Deploy bằng Docker
+  - type: web
+    name: ptcmss-frontend
+    env: docker  # ✅ Đã dùng Docker!
+    dockerfilePath: ./PTCMSS_FRONTEND/Dockerfile
+    dockerContext: ./PTCMSS_FRONTEND
+    plan: starter
+    region: singapore
+    envVars:
+      - key: VITE_API_BASE
+        sync: false
+        # ⚠️ QUAN TRỌNG: Set giá trị này trong Render Dashboard sau khi backend deploy xong
+        # Format: https://ptcmss-backend.onrender.com
+        # Sau khi set, cần rebuild service để áp dụng (vì Vite build-time variable)
+
+  # PostgreSQL Database (Render free tier hỗ trợ PostgreSQL)
+  # ⚠️ LƯU Ý: Dự án hiện tại dùng MySQL, cần migrate sang PostgreSQL
+  # Hoặc sử dụng external MySQL service (PlanetScale, Railway, etc.)
+databases:
+  - name: ptcmss-database
+    databaseName: ptcmss_db
+    user: ptcmss_user
+    plan: starter
+    region: singapore
+

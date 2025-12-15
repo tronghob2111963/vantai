@@ -56,7 +56,7 @@ export default function AssignDriverDialog({
         React.useState(false);
 
     const tripId = order?.tripId || order?.id;
-    const tripIds = order?.tripIds; // Danh sách trips nếu có nhiều xe
+    const tripIds = order?.tripIds; // Danh sách trips nếu có nhiều xe (chưa gán)
     const bookingId = order?.bookingId;
     const vehicleCount = order?.vehicle_count || 1; // Số lượng xe trong booking
     const hasMixedVehicleCategories = !!order?.hasMixedVehicleCategories;
@@ -65,6 +65,41 @@ export default function AssignDriverDialog({
     const [unassignedTripCount, setUnassignedTripCount] = React.useState(0);
     // Nếu đơn có nhiều loại xe khác nhau -> mặc định KHÔNG gán cho tất cả để tránh sai loại xe
     const [assignToAllTrips, setAssignToAllTrips] = React.useState(!hasMixedVehicleCategories);
+
+    // Multi-assign mode: khi có nhiều trip chưa gán, mỗi trip cần 1 tài xế + 1 xe riêng
+    const multiMode = Array.isArray(tripIds) && tripIds.length > 1;
+    const rawTripDetails = Array.isArray(order?.trips) ? order.trips : [];
+    const multiTripItems = React.useMemo(() => {
+        if (rawTripDetails.length > 0) {
+            return rawTripDetails
+                .map((t, idx) => {
+                    const id = t.id || t.tripId;
+                    if (!id) return null;
+                    const base =
+                        t.vehicle_category ||
+                        t.vehicleCategory ||
+                        `Xe ${idx + 1}`;
+                    const route =
+                        t.startLocation && t.endLocation
+                            ? ` · ${t.startLocation} → ${t.endLocation}`
+                            : "";
+                    return {
+                        tripId: Number(id),
+                        label: `${base}${route}`,
+                    };
+                })
+                .filter(Boolean);
+        }
+        if (Array.isArray(tripIds) && tripIds.length > 0) {
+            return tripIds.map((id, idx) => ({
+                tripId: Number(id),
+                label: `Xe ${idx + 1} · Chuyến #${id}`,
+            }));
+        }
+        return [];
+    }, [rawTripDetails, tripIds]);
+
+    const [multiAssignments, setMultiAssignments] = React.useState([]);
 
     // Fetch gợi ý khi popup mở
     React.useEffect(() => {
@@ -79,13 +114,26 @@ export default function AssignDriverDialog({
             // Tính số trips chưa gán từ tripIds (đã được lọc từ OrderDetailPage)
             if (tripIds && tripIds.length > 0) {
                 setUnassignedTripCount(tripIds.length);
-                // Nếu có nhiều hơn 1 trip chưa gán:
-                //  - Nếu đơn có nhiều loại xe khác nhau -> KHÔNG auto tick "gán cho tất cả"
-                //  - Ngược lại (cùng loại xe) -> vẫn mặc định gán cho tất cả như trước
-                setAssignToAllTrips(tripIds.length > 1 && !hasMixedVehicleCategories);
+
+                if (multiMode) {
+                    // Multi-mode: mỗi trip phải gán riêng, không auto "gán cho tất cả"
+                    setAssignToAllTrips(false);
+                    setMultiAssignments(
+                        multiTripItems.map((item) => ({
+                            tripId: item.tripId,
+                            driverId: "",
+                            vehicleId: "",
+                        }))
+                    );
+                } else {
+                    // Single-mode hoặc chỉ 1 trip: giữ behaviour cũ
+                    setAssignToAllTrips(tripIds.length > 1 && !hasMixedVehicleCategories);
+                    setMultiAssignments([]);
+                }
             } else {
                 setUnassignedTripCount(1);
                 setAssignToAllTrips(false); // Chỉ gán cho 1 trip
+                setMultiAssignments([]);
             }
             
             try {
@@ -172,7 +220,13 @@ export default function AssignDriverDialog({
     };
 
     const canConfirm =
-        driverId && vehicleId && !posting;
+        (!multiMode && driverId && vehicleId && !posting) ||
+        (multiMode &&
+            multiAssignments.length > 0 &&
+            multiAssignments.every(
+                (a) => a.driverId && a.vehicleId
+            ) &&
+            !posting);
 
     // Helper: Trích xuất message lỗi từ response
     const extractErrorMessage = (err) => {
@@ -184,8 +238,69 @@ export default function AssignDriverDialog({
         return msg;
     };
 
+    // Cập nhật lựa chọn cho từng trip trong multi-mode
+    const updateMultiAssignment = (tripId, field, value) => {
+        setMultiAssignments((prev) =>
+            prev.map((a) =>
+                a.tripId === tripId
+                    ? { ...a, [field]: value }
+                    : a
+            )
+        );
+    };
+
     // Gán thủ công
     const doAssignManual = async () => {
+        // Multi-mode: gán đủ tài xế/xe cho từng trip
+        if (multiMode) {
+            if (!bookingId || multiAssignments.length === 0)
+                return;
+
+            // Đảm bảo tất cả trip đều có driver + vehicle
+            const invalid = multiAssignments.find(
+                (a) => !a.driverId || !a.vehicleId
+            );
+            if (invalid) {
+                setError(
+                    "Vui lòng chọn đầy đủ tài xế và xe cho tất cả các chuyến."
+                );
+                return;
+            }
+
+            setPosting(true);
+            setError("");
+            try {
+                for (const a of multiAssignments) {
+                    await assignTrips({
+                        bookingId: Number(bookingId),
+                        tripIds: [Number(a.tripId)],
+                        driverId: Number(a.driverId),
+                        vehicleId: Number(a.vehicleId),
+                        autoAssign: false,
+                    });
+                }
+
+                onAssigned?.({
+                    type: "multi-manual",
+                    bookingId,
+                    assignments: multiAssignments,
+                });
+                onClose?.();
+            } catch (e) {
+                console.error(
+                    "❌ Gán nhiều chuyến thất bại:",
+                    e
+                );
+                const errorMsg = extractErrorMessage(e);
+                setError(
+                    `Gán chuyến thất bại: ${errorMsg}`
+                );
+            } finally {
+                setPosting(false);
+            }
+            return;
+        }
+
         if (
             !bookingId ||
             !driverId ||
@@ -329,7 +444,7 @@ export default function AssignDriverDialog({
                 </div>
 
                 {/* Summary */}
-                <div className="px-5 pt-4">
+            <div className="px-5 pt-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px]">
                         <div className="flex items-center gap-2">
                             <CalendarDays className="h-4 w-4 text-slate-500" />
@@ -373,7 +488,7 @@ export default function AssignDriverDialog({
                     </div>
                     
                     {/* Thông báo nếu có nhiều chuyến chưa gán */}
-                    {unassignedTripCount > 1 && (
+                    {unassignedTripCount > 1 && !multiMode && (
                         <div className="mt-3 rounded-lg border border-info-200 bg-info-50 px-3 py-2 text-[12px] text-info-800 flex items-start gap-2">
                             <AlertTriangle className="h-4 w-4 text-primary-600 shrink-0 mt-0.5" />
                             <div className="flex-1">
@@ -415,7 +530,7 @@ export default function AssignDriverDialog({
                 <div className="p-5 space-y-5">
                     {/* Suggestions block */}
                     <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-                        <div className="px-3 py-2 text-[11px] text-slate-500 border-b border-slate-200 bg-slate-50 font-medium uppercase tracking-wide">
+                            <div className="px-3 py-2 text-[11px] text-slate-500 border-b border-slate-200 bg-slate-50 font-medium uppercase tracking-wide">
                             Gợi ý hệ thống
                         </div>
 
@@ -571,107 +686,252 @@ export default function AssignDriverDialog({
                             Chọn thủ công
                         </div>
 
-                        <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
-                            {/* Driver select */}
-                            <div>
-                                <div className="mb-1 text-[13px] text-slate-700 font-medium">
-                                    Tài xế (chỉ
-                                    hiện rảnh &
-                                    phù hợp)
-                                </div>
-                                <select
-                                    value={
-                                        driverId
-                                    }
-                                    onChange={(
-                                        e
-                                    ) =>
-                                        setDriverId(
-                                            e
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                >
-                                    <option value="">
-                                        -- Chọn
-                                        tài xế
-                                        --
-                                    </option>
-                                    {driverOptions.map(
-                                        (
-                                            d
-                                        ) => (
-                                            <option
-                                                key={
-                                                    d.id
-                                                }
-                                                value={
-                                                    d.id
-                                                }
-                                            >
-                                                {d.hasHistoryWithCustomer ? "✓ " : ""}{d.name}{" "}
-                                                {d.tripsToday != null
-                                                    ? `(${d.tripsToday} chuyến hôm nay)`
-                                                    : ""}
-                                            </option>
-                                        )
-                                    )}
-                                </select>
+                        {/* Multi-mode: chọn tài xế/xe cho từng chuyến */}
+                        {multiMode ? (
+                            <div className="p-3 space-y-3 text-[13px]">
+                                {multiTripItems.map((item, idx) => {
+                                    const current =
+                                        multiAssignments.find(
+                                            (a) =>
+                                                a.tripId ===
+                                                item.tripId
+                                        ) || {
+                                            tripId:
+                                                item.tripId,
+                                            driverId:
+                                                "",
+                                            vehicleId:
+                                                "",
+                                        };
+                                    return (
+                                        <div
+                                            key={item.tripId}
+                                            className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2"
+                                        >
+                                            <div className="text-[12px] font-medium text-slate-600">
+                                                Xe {idx + 1}:{" "}
+                                                <span className="text-slate-900">
+                                                    {
+                                                        item.label
+                                                    }
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <div className="mb-1 text-[13px] text-slate-700 font-medium">
+                                                        Tài xế
+                                                        (rảnh &
+                                                        phù hợp)
+                                                    </div>
+                                                    <select
+                                                        value={
+                                                            current.driverId ||
+                                                            ""
+                                                        }
+                                                        onChange={(
+                                                            e
+                                                        ) =>
+                                                            updateMultiAssignment(
+                                                                item.tripId,
+                                                                "driverId",
+                                                                e
+                                                                    .target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                                    >
+                                                        <option value="">
+                                                            --
+                                                            Chọn
+                                                            tài
+                                                            xế
+                                                            --
+                                                        </option>
+                                                        {driverOptions.map(
+                                                            (
+                                                                d
+                                                            ) => (
+                                                                <option
+                                                                    key={
+                                                                        d.id
+                                                                    }
+                                                                    value={
+                                                                        d.id
+                                                                    }
+                                                                >
+                                                                    {d.hasHistoryWithCustomer
+                                                                        ? "✓ "
+                                                                        : ""}
+                                                                    {
+                                                                        d.name
+                                                                    }{" "}
+                                                                    {d.tripsToday !=
+                                                                    null
+                                                                        ? `(${d.tripsToday} chuyến hôm nay)`
+                                                                        : ""}
+                                                                </option>
+                                                            )
+                                                        )}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <div className="mb-1 text-[13px] text-slate-700 font-medium">
+                                                        Xe
+                                                        (rảnh &
+                                                        phù hợp)
+                                                    </div>
+                                                    <select
+                                                        value={
+                                                            current.vehicleId ||
+                                                            ""
+                                                        }
+                                                        onChange={(
+                                                            e
+                                                        ) =>
+                                                            updateMultiAssignment(
+                                                                item.tripId,
+                                                                "vehicleId",
+                                                                e
+                                                                    .target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                                    >
+                                                        <option value="">
+                                                            --
+                                                            Chọn
+                                                            xe
+                                                            --
+                                                        </option>
+                                                        {vehicleOptions.map(
+                                                            (
+                                                                v
+                                                            ) => (
+                                                                <option
+                                                                    key={
+                                                                        v.id
+                                                                    }
+                                                                    value={
+                                                                        v.id
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        v.plate
+                                                                    }{" "}
+                                                                    {v.model
+                                                                        ? `· ${v.model}`
+                                                                        : ""}{" "}
+                                                                    {v.status
+                                                                        ? `(${v.status})`
+                                                                        : ""}
+                                                                </option>
+                                                            )
+                                                        )}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
+                        ) : (
+                            // Single-mode: UI cũ
+                            <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+                                {/* Driver select */}
+                                <div>
+                                    <div className="mb-1 text-[13px] text-slate-700 font-medium">
+                                        Tài xế (chỉ
+                                        hiện rảnh &
+                                        phù hợp)
+                                    </div>
+                                    <select
+                                        value={driverId}
+                                        onChange={(e) =>
+                                            setDriverId(
+                                                e
+                                                    .target
+                                                    .value
+                                            )
+                                        }
+                                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                    >
+                                        <option value="">
+                                            -- Chọn
+                                            tài xế
+                                            --
+                                        </option>
+                                        {driverOptions.map(
+                                            (d) => (
+                                                <option
+                                                    key={
+                                                        d.id
+                                                    }
+                                                    value={
+                                                        d.id
+                                                    }
+                                                >
+                                                    {d.hasHistoryWithCustomer
+                                                        ? "✓ "
+                                                        : ""}
+                                                    {d.name}{" "}
+                                                    {d.tripsToday !=
+                                                    null
+                                                        ? `(${d.tripsToday} chuyến hôm nay)`
+                                                        : ""}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </div>
 
-                            {/* Vehicle select */}
-                            <div>
-                                <div className="mb-1 text-[13px] text-slate-700 font-medium">
-                                    Xe (chỉ
-                                    hiện rảnh
-                                    & phù hợp)
+                                {/* Vehicle select */}
+                                <div>
+                                    <div className="mb-1 text-[13px] text-slate-700 font-medium">
+                                        Xe (chỉ
+                                        hiện rảnh
+                                        & phù hợp)
+                                    </div>
+                                    <select
+                                        value={vehicleId}
+                                        onChange={(e) =>
+                                            setVehicleId(
+                                                e
+                                                    .target
+                                                    .value
+                                            )
+                                        }
+                                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                    >
+                                        <option value="">
+                                            -- Chọn
+                                            xe --
+                                        </option>
+                                        {vehicleOptions.map(
+                                            (v) => (
+                                                <option
+                                                    key={
+                                                        v.id
+                                                    }
+                                                    value={
+                                                        v.id
+                                                    }
+                                                >
+                                                    {v.plate}{" "}
+                                                    {v.model
+                                                        ? `· ${v.model}`
+                                                        : ""}{" "}
+                                                    {v.status
+                                                        ? `(${v.status})`
+                                                        : ""}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
                                 </div>
-                                <select
-                                    value={
-                                        vehicleId
-                                    }
-                                    onChange={(
-                                        e
-                                    ) =>
-                                        setVehicleId(
-                                            e
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                >
-                                    <option value="">
-                                        -- Chọn
-                                        xe --
-                                    </option>
-                                    {vehicleOptions.map(
-                                        (
-                                            v
-                                        ) => (
-                                            <option
-                                                key={
-                                                    v.id
-                                                }
-                                                value={
-                                                    v.id
-                                                }
-                                            >
-                                                {v.plate}{" "}
-                                                {v.model
-                                                    ? `· ${v.model}`
-                                                    : ""}{" "}
-                                                {v.status
-                                                    ? `(${v.status})`
-                                                    : ""}
-                                            </option>
-                                        )
-                                    )}
-                                </select>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
