@@ -52,7 +52,6 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Danh sách chuyến", to: "/driver/trips-list", icon: ClipboardList },
     { label: "Quản lý sự cố", to: "/driver/incidents", icon: AlertTriangle },
     { label: "Xin nghỉ phép", to: "/driver/leave-request", icon: CalendarClock },
-    { label: "Yêu cầu thanh toán chi phí", to: "/driver/expense-request", icon: DollarSign },
     { label: "Danh sách yêu cầu", to: "/driver/requests", icon: ClipboardList },
     { label: "Hồ sơ tài xế", to: "/driver/profile", icon: Users },
   ],
@@ -216,7 +215,7 @@ function SidebarNav() {
   }, [location.pathname, menuItems]);
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm fixed left-0 top-0 bottom-0 z-10">
+    <aside className="bg-white border-r border-slate-200 flex flex-col shadow-sm fixed left-0 top-0 bottom-0 z-10 w-full">
       {/* brand / account mini */}
       <div className="px-4 py-4 border-b border-slate-200 flex items-center gap-3 bg-gradient-to-br from-white to-slate-50/50">
         <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-[0_8px_24px_rgba(0,121,188,.35)] flex-shrink-0 transition-transform duration-200 hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,121,188,.45)]" style={{ backgroundColor: '#0079BC' }}>
@@ -278,7 +277,7 @@ function SidebarNav() {
    - viền dưới + bóng mờ nhẹ
    - Admin info và nút đăng xuất ở bên phải
 --------------------------------------------------- */
-function Topbar() {
+function Topbar({ onToggleSidebar }) {
   const navigate = useNavigate();
   const { pushNotification } = useNotifications();
   const username = getStoredUsername() || "John Doe";
@@ -390,8 +389,19 @@ function Topbar() {
 
   return (
     <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3.5 shadow-sm">
-      {/* Left side - empty or can add breadcrumb later */}
-      <div className="flex-1"></div>
+      {/* Left side - sidebar toggle + future breadcrumb */}
+      <div className="flex items-center justify-start flex-1">
+        {typeof onToggleSidebar === "function" && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="mr-3 inline-flex items-center justify-center h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-colors"
+            title="Ẩn/hiện menu"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
       {/* Right side - bell (một số role) + user chip + logout */}
       <div className="flex items-center gap-2.5">
@@ -437,7 +447,7 @@ function Topbar() {
    - nền tổng thể bg-slate-50
    - vùng content scrollable
 --------------------------------------------------- */
-function ShellLayout() {
+function ShellLayout({ sidebarCollapsed = false, onToggleSidebar }) {
   let hasToken = false;
   try {
     hasToken = !!localStorage.getItem("access_token");
@@ -447,12 +457,17 @@ function ShellLayout() {
   if (!hasToken) {
     return <Navigate to="/login" replace />;
   }
+  const sidebarWidth = sidebarCollapsed ? "w-16" : "w-64";
+  const contentMarginLeft = sidebarCollapsed ? "ml-16" : "ml-64";
+
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
-      <SidebarNav />
-      <div className="flex-1 flex flex-col min-w-0 ml-64">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto min-h-0 p-5">
+      <div className={sidebarWidth}>
+        <SidebarNav />
+      </div>
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-200 ${contentMarginLeft}`}>
+        <Topbar onToggleSidebar={onToggleSidebar} />
+        <main className="flex-1 overflow-y-auto min-h-0 p-0">
           {/* Ghi chú: Một số màn con vẫn theme dark. Có thể refactor sau. */}
           <Outlet />
         </main>
@@ -542,6 +557,11 @@ function RequireAuth({ children }) {
    ROUTES TREE
 --------------------------------------------------- */
 export default function AppLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const handleToggleSidebar = React.useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
+  }, []);
+
   return (
     <WebSocketProvider>
       <NotificationToast />
@@ -554,7 +574,7 @@ export default function AppLayout() {
         <Route path="/" element={<RoleRedirect />} />
 
         {/* Các route cần shell layout */}
-        <Route element={<RequireAuth><ShellLayout /></RequireAuth>}>
+        <Route element={<RequireAuth><ShellLayout sidebarCollapsed={sidebarCollapsed} onToggleSidebar={handleToggleSidebar} /></RequireAuth>}>
           <Route index element={<RoleRedirect />} />
 
           {/* Báo cáo & Phân tích */}
@@ -723,15 +743,6 @@ export default function AppLayout() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/driver/expense-request"
-            element={
-              <ProtectedRoute roles={[ROLES.DRIVER]}>
-                <ExpenseRequestForm />
-              </ProtectedRoute>
-            }
-          />
-
           {/* Phương tiện */}
           <Route
             path="/vehicles"
