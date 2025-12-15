@@ -90,12 +90,22 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
             const availabilityMap = {};
             const startTime = new Date(timeFilterStart + "T00:00:00");
             const endTime = new Date(timeFilterEnd + "T23:59:59");
+            const startISO = startTime.toISOString();
+            const endISO = endTime.toISOString();
             
             // Check availability for each driver
             for (const driver of drivers) {
                 try {
-                    const schedule = await getDriverSchedule(driver.id);
-                    const trips = schedule?.trips || schedule || [];
+                    // Gọi API lịch làm việc trong khoảng thời gian đang filter
+                    const schedule = await getDriverSchedule(driver.id, {
+                        startDate: startISO,
+                        endDate: endISO,
+                    });
+                    const trips = Array.isArray(schedule?.data)
+                        ? schedule.data
+                        : Array.isArray(schedule)
+                        ? schedule
+                        : [];
                     
                     // Check if driver has any trip overlapping with the time range
                     const hasConflict = trips.some(trip => {
@@ -357,7 +367,7 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                             Trạng thái
                                         </th>
                                         {canUseAvailabilityFilter && timeFilterStart && timeFilterEnd && (
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                                 Rảnh/Bận
                                             </th>
                                         )}
@@ -425,8 +435,8 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                                     })()}
                                                 </td>
                                                 {/* Cột Rảnh/Bận: Hiển thị trạng thái rảnh/bận theo khoảng thời gian đã chọn trong filter
-                                                    Chỉ hiển thị khi tài xế ở trạng thái sẵn sàng (AVAILABLE/ACTIVE) và đã chọn filter ngày */}
-                                                {canUseAvailabilityFilter && timeFilterStart && timeFilterEnd && (driver.status === "AVAILABLE" || driver.status === "ACTIVE") && (
+                                                    Chỉ bỏ qua kiểm tra khi tài xế ở trạng thái 'Không hoạt động' (INACTIVE) */}
+                                                {canUseAvailabilityFilter && timeFilterStart && timeFilterEnd && driver.status !== "INACTIVE" && (
                                                     <td className="px-4 py-3">
                                                         {driverAvailability[driver.id] ? (
                                                             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
@@ -489,10 +499,11 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
                                         <span className="font-medium text-slate-800">• Cột "Trạng thái":</span> Trạng thái hiện tại của tài xế trong hệ thống (Sẵn sàng/Đang bận/Nghỉ phép/Không hoạt động)
                                     </li>
                                     <li>
-                                        <span className="font-medium text-slate-800">• Cột "Rảnh/Bận":</span> Chỉ hiển thị khi tài xế ở trạng thái "Sẵn sàng" hoặc "Hoạt động" và cho biết tài xế có rảnh trong khoảng thời gian đã chọn hay không
+                                        <span className="font-medium text-slate-800">• Cột "Rảnh/Bận":</span> Kiểm tra tài xế có rảnh trong khoảng thời gian đã chọn (bao gồm cả khi tài xế đang bận hoặc nghỉ phép). Chỉ không kiểm tra khi tài xế ở trạng thái "Không hoạt động".
+                                        <span className="font-medium text-slate-800">• Cột "Rảnh/Bận":</span> Kiểm tra tài xế có rảnh trong khoảng thời gian đã chọn (kể cả khi đang trong chuyến hoặc nghỉ phép). Chỉ không kiểm tra khi tài xế ở trạng thái "Không hoạt động".
                                     </li>
                                     <li className="text-xs text-slate-500 mt-2">
-                                        💡 Lưu ý: Tài xế đang "Đang bận", "Nghỉ phép" hoặc "Không hoạt động" sẽ không hiển thị cột "Rảnh/Bận" vì đã rõ là không thể sử dụng
+                                        💡 Lưu ý: Tài xế "Không hoạt động" sẽ không được kiểm tra vì không thể sử dụng cho các chuyến mới.
                                     </li>
                                 </ul>
                             </div>

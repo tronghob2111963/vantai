@@ -215,6 +215,11 @@ export default function UpdateProfilePage() {
         errorMessage = err.message;
       }
 
+      // Chuẩn hóa thông báo tiếng Việt cho lỗi mạng/FETCH
+      if (errorMessage === "Failed to fetch" || errorMessage === "NetworkError when attempting to fetch resource.") {
+        errorMessage = "Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.";
+      }
+
       if (errorMessage.includes("Phone already exists") || errorMessage.includes("phone") && errorMessage.includes("exists")) {
         errorMessage = "Số điện thoại đã được sử dụng bởi người dùng khác.";
       } else if (errorMessage.includes("Email already exists") || errorMessage.includes("email") && errorMessage.includes("exists")) {

@@ -1,0 +1,63 @@
+services:
+  # Backend Service (Spring Boot) - Deploy bằng Docker
+  # Kết nối đến MySQL trên Railway
+  - type: web
+    name: ptcmss-backend
+    env: docker  # ✅ Đã dùng Docker!
+    dockerfilePath: ./PTCMSS/ptcmss-backend/Dockerfile
+    dockerContext: ./PTCMSS/ptcmss-backend
+    plan: starter
+    region: singapore
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      # ⚠️ QUAN TRỌNG: Set các biến này trong Render Dashboard sau khi tạo MySQL trên Railway
+      # Lấy connection string từ Railway MySQL service
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+        # Format: jdbc:mysql://containers-us-west-xxx.railway.app:3306/railway?useSSL=true&allowPublicKeyRetrieval=true&serverTimezone=UTC
+        # Thay 'xxx' bằng hostname thực tế từ Railway
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+        # Set username từ Railway (thường là 'root' hoặc 'railway')
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+        # Set password từ Railway MySQL service
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_JPA_SHOW_SQL
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 86400000
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+    healthCheckPath: /actuator/health
+
+  # Frontend Service (React + Vite) - Deploy bằng Docker
+  - type: web
+    name: ptcmss-frontend
+    env: docker  # ✅ Đã dùng Docker!
+    dockerfilePath: ./PTCMSS_FRONTEND/Dockerfile
+    dockerContext: ./PTCMSS_FRONTEND
+    plan: starter
+    region: singapore
+    envVars:
+      - key: VITE_API_BASE
+        sync: false
+        # ⚠️ QUAN TRỌNG: Set giá trị này trong Render Dashboard sau khi backend deploy xong
+        # Format: https://ptcmss-backend.onrender.com
+        # Sau khi set, cần rebuild service để áp dụng (vì Vite build-time variable)
+
+# ⚠️ LƯU Ý: Database MySQL sẽ được deploy trên Railway
+# Xem hướng dẫn trong file HUONG_DAN_RAILWAY_MYSQL.md
+# Sau đó set SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
+# trong Render Dashboard với thông tin từ Railway MySQL service
+

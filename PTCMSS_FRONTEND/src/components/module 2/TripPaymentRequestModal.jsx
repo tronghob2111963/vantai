@@ -61,6 +61,7 @@ export default function TripPaymentRequestModal({
   const [paymentHistory, setPaymentHistory] = React.useState([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(null); // paymentId being deleted
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState(null); // popup xác nhận xóa
 
   // Load payment history khi modal mở
   React.useEffect(() => {
@@ -141,11 +142,9 @@ export default function TripPaymentRequestModal({
   }
 
   async function handleDeletePayment(paymentId) {
-    if (!confirm("Bạn có chắc muốn xóa yêu cầu thanh toán này?")) {
-      return;
-    }
-
     setDeleteLoading(paymentId);
+    setError("");
+    setSuccessMsg("");
     try {
       const { deletePayment } = await import("../../api/invoices");
       await deletePayment(paymentId);
@@ -153,14 +152,15 @@ export default function TripPaymentRequestModal({
       // Reload payment history
       await loadPaymentHistory();
 
-      // Hiển thị thông báo thành công
-      alert("Đã xóa yêu cầu thanh toán thành công");
+      // Hiển thị thông báo thành công trong modal
+      setSuccessMsg("Đã xóa yêu cầu thanh toán thành công.");
     } catch (err) {
       console.error("Lỗi khi xóa yêu cầu thanh toán:", err);
       const errorMsg = err?.data?.message || err?.message || "Không thể xóa yêu cầu thanh toán";
-      alert(errorMsg);
+      setError(errorMsg);
     } finally {
       setDeleteLoading(null);
+      setConfirmDeleteId(null);
     }
   }
 
@@ -196,6 +196,12 @@ export default function TripPaymentRequestModal({
     && !exceedsRemaining;
 
   async function handleSubmit() {
+    // Nếu tổng số tiền cần thu ban đầu đã hết (<= 0) thì không cho tạo thêm yêu cầu
+    if ((calculatedRemainingAmount.originalRemaining || 0) <= 0) {
+      setError("Đơn này đã thu đủ tiền. Không thể tạo thêm yêu cầu thanh toán mới.");
+      return;
+    }
+
     if (!valid) {
       if (calculatedRemainingAmount.hasPending) {
         setError(`Không thể tạo yêu cầu mới. Đã có ${calculatedRemainingAmount.pendingCount} yêu cầu thanh toán đang chờ duyệt (tổng ${fmtVND(calculatedRemainingAmount.pendingTotal)}đ). Vui lòng đợi kế toán xác nhận các yêu cầu trước.`);
@@ -336,6 +342,50 @@ export default function TripPaymentRequestModal({
           </button>
         </div>
 
+        {/* Popup xác nhận xóa yêu cầu thanh toán */}
+        {confirmDeleteId && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <XCircle className="h-5 w-5 text-rose-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-1">
+                    Xóa yêu cầu thanh toán?
+                  </h3>
+                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                    Bạn có chắc chắn muốn xóa yêu cầu thanh toán này? Hành động này không thể hoàn tác.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-[13px] text-slate-700 hover:bg-slate-50"
+                  onClick={() => setConfirmDeleteId(null)}
+                  disabled={deleteLoading === confirmDeleteId}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-[13px] text-white font-medium flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={() => handleDeletePayment(confirmDeleteId)}
+                  disabled={deleteLoading === confirmDeleteId}
+                >
+                  {deleteLoading === confirmDeleteId ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  <span>Xóa</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* BODY */}
         <div className="p-5 space-y-5 text-sm text-slate-700 overflow-y-auto flex-1">
           {/* Payment History Section */}
@@ -408,7 +458,7 @@ export default function TripPaymentRequestModal({
                           {/* Nút xóa - chỉ hiện với PENDING */}
                           {isPending && (
                             <button
-                              onClick={() => handleDeletePayment(payment.paymentId || payment.id)}
+                              onClick={() => setConfirmDeleteId(payment.paymentId || payment.id)}
                               disabled={deleteLoading === (payment.paymentId || payment.id)}
                               className="flex-shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 border border-rose-200 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                               title="Xóa yêu cầu"
