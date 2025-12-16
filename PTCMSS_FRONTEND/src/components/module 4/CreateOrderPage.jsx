@@ -32,6 +32,7 @@ import {
     Sparkles,
     ArrowRight,
     X,
+    RefreshCw,
 } from "lucide-react";
 import AnimatedDialog from "../common/AnimatedDialog";
 

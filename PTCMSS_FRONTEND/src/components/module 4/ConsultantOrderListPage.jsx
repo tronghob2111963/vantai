@@ -8,27 +8,17 @@ import { getEmployeeByUserId } from "../../api/employees";
 import { getCustomerBookings } from "../../api/customers";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import {
+    AlertCircle,
+    AlertTriangle,
     ClipboardList,
     PlusCircle,
-    Search,
     Filter,
     Calendar,
-    User,
-    MapPin,
-    DollarSign,
+    Search,
     ChevronLeft,
     ChevronRight,
     ChevronUp,
     ChevronDown,
-    Eye,
-    Pencil,
-    Loader2,
-    AlertTriangle,
-    X,
-    Clock,
-    CarFront,
-    Trash2,
-    AlertCircle,
 } from "lucide-react";
 
 /**
