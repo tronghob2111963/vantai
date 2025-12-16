@@ -265,8 +265,8 @@ function ConfirmModal({
                 {/* body */}
                 <div className="px-5 py-4 text-sm text-slate-700 space-y-3">
                     <div className="flex items-start gap-2">
-                        <Info className="h-4 w-4 mt-0.5 text-slate-400" />
-                        <div>{message}</div>
+                        <Info className="h-4 w-4 mt-0.5 text-slate-400 flex-shrink-0" />
+                        <div className="flex-1">{message}</div>
                     </div>
 
                     {requireReason ? (
@@ -1296,6 +1296,14 @@ export default function AccountantDashboard() {
     const [pendingPaymentsLoading, setPendingPaymentsLoading] = React.useState(false);
     const [pendingPaymentsError, setPendingPaymentsError] = React.useState("");
 
+    // Payment confirmation modal state
+    const [paymentConfirm, setPaymentConfirm] = React.useState({
+        open: false,
+        paymentId: null,
+        status: null, // "CONFIRMED" | "REJECTED"
+        paymentInfo: null, // Thông tin payment để hiển thị trong popup
+    });
+
     const [branchId, setBranchId] = React.useState(null);
     const [branches, setBranches] = React.useState([]);
     const [period, setPeriod] = React.useState("THIS_MONTH");
@@ -1549,7 +1557,20 @@ export default function AccountantDashboard() {
         [loadApprovalQueue, loadDashboard, push]
     );
 
-    // Confirm/Reject payment request from driver/consultant
+    // Handle payment confirmation request (show popup first)
+    const handlePaymentConfirmClick = React.useCallback(
+        (paymentId, status, paymentInfo) => {
+            setPaymentConfirm({
+                open: true,
+                paymentId,
+                status,
+                paymentInfo,
+            });
+        },
+        []
+    );
+
+    // Confirm/Reject payment request from driver/consultant (after popup confirmation)
     const confirmPaymentRequest = React.useCallback(
         async (paymentId, status) => {
             try {
@@ -1559,6 +1580,13 @@ export default function AccountantDashboard() {
                 // Reload pending payments and dashboard
                 loadPendingPayments();
                 loadDashboard();
+                // Close modal
+                setPaymentConfirm({
+                    open: false,
+                    paymentId: null,
+                    status: null,
+                    paymentInfo: null,
+                });
             } catch (err) {
                 console.error("Confirm payment failed:", err);
                 const errorMsg = err?.response?.data?.message || err.message || "Không thể xử lý yêu cầu thanh toán";
@@ -2016,14 +2044,14 @@ export default function AccountantDashboard() {
                                     {/* Action buttons */}
                                     <div className="flex flex-col gap-2">
                                         <button
-                                            onClick={() => confirmPaymentRequest(payment.paymentId, "CONFIRMED")}
+                                            onClick={() => handlePaymentConfirmClick(payment.paymentId, "CONFIRMED", payment)}
                                             className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
                                         >
                                             <CheckCircle className="h-3.5 w-3.5" />
                                             Đã nhận
                                         </button>
                                         <button
-                                            onClick={() => confirmPaymentRequest(payment.paymentId, "REJECTED")}
+                                            onClick={() => handlePaymentConfirmClick(payment.paymentId, "REJECTED", payment)}
                                             className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
                                         >
                                             <XCircle className="h-3.5 w-3.5" />
@@ -2041,6 +2069,87 @@ export default function AccountantDashboard() {
                     Xác thực tiền đã nhận từ tài xế/tư vấn viên. Chọn "Đã nhận" để ghi nhận số tiền vào hóa đơn.
                 </div>
             </div>
+
+            {/* Payment Confirmation Modal */}
+            <ConfirmModal
+                open={paymentConfirm.open}
+                title={
+                    paymentConfirm.status === "CONFIRMED"
+                        ? "Xác nhận đã nhận tiền"
+                        : "Xác nhận chưa nhận được tiền"
+                }
+                message={
+                    paymentConfirm.paymentInfo ? (
+                        <div className="space-y-2">
+                            <div className="font-semibold text-slate-900">
+                                {paymentConfirm.status === "CONFIRMED"
+                                    ? "Bạn có chắc chắn đã nhận đủ số tiền này?"
+                                    : "Bạn có chắc chắn muốn đánh dấu 'CHƯA NHẬN ĐƯỢC' cho khoản thanh toán này?"}
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-600">Số tiền:</span>
+                                    <span className="font-semibold text-slate-900">
+                                        {fmtVND(paymentConfirm.paymentInfo.amount || 0)} đ
+                                    </span>
+                                </div>
+                                {paymentConfirm.paymentInfo.invoiceNumber && (
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Hóa đơn:</span>
+                                        <span className="text-slate-900">
+                                            {paymentConfirm.paymentInfo.invoiceNumber || `INV-${paymentConfirm.paymentInfo.invoiceId}`}
+                                        </span>
+                                    </div>
+                                )}
+                                {paymentConfirm.paymentInfo.bookingCode && (
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Mã đơn:</span>
+                                        <span className="text-slate-900">{paymentConfirm.paymentInfo.bookingCode}</span>
+                                    </div>
+                                )}
+                                {paymentConfirm.paymentInfo.paymentMethod && (
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-600">Phương thức:</span>
+                                        <span className="text-slate-900">
+                                            {paymentConfirm.paymentInfo.paymentMethod === "CASH"
+                                                ? "Tiền mặt"
+                                                : paymentConfirm.paymentInfo.paymentMethod === "TRANSFER"
+                                                ? "Chuyển khoản"
+                                                : paymentConfirm.paymentInfo.paymentMethod === "QR"
+                                                ? "QR Code"
+                                                : paymentConfirm.paymentInfo.paymentMethod}
+                                        </span>
+                                    </div>
+                                )}
+                                {paymentConfirm.paymentInfo.note && (
+                                    <div className="pt-1">
+                                        <span className="text-slate-600">Ghi chú: </span>
+                                        <span className="text-slate-700 italic">"{paymentConfirm.paymentInfo.note}"</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        paymentConfirm.status === "CONFIRMED"
+                            ? "Bạn có chắc chắn đã nhận đủ số tiền này và muốn xác nhận 'ĐÃ NHẬN'?"
+                            : "Bạn có chắc chắn muốn đánh dấu 'CHƯA NHẬN ĐƯỢC' cho khoản thanh toán này?"
+                    )
+                }
+                requireReason={false}
+                onCancel={() =>
+                    setPaymentConfirm({
+                        open: false,
+                        paymentId: null,
+                        status: null,
+                        paymentInfo: null,
+                    })
+                }
+                onConfirm={() => {
+                    if (paymentConfirm.paymentId && paymentConfirm.status) {
+                        confirmPaymentRequest(paymentConfirm.paymentId, paymentConfirm.status);
+                    }
+                }}
+            />
         </div>
     );
 }

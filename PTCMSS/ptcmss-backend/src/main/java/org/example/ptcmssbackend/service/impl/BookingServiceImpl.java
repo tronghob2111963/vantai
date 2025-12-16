@@ -2307,6 +2307,38 @@ public class BookingServiceImpl implements BookingService {
             remainingAmount = BigDecimal.ZERO;
         }
         
+        // Tính toán hireTypeName với suffix "(trong ngày)" hoặc "(khác ngày)" cho ROUND_TRIP
+        String hireTypeName = null;
+        if (booking.getHireType() != null) {
+            hireTypeName = booking.getHireType().getName();
+            String hireTypeCode = booking.getHireType().getCode();
+            
+            // Nếu là ROUND_TRIP (Hai chiều), kiểm tra xem có phải trong ngày không
+            if ("ROUND_TRIP".equals(hireTypeCode) && !trips.isEmpty()) {
+                // Lấy startTime sớm nhất và endTime muộn nhất từ tất cả trips
+                Instant startTime = trips.stream()
+                        .map(Trips::getStartTime)
+                        .filter(java.util.Objects::nonNull)
+                        .min(Instant::compareTo)
+                        .orElse(null);
+                
+                Instant endTime = trips.stream()
+                        .map(Trips::getEndTime)
+                        .filter(java.util.Objects::nonNull)
+                        .max(Instant::compareTo)
+                        .orElse(null);
+                
+                if (startTime != null && endTime != null) {
+                    boolean isSameDay = isSameDayTrip(startTime, endTime);
+                    if (isSameDay) {
+                        hireTypeName = hireTypeName + " (trong ngày)";
+                    } else {
+                        hireTypeName = hireTypeName + " (khác ngày)";
+                    }
+                }
+            }
+        }
+        
         return BookingResponse.builder()
                 .id(booking.getId())
                 .customer(customerService.toResponse(booking.getCustomer()))
@@ -2316,7 +2348,7 @@ public class BookingServiceImpl implements BookingService {
                 .consultantName(booking.getConsultant() != null && booking.getConsultant().getUser() != null
                         ? booking.getConsultant().getUser().getFullName() : null)
                 .hireTypeId(booking.getHireType() != null ? booking.getHireType().getId() : null)
-                .hireTypeName(booking.getHireType() != null ? booking.getHireType().getName() : null)
+                .hireTypeName(hireTypeName)
                 .useHighway(booking.getUseHighway())
                 .bookingDate(booking.getBookingDate())
                 .estimatedCost(booking.getEstimatedCost())

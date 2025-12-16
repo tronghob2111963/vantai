@@ -977,15 +977,41 @@ function DispatchInfoCard({ dispatch, dispatchList = [], onAssignClick, showAssi
         : (dispatch && (dispatch.driver_name || dispatch.driver_phone || dispatch.vehicle_plate));
     
     // Tính số trips chưa gán
+    // QUAN TRỌNG: Trip chỉ được coi là đã gán khi có CẢ driver_name VÀ vehicle_plate (không null, không empty)
     const assignedTripIds = new Set(
         (dispatchList || [])
-            .filter(d => d.tripId && d.driver_name && d.vehicle_plate)
+            .filter(d => {
+                const hasDriver = d.driver_name && d.driver_name.trim() !== '';
+                const hasVehicle = d.vehicle_plate && d.vehicle_plate.trim() !== '';
+                return d.tripId && hasDriver && hasVehicle;
+            })
             .map(d => d.tripId)
     );
     
+    // Đếm số trips chưa gán
+    // Trip chưa gán nếu:
+    // 1. Không có trong danh sách đã gán, HOẶC
+    // 2. Có trong dispatchList nhưng thiếu driver hoặc vehicle
     const unassignedCount = (allTrips || []).filter(t => {
         const tripId = t.id || t.tripId;
-        return tripId && !assignedTripIds.has(tripId);
+        if (!tripId) return false;
+        
+        // Kiểm tra xem có trong danh sách đã gán không
+        if (assignedTripIds.has(tripId)) {
+            return false; // Đã gán đủ
+        }
+        
+        // Kiểm tra trong dispatchList xem có thiếu driver hoặc vehicle không
+        const dispatch = (dispatchList || []).find(d => d.tripId === tripId);
+        if (dispatch) {
+            const hasDriver = dispatch.driver_name && dispatch.driver_name.trim() !== '';
+            const hasVehicle = dispatch.vehicle_plate && dispatch.vehicle_plate.trim() !== '';
+            // Nếu thiếu một trong hai thì coi là chưa gán
+            return !hasDriver || !hasVehicle;
+        }
+        
+        // Không có trong dispatchList → chưa gán
+        return true;
     }).length;
 
     if (!hasAssign) {
@@ -1345,16 +1371,41 @@ export default function OrderDetailPage() {
             const dispatchList = mapped.dispatchList || [];
             
             // Tạo map của trips đã gán
+            // QUAN TRỌNG: Trip chỉ được coi là đã gán khi có CẢ driver_name VÀ vehicle_plate (không null, không empty)
             const assignedTripIds = new Set(
                 dispatchList
-                    .filter(d => d.tripId && d.driver_name && d.vehicle_plate)
+                    .filter(d => {
+                        const hasDriver = d.driver_name && d.driver_name.trim() !== '';
+                        const hasVehicle = d.vehicle_plate && d.vehicle_plate.trim() !== '';
+                        return d.tripId && hasDriver && hasVehicle;
+                    })
                     .map(d => d.tripId)
             );
             
             // Lọc ra trips chưa gán
+            // Trip chưa gán nếu:
+            // 1. Không có trong danh sách đã gán, HOẶC
+            // 2. Có trong dispatchList nhưng thiếu driver hoặc vehicle
             const unassignedTrips = allTrips.filter(t => {
                 const tripId = t.id || t.tripId;
-                return tripId && !assignedTripIds.has(tripId);
+                if (!tripId) return false;
+                
+                // Kiểm tra xem có trong danh sách đã gán không
+                if (assignedTripIds.has(tripId)) {
+                    return false; // Đã gán đủ
+                }
+                
+                // Kiểm tra trong dispatchList xem có thiếu driver hoặc vehicle không
+                const dispatch = dispatchList.find(d => d.tripId === tripId);
+                if (dispatch) {
+                    const hasDriver = dispatch.driver_name && dispatch.driver_name.trim() !== '';
+                    const hasVehicle = dispatch.vehicle_plate && dispatch.vehicle_plate.trim() !== '';
+                    // Nếu thiếu một trong hai thì coi là chưa gán
+                    return !hasDriver || !hasVehicle;
+                }
+                
+                // Không có trong dispatchList → chưa gán
+                return true;
             });
             
             if (unassignedTrips.length > 0) {
@@ -1579,21 +1630,43 @@ export default function OrderDetailPage() {
                 const allTrips = order.trips || [];
                 const dispatchList = order.dispatchList || [];
                 
-                // Tạo map của trips đã gán (có driver và vehicle)
+                // Tạo map của trips đã gán (có driver VÀ vehicle)
+                // QUAN TRỌNG: Trip chỉ được coi là đã gán khi có CẢ driver_name VÀ vehicle_plate (không null, không empty)
                 const assignedTripIds = new Set(
                     dispatchList
                         .filter(d => {
-                            // Trip được coi là đã gán nếu có cả driver_name và vehicle_plate
-                            return d.tripId && d.driver_name && d.vehicle_plate;
+                            // Trip được coi là đã gán nếu có cả driver_name và vehicle_plate (không null, không empty string)
+                            const hasDriver = d.driver_name && d.driver_name.trim() !== '';
+                            const hasVehicle = d.vehicle_plate && d.vehicle_plate.trim() !== '';
+                            return d.tripId && hasDriver && hasVehicle;
                         })
                         .map(d => d.tripId)
                 );
                 
                 // Lọc ra trips chưa gán
+                // Trip chưa gán nếu:
+                // 1. Không có trong danh sách đã gán, HOẶC
+                // 2. Có trong dispatchList nhưng thiếu driver hoặc vehicle
                 const unassignedTrips = allTrips.filter(t => {
                     const tripId = t.id || t.tripId;
-                    // Trip chưa gán nếu không có trong danh sách đã gán
-                    return tripId && !assignedTripIds.has(tripId);
+                    if (!tripId) return false;
+                    
+                    // Kiểm tra xem có trong danh sách đã gán không
+                    if (assignedTripIds.has(tripId)) {
+                        return false; // Đã gán đủ
+                    }
+                    
+                    // Kiểm tra trong dispatchList xem có thiếu driver hoặc vehicle không
+                    const dispatch = dispatchList.find(d => d.tripId === tripId);
+                    if (dispatch) {
+                        const hasDriver = dispatch.driver_name && dispatch.driver_name.trim() !== '';
+                        const hasVehicle = dispatch.vehicle_plate && dispatch.vehicle_plate.trim() !== '';
+                        // Nếu thiếu một trong hai thì coi là chưa gán
+                        return !hasDriver || !hasVehicle;
+                    }
+                    
+                    // Không có trong dispatchList → chưa gán
+                    return true;
                 });
                 
                 const unassignedTripIds = unassignedTrips.map(t => {

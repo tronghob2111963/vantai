@@ -240,7 +240,12 @@ public class DriverServiceImpl implements DriverService {
                     String hireTypeName = null;
                     if (booking != null && booking.getHireType() != null) {
                         hireType = booking.getHireType().getCode();
-                        hireTypeName = booking.getHireType().getName();
+                        hireTypeName = calculateHireTypeNameWithSuffix(
+                                booking.getHireType().getName(),
+                                booking.getHireType().getCode(),
+                                trip.getStartTime(),
+                                trip.getEndTime()
+                        );
                     }
                     
                     return DriverScheduleResponse.builder()
@@ -594,5 +599,39 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeException("Không tìm thấy chi nhánh");
         }
         return driverRepository.findAllByBranchId(branchId);
+    }
+    
+    /**
+     * Helper method: Tính toán hireTypeName với suffix "(trong ngày)" hoặc "(khác ngày)" cho ROUND_TRIP
+     */
+    private String calculateHireTypeNameWithSuffix(String baseName, String hireTypeCode, Instant startTime, Instant endTime) {
+        if (baseName == null || hireTypeCode == null) {
+            return baseName;
+        }
+        
+        // Chỉ thêm suffix cho ROUND_TRIP (Hai chiều)
+        if (!"ROUND_TRIP".equals(hireTypeCode)) {
+            return baseName;
+        }
+        
+        if (startTime == null || endTime == null) {
+            return baseName;
+        }
+        
+        // Kiểm tra xem có phải trong ngày không (chỉ kiểm tra cùng ngày, không kiểm tra giờ)
+        try {
+            java.time.ZonedDateTime startZoned = startTime.atZone(java.time.ZoneId.systemDefault());
+            java.time.ZonedDateTime endZoned = endTime.atZone(java.time.ZoneId.systemDefault());
+            
+            // Check cùng ngày
+            if (startZoned.toLocalDate().equals(endZoned.toLocalDate())) {
+                return baseName + " (trong ngày)";
+            } else {
+                return baseName + " (khác ngày)";
+            }
+        } catch (Exception e) {
+            log.warn("Error checking same day trip: {}", e.getMessage());
+            return baseName;
+        }
     }
 }

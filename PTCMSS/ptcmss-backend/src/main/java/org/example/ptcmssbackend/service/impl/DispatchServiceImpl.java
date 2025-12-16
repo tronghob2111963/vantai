@@ -1546,7 +1546,12 @@ public class DispatchServiceImpl implements DispatchService {
         String hireTypeName = null;
         if (booking.getHireType() != null) {
             hireType = booking.getHireType().getCode(); // ONE_WAY, ROUND_TRIP, etc.
-            hireTypeName = booking.getHireType().getName(); // "Một chiều", "Hai chiều", etc.
+            hireTypeName = calculateHireTypeNameWithSuffix(
+                    booking.getHireType().getName(),
+                    booking.getHireType().getCode(),
+                    trip.getStartTime(),
+                    trip.getEndTime()
+            );
         }
         
         return TripDetailResponse.builder()
@@ -1601,7 +1606,12 @@ public class DispatchServiceImpl implements DispatchService {
                 .startTime(trip.getStartTime())
                 .endTime(trip.getEndTime())
                 .hireTypeName(booking != null && booking.getHireType() != null
-                        ? booking.getHireType().getName()
+                        ? calculateHireTypeNameWithSuffix(
+                                booking.getHireType().getName(),
+                                booking.getHireType().getCode(),
+                                trip.getStartTime(),
+                                trip.getEndTime()
+                        )
                         : null)
                 .status(trip.getStatus() != null ? trip.getStatus().name() : null);
 
@@ -2192,6 +2202,73 @@ public class DispatchServiceImpl implements DispatchService {
             return true;
         }
         return s1.isBefore(e2) && s2.isBefore(e1);
+    }
+    
+    /**
+     * Helper method: Tính toán hireTypeName với suffix "(trong ngày)" hoặc "(khác ngày)" cho ROUND_TRIP
+     */
+    private String calculateHireTypeNameWithSuffix(String baseName, String hireTypeCode, Instant startTime, Instant endTime) {
+        if (baseName == null || hireTypeCode == null) {
+            return baseName;
+        }
+        
+        // Chỉ thêm suffix cho ROUND_TRIP (Hai chiều)
+        if (!"ROUND_TRIP".equals(hireTypeCode)) {
+            return baseName;
+        }
+        
+        if (startTime == null || endTime == null) {
+            return baseName;
+        }
+        
+        // Kiểm tra xem có phải trong ngày không
+        boolean isSameDay = isSameDayTrip(startTime, endTime);
+        if (isSameDay) {
+            return baseName + " (trong ngày)";
+        } else {
+            return baseName + " (khác ngày)";
+        }
+    }
+    
+    /**
+     * Helper method: Kiểm tra xem có phải chuyến trong ngày không
+     * Chuyến trong ngày: Khởi hành từ 6h sáng, về 7-8h tối (hoặc đến 10-11h đêm cùng ngày)
+     */
+    private boolean isSameDayTrip(Instant startTime, Instant endTime) {
+        if (startTime == null || endTime == null) {
+            return false;
+        }
+        
+        try {
+            // Lấy cấu hình từ SystemSettings
+            int startHour = getSystemSettingInt("SAME_DAY_TRIP_START_HOUR", 6);
+            int endHour = getSystemSettingInt("SAME_DAY_TRIP_END_HOUR", 23);
+            
+            java.time.ZonedDateTime startZoned = startTime.atZone(java.time.ZoneId.systemDefault());
+            java.time.ZonedDateTime endZoned = endTime.atZone(java.time.ZoneId.systemDefault());
+            
+            // Check cùng ngày
+            if (!startZoned.toLocalDate().equals(endZoned.toLocalDate())) {
+                return false;
+            }
+            
+            // Check giờ khởi hành >= 6h sáng
+            int startHourOfDay = startZoned.getHour();
+            if (startHourOfDay < startHour) {
+                return false;
+            }
+            
+            // Check giờ về <= 11h đêm (23h)
+            int endHourOfDay = endZoned.getHour();
+            if (endHourOfDay > endHour) {
+                return false;
+            }
+            
+            return true;
+        } catch (Exception e) {
+            log.warn("Error checking same day trip: {}", e.getMessage());
+            return false;
+        }
     }
 }
 

@@ -174,6 +174,33 @@ public class InvoiceServiceImpl implements InvoiceService {
         List<Invoices> invoices = invoiceRepository.findInvoicesWithFilters(
                 branchId, invoiceType, invoiceStatus, startInstant, endInstant, customerId, paymentStatusEnum);
 
+        // Filter: Loại bỏ các invoice chỉ có payment PENDING (chưa có payment CONFIRMED nào)
+        // Logic: Invoice chỉ xuất hiện trong danh sách khi:
+        // - Có ít nhất 1 payment CONFIRMED, HOẶC
+        // - Không có payment nào cả (invoice được tạo trước khi có payment)
+        // Invoice chỉ có payment PENDING (chưa có CONFIRMED) thì không hiển thị
+        invoices = invoices.stream()
+                .filter(inv -> {
+                    // Kiểm tra số lượng payment PENDING
+                    Integer pendingCount = paymentHistoryRepository.countPendingPaymentsByInvoiceId(inv.getId());
+                    boolean hasPending = pendingCount != null && pendingCount > 0;
+                    
+                    // Kiểm tra số tiền đã CONFIRMED
+                    BigDecimal confirmedAmount = paymentHistoryRepository.sumConfirmedByInvoiceId(inv.getId());
+                    boolean hasConfirmed = confirmedAmount != null && confirmedAmount.compareTo(BigDecimal.ZERO) > 0;
+                    
+                    // Nếu có payment PENDING nhưng không có payment CONFIRMED → không hiển thị
+                    if (hasPending && !hasConfirmed) {
+                        return false;
+                    }
+                    
+                    // Các trường hợp khác đều hiển thị:
+                    // - Có payment CONFIRMED (có thể kèm theo PENDING)
+                    // - Không có payment nào cả
+                    return true;
+                })
+                .collect(Collectors.toList());
+
         // Filter by keyword if provided
         if (keyword != null && !keyword.trim().isEmpty()) {
             String keywordLower = keyword.trim().toLowerCase();

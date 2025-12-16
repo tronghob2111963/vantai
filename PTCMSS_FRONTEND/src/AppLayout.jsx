@@ -19,6 +19,8 @@ import {
   Briefcase,
   AlertTriangle,
   FileText,
+  Bus, // Icon cho logo - vận tải hành khách
+  // Các icon khác có thể dùng: Navigation, Route, Truck, Car, MapPin
 } from "lucide-react";
 import { logout as apiLogout } from "./api/auth";
 import {
@@ -191,6 +193,39 @@ function SidebarNav({ collapsed = false }) {
   const role = useRole();
   const location = useLocation();
   
+  // Load pending payment count for Accountant
+  const [pendingPaymentCount, setPendingPaymentCount] = React.useState(0);
+  const isAccountant = role === ROLES.ACCOUNTANT;
+  
+  React.useEffect(() => {
+    if (!isAccountant) return;
+    
+    let mounted = true;
+    const loadPendingCount = async () => {
+      try {
+        const { countPendingPayments } = await import("./api/invoices");
+        const count = await countPendingPayments();
+        if (mounted) {
+          setPendingPaymentCount(Number(count) || 0);
+        }
+      } catch (err) {
+        console.error("Error loading pending payment count:", err);
+        if (mounted) {
+          setPendingPaymentCount(0);
+        }
+      }
+    };
+    
+    loadPendingCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadPendingCount, 30000);
+    
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [isAccountant]);
+  
   // Lấy menu items cho role hiện tại
   const menuItems = React.useMemo(() => {
     return SIDEBAR_ITEMS_BY_ROLE[role] || [];
@@ -221,7 +256,7 @@ function SidebarNav({ collapsed = false }) {
       {/* brand / account mini */}
       <div className="px-4 py-4 border-b border-slate-200 flex items-center gap-3 bg-gradient-to-br from-white to-slate-50/50">
         <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-[0_8px_24px_rgba(0,121,188,.35)] flex-shrink-0 transition-transform duration-200 hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,121,188,.45)]" style={{ backgroundColor: '#0079BC' }}>
-          <Shield className="h-5 w-5" />
+          <Bus className="h-5 w-5" />
         </div>
         {!collapsed && (
           <div className="flex flex-col leading-tight min-w-0 flex-1">
@@ -267,7 +302,13 @@ function SidebarNav({ collapsed = false }) {
                     : "text-slate-500 group-hover:text-slate-700"
                 }`} />
               )}
-              <span className="truncate">{item.label}</span>
+              <span className="truncate flex-1">{item.label}</span>
+              {/* Badge for pending payments on Accountant Dashboard */}
+              {isAccountant && item.to === "/accounting" && pendingPaymentCount > 0 && (
+                <span className="flex-shrink-0 ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500 text-white min-w-[18px] text-center">
+                  {pendingPaymentCount > 99 ? "99+" : pendingPaymentCount}
+                </span>
+              )}
             </NavLink>
           );
         })}

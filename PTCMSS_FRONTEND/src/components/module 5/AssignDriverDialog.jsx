@@ -100,6 +100,9 @@ export default function AssignDriverDialog({
     }, [rawTripDetails, tripIds]);
 
     const [multiAssignments, setMultiAssignments] = React.useState([]);
+    // Lưu vehicle category và suggestions cho từng trip trong multi-mode
+    const [tripVehicleCategories, setTripVehicleCategories] = React.useState({}); // { tripId: vehicleCategory }
+    const [tripSuggestions, setTripSuggestions] = React.useState({}); // { tripId: { drivers, vehicles, summary } }
 
     // Fetch gợi ý khi popup mở
     React.useEffect(() => {
@@ -132,6 +135,31 @@ export default function AssignDriverDialog({
                             vehicleId: "",
                         }))
                     );
+                    
+                    // Gọi API cho từng trip riêng biệt để lấy vehicle category đúng
+                    const tripCategories = {};
+                    const tripSuggestionsData = {};
+                    try {
+                        for (const item of multiTripItems) {
+                            try {
+                                const data = await getAssignmentSuggestions(item.tripId);
+                                tripCategories[item.tripId] = data?.summary?.vehicleType || null;
+                                tripSuggestionsData[item.tripId] = {
+                                    drivers: Array.isArray(data?.drivers) ? data.drivers : [],
+                                    vehicles: Array.isArray(data?.vehicles) ? data.vehicles : [],
+                                    summary: data?.summary || null,
+                                };
+                            } catch (err) {
+                                console.error(`Failed to load suggestions for trip ${item.tripId}:`, err);
+                            }
+                        }
+                        if (!cancelled) {
+                            setTripVehicleCategories(tripCategories);
+                            setTripSuggestions(tripSuggestionsData);
+                        }
+                    } catch (err) {
+                        console.error("Failed to load multi-trip suggestions:", err);
+                    }
                 } else {
                     // Single-mode hoặc chỉ 1 trip: giữ behaviour cũ
                     setAssignToAllTrips(tripIds.length > 1 && !hasMixedVehicleCategories);
@@ -143,6 +171,7 @@ export default function AssignDriverDialog({
                 setMultiAssignments([]);
             }
             
+            // Gọi API cho trip đầu tiên (single-mode hoặc để hiển thị suggestions)
             try {
                 const data = await getAssignmentSuggestions(tripId);
 
@@ -164,12 +193,14 @@ export default function AssignDriverDialog({
                             : []
                     );
 
-                    // Auto-select recommended
-                    if (data?.recommendedDriverId) {
-                        setDriverId(String(data.recommendedDriverId));
-                    }
-                    if (data?.recommendedVehicleId) {
-                        setVehicleId(String(data.recommendedVehicleId));
+                    // Auto-select recommended (chỉ trong single-mode)
+                    if (!multiMode) {
+                        if (data?.recommendedDriverId) {
+                            setDriverId(String(data.recommendedDriverId));
+                        }
+                        if (data?.recommendedVehicleId) {
+                            setVehicleId(String(data.recommendedVehicleId));
+                        }
                     }
                 }
             } catch (err) {
@@ -190,7 +221,7 @@ export default function AssignDriverDialog({
         return () => {
             cancelled = true;
         };
-    }, [open, tripId, order]);
+    }, [open, tripId, order, multiMode, multiTripItems, tripIds]);
 
     // danh sách tài xế (chỉ eligible)
     const driverOptions = React.useMemo(() => {
@@ -215,6 +246,43 @@ export default function AssignDriverDialog({
             return vType === expectedVehicleType;
         });
     }, [vehicleCandidates, expectedVehicleType]);
+    
+    // Helper: Lấy vehicle options cho một trip cụ thể trong multi-mode
+    const getVehicleOptionsForTrip = React.useCallback((tripId) => {
+        if (!multiMode) return vehicleOptions;
+        
+        // Lấy vehicle category cho trip này
+        const vehicleCategory = tripVehicleCategories[tripId] || 
+            (order?.trips?.find(t => (t.id || t.tripId) === tripId)?.vehicle_category);
+        
+        // Lấy vehicles từ suggestions của trip này
+        const tripData = tripSuggestions[tripId];
+        if (tripData && tripData.vehicles) {
+            return tripData.vehicles.filter(v => {
+                if (!v.eligible) return false;
+                if (!vehicleCategory) return true;
+                const vType = v.type || v.categoryName || v.vehicleType || "";
+                return vType === vehicleCategory;
+            });
+        }
+        
+        // Fallback: dùng vehicleOptions chung
+        return vehicleOptions;
+    }, [multiMode, tripVehicleCategories, tripSuggestions, vehicleOptions, order?.trips]);
+    
+    // Helper: Lấy driver options cho một trip cụ thể trong multi-mode
+    const getDriverOptionsForTrip = React.useCallback((tripId) => {
+        if (!multiMode) return driverOptions;
+        
+        // Lấy drivers từ suggestions của trip này
+        const tripData = tripSuggestions[tripId];
+        if (tripData && tripData.drivers) {
+            return tripData.drivers.filter(d => d.eligible);
+        }
+        
+        // Fallback: dùng driverOptions chung
+        return driverOptions;
+    }, [multiMode, tripSuggestions, driverOptions]);
 
     // khi click 1 dòng gợi ý => fill vào dropdown
     const handlePickSuggestion = (s) => {
@@ -755,7 +823,7 @@ export default function AssignDriverDialog({
                                                             xế
                                                             --
                                                         </option>
-                                                        {driverOptions.map(
+                                                        {getDriverOptionsForTrip(item.tripId).map(
                                                             (
                                                                 d
                                                             ) => (
@@ -812,7 +880,7 @@ export default function AssignDriverDialog({
                                                             xe
                                                             --
                                                         </option>
-                                                        {vehicleOptions.map(
+                                                        {getVehicleOptionsForTrip(item.tripId).map(
                                                             (
                                                                 v
                                                             ) => (
