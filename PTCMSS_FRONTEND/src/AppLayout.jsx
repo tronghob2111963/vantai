@@ -10,6 +10,7 @@ import {
   DollarSign,
   BarChart3,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   Bell,
   Search,
@@ -186,7 +187,7 @@ import ManagerDashboardPro from "./components/module 7/ManagerDashboard.jsx";
    - Flat list menu - không dùng accordion
    - Mỗi role có menu items riêng
 --------------------------------------------------- */
-function SidebarNav() {
+function SidebarNav({ collapsed = false }) {
   const role = useRole();
   const location = useLocation();
   
@@ -222,10 +223,12 @@ function SidebarNav() {
         <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-[0_8px_24px_rgba(0,121,188,.35)] flex-shrink-0 transition-transform duration-200 hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,121,188,.45)]" style={{ backgroundColor: '#0079BC' }}>
           <Shield className="h-5 w-5" />
         </div>
-        <div className="flex flex-col leading-tight min-w-0 flex-1">
-          <div className="text-slate-900 font-bold text-sm truncate">TranspoManager</div>
-          <div className="text-[10px] text-slate-500 leading-tight">Hệ thống quản lý vận tải</div>
-        </div>
+        {!collapsed && (
+          <div className="flex flex-col leading-tight min-w-0 flex-1">
+            <div className="text-slate-900 font-bold text-sm truncate">TranspoManager</div>
+            <div className="text-[10px] text-slate-500 leading-tight">Hệ thống quản lý vận tải</div>
+          </div>
+        )}
       </div>
 
       {/* Menu items - Flat list */}
@@ -278,7 +281,7 @@ function SidebarNav() {
    - viền dưới + bóng mờ nhẹ
    - Admin info và nút đăng xuất ở bên phải
 --------------------------------------------------- */
-function Topbar({ onToggleSidebar }) {
+function Topbar({ onToggleSidebar, sidebarCollapsed = false }) {
   const navigate = useNavigate();
   const { pushNotification } = useNotifications();
   const username = getStoredUsername() || "John Doe";
@@ -399,7 +402,11 @@ function Topbar({ onToggleSidebar }) {
             className="mr-3 inline-flex items-center justify-center h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-colors"
             title="Ẩn/hiện menu"
           >
-            <ChevronRight className="h-4 w-4" />
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
           </button>
         )}
       </div>
@@ -458,16 +465,17 @@ function ShellLayout({ sidebarCollapsed = false, onToggleSidebar }) {
   if (!hasToken) {
     return <Navigate to="/login" replace />;
   }
+
+  // Giữ sidebar cố định và tránh cộng thêm margin khiến layout bị lệch/scroll ngang
   const sidebarWidth = sidebarCollapsed ? "w-16" : "w-64";
-  const contentMarginLeft = sidebarCollapsed ? "ml-16" : "ml-64";
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
-      <div className={sidebarWidth}>
-        <SidebarNav />
+      <div className={`${sidebarWidth} flex-shrink-0 transition-all duration-200`}>
+        <SidebarNav collapsed={sidebarCollapsed} />
       </div>
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-200 ${contentMarginLeft}`}>
-        <Topbar onToggleSidebar={onToggleSidebar} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar onToggleSidebar={onToggleSidebar} sidebarCollapsed={sidebarCollapsed} />
         <main className="flex-1 overflow-y-auto min-h-0 p-0">
           {/* Ghi chú: Một số màn con vẫn theme dark. Có thể refactor sau. */}
           <Outlet />
