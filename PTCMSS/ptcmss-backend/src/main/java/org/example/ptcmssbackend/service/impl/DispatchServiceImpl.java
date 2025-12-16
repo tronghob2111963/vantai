@@ -289,16 +289,18 @@ public class DispatchServiceImpl implements DispatchService {
         
         // Get all drivers and vehicles in branch
         List<Drivers> allDrivers = driverRepository.findByBranchId(branchId);
+        log.info("[Dispatch] Found {} drivers in branch {} for trip {}", allDrivers.size(), branchId, trip.getId());
         
         // QUAN TRỌNG: Chỉ lấy xe đúng loại cho trip này
         List<Vehicles> allVehicles;
         if (requiredCategoryId != null) {
             allVehicles = vehicleRepository.filterVehicles(requiredCategoryId, branchId, VehicleStatus.AVAILABLE);
-            log.info("[Dispatch] Filtering vehicles by category {} for trip {} (trip index: {})", 
-                    requiredCategoryId, trip.getId(), tripIndex);
+            log.info("[Dispatch] Filtering vehicles by category {} for trip {} (trip index: {}), found {} vehicles", 
+                    requiredCategoryId, trip.getId(), tripIndex, allVehicles.size());
         } else {
             allVehicles = vehicleRepository.findByBranch_IdAndStatus(branchId, VehicleStatus.AVAILABLE);
-            log.warn("[Dispatch] No category mapping found for trip {}, using all available vehicles", trip.getId());
+            log.warn("[Dispatch] No category mapping found for trip {}, using all available vehicles, found {}", 
+                    trip.getId(), allVehicles.size());
         }
         
         LocalDate tripDate = trip.getStartTime().atZone(ZoneId.systemDefault()).toLocalDate();
@@ -306,6 +308,14 @@ public class DispatchServiceImpl implements DispatchService {
         // Evaluate driver candidates with fairness scoring
         List<org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.DriverCandidate> driverCandidates = 
             evaluateDriverCandidates(allDrivers, trip, tripDate);
+        
+        long eligibleCount = driverCandidates.stream().filter(d -> d.isEligible()).count();
+        log.info("[Dispatch] Evaluated {} drivers, {} eligible for trip {}", 
+                driverCandidates.size(), eligibleCount, trip.getId());
+        if (eligibleCount == 0 && driverCandidates.size() > 0) {
+            log.warn("[Dispatch] No eligible drivers found! Reasons for first driver: {}", 
+                    driverCandidates.isEmpty() ? "N/A" : driverCandidates.get(0).getReasons());
+        }
         
         // Evaluate vehicle candidates - chỉ lấy xe đúng loại
         List<org.example.ptcmssbackend.dto.response.dispatch.AssignmentSuggestionResponse.VehicleCandidate> vehicleCandidates = 

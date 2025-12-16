@@ -1263,6 +1263,7 @@ export default function OrderDetailPage() {
             id: b.id,
             code: `ORD-${b.id}`,
             status: b.status === 'CONFIRMED' ? 'ASSIGNED' : (b.status || 'PENDING'),
+            originalStatus: b.status, // Lưu status gốc từ backend để dùng cho logic check
             branchId: b.branchId,
             customerId: b.customer?.id,
             customer: {
@@ -1318,7 +1319,17 @@ export default function OrderDetailPage() {
         setLoading(true);
         try {
             const data = await getBooking(orderId);
+            console.log(`[OrderDetailPage] Booking data from API:`, {
+                id: data?.id,
+                status: data?.status,
+                originalStatus: data?.status, // Status từ backend
+            });
             const mapped = mapBookingToOrder(data);
+            console.log(`[OrderDetailPage] Mapped order:`, {
+                id: mapped?.id,
+                status: mapped?.status,
+                originalStatus: mapped?.originalStatus,
+            });
             setOrder(mapped);
         } catch (e) {
             push('Không tải được chi tiết đơn hàng', 'error');
@@ -1707,6 +1718,15 @@ export default function OrderDetailPage() {
                             // Truyền đầy đủ thông tin chi tiết của các trip chưa gán
                             trips: unassignedTrips,
                             code: order.code,
+                            status: (() => {
+                                const statusToUse = order.originalStatus || order.status;
+                                console.log(`[OrderDetailPage] Passing status to AssignDriverDialog:`, {
+                                    originalStatus: order.originalStatus,
+                                    mappedStatus: order.status,
+                                    statusToUse,
+                                });
+                                return statusToUse;
+                            })(), // QUAN TRỌNG: Dùng originalStatus (từ backend) để check, fallback về status nếu không có
                             pickup_time: order.trip?.pickup_time,
                             vehicle_type: vehicleCategoryForTrip,
                             vehicle_count: order.trip?.vehicle_count || 1,

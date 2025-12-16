@@ -55,7 +55,8 @@ export default function AssignDriverDialog({
     const [autoPosting, setAutoPosting] =
         React.useState(false);
 
-    const tripId = order?.tripId || order?.id;
+    // Lấy tripId: ưu tiên order.tripId, nếu không có thì lấy từ tripIds[0], cuối cùng mới fallback về order.id
+    const tripId = order?.tripId || (Array.isArray(order?.tripIds) && order.tripIds.length > 0 ? order.tripIds[0] : null) || order?.id;
     const tripIds = order?.tripIds; // Danh sách trips nếu có nhiều xe (chưa gán)
     const bookingId = order?.bookingId;
     const vehicleCount = order?.vehicle_count || 1; // Số lượng xe trong booking
@@ -86,15 +87,23 @@ export default function AssignDriverDialog({
                     return {
                         tripId: Number(id),
                         label: `${base}${route}`,
+                        vehicleCategory: t.vehicle_category || t.vehicleCategory || null,
                     };
                 })
                 .filter(Boolean);
         }
         if (Array.isArray(tripIds) && tripIds.length > 0) {
-            return tripIds.map((id, idx) => ({
-                tripId: Number(id),
-                label: `Xe ${idx + 1} · Chuyến #${id}`,
-            }));
+            return tripIds.map((id, idx) => {
+                // Tìm vehicle_category từ order.trips nếu có
+                const tripInfo = rawTripDetails.find(t => (t.id || t.tripId) === id);
+                return {
+                    tripId: Number(id),
+                    label: tripInfo?.vehicle_category 
+                        ? `${tripInfo.vehicle_category} · Chuyến #${id}`
+                        : `Xe ${idx + 1} · Chuyến #${id}`,
+                    vehicleCategory: tripInfo?.vehicle_category || tripInfo?.vehicleCategory || null,
+                };
+            });
         }
         return [];
     }, [rawTripDetails, tripIds]);
@@ -108,16 +117,58 @@ export default function AssignDriverDialog({
     React.useEffect(() => {
         let cancelled = false;
         async function run() {
-            if (!open || !tripId) return;
-            setLoading(true);
-            setError("");
-            // Chỉ cho phép gán chuyến khi booking đã được đặt cọc (Khách đã xác nhận)
-            const normalizedStatus = (order?.status || "").replace(/[_\s]/g, "").toUpperCase();
-            if (normalizedStatus !== "CONFIRMED") {
-                setLoading(false);
-                setError("Chỉ được gán chuyến khi đơn hàng ở trạng thái \"Khách đã xác nhận\" (đã đặt cọc).");
+            console.log(`[AssignDriverDialog] useEffect triggered:`, {
+                open,
+                tripId,
+                bookingId,
+                tripIds: tripIds?.length || 0,
+                multiMode,
+            });
+            
+            if (!open) {
+                console.log(`[AssignDriverDialog] Dialog not open, skipping`);
                 return;
             }
+            
+            if (!tripId) {
+                console.warn(`[AssignDriverDialog] No tripId provided!`, { order });
+                setError("Không tìm thấy thông tin chuyến đi.");
+                setLoading(false);
+                return;
+            }
+            
+            setLoading(true);
+            setError("");
+            // Cho phép gán chuyến khi booking ở trạng thái:
+            // - CONFIRMED: Khách đã xác nhận (đã đặt cọc) - gán mới
+            // - INPROGRESS: Đang thực hiện - có thể reassign
+            // - COMPLETED: Tạm thời cho phép để test (có thể reassign sau khi hoàn thành)
+            const rawStatus = order?.status || "";
+            const normalizedStatus = rawStatus.replace(/[_\s]/g, "").toUpperCase();
+            const allowedStatuses = ["CONFIRMED", "INPROGRESS", "COMPLETED"]; // Tạm thời thêm COMPLETED để test
+            const isAllowed = allowedStatuses.includes(normalizedStatus);
+            
+            console.log(`[AssignDriverDialog] Checking booking status:`, {
+                rawStatus,
+                normalizedStatus,
+                allowedStatuses,
+                isAllowed,
+            });
+            
+            if (!isAllowed) {
+                console.warn(`[AssignDriverDialog] Booking status "${rawStatus}" (normalized: "${normalizedStatus}") is not in allowed statuses [${allowedStatuses.join(", ")}]. Cannot assign.`);
+                setLoading(false);
+                if (normalizedStatus === "COMPLETED") {
+                    setError("Không thể gán chuyến cho đơn hàng đã hoàn thành.");
+                } else if (normalizedStatus === "CANCELLED") {
+                    setError("Không thể gán chuyến cho đơn hàng đã hủy.");
+                } else {
+                    setError("Chỉ được gán chuyến khi đơn hàng ở trạng thái \"Khách đã xác nhận\" (đã đặt cọc) hoặc \"Đang thực hiện\".");
+                }
+                return;
+            }
+            
+            console.log(`[AssignDriverDialog] Booking status "${normalizedStatus}" is allowed, proceeding to fetch suggestions...`);
             setDriverId("");
             setVehicleId("");
             
@@ -143,6 +194,11 @@ export default function AssignDriverDialog({
                         for (const item of multiTripItems) {
                             try {
                                 const data = await getAssignmentSuggestions(item.tripId);
+                                console.log(`[AssignDriverDialog] Loaded suggestions for trip ${item.tripId}:`, {
+                                    drivers: data?.drivers?.length || 0,
+                                    vehicles: data?.vehicles?.length || 0,
+                                    vehicleType: data?.summary?.vehicleType,
+                                });
                                 tripCategories[item.tripId] = data?.summary?.vehicleType || null;
                                 tripSuggestionsData[item.tripId] = {
                                     drivers: Array.isArray(data?.drivers) ? data.drivers : [],
@@ -151,11 +207,19 @@ export default function AssignDriverDialog({
                                 };
                             } catch (err) {
                                 console.error(`Failed to load suggestions for trip ${item.tripId}:`, err);
+                                // Đảm bảo vẫn set data rỗng để tránh fallback về options chung không phù hợp
+                                tripCategories[item.tripId] = null;
+                                tripSuggestionsData[item.tripId] = {
+                                    drivers: [],
+                                    vehicles: [],
+                                    summary: null,
+                                };
                             }
                         }
                         if (!cancelled) {
                             setTripVehicleCategories(tripCategories);
                             setTripSuggestions(tripSuggestionsData);
+                            console.log(`[AssignDriverDialog] Set trip suggestions for ${Object.keys(tripSuggestionsData).length} trips`);
                         }
                     } catch (err) {
                         console.error("Failed to load multi-trip suggestions:", err);
@@ -174,6 +238,15 @@ export default function AssignDriverDialog({
             // Gọi API cho trip đầu tiên (single-mode hoặc để hiển thị suggestions)
             try {
                 const data = await getAssignmentSuggestions(tripId);
+                console.log(`[AssignDriverDialog] API response for trip ${tripId}:`, {
+                    hasSummary: !!data?.summary,
+                    suggestionsCount: data?.suggestions?.length || 0,
+                    driversCount: data?.drivers?.length || 0,
+                    vehiclesCount: data?.vehicles?.length || 0,
+                    eligibleDrivers: data?.drivers?.filter(d => d.eligible)?.length || 0,
+                    eligibleVehicles: data?.vehicles?.filter(v => v.eligible)?.length || 0,
+                    vehicleType: data?.summary?.vehicleType,
+                });
 
                 if (!cancelled) {
                     setSummary(data?.summary || null);
@@ -182,16 +255,30 @@ export default function AssignDriverDialog({
                             ? data.suggestions
                             : []
                     );
-                    setDriverCandidates(
-                        Array.isArray(data?.drivers)
-                            ? data.drivers
-                            : []
-                    );
-                    setVehicleCandidates(
-                        Array.isArray(data?.vehicles)
-                            ? data.vehicles
-                            : []
-                    );
+                    const allDrivers = Array.isArray(data?.drivers) ? data.drivers : [];
+                    const allVehicles = Array.isArray(data?.vehicles) ? data.vehicles : [];
+                    
+                    console.log(`[AssignDriverDialog] Setting drivers/vehicles:`, {
+                        totalDrivers: allDrivers.length,
+                        eligibleDrivers: allDrivers.filter(d => d.eligible).length,
+                        totalVehicles: allVehicles.length,
+                        eligibleVehicles: allVehicles.filter(v => v.eligible).length,
+                    });
+                    
+                    // Log chi tiết từng driver để debug
+                    if (allDrivers.length > 0) {
+                        console.log(`[AssignDriverDialog] Driver details:`, allDrivers.map(d => ({
+                            id: d.id,
+                            name: d.name,
+                            eligible: d.eligible,
+                            reasons: d.reasons,
+                        })));
+                    } else {
+                        console.warn(`[AssignDriverDialog] No drivers returned from API for trip ${tripId}`);
+                    }
+                    
+                    setDriverCandidates(allDrivers);
+                    setVehicleCandidates(allVehicles);
 
                     // Auto-select recommended (chỉ trong single-mode)
                     if (!multiMode) {
@@ -205,7 +292,12 @@ export default function AssignDriverDialog({
                 }
             } catch (err) {
                 if (cancelled) return;
-                console.error("Failed to load suggestions:", err);
+                console.error(`[AssignDriverDialog] Failed to load suggestions for trip ${tripId}:`, err);
+                console.error(`[AssignDriverDialog] Error details:`, {
+                    message: err.message,
+                    response: err.response,
+                    stack: err.stack,
+                });
                 setError(
                     "Không thể tải gợi ý tài xế/xe: " + (err.message || "Lỗi không xác định")
                 );
@@ -213,8 +305,10 @@ export default function AssignDriverDialog({
                 setDriverCandidates([]);
                 setVehicleCandidates([]);
             } finally {
-                if (!cancelled)
+                if (!cancelled) {
                     setLoading(false);
+                    console.log(`[AssignDriverDialog] Finished loading suggestions for trip ${tripId}`);
+                }
             }
         }
         run();
@@ -225,7 +319,17 @@ export default function AssignDriverDialog({
 
     // danh sách tài xế (chỉ eligible)
     const driverOptions = React.useMemo(() => {
-        return driverCandidates.filter(d => d.eligible);
+        const eligible = driverCandidates.filter(d => d.eligible);
+        console.log(`[AssignDriverDialog] driverOptions computed:`, {
+            totalCandidates: driverCandidates.length,
+            eligibleCount: eligible.length,
+        });
+        if (driverCandidates.length > 0 && eligible.length === 0) {
+            console.warn(`[AssignDriverDialog] All ${driverCandidates.length} drivers are not eligible!`, 
+                driverCandidates.map(d => ({ id: d.id, name: d.name, eligible: d.eligible, reasons: d.reasons }))
+            );
+        }
+        return eligible;
     }, [driverCandidates]);
 
     // Loại xe khách đã đặt (dùng để lọc danh sách xe phù hợp)
@@ -258,14 +362,23 @@ export default function AssignDriverDialog({
         // Lấy vehicles từ suggestions của trip này
         const tripData = tripSuggestions[tripId];
         if (tripData && tripData.vehicles) {
-            return tripData.vehicles.filter(v => {
+            const filtered = tripData.vehicles.filter(v => {
                 if (!v.eligible) return false;
                 if (!vehicleCategory) return true;
-                const vType = v.type || v.categoryName || v.vehicleType || "";
-                return vType === vehicleCategory;
+                // So sánh linh hoạt hơn: check cả categoryName và type
+                const vType = v.categoryName || v.type || v.vehicleType || "";
+                // Nếu vehicleCategory là "Xe 16 chỗ" và vType là "Xe 16 chỗ (Limousine)", vẫn match
+                return vType.includes(vehicleCategory) || vehicleCategory.includes(vType) || vType === vehicleCategory;
             });
+            console.log(`[AssignDriverDialog] getVehicleOptionsForTrip(${tripId}):`, {
+                vehicleCategory,
+                totalVehicles: tripData.vehicles.length,
+                eligibleVehicles: filtered.length,
+            });
+            return filtered;
         }
         
+        console.warn(`[AssignDriverDialog] No trip data found for trip ${tripId}, using fallback vehicleOptions`);
         // Fallback: dùng vehicleOptions chung
         return vehicleOptions;
     }, [multiMode, tripVehicleCategories, tripSuggestions, vehicleOptions, order?.trips]);
@@ -277,9 +390,15 @@ export default function AssignDriverDialog({
         // Lấy drivers từ suggestions của trip này
         const tripData = tripSuggestions[tripId];
         if (tripData && tripData.drivers) {
-            return tripData.drivers.filter(d => d.eligible);
+            const filtered = tripData.drivers.filter(d => d.eligible);
+            console.log(`[AssignDriverDialog] getDriverOptionsForTrip(${tripId}):`, {
+                totalDrivers: tripData.drivers.length,
+                eligibleDrivers: filtered.length,
+            });
+            return filtered;
         }
         
+        console.warn(`[AssignDriverDialog] No trip data found for trip ${tripId}, using fallback driverOptions`);
         // Fallback: dùng driverOptions chung
         return driverOptions;
     }, [multiMode, tripSuggestions, driverOptions]);
@@ -764,6 +883,11 @@ export default function AssignDriverDialog({
                         {/* Multi-mode: chọn tài xế/xe cho từng chuyến */}
                         {multiMode ? (
                             <div className="p-3 space-y-3 text-[13px]">
+                                {loading && multiTripItems.length > 0 && (
+                                    <div className="text-center py-4 text-slate-500 text-[13px]">
+                                        Đang tải danh sách tài xế và xe...
+                                    </div>
+                                )}
                                 {multiTripItems.map((item, idx) => {
                                     const current =
                                         multiAssignments.find(
@@ -823,31 +947,59 @@ export default function AssignDriverDialog({
                                                             xế
                                                             --
                                                         </option>
-                                                        {getDriverOptionsForTrip(item.tripId).map(
-                                                            (
-                                                                d
-                                                            ) => (
+                                                        {(() => {
+                                                            const driverOptions = getDriverOptionsForTrip(item.tripId);
+                                                            const tripData = tripSuggestions[item.tripId];
+                                                            const allDrivers = tripData?.drivers || [];
+                                                            const ineligibleCount = allDrivers.filter(d => !d.eligible).length;
+                                                            
+                                                            console.log(`[AssignDriverDialog] Rendering driver dropdown for trip ${item.tripId}:`, {
+                                                                driverOptionsLength: driverOptions.length,
+                                                                allDriversLength: allDrivers.length,
+                                                                tripDataExists: !!tripData,
+                                                                loading: loading,
+                                                                driverOptions: driverOptions.slice(0, 2).map(d => ({ id: d.id, name: d.name, eligible: d.eligible })),
+                                                            });
+                                                            
+                                                            // Nếu đang loading và chưa có data, hiển thị loading message
+                                                            if (loading && !tripData) {
+                                                                return (
+                                                                    <option value="" disabled>
+                                                                        Đang tải danh sách tài xế...
+                                                                    </option>
+                                                                );
+                                                            }
+                                                            
+                                                            if (driverOptions.length === 0) {
+                                                                if (allDrivers.length === 0) {
+                                                                    return (
+                                                                        <option value="" disabled>
+                                                                            Không có tài xế trong hệ thống
+                                                                        </option>
+                                                                    );
+                                                                } else {
+                                                                    return (
+                                                                        <option value="" disabled>
+                                                                            Không có tài xế phù hợp ({ineligibleCount} tài xế không đủ điều kiện)
+                                                                        </option>
+                                                                    );
+                                                                }
+                                                            }
+                                                            return driverOptions.map((d) => (
                                                                 <option
-                                                                    key={
-                                                                        d.id
-                                                                    }
-                                                                    value={
-                                                                        d.id
-                                                                    }
+                                                                    key={d.id}
+                                                                    value={d.id}
                                                                 >
                                                                     {d.hasHistoryWithCustomer
                                                                         ? "✓ "
                                                                         : ""}
-                                                                    {
-                                                                        d.name
-                                                                    }{" "}
-                                                                    {d.tripsToday !=
-                                                                    null
+                                                                    {d.name}{" "}
+                                                                    {d.tripsToday != null
                                                                         ? `(${d.tripsToday} chuyến hôm nay)`
                                                                         : ""}
                                                                 </option>
-                                                            )
-                                                        )}
+                                                            ));
+                                                        })()}
                                                     </select>
                                                 </div>
                                                 <div>
@@ -880,21 +1032,41 @@ export default function AssignDriverDialog({
                                                             xe
                                                             --
                                                         </option>
-                                                        {getVehicleOptionsForTrip(item.tripId).map(
-                                                            (
-                                                                v
-                                                            ) => (
+                                                        {(() => {
+                                                            const vehicleOptions = getVehicleOptionsForTrip(item.tripId);
+                                                            const tripData = tripSuggestions[item.tripId];
+                                                            const allVehicles = tripData?.vehicles || [];
+                                                            
+                                                            console.log(`[AssignDriverDialog] Rendering vehicle dropdown for trip ${item.tripId}:`, {
+                                                                vehicleOptionsLength: vehicleOptions.length,
+                                                                allVehiclesLength: allVehicles.length,
+                                                                tripDataExists: !!tripData,
+                                                                loading: loading,
+                                                                vehicleOptions: vehicleOptions.slice(0, 2).map(v => ({ id: v.id, plate: v.plate, eligible: v.eligible })),
+                                                            });
+                                                            
+                                                            // Nếu đang loading và chưa có data, hiển thị loading message
+                                                            if (loading && !tripData) {
+                                                                return (
+                                                                    <option value="" disabled>
+                                                                        Đang tải danh sách xe...
+                                                                    </option>
+                                                                );
+                                                            }
+                                                            
+                                                            if (vehicleOptions.length === 0) {
+                                                                return (
+                                                                    <option value="" disabled>
+                                                                        Không có xe phù hợp
+                                                                    </option>
+                                                                );
+                                                            }
+                                                            return vehicleOptions.map((v) => (
                                                                 <option
-                                                                    key={
-                                                                        v.id
-                                                                    }
-                                                                    value={
-                                                                        v.id
-                                                                    }
+                                                                    key={v.id}
+                                                                    value={v.id}
                                                                 >
-                                                                    {
-                                                                        v.plate
-                                                                    }{" "}
+                                                                    {v.plate}{" "}
                                                                     {v.model
                                                                         ? `· ${v.model}`
                                                                         : ""}{" "}
@@ -902,8 +1074,8 @@ export default function AssignDriverDialog({
                                                                         ? `(${v.status})`
                                                                         : ""}
                                                                 </option>
-                                                            )
-                                                        )}
+                                                            ));
+                                                        })()}
                                                     </select>
                                                 </div>
                                             </div>
@@ -937,27 +1109,38 @@ export default function AssignDriverDialog({
                                             tài xế
                                             --
                                         </option>
-                                        {driverOptions.map(
-                                            (d) => (
+                                        {(() => {
+                                            const ineligibleCount = driverCandidates.filter(d => !d.eligible).length;
+                                            if (driverOptions.length === 0) {
+                                                if (driverCandidates.length === 0) {
+                                                    return (
+                                                        <option value="" disabled>
+                                                            Không có tài xế trong hệ thống
+                                                        </option>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <option value="" disabled>
+                                                            Không có tài xế phù hợp ({ineligibleCount} tài xế không đủ điều kiện)
+                                                        </option>
+                                                    );
+                                                }
+                                            }
+                                            return driverOptions.map((d) => (
                                                 <option
-                                                    key={
-                                                        d.id
-                                                    }
-                                                    value={
-                                                        d.id
-                                                    }
+                                                    key={d.id}
+                                                    value={d.id}
                                                 >
                                                     {d.hasHistoryWithCustomer
                                                         ? "✓ "
                                                         : ""}
                                                     {d.name}{" "}
-                                                    {d.tripsToday !=
-                                                    null
+                                                    {d.tripsToday != null
                                                         ? `(${d.tripsToday} chuyến hôm nay)`
                                                         : ""}
                                                 </option>
-                                            )
-                                        )}
+                                            ));
+                                        })()}
                                     </select>
                                 </div>
 
