@@ -17,6 +17,7 @@ import {
     X,
 } from "lucide-react";
 import { getDriverSchedule, getDriverProfile } from "../../api/drivers";
+import { getCurrentRole, ROLES } from "../../utils/session";
 
 /* ===========================================
    Helper Functions
@@ -109,6 +110,8 @@ function TripStatusBadge({ status }) {
 export default function CoordinatorDriverTripsPage() {
     const { driverId } = useParams();
     const navigate = useNavigate();
+    const role = getCurrentRole();
+    const isManager = role === ROLES.MANAGER || role === ROLES.ADMIN;
 
     const [driver, setDriver] = React.useState(null);
     const [trips, setTrips] = React.useState([]);
@@ -201,7 +204,13 @@ export default function CoordinatorDriverTripsPage() {
                 <div className="mb-6">
                     <div className="flex items-center gap-4 mb-4">
                         <button
-                            onClick={() => navigate(-1)}
+                            onClick={() => {
+                                // Navigate về driver detail theo role
+                                const detailPath = isManager 
+                                    ? `/manager/drivers/${driverId}`
+                                    : `/coordinator/drivers/${driverId}`;
+                                navigate(detailPath);
+                            }}
                             className="p-2 rounded-lg hover:bg-slate-200 transition-colors"
                         >
                             <ArrowLeft className="h-5 w-5 text-slate-600" />

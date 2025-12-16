@@ -420,12 +420,23 @@ export default function SystemSettingsPage() {
             const data = await listSystemSettings();
             const settingsList = Array.isArray(data) ? data : [];
 
-            // Map backend response to frontend format
+            // Map backend response to frontend format với label tự động
+            const settingLabels = {
+                "EXPIRY_WARNING_DAYS": "Số ngày cảnh báo hết hạn",
+                "CRITICAL_WARNING_DAYS": "Số ngày cảnh báo khẩn cấp",
+                "HEALTH_CHECK_WARNING_DAYS": "Số ngày cảnh báo khám sức khỏe",
+                "MAX_CONTINUOUS_DRIVING_HOURS": "Giờ lái liên tục tối đa",
+                "MAX_DRIVING_HOURS_PER_DAY": "Giờ lái tối đa/ngày",
+                "MAX_DRIVING_HOURS_PER_WEEK": "Giờ lái tối đa/tuần",
+                "MAX_DRIVER_LEAVE_DAYS": "Số ngày nghỉ tối đa/tháng",
+                "DUE_DATE_DEBT_DAYS": "Số ngày cộng thêm để tính hạn công nợ sau khi kết thúc chuyến",
+            };
+            
             const mappedSettings = settingsList.map(item => ({
                 ...item,
                 key: item.settingKey,
                 value: item.settingValue,
-                label: item.settingKey // Use settingKey as label since backend doesn't have separate label
+                label: settingLabels[item.settingKey] || item.settingKey // Use friendly label if available
             }));
 
             setSettings(mappedSettings);

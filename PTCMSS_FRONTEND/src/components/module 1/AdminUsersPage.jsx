@@ -4,6 +4,7 @@ import { listUsers, listUsersByBranch, listRoles } from "../../api/users";
 import { listEmployeesByRole, listEmployees, listEmployeesByBranch } from "../../api/employees";
 import { RefreshCw, Edit2, ShieldCheck, Users, Search, Filter, Mail, Phone, Shield, UserPlus } from "lucide-react";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
+import { getDriverProfileByUser } from "../../api/drivers";
 import Pagination from "../common/Pagination";
 import UserAvatar from "../common/UserAvatar";
 
@@ -498,7 +499,26 @@ export default function AdminUsersPage() {
                         {/* Chỉ Admin và Manager mới có nút Chỉnh sửa */}
                         {!isAccountantView ? (
                           <button
-                            onClick={() => navigate(`/admin/users/${u.id}`)}
+                            onClick={async () => {
+                              // Nếu là Manager và user có role là Driver, redirect đến driver detail page
+                              if (isManagerView && u.roleName?.toUpperCase() === "DRIVER") {
+                                try {
+                                  // Lấy driver profile để có driverId
+                                  const driverProfile = await getDriverProfileByUser(u.id);
+                                  // Response có thể là { driverId, ... } hoặc { data: { driverId, ... } }
+                                  const driverId = driverProfile?.driverId || driverProfile?.data?.driverId || driverProfile?.id;
+                                  if (driverId) {
+                                    navigate(`/manager/drivers/${driverId}`);
+                                    return;
+                                  }
+                                } catch (error) {
+                                  console.error("Failed to get driver profile:", error);
+                                  // Fallback to user edit page if error
+                                }
+                              }
+                              // Default: navigate to user edit page (cho Admin hoặc non-Driver users)
+                              navigate(`/admin/users/${u.id}`);
+                            }}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-[#0079BC]/50 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all active:scale-[0.98] group-hover:shadow-md"
                           >
                             <Edit2 className="h-3.5 w-3.5" />

@@ -429,7 +429,7 @@ function QuoteInfoCard({ quote }) {
 }
 
 /* 4. Thanh toán / Cọc */
-function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, isConsultant = false, isCoordinator = false, pickupTime = null }) {
+function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, isConsultant = false, isCoordinator = false, pickupTime = null, onDeletePayment, onRefreshPayments }) {
     const remain = Math.max(0, Number(payment.remaining || 0));
     const paid = Math.max(0, Number(payment.paid || 0));
     
@@ -548,41 +548,70 @@ function PaymentInfoCard({ payment, history = [], onOpenDeposit, onGenerateQr, i
                 <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Lịch sử thanh toán</div>
                 {history.length ? (
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                        {history.map((item) => (
-                            <div
-                                key={item.invoiceId}
-                                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] space-y-1.5"
-                            >
-                                <div className="flex justify-between items-start gap-2">
-                                    <span className="font-bold text-base text-slate-900 tabular-nums">{fmtVND(item.amount || 0)}</span>
-                                    <span className="text-[11px] text-slate-500 whitespace-nowrap">{item.createdAt ? fmtDateTime(item.createdAt) : "--"}</span>
+                        {history.map((item) => {
+                            // Xác định trạng thái dựa trên confirmationStatus và paymentStatus
+                            const confirmationStatus = item.confirmationStatus || "";
+                            const paymentStatus = item.paymentStatus || "";
+                            
+                            // Logic hiển thị trạng thái:
+                            // - PENDING → "Chờ xác nhận" (màu info)
+                            // - CONFIRMED + PAID → "Đã thanh toán" (màu xanh)
+                            // - CONFIRMED + UNPAID → "Chưa thanh toán" (màu đỏ)
+                            // - REJECTED → có thể hiển thị "Đã từ chối" hoặc không hiển thị
+                            let statusText = "Chưa thanh toán";
+                            let statusClass = "bg-slate-100 text-slate-700";
+                            
+                            if (confirmationStatus === "PENDING") {
+                                statusText = "Chờ xác nhận";
+                                statusClass = "bg-info-100 text-info-700";
+                            } else if (confirmationStatus === "CONFIRMED") {
+                                if (paymentStatus === "PAID") {
+                                    statusText = "Đã thanh toán";
+                                    statusClass = "bg-emerald-100 text-emerald-700";
+                                } else {
+                                    statusText = "Chưa thanh toán";
+                                    statusClass = "bg-rose-100 text-rose-700";
+                                }
+                            } else if (confirmationStatus === "REJECTED") {
+                                statusText = "Đã từ chối";
+                                statusClass = "bg-slate-200 text-slate-600";
+                            }
+                            
+                            const canDelete = isConsultant && confirmationStatus === "PENDING" && item.paymentId;
+                            
+                            return (
+                                <div
+                                    key={item.paymentId || item.invoiceId}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] space-y-1.5"
+                                >
+                                    <div className="flex justify-between items-start gap-2">
+                                        <span className="font-bold text-base text-slate-900 tabular-nums">{fmtVND(item.amount || 0)}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] text-slate-500 whitespace-nowrap">{item.createdAt ? fmtDateTime(item.createdAt) : "--"}</span>
+                                            {canDelete && onDeletePayment && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onDeletePayment(item.paymentId)}
+                                                    className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition-colors"
+                                                    title="Hủy yêu cầu"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[11px]">
+                                        <span className="text-slate-600">{item.paymentMethod || "Không có"}</span>
+                                        <span className={cls("font-semibold px-2 py-0.5 rounded-md", statusClass)}>
+                                            {statusText}
+                                        </span>
+                                    </div>
+                                    {item.note ? (
+                                        <div className="text-[11px] text-slate-600 break-words leading-relaxed pt-1 border-t border-slate-200">{item.note}</div>
+                                    ) : null}
                                 </div>
-                                <div className="flex justify-between items-center text-[11px]">
-                                    <span className="text-slate-600">{item.paymentMethod || "Không có"}</span>
-                                    <span
-                                        className={cls(
-                                            "font-semibold px-2 py-0.5 rounded-md",
-                                            item.paymentStatus === "PAID"
-                                                ? "bg-emerald-100 text-emerald-700"
-                                                : item.paymentStatus === "PENDING"
-                                                ? "bg-info-100 text-info-700"
-                                                : "bg-slate-100 text-slate-700"
-                                        )}
-                                    >
-                                        {item.paymentStatus === "PAID" 
-                                            ? "Đã thanh toán" 
-                                            : item.paymentStatus === "PENDING"
-                                            ? "Chờ xác nhận"
-                                            : item.paymentStatus === "UNPAID"
-                                            ? "Chưa thanh toán"
-                                            : item.paymentStatus || "Chưa thanh toán"}
-                                    </span>
-                                </div>
-                                {item.note ? (
-                                    <div className="text-[11px] text-slate-600 break-words leading-relaxed pt-1 border-t border-slate-200">{item.note}</div>
-                                ) : null}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-[12px] text-slate-500">
@@ -601,6 +630,8 @@ function QrPaymentModal({
     defaultAmount = 0,
     onClose,
     onGenerate,
+    paymentHistory = [], // Thêm prop để validate
+    remainingAmount = 0, // Số tiền còn lại cần thu
 }) {
     const [amountStr, setAmountStr] = React.useState("");
     const [note, setNote] = React.useState("");
@@ -611,8 +642,22 @@ function QrPaymentModal({
     const [copied, setCopied] = React.useState(false);
     const [useFallbackImage, setUseFallbackImage] = React.useState(false);
 
+    // Tính tổng tiền các request "chưa thanh toán" (CONFIRMED + UNPAID hoặc PENDING)
+    const totalUnpaidRequests = React.useMemo(() => {
+        if (!paymentHistory || paymentHistory.length === 0) return 0;
+        return paymentHistory
+            .filter(item => {
+                const confStatus = item.confirmationStatus || "";
+                const payStatus = item.paymentStatus || "";
+                // Tính cả PENDING và CONFIRMED + UNPAID
+                return confStatus === "PENDING" || (confStatus === "CONFIRMED" && payStatus === "UNPAID");
+            })
+            .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    }, [paymentHistory]);
+
     React.useEffect(() => {
         if (open) {
+            // Auto-fill số tiền còn lại khi mở modal
             const initAmount = Math.max(0, Number(defaultAmount || 0));
             setAmountStr(initAmount > 0 ? String(initAmount) : "");
 
@@ -637,6 +682,14 @@ function QrPaymentModal({
             setError("Vui lòng nhập số tiền hợp lệ");
             return;
         }
+        
+        // Validate: Tổng tiền các request "chưa thanh toán" + số tiền mới không được vượt quá số tiền cần thu
+        const totalAfterNewRequest = totalUnpaidRequests + amount;
+        if (totalAfterNewRequest > remainingAmount) {
+            setError(`Tổng số tiền các yêu cầu "chưa thanh toán" (${fmtVND(totalUnpaidRequests)}) + số tiền mới (${fmtVND(amount)}) = ${fmtVND(totalAfterNewRequest)} vượt quá số tiền cần thu (${fmtVND(remainingAmount)}). Số tiền có thể tạo thêm: ${fmtVND(Math.max(0, remainingAmount - totalUnpaidRequests))}`);
+            return;
+        }
+        
         setLoading(true);
         setError("");
         try {
@@ -1355,6 +1408,22 @@ export default function OrderDetailPage() {
         [order?.id, orderId, fetchPayments, push]
     );
 
+    const handleDeletePayment = React.useCallback(
+        async (paymentId) => {
+            if (!paymentId) return;
+            try {
+                const { deletePayment } = await import("../../api/invoices");
+                await deletePayment(paymentId);
+                await fetchPayments();
+                push('Đã hủy yêu cầu thanh toán', 'success');
+            } catch (e) {
+                const apiMessage = e?.data?.message || e?.message;
+                push(apiMessage || 'Hủy yêu cầu thanh toán thất bại', 'error');
+            }
+        },
+        [fetchPayments, push]
+    );
+
     // header summary numbers
     const finalPrice = order?.quote?.final_price || 0;
     const paid = order?.payment?.paid || 0;
@@ -1459,7 +1528,7 @@ export default function OrderDetailPage() {
             <div className={`grid ${isAccountant ? 'xl:grid-cols-1' : 'xl:grid-cols-2'} gap-5 mb-5`}>
                 <QuoteInfoCard quote={order.quote} />
                 {!isAccountant && (
-                    <PaymentInfoCard
+                        <PaymentInfoCard
                         payment={order.payment}
                         history={paymentHistory}
                         onOpenDeposit={openDeposit}
@@ -1467,6 +1536,8 @@ export default function OrderDetailPage() {
                         isConsultant={isConsultant}
                         isCoordinator={isCoordinator}
                         pickupTime={order.trip?.pickup_time}
+                        onDeletePayment={handleDeletePayment}
+                        onRefreshPayments={fetchPayments}
                     />
                 )}
             </div>
@@ -1584,6 +1655,8 @@ export default function OrderDetailPage() {
                         defaultAmount={remain}
                         onClose={() => setQrModalOpen(false)}
                         onGenerate={handleQrGenerate}
+                        paymentHistory={paymentHistory}
+                        remainingAmount={remain}
                     />
 
                     {/* Deposit / Payment modal */}

@@ -108,6 +108,13 @@ export default function AssignDriverDialog({
             if (!open || !tripId) return;
             setLoading(true);
             setError("");
+            // Chỉ cho phép gán chuyến khi booking đã được đặt cọc (Khách đã xác nhận)
+            const normalizedStatus = (order?.status || "").replace(/[_\s]/g, "").toUpperCase();
+            if (normalizedStatus !== "CONFIRMED") {
+                setLoading(false);
+                setError("Chỉ được gán chuyến khi đơn hàng ở trạng thái \"Khách đã xác nhận\" (đã đặt cọc).");
+                return;
+            }
             setDriverId("");
             setVehicleId("");
             
