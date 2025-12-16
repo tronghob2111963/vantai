@@ -27,13 +27,14 @@ export default function CoordinatorOrderListPage() {
     const [branchLoading, setBranchLoading] = useState(true);
     const [branchError, setBranchError] = useState("");
 
-    // Time filter - Default to last 30 days instead of just today
-    const today = new Date().toISOString().slice(0, 10);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const defaultStartDate = thirtyDaysAgo.toISOString().slice(0, 10);
-    
-    const [startDate, setStartDate] = useState(defaultStartDate);
+    // Time filter - Default to today (local) to avoid timezone drift
+    const toLocalDateInput = () => {
+        const d = new Date();
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().slice(0, 10);
+    };
+    const today = toLocalDateInput();
+    const [startDate, setStartDate] = useState(today);
     const [endDate, setEndDate] = useState(today);
 
     // Load branch for scoped users
@@ -282,8 +283,9 @@ export default function CoordinatorOrderListPage() {
                                 </div>
                                 <button
                                     onClick={() => {
-                                        setStartDate(today);
-                                        setEndDate(today);
+                                        const todayLocal = toLocalDateInput();
+                                        setStartDate(todayLocal);
+                                        setEndDate(todayLocal);
                                         setCurrentPage(1);
                                     }}
                                     className="px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
@@ -304,12 +306,13 @@ export default function CoordinatorOrderListPage() {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        setStartDate(defaultStartDate);
-                                        setEndDate(today);
+                                        const todayLocal = toLocalDateInput();
+                                        setStartDate(todayLocal);
+                                        setEndDate(todayLocal);
                                         setCurrentPage(1);
                                     }}
                                     className="px-3 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                                    title="Reset về 30 ngày gần đây"
+                                    title="Reset về hôm nay"
                                 >
                                     Reset
                                 </button>

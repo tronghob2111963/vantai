@@ -5,6 +5,7 @@ import { listVehicleCategories } from "../../api/vehicleCategories";
 import { listBookings, createBooking, cancelBooking } from "../../api/bookings";
 import { listBranches } from "../../api/branches";
 import { getEmployeeByUserId } from "../../api/employees";
+import { getCustomerBookings } from "../../api/customers";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 import {
     ClipboardList,
@@ -344,7 +345,6 @@ function FilterBar({
                     >
                         <option value="">Tất cả trạng thái</option>
                         <option value="DRAFT">Nháp</option>
-                        <option value="PENDING">Chờ xử lý</option>
                         <option value="QUOTATION_SENT">Đã gửi báo giá</option>
                         <option value="CONFIRMED">Khách đã xác nhận</option>
                         <option value="ASSIGNED">Đã phân xe</option>
@@ -413,6 +413,7 @@ function OrdersTable({
     onEdit,
     onCancel,
     showActions = true, // Add prop to control actions column visibility
+    onViewCustomerTrips, // Handler để mở popup danh sách chuyến đi của khách hàng
 }) {
     const headerCell = (key, label) => (
         <th
@@ -484,11 +485,12 @@ function OrdersTable({
     // Cho phép hủy khi:
     // 1. Chưa hoàn thành, chưa hủy
     // 2. Chưa quá thời gian bắt đầu
+    // 3. Không phải trạng thái "Đang thực hiện"
     const canCancel = (status, pickupTime = null) => {
         const normalized = status ? status.replace(/_/g, '').toUpperCase() : '';
         
-        // Không cho hủy khi: đã hoàn thành, đã hủy
-        if (normalized === 'COMPLETED' || normalized === 'CANCELLED') {
+        // Không cho hủy khi: đã hoàn thành, đã hủy, đang thực hiện
+        if (normalized === 'COMPLETED' || normalized === 'CANCELLED' || normalized === 'INPROGRESS') {
             return false;
         }
         
@@ -497,8 +499,7 @@ function OrdersTable({
             return false;
         }
         
-        // Nếu chưa quá thời gian bắt đầu và chưa đang thực hiện thì cho phép hủy
-        return normalized !== 'INPROGRESS';
+        return true;
     };
 
     return (
@@ -536,9 +537,13 @@ function OrdersTable({
                                 <div className="flex items-start gap-2">
                                     <User className="h-3.5 w-3.5 text-sky-600 shrink-0 mt-0.5" />
                                     <div>
-                                        <div className="font-medium text-slate-900 leading-tight">
+                                        <button
+                                            type="button"
+                                            onClick={() => onViewCustomerTrips && onViewCustomerTrips(o.customerId, o.customer_name)}
+                                            className="font-medium text-slate-900 leading-tight hover:text-sky-600 hover:underline cursor-pointer text-left"
+                                        >
                                             {o.customer_name}
-                                        </div>
+                                        </button>
                                         <div className="text-[11px] text-slate-500 leading-tight break-all">
                                             {o.customer_phone}
                                         </div>
@@ -1793,6 +1798,13 @@ export default function ConsultantOrdersPage() {
     // list data
     const [orders, setOrders] = React.useState([]);
     const [loadError, setLoadError] = React.useState(null);
+    
+    // Customer trips popup
+    const [customerTripsOpen, setCustomerTripsOpen] = React.useState(false);
+    const [selectedCustomerId, setSelectedCustomerId] = React.useState(null);
+    const [selectedCustomerName, setSelectedCustomerName] = React.useState("");
+    const [customerTrips, setCustomerTrips] = React.useState([]);
+    const [customerTripsLoading, setCustomerTripsLoading] = React.useState(false);
 
     // default branch to use when creating from quick modal
     const [defaultBranchId, setDefaultBranchId] = React.useState(null);
@@ -1901,24 +1913,27 @@ export default function ConsultantOrdersPage() {
             const quotedPrice =
                 b.totalCost || b.totalPrice || b.total || 0;
 
-            // Chuẩn hoá status giống như hiển thị ở pill:
-            // 1. Backend có thể trả IN_PROGRESS (có dấu gạch dưới) → chuẩn hóa thành INPROGRESS
-            // 2. Nếu backend trả COMPLETED nhưng chưa thu đủ tiền → coi là INPROGRESS để filter cho nhất quán.
-            let rawStatus = b.status || "PENDING";
+            // Chuẩn hoá status theo logic mới:
+            // - Đơn chưa đặt cọc: "Đã gửi báo giá" (QUOTATION_SENT)
+            // - Đơn đã đặt cọc: "Khách đã xác nhận" (CONFIRMED)
+            // - Đơn đã được phân công tài xế/xe: "Đã phân xe" (ASSIGNED)
+            // - Đơn được tài xế xác nhận bắt đầu: "Đang thực hiện" (INPROGRESS)
+            // - Đơn được tài xế đánh dấu hoàn thành + Thu đủ tiền: "Hoàn thành" (COMPLETED)
+            let rawStatus = b.status || "QUOTATION_SENT";
             const normalizedRawStatus = normalizeStatusValue(rawStatus);
+            const hasDeposit = Number(paidAmount || 0) > 0 || Number(b.depositAmount || b.deposit_amount || 0) > 0;
+            const isFullyPaid = Number(paidAmount || 0) >= Number(quotedPrice || 0);
             
             // Map các status về format chuẩn của frontend
-            if (normalizedRawStatus === "INPROGRESS") {
+            if (normalizedRawStatus === "INPROGRESS" || normalizedRawStatus === "ONGOING") {
                 rawStatus = ORDER_STATUS.INPROGRESS;
             } else if (normalizedRawStatus === "COMPLETED") {
                 // Nếu COMPLETED nhưng chưa thu đủ tiền → coi là INPROGRESS
-                if (Number(paidAmount || 0) < Number(quotedPrice || 0)) {
+                if (!isFullyPaid) {
                     rawStatus = ORDER_STATUS.INPROGRESS;
                 } else {
                     rawStatus = ORDER_STATUS.COMPLETED;
                 }
-            } else if (normalizedRawStatus === "PENDING") {
-                rawStatus = ORDER_STATUS.PENDING;
             } else if (normalizedRawStatus === "CONFIRMED") {
                 rawStatus = ORDER_STATUS.CONFIRMED;
             } else if (normalizedRawStatus === "CANCELLED") {
@@ -1929,9 +1944,13 @@ export default function ConsultantOrdersPage() {
                 rawStatus = ORDER_STATUS.QUOTATION_SENT;
             } else if (normalizedRawStatus === "DRAFT") {
                 rawStatus = ORDER_STATUS.DRAFT;
+            } else if (normalizedRawStatus === "PENDING") {
+                // PENDING → QUOTATION_SENT (đã gửi báo giá)
+                rawStatus = ORDER_STATUS.QUOTATION_SENT;
             } else {
-                // Fallback: giữ nguyên status nếu không match
-                rawStatus = rawStatus.toUpperCase();
+                // Fallback: Nếu không có status hoặc không match, dựa vào deposit
+                // Nếu đã có deposit → CONFIRMED, chưa có → QUOTATION_SENT
+                rawStatus = hasDeposit ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.QUOTATION_SENT;
             }
 
                     return {
@@ -2131,12 +2150,20 @@ export default function ConsultantOrdersPage() {
         });
 
         const arr = [...afterFilter];
-        // Mặc định: đơn mới nhất lên đầu (pickup_time desc) nếu chưa chọn sort khác
+        // Helper để extract số từ mã đơn (ORD-1 -> 1, ORD-2025-001 -> 2025001)
+        const extractOrderNumber = (code) => {
+            if (!code) return 0;
+            const match = String(code).match(/(\d+)/);
+            return match ? parseInt(match[1], 10) : 0;
+        };
+        
+        // Mặc định: đơn mới nhất lên đầu (theo mã đơn desc) nếu chưa chọn sort khác
         arr.sort((a, b) => {
             let A, B;
             if (sortKey === "code") {
-                A = a.code;
-                B = b.code;
+                // Sort theo số trong mã đơn (ORD-1, ORD-2, ...)
+                A = extractOrderNumber(a.code);
+                B = extractOrderNumber(b.code);
             } else if (sortKey === "customer_name") {
                 A = a.customer_name;
                 B = b.customer_name;
@@ -2150,9 +2177,9 @@ export default function ConsultantOrdersPage() {
                 A = a.status;
                 B = b.status;
             } else {
-                // default sort theo pickup_time (ngày đi)
-                A = a.pickup_time;
-                B = b.pickup_time;
+                // default sort theo mã đơn (mới nhất lên đầu)
+                A = extractOrderNumber(a.code);
+                B = extractOrderNumber(b.code);
             }
             if (A < B)
                 return sortDir === "asc" ? -1 : 1;
@@ -2261,6 +2288,27 @@ export default function ConsultantOrdersPage() {
             setLoadingRefresh(false);
         }
     }, [fetchBookings, isConsultant, scopedBranchId, push]);
+    
+    // Handler để mở popup danh sách chuyến đi của khách hàng
+    const handleViewCustomerTrips = React.useCallback(async (customerId, customerName) => {
+        if (!customerId) return;
+        setSelectedCustomerId(customerId);
+        setSelectedCustomerName(customerName || "");
+        setCustomerTripsOpen(true);
+        setCustomerTripsLoading(true);
+        setCustomerTrips([]);
+        
+        try {
+            const response = await getCustomerBookings(customerId, { page: 0, size: 100 });
+            const bookings = response?.data?.content || response?.data?.items || response?.data || [];
+            setCustomerTrips(Array.isArray(bookings) ? bookings : []);
+        } catch (e) {
+            console.error("Failed to load customer trips:", e);
+            push("Không tải được danh sách chuyến đi của khách hàng", "error");
+        } finally {
+            setCustomerTripsLoading(false);
+        }
+    }, [push]);
 
     /**
      * khi form create / edit bấm lưu,
@@ -2426,6 +2474,7 @@ export default function ConsultantOrdersPage() {
                     onEdit={handleEdit}
                     onCancel={handleCancelClick}
                     showActions={!isManager && !isAccountant}
+                    onViewCustomerTrips={handleViewCustomerTrips}
                 />
 
 
@@ -2521,6 +2570,109 @@ export default function ConsultantOrdersPage() {
                                 {cancelLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                                 {cancelLoading ? "Đang hủy..." : "Xác nhận hủy"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* POPUP DANH SÁCH CHUYẾN ĐI CỦA KHÁCH HÀNG */}
+            {customerTripsOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900">
+                                    Danh sách chuyến đi
+                                </h3>
+                                <p className="text-sm text-slate-600 mt-1">
+                                    Khách hàng: <span className="font-medium">{selectedCustomerName}</span>
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCustomerTripsOpen(false);
+                                    setSelectedCustomerId(null);
+                                    setSelectedCustomerName("");
+                                    setCustomerTrips([]);
+                                }}
+                                className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-6">
+                            {customerTripsLoading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <Loader2 className="h-6 w-6 animate-spin text-sky-600" />
+                                    <span className="ml-2 text-slate-600">Đang tải...</span>
+                                </div>
+                            ) : customerTrips.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    <ClipboardList className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                                    <p className="text-sm">Khách hàng chưa có chuyến đi nào</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {customerTrips.map((booking) => {
+                                        const bookingCode = booking.bookingCode || booking.code || (booking.id ? `ORD-${booking.id}` : `ORD-${booking.bookingId || "?"}`);
+                                        const status = booking.status || "QUOTATION_SENT";
+                                        const statusLabel = ORDER_STATUS_LABEL[status] || status;
+                                        const statusStyle = ORDER_STATUS_STYLE[status] || ORDER_STATUS_STYLE.DRAFT;
+                                        const totalCost = booking.totalCost || booking.totalPrice || booking.total || 0;
+                                        const paidAmount = booking.paidAmount || booking.paid_amount || 0;
+                                        
+                                        return (
+                                            <div
+                                                key={booking.id || booking.bookingId}
+                                                className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                                                onClick={() => {
+                                                    if (booking.id || booking.bookingId) {
+                                                        handleViewDetail({ id: booking.id || booking.bookingId });
+                                                        setCustomerTripsOpen(false);
+                                                    }
+                                                }}
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="font-semibold text-slate-900">{bookingCode}</span>
+                                                            <span className={cls("px-2 py-0.5 rounded-md text-[11px] font-medium", statusStyle)}>
+                                                                {statusLabel}
+                                                            </span>
+                                                        </div>
+                                                        {booking.startLocation && booking.endLocation && (
+                                                            <div className="text-sm text-slate-600 mb-1">
+                                                                <MapPin className="h-3.5 w-3.5 inline text-primary-600 mr-1" />
+                                                                {booking.startLocation} → {booking.endLocation}
+                                                            </div>
+                                                        )}
+                                                        {booking.startDate && (
+                                                            <div className="text-xs text-slate-500 mb-2">
+                                                                <Clock className="h-3.5 w-3.5 inline mr-1" />
+                                                                {fmtDateTime(booking.startDate)}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center gap-4 text-xs text-slate-600">
+                                                            <span>
+                                                                <DollarSign className="h-3.5 w-3.5 inline mr-1" />
+                                                                Tổng: {fmtVND(totalCost)}
+                                                            </span>
+                                                            <span className={paidAmount >= totalCost ? "text-emerald-600" : "text-rose-600"}>
+                                                                Đã thu: {fmtVND(paidAmount)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="h-5 w-5 text-slate-400 shrink-0" />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

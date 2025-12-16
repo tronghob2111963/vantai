@@ -202,11 +202,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
             // Lưu mật khẩu người dùng nhập vào (KHÔNG phải mật khẩu random)
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            user.setStatus(org.example.ptcmssbackend.enums.UserStatus.ACTIVE);
+            // Chỉ chuyển status thành ACTIVE nếu status hiện tại là null hoặc chưa được set
+            // Nếu user được tạo với status INACTIVE, giữ nguyên status INACTIVE để không cho login
+            if (user.getStatus() == null) {
+                user.setStatus(org.example.ptcmssbackend.enums.UserStatus.ACTIVE);
+            }
+            // Nếu status đã là INACTIVE, giữ nguyên để user không thể login
             user.setVerificationToken(null); // Xóa token sau khi sử dụng
             userRepository.save(user);
 
-            log.info("[SET_PASSWORD] Password set successfully for user {}", user.getUsername());
+            log.info("[SET_PASSWORD] Password set successfully for user {} with status {}", user.getUsername(), user.getStatus());
+            // Nếu status là INACTIVE, thông báo user không thể login
+            if (user.getStatus() == org.example.ptcmssbackend.enums.UserStatus.INACTIVE) {
+                return "Mật khẩu đã được thiết lập thành công. Tài khoản của bạn đang ở trạng thái không hoạt động. Vui lòng liên hệ quản trị viên để kích hoạt tài khoản.";
+            }
             return "Mật khẩu đã được thiết lập thành công. Bạn có thể đăng nhập ngay bây giờ.";
         } catch (Exception e) {
             log.error("[SET_PASSWORD] Failed to set password: {}", e.getMessage());

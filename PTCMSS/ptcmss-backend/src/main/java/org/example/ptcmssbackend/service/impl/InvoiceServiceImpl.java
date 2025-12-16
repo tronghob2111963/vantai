@@ -20,6 +20,7 @@ import org.example.ptcmssbackend.exception.PaymentException;
 import org.example.ptcmssbackend.exception.ResourceNotFoundException;
 import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.InvoiceService;
+import org.example.ptcmssbackend.service.SystemSettingService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +50,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     private final TripRepository tripRepository;
     private final TripDriverRepository tripDriverRepository;
+    private final SystemSettingService systemSettingService;
 
     @Override
     @Transactional
@@ -92,14 +94,43 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setCreatedBy(createdBy);
         invoice.setNote(request.getNote());
 
-        // Set due date based on payment terms
-        if (request.getDueDate() == null && invoice.getInvoiceDate() != null) {
-            LocalDate invoiceLocalDate = invoice.getInvoiceDate().atZone(ZoneId.systemDefault()).toLocalDate();
-            int days = getDaysFromPaymentTerms(invoice.getPaymentTerms());
-            invoice.setDueDate(invoiceLocalDate.plusDays(days));
-        } else {
-            invoice.setDueDate(request.getDueDate());
+        // Set due date:
+        // Ưu tiên: request.dueDate
+        // Nếu gắn với booking: dùng endTime của trip + setting DUE_DATE_DEBT_DAYS (mặc định 7)
+        // Nếu không có, fallback theo paymentTerms + invoiceDate
+        LocalDate dueDate = request.getDueDate();
+        if (dueDate == null) {
+            LocalDate baseDate = null;
+
+            // Nếu có booking, lấy endTime mới nhất của trip
+            if (request.getBookingId() != null) {
+                var trips = tripRepository.findByBooking_Id(request.getBookingId());
+                Instant latestEnd = trips.stream()
+                        .filter(t -> t.getEndTime() != null)
+                        .map(Trips::getEndTime)
+                        .max(Instant::compareTo)
+                        .orElse(null);
+                if (latestEnd != null) {
+                    baseDate = latestEnd.atZone(ZoneId.systemDefault()).toLocalDate();
+                }
+            }
+
+            // Fallback: dùng invoiceDate (creation timestamp)
+            if (baseDate == null && invoice.getInvoiceDate() != null) {
+                baseDate = invoice.getInvoiceDate().atZone(ZoneId.systemDefault()).toLocalDate();
+            }
+
+            if (baseDate != null) {
+                int extraDays = getSystemSettingInt("DUE_DATE_DEBT_DAYS", 7);
+                dueDate = baseDate.plusDays(extraDays);
+            } else {
+                // Fallback cuối: paymentTerms
+                LocalDate invoiceLocalDate = invoice.getInvoiceDate().atZone(ZoneId.systemDefault()).toLocalDate();
+                int days = getDaysFromPaymentTerms(invoice.getPaymentTerms());
+                dueDate = invoiceLocalDate.plusDays(days);
+            }
         }
+        invoice.setDueDate(dueDate);
 
         // Generate invoice number
         LocalDate invoiceDate = invoice.getInvoiceDate() != null
@@ -516,6 +547,18 @@ public class InvoiceServiceImpl implements InvoiceService {
             if (branchName.contains("Quảng Ninh") || branchName.contains("Quang Ninh")) return "QN";
         }
         return String.format("B%02d", branchId);
+    }
+
+    private int getSystemSettingInt(String key, int defaultValue) {
+        try {
+            var setting = systemSettingService.getByKey(key);
+            if (setting != null && setting.getSettingValue() != null) {
+                return Integer.parseInt(setting.getSettingValue());
+            }
+        } catch (Exception e) {
+            log.warn("[InvoiceService] Cannot read system setting {}: {}", key, e.getMessage());
+        }
+        return defaultValue;
     }
 
     @Override

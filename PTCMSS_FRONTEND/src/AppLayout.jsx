@@ -76,12 +76,13 @@ const SIDEBAR_ITEMS_BY_ROLE = {
     { label: "Danh sách nhân viên", to: "/accountant/users", icon: Users },
     { label: "Danh sách xe", to: "/accountant/vehicles", icon: CarFront },
   ],
-  // Manager (Quản lý - 8 options)
+  // Manager (Quản lý - 9 options)
   [ROLES.MANAGER]: [
     { label: "Bảng điều khiển", to: "/analytics/manager", icon: LayoutDashboard, exact: true },
     { label: "Báo cáo doanh thu", to: "/accounting/revenue-report", icon: BarChart3 },
     { label: "Báo cáo chi phí", to: "/accounting/expenses", icon: DollarSign },
     { label: "Danh sách đơn hàng", to: "/manager/orders", icon: ClipboardList },
+    { label: "Danh sách tài xế", to: "/manager/drivers", icon: Users },
     { label: "Danh sách nhân viên", to: "/admin/users", icon: Users },
     { label: "Danh sách xe", to: "/vehicles", icon: CarFront },
     { label: "Danh sách khách hàng", to: "/manager/customers", icon: Users },
@@ -1014,6 +1015,30 @@ export default function AppLayout() {
             element={
               <ProtectedRoute roles={[ROLES.MANAGER]}>
                 <ConsultantOrderListPage readOnly />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/drivers"
+            element={
+              <ProtectedRoute roles={[ROLES.MANAGER]}>
+                <CoordinatorDriverListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/drivers/:driverId"
+            element={
+              <ProtectedRoute roles={[ROLES.MANAGER]}>
+                <CoordinatorDriverDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/drivers/:driverId/trips"
+            element={
+              <ProtectedRoute roles={[ROLES.MANAGER]}>
+                <CoordinatorDriverTripsPage />
               </ProtectedRoute>
             }
           />

@@ -35,6 +35,11 @@ export default function UserDetailPage() {
   const [generalError, setGeneralError] = React.useState("");
 
   const BRAND_COLOR = "#0079BC";
+  const STATUS_OPTIONS = [
+    { value: "ACTIVE", label: "Hoạt động" },
+    { value: "INACTIVE", label: "Vô hiệu hóa" },
+    { value: "SUSPENDED", label: "Tạm khóa" },
+  ];
 
   React.useEffect(() => {
     (async () => {
@@ -472,9 +477,11 @@ export default function UserDetailPage() {
                 onChange={(e) => setStatus(e.target.value)}
                 disabled={!canEditTarget || !canEditStatus}
               >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="SUSPENDED">SUSPENDED</option>
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -487,8 +494,8 @@ export default function UserDetailPage() {
                 <div className="font-semibold text-slate-900 text-sm mb-1">Lưu ý</div>
                 <div className="text-sm text-slate-700 space-y-1">
                   <p>• Thay đổi vai trò sẽ ảnh hưởng đến quyền truy cập</p>
-                  <p>• Trạng thái INACTIVE sẽ vô hiệu hóa tài khoản</p>
-                  <p>• Trạng thái SUSPENDED sẽ tạm khóa tài khoản</p>
+                  <p>• Trạng thái Vô hiệu hóa (INACTIVE) sẽ không cho phép đăng nhập</p>
+                  <p>• Trạng thái Tạm khóa (SUSPENDED) sẽ khóa tài khoản tạm thời</p>
                 </div>
               </div>
             </div>

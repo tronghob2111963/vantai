@@ -776,6 +776,12 @@ function InvoiceTable({
                                     </td>
                                     <td className="px-3 py-2 text-sm">
                                         <StatusBadge status={iv.status} />
+                                        {isAccountant && (iv.pendingPaymentCount || 0) > 0 && (
+                                            <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 text-[11px] font-medium">
+                                                <Clock className="h-3.5 w-3.5" />
+                                                <span>Chờ kế toán xác nhận ({iv.pendingPaymentCount})</span>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-3 py-2">
                                         <div className="flex flex-wrap gap-2">
@@ -801,8 +807,8 @@ function InvoiceTable({
                                                 </button>
                                             )}
                                             
-                                            {/* Accountant: Luôn có thể ghi nhận trực tiếp (kể cả khi có pending) */}
-                                            {iv.status !== STATUS.PAID && isAccountant && (
+                                            {/* Accountant: Ghi nhận trực tiếp khi không còn pending request */}
+                                            {iv.status !== STATUS.PAID && isAccountant && (iv.pendingPaymentCount || 0) === 0 && (
                                                 <button
                                                     onClick={() => onDirectRecord(iv)}
                                                     className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-1.5 text-[11px] font-medium shadow-sm flex items-center gap-1"

@@ -192,14 +192,6 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 6. Tạo trips
-        // Tính tổng số xe cần thiết
-        int totalVehicleCount = 0;
-        if (request.getVehicles() != null && !request.getVehicles().isEmpty()) {
-            totalVehicleCount = request.getVehicles().stream()
-                    .mapToInt(v -> v.getQuantity() != null ? v.getQuantity() : 1)
-                    .sum();
-        }
-        
         // VALIDATION: Kiểm tra số lượng tài xế rảnh trước khi tạo booking
         // Chỉ kiểm tra số trips thực tế trong request, không tự động sinh thêm
         if (request.getTrips() != null && !request.getTrips().isEmpty()) {
@@ -311,6 +303,9 @@ public class BookingServiceImpl implements BookingService {
                 tripRepository.save(trip);
             log.info("[Booking] Created 1 default trip for booking {} (no trips in request)", booking.getId());
         }
+
+        // Đảm bảo số trip >= tổng số xe đặt (quantity) - mỗi xe tương ứng 1 trip để gán riêng
+        ensureTripsMatchVehicleQuantity(booking, request);
 
         // 7. Tạo booking vehicle details
         // Xóa vehicle details cũ (nếu có) để tránh duplicate khi tạo booking mới
@@ -1962,6 +1957,59 @@ public class BookingServiceImpl implements BookingService {
         return getById(bookingId);
     }
 
+    /**
+     * Đảm bảo số trip tạo ra khớp với tổng số lượng xe được đặt (quantity).
+     * Nếu thiếu, tự động nhân bản trip đầu tiên (giữ nguyên thời gian/điểm đi/điểm đến) để đủ số lượng.
+     * Mục tiêu: mỗi xe tương ứng một trip riêng để gán tài xế/xe độc lập.
+     */
+    private void ensureTripsMatchVehicleQuantity(Bookings booking, CreateBookingRequest request) {
+        // Tính tổng số xe theo vehicle details
+        int requiredTrips = 0;
+        if (request.getVehicles() != null) {
+            for (VehicleDetailRequest v : request.getVehicles()) {
+                requiredTrips += v.getQuantity() != null ? v.getQuantity() : 0;
+            }
+        }
+        if (requiredTrips <= 0) return; // không có yêu cầu xe cụ thể
+
+        List<Trips> existingTrips = tripRepository.findByBooking_Id(booking.getId());
+        int currentTrips = existingTrips.size();
+        if (currentTrips >= requiredTrips) {
+            log.info("[Booking] Trips already sufficient ({} >= {}), skip auto-duplicate", currentTrips, requiredTrips);
+            return;
+        }
+
+        if (existingTrips.isEmpty()) {
+            log.warn("[Booking] No trips found after creation while vehicles quantity = {}. Creating 1 default trip.", requiredTrips);
+            Trips trip = new Trips();
+            trip.setBooking(booking);
+            trip.setUseHighway(booking.getUseHighway());
+            trip.setStatus(TripStatus.SCHEDULED);
+            tripRepository.save(trip);
+            existingTrips = tripRepository.findByBooking_Id(booking.getId());
+            currentTrips = existingTrips.size();
+        }
+
+        Trips template = existingTrips.get(0);
+        int needMore = requiredTrips - currentTrips;
+        log.info("[Booking] Auto-duplicating trips to match vehicle quantity: need {} more (current {}, required {})",
+                needMore, currentTrips, requiredTrips);
+
+        for (int i = 0; i < needMore; i++) {
+            Trips clone = new Trips();
+            clone.setBooking(booking);
+            clone.setUseHighway(template.getUseHighway());
+            clone.setStartTime(template.getStartTime());
+            clone.setEndTime(template.getEndTime());
+            clone.setStartLocation(template.getStartLocation());
+            clone.setEndLocation(template.getEndLocation());
+            clone.setDistance(template.getDistance());
+            clone.setIncidentalCosts(template.getIncidentalCosts());
+            clone.setStatus(TripStatus.SCHEDULED); // tất cả trip mới ở trạng thái SCHEDULED
+            tripRepository.save(clone);
+        }
+    }
+
     @Override
     public org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse checkAvailability(CheckAvailabilityRequest request) {
         Integer branchId = request.getBranchId();
@@ -2252,20 +2300,6 @@ public class BookingServiceImpl implements BookingService {
         BigDecimal paidAmount = invoiceRepository.calculateConfirmedPaidAmountByBookingId(booking.getId());
         if (paidAmount == null) paidAmount = BigDecimal.ZERO;
         
-        // Tính tổng số xe trong booking từ BookingVehicleDetails (quantity)
-        int vehicleCount = 0;
-        try {
-            List<BookingVehicleDetails> vehicleDetailsForCount = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
-            if (vehicleDetailsForCount != null && !vehicleDetailsForCount.isEmpty()) {
-                vehicleCount = vehicleDetailsForCount.stream()
-                        .map(BookingVehicleDetails::getQuantity)
-                        .filter(java.util.Objects::nonNull)
-                        .mapToInt(Integer::intValue)
-                        .sum();
-            }
-        } catch (Exception e) {
-            log.warn("[BookingService] Cannot calculate vehicleCount for booking {}: {}", booking.getId(), e.getMessage());
-        }
         BigDecimal remainingAmount = booking.getTotalCost() != null
                 ? booking.getTotalCost().subtract(paidAmount)
                 : BigDecimal.ZERO;

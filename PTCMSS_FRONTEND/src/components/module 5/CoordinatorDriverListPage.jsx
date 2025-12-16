@@ -179,7 +179,12 @@ export default function CoordinatorDriverListPage({ readOnly = false }) {
     };
 
     const handleViewDetail = (driverId) => {
-        navigate(`/coordinator/drivers/${driverId}`);
+        // Navigate theo role: Manager dùng /manager/drivers, Coordinator dùng /coordinator/drivers
+        if (role === ROLES.MANAGER) {
+            navigate(`/manager/drivers/${driverId}`);
+        } else {
+            navigate(`/coordinator/drivers/${driverId}`);
+        }
     };
 
     const getLicenseStatus = (expiryDate) => {
