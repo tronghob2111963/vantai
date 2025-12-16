@@ -20,6 +20,8 @@ import {
     DollarSign,
     Loader2,
     Eye,
+    Pencil,
+    Trash2,
     ChevronLeft,
     ChevronRight,
     ChevronUp,
