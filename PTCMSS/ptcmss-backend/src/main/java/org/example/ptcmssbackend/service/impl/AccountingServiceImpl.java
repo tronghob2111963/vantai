@@ -358,7 +358,33 @@ public class AccountingServiceImpl implements AccountingService {
     public BigDecimal getTotalExpense(Integer branchId, LocalDate startDate, LocalDate endDate) {
         Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
-        return invoiceRepository.sumAmountByBranchAndTypeAndDateRange(branchId, InvoiceType.EXPENSE, start, end);
+        
+        // Get expense from invoices
+        BigDecimal invoiceExpense = invoiceRepository.sumAmountByBranchAndTypeAndDateRange(branchId, InvoiceType.EXPENSE, start, end);
+        if (invoiceExpense == null) {
+            invoiceExpense = BigDecimal.ZERO;
+        }
+        
+        // Get expense from approved expense requests (same logic as ExpenseReport)
+        List<ExpenseRequests> expenseRequests;
+        if (branchId != null) {
+            expenseRequests = expenseRequestRepository.findByStatusAndBranch_Id(
+                    ExpenseRequestStatus.APPROVED, branchId);
+        } else {
+            expenseRequests = expenseRequestRepository.findByStatus(ExpenseRequestStatus.APPROVED);
+        }
+        
+        // Filter expense requests by date range (createdAt)
+        BigDecimal requestExpense = expenseRequests.stream()
+                .filter(req -> req.getCreatedAt() != null
+                        && !req.getCreatedAt().isBefore(start)
+                        && !req.getCreatedAt().isAfter(end))
+                .map(ExpenseRequests::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Total = invoices + expense requests
+        return invoiceExpense.add(requestExpense);
     }
 
     @Override

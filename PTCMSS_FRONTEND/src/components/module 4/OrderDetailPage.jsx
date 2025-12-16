@@ -1,6 +1,6 @@
 ﻿// OrderDetailPage.jsx (LIGHT THEME, hooked with light DepositModal)
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
     getBooking,
     addBookingPayment,
@@ -27,6 +27,7 @@ import {
     X,
     QrCode,
     Copy,
+    ArrowLeft,
 } from "lucide-react";
 
 //  dùng modal light theme thay vì bản dark
@@ -1202,12 +1203,24 @@ function DispatchInfoCard({ dispatch, dispatchList = [], onAssignClick, showAssi
 export default function OrderDetailPage() {
     const { toasts, push } = useToasts();
     const { orderId } = useParams();
+    const navigate = useNavigate();
 
     // Check role - ẩn phần thanh toán cho Consultant và Accountant
     const currentRole = React.useMemo(() => getCurrentRole(), []);
     const isConsultant = currentRole === ROLES.CONSULTANT;
     const isAccountant = currentRole === ROLES.ACCOUNTANT;
     const isCoordinator = currentRole === ROLES.COORDINATOR;
+    
+    // Xác định route quay về dựa trên role
+    const getBackRoute = () => {
+        if (isAccountant) return "/accountant/orders";
+        if (isCoordinator) return "/coordinator/orders";
+        return "/orders"; // Consultant hoặc default
+    };
+    
+    const handleBack = () => {
+        navigate(getBackRoute());
+    };
 
     const [order, setOrder] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
@@ -1507,6 +1520,19 @@ export default function OrderDetailPage() {
             {/* HEADER */}
             <div className="flex flex-col lg:flex-row lg:items-start gap-4 mb-6">
                 <div className="flex-1 flex flex-col gap-2">
+                    {/* Back button */}
+                    <div className="mb-2">
+                        <button
+                            type="button"
+                            onClick={handleBack}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Quay về danh sách đơn hàng"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            <span>Quay về</span>
+                        </button>
+                    </div>
+                    
                     {/* title row */}
                     <div className="flex flex-wrap items-start gap-3">
                         <div className="text-[20px] font-semibold text-slate-900 flex items-center gap-2">

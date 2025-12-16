@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Phone,
   MapPin,
@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Loader2,
   Star,
+  ArrowLeft,
 } from "lucide-react";
 import TripExpenseModal from "./TripExpenseModal.jsx";
 import TripPaymentRequestModal from "./TripPaymentRequestModal.jsx";
@@ -357,6 +358,7 @@ function getNextStepInfo(status) {
 
 export default function DriverTripDetailPage() {
   const { tripId: routeTripId } = useParams();
+  const navigate = useNavigate();
   const [driver, setDriver] = React.useState(null);
   const [trip, setTrip] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
@@ -526,6 +528,19 @@ export default function DriverTripDetailPage() {
           )}
           <div className="flex flex-col lg:flex-row lg:items-start gap-4 mb-5">
             <div className="flex-1 flex flex-col gap-2">
+              {/* Back button */}
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/driver/dashboard")}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                  title="Quay về bảng điều khiển"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Quay về</span>
+                </button>
+              </div>
+              
               <div className="flex flex-wrap items-start gap-3">
                 <div className="text-2xl font-semibold text-slate-900 flex items-center gap-2 leading-tight">
                   <Flag className="h-6 w-6 text-primary-600" />

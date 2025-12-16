@@ -2395,6 +2395,8 @@ export default function CreateOrderPage() {
                                 </div>
                                 <div className="space-y-2">
                                 {availabilityInfo.alternativeCategories
+                                    // Chỉ hiển thị các loại xe có xe rảnh (availableCount > 0)
+                                    .filter((alt) => (alt.availableCount || 0) > 0)
                                     // Ẩn các loại xe đã được chọn trong form (tránh gợi ý trùng)
                                     .filter(
                                         (alt) =>

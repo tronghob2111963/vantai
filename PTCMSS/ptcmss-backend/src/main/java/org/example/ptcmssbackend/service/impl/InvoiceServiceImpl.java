@@ -50,6 +50,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     private final TripRepository tripRepository;
     private final TripDriverRepository tripDriverRepository;
+    private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
     private final SystemSettingService systemSettingService;
 
     @Override
@@ -621,6 +622,72 @@ public class InvoiceServiceImpl implements InvoiceService {
                     }
                 }
                 invoiceRepository.save(invoice);
+                
+                // Xử lý deposit: Khi deposit được confirm, cập nhật booking status và tạo trips
+                if (invoice.getBooking() != null && Boolean.TRUE.equals(invoice.getIsDeposit()) 
+                        && confirmationStatus == PaymentConfirmationStatus.CONFIRMED) {
+                    Bookings booking = invoice.getBooking();
+                    
+                    // 1. Cập nhật booking status thành CONFIRMED nếu chưa phải CONFIRMED hoặc COMPLETED
+                    if (booking.getStatus() != BookingStatus.CONFIRMED 
+                            && booking.getStatus() != BookingStatus.COMPLETED
+                            && booking.getStatus() != BookingStatus.CANCELLED) {
+                        booking.setStatus(BookingStatus.CONFIRMED);
+                        bookingRepository.save(booking);
+                        log.info("[InvoiceService] Booking {} status updated to CONFIRMED after deposit confirmation", booking.getId());
+                    }
+                    
+                    // 2. Tạo trips nếu chưa có (dựa trên BookingVehicleDetails)
+                    List<Trips> existingTrips = tripRepository.findByBooking_Id(booking.getId());
+                    if (existingTrips.isEmpty()) {
+                        // Lấy thông tin vehicles từ BookingVehicleDetails
+                        List<BookingVehicleDetails> vehicleDetails = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+                        int requiredTrips = vehicleDetails.stream()
+                                .mapToInt(bvd -> bvd.getQuantity() != null ? bvd.getQuantity() : 0)
+                                .sum();
+                        
+                        if (requiredTrips > 0) {
+                            // Tạo trips mặc định (chưa có trips nào, nên không có template)
+                            // Thông tin chi tiết (startTime, endTime, locations) sẽ được cập nhật sau khi có thông tin từ booking
+                            for (int i = 0; i < requiredTrips; i++) {
+                                Trips trip = new Trips();
+                                trip.setBooking(booking);
+                                trip.setUseHighway(booking.getUseHighway());
+                                trip.setStatus(org.example.ptcmssbackend.enums.TripStatus.SCHEDULED);
+                                // startTime, endTime, locations sẽ được cập nhật sau khi có thông tin từ booking hoặc từ consultant
+                                
+                                tripRepository.save(trip);
+                            }
+                            log.info("[InvoiceService] Created {} trips for booking {} after deposit confirmation", requiredTrips, booking.getId());
+                        }
+                    } else {
+                        // Kiểm tra xem số trips có đủ không
+                        List<BookingVehicleDetails> vehicleDetails = bookingVehicleDetailsRepository.findByBookingId(booking.getId());
+                        int requiredTrips = vehicleDetails.stream()
+                                .mapToInt(bvd -> bvd.getQuantity() != null ? bvd.getQuantity() : 0)
+                                .sum();
+                        
+                        if (existingTrips.size() < requiredTrips) {
+                            // Tạo thêm trips nếu thiếu
+                            Trips template = existingTrips.get(0);
+                            int needMore = requiredTrips - existingTrips.size();
+                            for (int i = 0; i < needMore; i++) {
+                                Trips clone = new Trips();
+                                clone.setBooking(booking);
+                                clone.setUseHighway(template.getUseHighway());
+                                clone.setStartTime(template.getStartTime());
+                                clone.setEndTime(template.getEndTime());
+                                clone.setStartLocation(template.getStartLocation());
+                                clone.setEndLocation(template.getEndLocation());
+                                clone.setDistance(template.getDistance());
+                                clone.setIncidentalCosts(template.getIncidentalCosts());
+                                clone.setStatus(org.example.ptcmssbackend.enums.TripStatus.SCHEDULED);
+                                tripRepository.save(clone);
+                            }
+                            log.info("[InvoiceService] Created {} additional trips for booking {} after deposit confirmation", needMore, booking.getId());
+                        }
+                    }
+                }
             }
 
             // Send WebSocket notifications to Driver (người tạo payment request)

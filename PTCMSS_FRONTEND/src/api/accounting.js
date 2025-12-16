@@ -39,11 +39,10 @@ export function getRevenueReport({
 }
 
 // Get expense report
-// NOTE: costType đã bị xóa khỏi database - backend không còn filter theo expenseType cho Invoices
-// Chỉ filter theo ExpenseRequests.expenseType nếu cần
+// NOTE: expenseType filter chỉ áp dụng cho ExpenseRequests (không áp dụng cho Invoices vì costType đã bị xóa)
 export function getExpenseReport({
   branchId,
-  costType, // Deprecated - không còn được backend sử dụng để filter Invoices
+  expenseType, // Filter theo loại chi phí cho ExpenseRequests
   vehicleId,
   startDate,
   endDate,
@@ -53,8 +52,7 @@ export function getExpenseReport({
 } = {}) {
   const params = new URLSearchParams();
   if (branchId != null) params.append("branchId", String(branchId));
-  // costType đã bị xóa - không gửi filter này nữa
-  // if (costType) params.append("expenseType", costType);
+  if (expenseType) params.append("expenseType", expenseType);
   if (vehicleId != null) params.append("vehicleId", String(vehicleId));
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);

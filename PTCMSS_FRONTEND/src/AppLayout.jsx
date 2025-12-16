@@ -189,7 +189,7 @@ import ManagerDashboardPro from "./components/module 7/ManagerDashboard.jsx";
    - Flat list menu - không dùng accordion
    - Mỗi role có menu items riêng
 --------------------------------------------------- */
-function SidebarNav({ collapsed = false }) {
+function SidebarNav({ collapsed = false, onToggleSidebar }) {
   const role = useRole();
   const location = useLocation();
   
@@ -264,6 +264,16 @@ function SidebarNav({ collapsed = false }) {
             <div className="text-[10px] text-slate-500 leading-tight">Hệ thống quản lý vận tải</div>
           </div>
         )}
+        {typeof onToggleSidebar === "function" && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-colors flex-shrink-0 ml-auto"
+            title="Ẩn/hiện menu"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        )}
       </div>
 
       {/* Menu items - Flat list */}
@@ -303,8 +313,8 @@ function SidebarNav({ collapsed = false }) {
                 }`} />
               )}
               <span className="truncate flex-1">{item.label}</span>
-              {/* Badge for pending payments on Accountant Dashboard */}
-              {isAccountant && item.to === "/accounting" && pendingPaymentCount > 0 && (
+              {/* Badge for pending payments on Invoice List */}
+              {isAccountant && item.to === "/accounting/invoices" && pendingPaymentCount > 0 && (
                 <span className="flex-shrink-0 ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500 text-white min-w-[18px] text-center">
                   {pendingPaymentCount > 99 ? "99+" : pendingPaymentCount}
                 </span>
@@ -434,22 +444,9 @@ function Topbar({ onToggleSidebar, sidebarCollapsed = false }) {
 
   return (
     <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3.5 shadow-sm">
-      {/* Left side - sidebar toggle + future breadcrumb */}
+      {/* Left side - future breadcrumb */}
       <div className="flex items-center justify-start flex-1">
-        {typeof onToggleSidebar === "function" && (
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            className="mr-3 inline-flex items-center justify-center h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-colors"
-            title="Ẩn/hiện menu"
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </button>
-        )}
+        {/* Sidebar toggle button đã được di chuyển vào SidebarNav header */}
       </div>
 
       {/* Right side - bell (một số role) + user chip + logout */}
@@ -513,7 +510,7 @@ function ShellLayout({ sidebarCollapsed = false, onToggleSidebar }) {
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
       <div className={`${sidebarWidth} flex-shrink-0 transition-all duration-200`}>
-        <SidebarNav collapsed={sidebarCollapsed} />
+        <SidebarNav collapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
       </div>
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar onToggleSidebar={onToggleSidebar} sidebarCollapsed={sidebarCollapsed} />

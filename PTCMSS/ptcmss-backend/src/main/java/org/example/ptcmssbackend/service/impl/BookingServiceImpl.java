@@ -1913,7 +1913,7 @@ public class BookingServiceImpl implements BookingService {
             }
         }
         
-        // Update booking status to CONFIRMED if all trips are assigned
+        // Update booking status based on trip assignment status
         List<Trips> allTrips = tripRepository.findByBooking_Id(bookingId);
         boolean allTripsAssigned = allTrips.stream().allMatch(trip -> {
             List<TripDrivers> tds = tripDriverRepository.findByTripId(trip.getId());
@@ -1922,10 +1922,14 @@ public class BookingServiceImpl implements BookingService {
         });
         
         if (allTripsAssigned && !allTrips.isEmpty()) {
-            if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.QUOTATION_SENT) {
-                booking.setStatus(BookingStatus.CONFIRMED);
+            // Khi tất cả trips đã được gán xe/tài xế → cập nhật booking status thành ASSIGNED (Đã phân xe)
+            if (booking.getStatus() != BookingStatus.ASSIGNED 
+                    && booking.getStatus() != BookingStatus.INPROGRESS
+                    && booking.getStatus() != BookingStatus.COMPLETED
+                    && booking.getStatus() != BookingStatus.CANCELLED) {
+                booking.setStatus(BookingStatus.ASSIGNED);
                 bookingRepository.save(booking);
-                log.info("[Booking] Updated booking {} status to CONFIRMED after assigning all trips", bookingId);
+                log.info("[Booking] Updated booking {} status to ASSIGNED after assigning all trips", bookingId);
             }
         }
 
@@ -2117,14 +2121,24 @@ public class BookingServiceImpl implements BookingService {
             List<Vehicles> catVehicles = vehicleRepository.filterVehicles(category.getId(), branchId, VehicleStatus.AVAILABLE);
             int totalInCategory = catVehicles != null ? catVehicles.size() : 0;
             
-            // Đếm xe busy trong khoảng thời gian
+            // Đếm xe busy trong khoảng thời gian (đã gán TripVehicles)
             List<Integer> busyInCategory = tripVehicleRepository.findBusyVehicleIds(branchId, category.getId(), start, end);
             int busyCount = busyInCategory != null ? busyInCategory.size() : 0;
             
-            int availableInCategory = Math.max(0, totalInCategory - busyCount);
+            // Đếm xe reserved (đã đặt cọc nhưng chưa gán xe)
+            Integer reservedInCategory = bookingVehicleDetailsRepository.countReservedQuantityByDepositWithoutAssignedVehicles(
+                    branchId,
+                    category.getId(),
+                    start,
+                    end
+            );
+            int reservedCount = reservedInCategory != null ? reservedInCategory : 0;
             
-            // Chỉ suggest nếu có đủ xe
-            if (availableInCategory >= needed) {
+            // Tính số xe thực sự available (trừ busy và reserved)
+            int availableInCategory = Math.max(0, totalInCategory - busyCount - reservedCount);
+            
+            // Chỉ suggest nếu có đủ xe thực sự available VÀ availableCount > 0
+            if (availableInCategory >= needed && availableInCategory > 0) {
                 alternatives.add(org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.AlternativeCategory.builder()
                         .categoryId(category.getId())
                         .categoryName(category.getCategoryName())
@@ -2158,18 +2172,14 @@ public class BookingServiceImpl implements BookingService {
         
         List<org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot> slots = new ArrayList<>();
         
-        // Tìm thời gian kết thúc của các trip đang chạy cho mỗi xe
+        // Tìm thời gian rảnh tiếp theo cho mỗi xe
         for (Vehicles vehicle : candidates) {
-            // Lấy trip đang SCHEDULED hoặc ONGOING có thời gian gần nhất sau requestedStart
-            List<TripVehicles> upcomingTrips = tripVehicleRepository.findAllByVehicleId(vehicle.getId());
+            // Lấy tất cả trips của xe này
+            List<TripVehicles> allTrips = tripVehicleRepository.findAllByVehicleId(vehicle.getId());
             
-            // Lọc các trip trong tương lai gần (trong 24h) có overlap với requestedStart
-            Instant searchEnd = requestedStart.plus(java.time.Duration.ofHours(24));
-            
-            Instant earliestAvailable = null;
-            Instant availableUntil = null;
-            
-            for (TripVehicles tv : upcomingTrips) {
+            // Lọc các trip active (SCHEDULED, ASSIGNED, ONGOING) và có thời gian hợp lệ
+            List<Trips> activeTrips = new ArrayList<>();
+            for (TripVehicles tv : allTrips) {
                 Trips trip = tv.getTrip();
                 if (trip == null || trip.getStatus() == null) continue;
                 
@@ -2183,26 +2193,55 @@ public class BookingServiceImpl implements BookingService {
                 Instant tripStart = trip.getStartTime();
                 Instant tripEnd = trip.getEndTime();
                 
-                if (tripStart == null || tripEnd == null) continue;
+                if (tripStart != null && tripEnd != null && tripEnd.isAfter(tripStart)) {
+                    activeTrips.add(trip);
+                }
+            }
+            
+            // Sắp xếp trips theo startTime
+            activeTrips.sort((a, b) -> {
+                if (a.getStartTime() == null) return 1;
+                if (b.getStartTime() == null) return -1;
+                return a.getStartTime().compareTo(b.getStartTime());
+            });
+            
+            // Kiểm tra xem xe có bị block tại thời điểm requestedStart không
+            boolean isBlockedAtRequestedTime = false;
+            Instant earliestAvailable = null;
+            Instant availableUntil = null;
+            
+            for (Trips trip : activeTrips) {
+                Instant tripStart = trip.getStartTime();
+                Instant tripEnd = trip.getEndTime();
                 
-                // Nếu trip này đang block thời gian yêu cầu
-                if (tripStart.isBefore(searchEnd) && tripEnd.isAfter(requestedStart)) {
+                // Kiểm tra xem trip này có block thời gian yêu cầu không
+                if (tripStart.isBefore(requestedStart) && tripEnd.isAfter(requestedStart)) {
+                    isBlockedAtRequestedTime = true;
                     // Xe sẽ rảnh sau khi trip này kết thúc
                     if (earliestAvailable == null || tripEnd.isAfter(earliestAvailable)) {
                         earliestAvailable = tripEnd;
                     }
                 }
-                
-                // Tìm trip tiếp theo sau earliestAvailable để biết availableUntil
-                if (earliestAvailable != null && tripStart.isAfter(earliestAvailable)) {
-                    if (availableUntil == null || tripStart.isBefore(availableUntil)) {
+            }
+            
+            // Nếu xe không bị block tại thời điểm yêu cầu → xe rảnh ngay từ requestedStart
+            if (!isBlockedAtRequestedTime) {
+                earliestAvailable = requestedStart;
+            }
+            
+            // Tìm trip tiếp theo sau earliestAvailable để biết availableUntil
+            if (earliestAvailable != null) {
+                for (Trips trip : activeTrips) {
+                    Instant tripStart = trip.getStartTime();
+                    if (tripStart != null && tripStart.isAfter(earliestAvailable)) {
                         availableUntil = tripStart;
+                        break; // Lấy trip đầu tiên sau earliestAvailable
                     }
                 }
             }
             
-            // Nếu tìm được thời gian rảnh
-            if (earliestAvailable != null) {
+            // Nếu tìm được thời gian rảnh (và không phải ngay tại thời điểm yêu cầu)
+            if (earliestAvailable != null && earliestAvailable.isAfter(requestedStart)) {
                 slots.add(org.example.ptcmssbackend.dto.response.Booking.CheckAvailabilityResponse.NextAvailableSlot.builder()
                         .vehicleId(vehicle.getId())
                         .vehicleLicensePlate(vehicle.getLicensePlate())

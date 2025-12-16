@@ -12,6 +12,7 @@ import org.example.ptcmssbackend.dto.response.Driver.DriverProfileResponse;
 import org.example.ptcmssbackend.dto.response.Driver.DriverResponse;
 import org.example.ptcmssbackend.dto.response.Driver.DriverScheduleResponse;
 import org.example.ptcmssbackend.dto.response.Driver.TripIncidentResponse;
+import org.example.ptcmssbackend.entity.Bookings;
 import org.example.ptcmssbackend.entity.DriverDayOff;
 import org.example.ptcmssbackend.entity.Drivers;
 import org.example.ptcmssbackend.entity.TripDrivers;
@@ -20,6 +21,7 @@ import org.example.ptcmssbackend.entity.Trips;
 import org.example.ptcmssbackend.entity.TripVehicles;
 import org.example.ptcmssbackend.entity.Vehicles;
 import org.example.ptcmssbackend.enums.ApprovalType;
+import org.example.ptcmssbackend.enums.BookingStatus;
 import org.example.ptcmssbackend.enums.DriverDayOffStatus;
 import org.example.ptcmssbackend.enums.DriverStatus;
 import org.example.ptcmssbackend.enums.TripStatus;
@@ -49,6 +51,7 @@ public class DriverServiceImpl implements DriverService {
     private final TripIncidentRepository tripIncidentRepository;
     private final BranchesRepository branchRepository;
     private final EmployeeRepository employeeRepository;
+    private final BookingRepository bookingRepository;
     private final ApprovalService approvalService;
     private final DriverRatingsRepository driverRatingsRepository;
     private final org.example.ptcmssbackend.service.GraphHopperService graphHopperService;
@@ -455,6 +458,20 @@ public class DriverServiceImpl implements DriverService {
             trip.setStartTime(Instant.now());
         }
         tripRepository.save(trip);
+        
+        // Cập nhật booking status thành INPROGRESS khi tài xế bắt đầu chuyến
+        if (trip.getBooking() != null) {
+            Bookings booking = trip.getBooking();
+            if (booking.getStatus() != BookingStatus.INPROGRESS
+                    && booking.getStatus() != BookingStatus.COMPLETED
+                    && booking.getStatus() != BookingStatus.CANCELLED) {
+                booking.setStatus(BookingStatus.INPROGRESS);
+                bookingRepository.save(booking);
+                log.info("[DriverService] Updated booking {} status to INPROGRESS after driver {} started trip {}", 
+                        booking.getId(), driverId, tripId);
+            }
+        }
+        
         return tripId;
     }
 

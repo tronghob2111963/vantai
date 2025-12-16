@@ -59,10 +59,10 @@ export async function exportRevenueReportToExcel({
 }
 
 // Export expense report to Excel
-// NOTE: costType đã bị xóa khỏi database - không gửi filter này nữa
+// NOTE: expenseType filter chỉ áp dụng cho ExpenseRequests (không áp dụng cho Invoices vì costType đã bị xóa)
 export async function exportExpenseReportToExcel({
   branchId,
-  costType, // Deprecated - không còn được backend sử dụng
+  expenseType, // Filter theo loại chi phí cho ExpenseRequests
   vehicleId,
   startDate,
   endDate,
@@ -70,8 +70,7 @@ export async function exportExpenseReportToExcel({
 } = {}) {
   const params = new URLSearchParams();
   if (branchId != null) params.append("branchId", String(branchId));
-  // costType đã bị xóa - không gửi filter này nữa
-  // if (costType) params.append("costType", costType);
+  if (expenseType) params.append("expenseType", expenseType);
   if (vehicleId != null) params.append("vehicleId", String(vehicleId));
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);

@@ -1,6 +1,6 @@
 ﻿// VehicleDetailPage.jsx (LIGHT THEME VERSION)
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
     getVehicle,
     updateVehicle,
@@ -24,6 +24,7 @@ import {
     Save,
     X,
     Gauge,
+    ArrowLeft,
 } from "lucide-react";
 
 /**
@@ -797,12 +798,25 @@ function ExpenseHistoryTab({ expenses }) {
 export default function VehicleDetailPage() {
     const { toasts, push } = useToasts();
     const { vehicleId } = useParams();
+    const navigate = useNavigate();
 
     const currentRole = React.useMemo(() => getCurrentRole(), []);
     const isAccountant = currentRole === ROLES.ACCOUNTANT;
     const isConsultant = currentRole === ROLES.CONSULTANT;
     const isCoordinator = currentRole === ROLES.COORDINATOR;
     const isReadOnly = isAccountant || isConsultant;
+    
+    // Xác định route quay về dựa trên role
+    const getBackRoute = () => {
+        if (isAccountant) return "/accountant/vehicles";
+        if (isConsultant) return "/consultant/vehicles";
+        if (isCoordinator) return "/coordinator/vehicles";
+        return "/vehicles"; // Manager hoặc default
+    };
+    
+    const handleBack = () => {
+        navigate(getBackRoute());
+    };
 
     const [initialVehicle, setInitialVehicle] = React.useState({
         id: vehicleId ? Number(vehicleId) : undefined,
@@ -1112,6 +1126,19 @@ export default function VehicleDetailPage() {
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-start gap-4 mb-6">
                 <div className="flex-1 flex flex-col gap-3 min-w-0">
+                    {/* Back button */}
+                    <div className="mb-2">
+                        <button
+                            type="button"
+                            onClick={handleBack}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Quay về danh sách xe"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            <span>Quay về</span>
+                        </button>
+                    </div>
+                    
                     <div className="flex flex-wrap items-start gap-3">
                         {/* icon + title */}
                         <div className="flex items-start gap-3">

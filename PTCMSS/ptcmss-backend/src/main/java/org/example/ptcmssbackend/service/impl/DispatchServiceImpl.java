@@ -1556,11 +1556,37 @@ public class DispatchServiceImpl implements DispatchService {
         String hireTypeName = null;
         if (booking.getHireType() != null) {
             hireType = booking.getHireType().getCode(); // ONE_WAY, ROUND_TRIP, etc.
+            
+            // Với ROUND_TRIP, cần lấy startTime sớm nhất và endTime muộn nhất từ TẤT CẢ trips trong booking
+            // để xác định chính xác "(trong ngày)" hay "(khác ngày)"
+            Instant startTimeForSuffix = trip.getStartTime();
+            Instant endTimeForSuffix = trip.getEndTime();
+            
+            if ("ROUND_TRIP".equals(hireType)) {
+                // Lấy tất cả trips trong booking
+                List<Trips> allBookingTrips = tripRepository.findByBooking_Id(booking.getId());
+                if (!allBookingTrips.isEmpty()) {
+                    // Lấy startTime sớm nhất
+                    startTimeForSuffix = allBookingTrips.stream()
+                            .map(Trips::getStartTime)
+                            .filter(java.util.Objects::nonNull)
+                            .min(Instant::compareTo)
+                            .orElse(trip.getStartTime());
+                    
+                    // Lấy endTime muộn nhất
+                    endTimeForSuffix = allBookingTrips.stream()
+                            .map(Trips::getEndTime)
+                            .filter(java.util.Objects::nonNull)
+                            .max(Instant::compareTo)
+                            .orElse(trip.getEndTime());
+                }
+            }
+            
             hireTypeName = calculateHireTypeNameWithSuffix(
                     booking.getHireType().getName(),
                     booking.getHireType().getCode(),
-                    trip.getStartTime(),
-                    trip.getEndTime()
+                    startTimeForSuffix,
+                    endTimeForSuffix
             );
         }
         
@@ -1606,6 +1632,39 @@ public class DispatchServiceImpl implements DispatchService {
 
     private TripListItemResponse buildTripListItem(Trips trip) {
         Bookings booking = trip.getBooking();
+        
+        // Tính toán hireTypeName với suffix cho ROUND_TRIP
+        String hireTypeName = null;
+        if (booking != null && booking.getHireType() != null) {
+            // Với ROUND_TRIP, cần lấy startTime sớm nhất và endTime muộn nhất từ TẤT CẢ trips trong booking
+            Instant startTimeForSuffix = trip.getStartTime();
+            Instant endTimeForSuffix = trip.getEndTime();
+            
+            if ("ROUND_TRIP".equals(booking.getHireType().getCode())) {
+                List<Trips> allBookingTrips = tripRepository.findByBooking_Id(booking.getId());
+                if (!allBookingTrips.isEmpty()) {
+                    startTimeForSuffix = allBookingTrips.stream()
+                            .map(Trips::getStartTime)
+                            .filter(java.util.Objects::nonNull)
+                            .min(Instant::compareTo)
+                            .orElse(trip.getStartTime());
+                    
+                    endTimeForSuffix = allBookingTrips.stream()
+                            .map(Trips::getEndTime)
+                            .filter(java.util.Objects::nonNull)
+                            .max(Instant::compareTo)
+                            .orElse(trip.getEndTime());
+                }
+            }
+            
+            hireTypeName = calculateHireTypeNameWithSuffix(
+                    booking.getHireType().getName(),
+                    booking.getHireType().getCode(),
+                    startTimeForSuffix,
+                    endTimeForSuffix
+            );
+        }
+        
         TripListItemResponse.TripListItemResponseBuilder builder = TripListItemResponse.builder()
                 .tripId(trip.getId())
                 .bookingId(booking != null ? booking.getId() : null)
@@ -1615,14 +1674,7 @@ public class DispatchServiceImpl implements DispatchService {
                 .routeSummary(routeLabel(trip))
                 .startTime(trip.getStartTime())
                 .endTime(trip.getEndTime())
-                .hireTypeName(booking != null && booking.getHireType() != null
-                        ? calculateHireTypeNameWithSuffix(
-                                booking.getHireType().getName(),
-                                booking.getHireType().getCode(),
-                                trip.getStartTime(),
-                                trip.getEndTime()
-                        )
-                        : null)
+                .hireTypeName(hireTypeName)
                 .status(trip.getStatus() != null ? trip.getStatus().name() : null);
 
         List<TripDrivers> tripDrivers = tripDriverRepository.findByTripId(trip.getId());
@@ -2231,12 +2283,21 @@ public class DispatchServiceImpl implements DispatchService {
             return baseName;
         }
         
+        // Loại bỏ suffix cũ nếu có (tránh duplicate: "Thuê 2 chiều (trong ngày) (khác ngày)")
+        String cleanBaseName = baseName;
+        if (cleanBaseName.contains(" (trong ngày)")) {
+            cleanBaseName = cleanBaseName.replace(" (trong ngày)", "");
+        }
+        if (cleanBaseName.contains(" (khác ngày)")) {
+            cleanBaseName = cleanBaseName.replace(" (khác ngày)", "");
+        }
+        
         // Kiểm tra xem có phải trong ngày không
         boolean isSameDay = isSameDayTrip(startTime, endTime);
         if (isSameDay) {
-            return baseName + " (trong ngày)";
+            return cleanBaseName + " (trong ngày)";
         } else {
-            return baseName + " (khác ngày)";
+            return cleanBaseName + " (khác ngày)";
         }
     }
     

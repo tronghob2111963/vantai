@@ -390,10 +390,24 @@ export default function AssignDriverDialog({
         // Lấy drivers từ suggestions của trip này
         const tripData = tripSuggestions[tripId];
         if (tripData && tripData.drivers) {
-            const filtered = tripData.drivers.filter(d => d.eligible);
+            // Filter 1: Chỉ lấy drivers eligible (từ backend)
+            let filtered = tripData.drivers.filter(d => d.eligible);
+            
+            // Filter 2: Loại bỏ tài xế đã được chọn cho chuyến khác trong cùng popup
+            // Rule: Mỗi chuyến trong cùng booking phải có tài xế khác nhau
+            const otherSelectedDriverIds = multiAssignments
+                .filter(a => a.tripId !== tripId && a.driverId) // Chuyến khác và đã chọn tài xế
+                .map(a => String(a.driverId));
+            
+            if (otherSelectedDriverIds.length > 0) {
+                filtered = filtered.filter(d => !otherSelectedDriverIds.includes(String(d.id)));
+            }
+            
             console.log(`[AssignDriverDialog] getDriverOptionsForTrip(${tripId}):`, {
                 totalDrivers: tripData.drivers.length,
-                eligibleDrivers: filtered.length,
+                eligibleDrivers: tripData.drivers.filter(d => d.eligible).length,
+                afterFiltering: filtered.length,
+                otherSelectedDriverIds: otherSelectedDriverIds,
             });
             return filtered;
         }
@@ -401,7 +415,7 @@ export default function AssignDriverDialog({
         console.warn(`[AssignDriverDialog] No trip data found for trip ${tripId}, using fallback driverOptions`);
         // Fallback: dùng driverOptions chung
         return driverOptions;
-    }, [multiMode, tripSuggestions, driverOptions]);
+    }, [multiMode, tripSuggestions, driverOptions, multiAssignments]);
 
     // khi click 1 dòng gợi ý => fill vào dropdown
     const handlePickSuggestion = (s) => {
