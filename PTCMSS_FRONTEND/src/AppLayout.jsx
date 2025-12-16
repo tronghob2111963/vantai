@@ -216,7 +216,7 @@ function SidebarNav() {
   }, [location.pathname, menuItems]);
 
   return (
-    <aside className="bg-white border-r border-slate-200 flex flex-col shadow-sm fixed left-0 top-0 bottom-0 z-10 w-full">
+    <aside className="bg-white border-r border-slate-200 flex flex-col shadow-sm h-screen sticky top-0">
       {/* brand / account mini */}
       <div className="px-4 py-4 border-b border-slate-200 flex items-center gap-3 bg-gradient-to-br from-white to-slate-50/50">
         <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-[0_8px_24px_rgba(0,121,188,.35)] flex-shrink-0 transition-transform duration-200 hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,121,188,.45)]" style={{ backgroundColor: '#0079BC' }}>
