@@ -114,6 +114,13 @@ public class CustomerServiceImpl implements CustomerService {
     }
     
     @Override
+    public CustomerResponse getById(Integer customerId) {
+        Customers customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng"));
+        return toResponse(customer);
+    }
+    
+    @Override
     public Page<CustomerResponse> listCustomers(String keyword, Integer branchId, Integer userId, LocalDate fromDate, LocalDate toDate, int page, int size) {
         log.info("[CustomerService] List customers - keyword={}, branchId={}, userId={}, from={}, to={}, page={}, size={}", 
                 keyword, branchId, userId, fromDate, toDate, page, size);

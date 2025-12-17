@@ -40,6 +40,8 @@ export default function CustomerTripsModal({ customer, trips, loading, error, on
             PENDING: "Chờ xử lý",
             ASSIGNED: "Đã phân xe",
             IN_PROGRESS: "Đang thực hiện",
+            ONGOING: "Đang thực hiện",
+            SCHEDULED: "Đã lên lịch",
             COMPLETED: "Hoàn thành",
             CANCELLED: "Đã hủy",
         };
@@ -51,6 +53,8 @@ export default function CustomerTripsModal({ customer, trips, loading, error, on
             PENDING: "bg-info-50 text-info-700 border-info-200",
             ASSIGNED: "bg-sky-50 text-sky-700 border-sky-200",
             IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
+            ONGOING: "bg-blue-50 text-blue-700 border-blue-200",
+            SCHEDULED: "bg-indigo-50 text-indigo-700 border-indigo-200",
             COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
             CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
         };
@@ -193,81 +197,79 @@ export default function CustomerTripsModal({ customer, trips, loading, error, on
                                     // Get times with fallbacks
                                     const startTime = trip.startTime || trip.start_time || trip.pickup_time || trip.pickupTime || null;
                                     const endTime = trip.endTime || trip.end_time || trip.dropoff_eta || trip.dropoffEta || null;
+                            const startTimeFormatted = startTime ? formatDateTime(startTime) : null;
+                            const endTimeFormatted = endTime ? formatDateTime(endTime) : null;
 
                                     return (
                                         <div
                                             key={tripId || index}
-                                            className="border border-slate-200 rounded-lg p-5 hover:shadow-md transition-shadow bg-white"
+                                    className="border border-slate-200 rounded-xl p-5 hover:shadow-lg transition-shadow bg-white"
                                         >
-                                            {/* Trip Header */}
-                                            <div className="flex items-start justify-between mb-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-3 mb-2">
-                                                        <span className="text-lg font-bold text-slate-900">
-                                                            Chuyến #{tripId || `#${index + 1}`}
-                                                        </span>
-                                                        {trip.status && (
-                                                            <span
-                                                                className={`px-2.5 py-1 rounded-md text-xs font-medium border ${getTripStatusColor(
-                                                                    trip.status
-                                                                )}`}
-                                                            >
-                                                                {getTripStatusLabel(trip.status)}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {trip.bookingCode && (
-                                                        <p className="text-xs text-slate-500">
-                                                            Đơn hàng: {trip.bookingCode}
-                                                        </p>
-                                                    )}
-                                                </div>
+                                    {/* Header */}
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex-1 space-y-1">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-lg font-bold text-slate-900">
+                                                    Chuyến #{tripId || `#${index + 1}`}
+                                                </span>
+                                                {trip.status && (
+                                                    <span
+                                                        className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getTripStatusColor(
+                                                            trip.status
+                                                        )}`}
+                                                    >
+                                                        {getTripStatusLabel(trip.status)}
+                                                    </span>
+                                                )}
                                                 {hasRating && (
-                                                    <div className="flex items-center gap-1 bg-info-50 px-3 py-1.5 rounded-lg border border-info-200">
-                                                        <Star className="h-4 w-4 text-primary-500 fill-primary-500" />
-                                                        <span className="text-sm font-semibold text-info-700">
-                                                            {rating.overallRating?.toFixed(1) || "—"}
-                                                        </span>
-                                                    </div>
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                        <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                                                        {rating.overallRating?.toFixed(1) || "—"}
+                                                    </span>
                                                 )}
                                             </div>
+                                            {trip.bookingCode && (
+                                                <p className="text-xs text-slate-500">
+                                                    Đơn hàng: {trip.bookingCode}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
 
-                                            {/* Trip Details */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                {/* Pickup */}
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase">
-                                                        <MapPin className="h-3.5 w-3.5" />
-                                                        Điểm đón
-                                                    </div>
-                                                    <p className="text-sm text-slate-900 font-medium">
-                                                        {startLocation || "—"}
-                                                    </p>
-                                                    {startTime && (
-                                                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                                                            <Clock className="h-3 w-3" />
-                                                            {formatDateTime(startTime)}
-                                                        </p>
-                                                    )}
-                                                </div>
-
-                                                {/* Dropoff */}
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase">
-                                                        <MapPin className="h-3.5 w-3.5" />
-                                                        Điểm đến
-                                                    </div>
-                                                    <p className="text-sm text-slate-900 font-medium">
-                                                        {endLocation || "—"}
-                                                    </p>
-                                                    {endTime && (
-                                                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                                                            <Clock className="h-3 w-3" />
-                                                            {formatDateTime(endTime)}
-                                                        </p>
-                                                    )}
-                                                </div>
+                                    {/* Timeline block */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div className="space-y-2 border border-slate-100 rounded-lg p-3 bg-slate-50/60">
+                                            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 uppercase">
+                                                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                                Điểm đón
                                             </div>
+                                            <p className="text-sm text-slate-900 font-medium leading-snug">
+                                                {startLocation || "—"}
+                                            </p>
+                                            {startTimeFormatted && (
+                                                <p className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {startTimeFormatted}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2 border border-slate-100 rounded-lg p-3 bg-slate-50/60">
+                                            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 uppercase">
+                                                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                                Điểm đến
+                                            </div>
+                                            <p className="text-sm text-slate-900 font-medium leading-snug">
+                                                {endLocation || "—"}
+                                            </p>
+                                            {endTimeFormatted && (
+                                                <p className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {endTimeFormatted}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
 
                                             {/* Driver Info */}
                                             {(trip.driver_name || trip.driverName) && (
