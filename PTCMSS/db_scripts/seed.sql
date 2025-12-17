@@ -1078,7 +1078,10 @@ INSERT IGNORE INTO system_settings (settingId, settingKey, settingValue, effecti
 (16,'MAX_CONTINUOUS_DRIVING_HOURS','4','2025-01-01',NULL,'int','Driver','Tối đa giờ lái liên tục (4 giờ)',1,NOW(),'ACTIVE'),
 (17,'MAX_DRIVING_HOURS_PER_WEEK','48','2025-01-01',NULL,'int','Driver','Tối đa giờ lái/tuần (48 giờ)',1,NOW(),'ACTIVE'),
 (18,'MAX_DRIVER_LEAVE_DAYS','2','2025-01-01',NULL,'int','Driver','Số ngày nghỉ tối đa tài xế có thể xin (2 ngày)',1,NOW(),'ACTIVE'),
-(19,'SINGLE_DRIVER_MAX_DISTANCE_KM','300','2025-01-01',NULL,'int','Driver','Khoảng cách tối đa cho 1 tài xế (300km)',1,NOW(),'ACTIVE');
+(19,'SINGLE_DRIVER_MAX_DISTANCE_KM','300','2025-01-01',NULL,'int','Driver','Khoảng cách tối đa cho 1 tài xế (300km)',1,NOW(),'ACTIVE'),
+
+-- Dispatch/Booking Scheduling Settings
+(20,'AVG_VEHICLE_SPEED_KMPH','60','2025-01-01',NULL,'int','Booking','Vận tốc trung bình để ước lượng thời gian di chuyển (km/h)',1,NOW(),'ACTIVE');
 
 -- App Settings (for VietQR)
 INSERT IGNORE INTO app_settings (id, description, setting_key, updated_at, updated_by, setting_value) VALUES

@@ -8,6 +8,7 @@ import { listBranches } from "../../api/branches";
 import { listDriversByBranch } from "../../api/drivers";
 import { listVehicles } from "../../api/vehicles";
 import { listHireTypes } from "../../api/hireTypes";
+import { getSystemSettingByKey } from "../../api/systemSettings";
 import { getCurrentRole, ROLES } from "../../utils/session";
 import PlaceAutocomplete from "../common/PlaceAutocomplete";
 import {
@@ -17,6 +18,7 @@ import {
     Mail,
     MapPin,
     Calendar,
+    Clock,
     CarFront,
     DollarSign,
     AlertTriangle,
@@ -49,6 +51,30 @@ const fmtMoney = (n) =>
     new Intl.NumberFormat("vi-VN").format(
         Math.max(0, Number(n || 0))
     ) + " đ";
+
+function parseLocalInputDate(value, isDateOnly) {
+    if (!value) return null;
+    if (isDateOnly) {
+        const parts = String(value).split("-");
+        if (parts.length !== 3) return null;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) return null;
+        return new Date(y, m - 1, d, 0, 0, 0, 0);
+    }
+    const dt = new Date(value);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function formatDurationFromMinutes(totalMinutes) {
+    const mins = Math.max(0, Math.round(totalMinutes || 0));
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h <= 0) return `${m} phút`;
+    if (m === 0) return `${h} giờ`;
+    return `${h} giờ ${m} phút`;
+}
 
 /* ---------------- trạng thái đơn ---------------- */
 const ORDER_STATUS_LABEL = {
@@ -187,6 +213,74 @@ export default function EditOrderPage() {
     const [distanceKm, setDistanceKm] = React.useState("");
     const [calculatingDistance, setCalculatingDistance] = React.useState(false);
     const [distanceError, setDistanceError] = React.useState("");
+    const [avgVehicleSpeedKmph, setAvgVehicleSpeedKmph] = React.useState(60);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const setting = await getSystemSettingByKey("AVG_VEHICLE_SPEED_KMPH");
+                if (cancelled) return;
+                const raw = setting?.settingValue;
+                const parsed = raw != null ? Number(raw) : NaN;
+                if (!Number.isNaN(parsed) && parsed > 0) {
+                    setAvgVehicleSpeedKmph(Math.round(parsed));
+                }
+            } catch (err) {
+                // Keep default 60
+                console.warn("[EditOrderPage] Cannot load AVG_VEHICLE_SPEED_KMPH, using default 60", err);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const etaInfo = React.useMemo(() => {
+        const dist = Number(distanceKm);
+        if (!dist || Number.isNaN(dist) || dist <= 0) return null;
+        if (!startTime) return null;
+
+        const isDateOnly = hireType === "DAILY" || hireType === "MULTI_DAY";
+        const startDate = parseLocalInputDate(startTime, isDateOnly);
+        if (!startDate) return null;
+
+        const speed = Math.max(1, Number(avgVehicleSpeedKmph || 60));
+        const travelMinutes = Math.max(0, Math.ceil((dist / speed) * 60));
+        const bufferMinutes = 10;
+        const travelText = formatDurationFromMinutes(travelMinutes);
+
+        const addMinutes = (d, mins) => new Date(d.getTime() + mins * 60 * 1000);
+        const fmt = (d) =>
+            d.toLocaleString("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+
+        if (hireType === "ONE_WAY" || hireType === "FIXED_ROUTE") {
+            const busyUntil = addMinutes(startDate, travelMinutes + bufferMinutes);
+            return { mode: "ONE_WAY", speed, travelText, bufferMinutes, busyUntilText: fmt(busyUntil) };
+        }
+
+        if (hireType === "ROUND_TRIP") {
+            const returnStart = endTime ? parseLocalInputDate(endTime, false) : null;
+            const goArrive = addMinutes(startDate, travelMinutes);
+            const busyUntil = returnStart
+                ? addMinutes(returnStart, travelMinutes + bufferMinutes)
+                : addMinutes(startDate, travelMinutes * 2 + bufferMinutes);
+            return { mode: "ROUND_TRIP", speed, travelText, bufferMinutes, goArriveText: fmt(goArrive), busyUntilText: fmt(busyUntil) };
+        }
+
+        // DAILY / MULTI_DAY
+        const endDate = endTime ? parseLocalInputDate(endTime, true) : startDate;
+        const endDay = endDate ? endDate : startDate;
+        const nextDay = new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate() + 1, 0, 0, 0, 0);
+        const busyUntil = addMinutes(nextDay, bufferMinutes);
+        return { mode: "BY_DAY", speed, travelText, bufferMinutes, busyUntilText: fmt(busyUntil) };
+    }, [distanceKm, startTime, endTime, hireType, avgVehicleSpeedKmph]);
 
     /* --- thông số xe --- */
     const [pax, setPax] = React.useState("1");
@@ -1581,6 +1675,53 @@ export default function EditOrderPage() {
                                         Với hình thức một chiều, thời gian kết thúc là tùy chọn. Hệ thống sẽ tự tính nếu không nhập.
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* ETA / Xe bận tới (ước lượng theo km + vận tốc trung bình) */}
+                        {etaInfo && (
+                            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="h-4 w-4 text-sky-600" />
+                                        <div className="text-[13px] font-semibold text-slate-900">
+                                            Ước lượng thời gian (tham khảo)
+                                        </div>
+                                    </div>
+                                    <div className="text-[11px] text-slate-500">
+                                        \(~{etaInfo.speed} km/h + {etaInfo.bufferMinutes}p buffer\)
+                                    </div>
+                                </div>
+
+                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-[12px]">
+                                    <div className="rounded-lg bg-white border border-slate-200 p-2">
+                                        <div className="text-[11px] uppercase font-semibold text-slate-500">
+                                            Thời lượng ước tính
+                                        </div>
+                                        <div className="text-[13px] font-semibold text-slate-900 tabular-nums">
+                                            {etaInfo.mode === "BY_DAY" ? "Theo ngày" : etaInfo.travelText}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-lg bg-white border border-slate-200 p-2">
+                                        <div className="text-[11px] uppercase font-semibold text-slate-500">
+                                            Xe rảnh dự kiến
+                                        </div>
+                                        <div className="text-[13px] font-semibold text-slate-900 tabular-nums">
+                                            {etaInfo.busyUntilText}
+                                        </div>
+                                        {etaInfo.mode === "ROUND_TRIP" && etaInfo.goArriveText && (
+                                            <div className="text-[11px] text-slate-500 mt-0.5">
+                                                Dự kiến đến lượt đi: <span className="font-medium">{etaInfo.goArriveText}</span>
+                                            </div>
+                                        )}
+                                        {etaInfo.mode === "BY_DAY" && (
+                                            <div className="text-[11px] text-slate-500 mt-0.5">
+                                                Đặt theo ngày: xe chỉ nhận chuyến mới từ ngày kế tiếp.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
 
