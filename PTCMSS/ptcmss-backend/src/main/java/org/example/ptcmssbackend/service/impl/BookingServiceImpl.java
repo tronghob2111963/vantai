@@ -17,6 +17,7 @@ import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.BookingService;
 import org.example.ptcmssbackend.service.CustomerService;
 import org.example.ptcmssbackend.service.SystemSettingService;
+import org.example.ptcmssbackend.service.TripOccupancyService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +53,7 @@ public class BookingServiceImpl implements BookingService {
     private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
     private final TripDriverRepository tripDriverRepository;
     private final SystemSettingService systemSettingService;
+    private final TripOccupancyService tripOccupancyService;
     private final TripVehicleRepository tripVehicleRepository;
     private final InvoiceRepository invoiceRepository;
     private final DriverRepository driverRepository;
@@ -1289,20 +1291,28 @@ public class BookingServiceImpl implements BookingService {
             return; // Không có trip, không cần validate
         }
         
-        // Lấy thời gian mới từ request (nếu có)
+        // Lấy thời gian mới từ request (nếu có) - dùng thời gian "busy-until" theo vận tốc trung bình + buffer
         Instant newEndTime = null;
         Instant newStartTime = null;
+        final String hireTypeCode = booking.getHireType() != null ? booking.getHireType().getCode() : null;
         if (request.getTrips() != null && !request.getTrips().isEmpty()) {
-            // Lấy thời gian cuối cùng từ tất cả trips mới
             for (TripRequest tripReq : request.getTrips()) {
-                if (tripReq.getEndTime() != null) {
-                    if (newEndTime == null || tripReq.getEndTime().isAfter(newEndTime)) {
-                        newEndTime = tripReq.getEndTime();
-                    }
-                }
                 if (tripReq.getStartTime() != null) {
                     if (newStartTime == null || tripReq.getStartTime().isBefore(newStartTime)) {
                         newStartTime = tripReq.getStartTime();
+                    }
+                }
+                Instant busyUntil = tripOccupancyService.computeBusyUntil(
+                        hireTypeCode,
+                        tripReq.getStartTime(),
+                        tripReq.getEndTime(),
+                        tripReq.getDistance(),
+                        tripReq.getStartLocation(),
+                        tripReq.getEndLocation()
+                );
+                if (busyUntil != null) {
+                    if (newEndTime == null || busyUntil.isAfter(newEndTime)) {
+                        newEndTime = busyUntil;
                     }
                 }
             }
@@ -1310,11 +1320,21 @@ public class BookingServiceImpl implements BookingService {
         
         // Nếu không có thời gian mới, lấy từ trips hiện tại
         if (newEndTime == null) {
-            newEndTime = currentTrips.stream()
-                    .map(Trips::getEndTime)
-                    .filter(java.util.Objects::nonNull)
-                    .max(Instant::compareTo)
-                    .orElse(null);
+            for (Trips t : currentTrips) {
+                Instant busyUntil = tripOccupancyService.computeBusyUntil(
+                        t.getBooking() != null && t.getBooking().getHireType() != null ? t.getBooking().getHireType().getCode() : hireTypeCode,
+                        t.getStartTime(),
+                        t.getEndTime(),
+                        t.getDistance() != null ? t.getDistance().doubleValue() : null,
+                        t.getStartLocation(),
+                        t.getEndLocation()
+                );
+                if (busyUntil != null) {
+                    if (newEndTime == null || busyUntil.isAfter(newEndTime)) {
+                        newEndTime = busyUntil;
+                    }
+                }
+            }
         }
         if (newStartTime == null) {
             newStartTime = currentTrips.stream()
@@ -1348,26 +1368,37 @@ public class BookingServiceImpl implements BookingService {
         List<String> conflicts = new ArrayList<>();
         
         for (Integer driverId : assignedDriverIds) {
-            List<TripDrivers> conflictingTrips = tripDriverRepository.findConflictingTrips(
-                    driverId, newStartTime, newEndTime);
-            
-            // Loại trừ các trips của chính booking này
-            List<TripDrivers> externalConflicts = conflictingTrips.stream()
-                    .filter(td -> !td.getTrip().getBooking().getId().equals(booking.getId()))
-                    .collect(Collectors.toList());
-            
-            if (!externalConflicts.isEmpty()) {
-                Drivers driver = driverRepository.findById(driverId).orElse(null);
-                String driverName = driver != null && driver.getEmployee() != null && driver.getEmployee().getUser() != null
-                        ? driver.getEmployee().getUser().getFullName()
-                        : "Tài xế #" + driverId;
-                
-                for (TripDrivers td : externalConflicts) {
+            List<TripDrivers> driverTrips = tripDriverRepository.findAllByDriverId(driverId);
+
+            Drivers driver = driverRepository.findById(driverId).orElse(null);
+            String driverName = driver != null && driver.getEmployee() != null && driver.getEmployee().getUser() != null
+                    ? driver.getEmployee().getUser().getFullName()
+                    : "Tài xế #" + driverId;
+
+            for (TripDrivers td : driverTrips) {
+                Trips t = td.getTrip();
+                if (t == null || t.getBooking() == null) continue;
+                if (t.getBooking().getId().equals(booking.getId())) continue;
+                if (t.getStatus() == TripStatus.CANCELLED || t.getStatus() == TripStatus.COMPLETED) continue;
+                if (t.getStartTime() == null) continue;
+
+                Instant tBusyUntil = tripOccupancyService.computeBusyUntil(
+                        t.getBooking().getHireType() != null ? t.getBooking().getHireType().getCode() : null,
+                        t.getStartTime(),
+                        t.getEndTime(),
+                        t.getDistance() != null ? t.getDistance().doubleValue() : null,
+                        t.getStartLocation(),
+                        t.getEndLocation()
+                );
+                if (tBusyUntil == null) continue;
+
+                boolean overlaps = t.getStartTime().isBefore(newEndTime) && newStartTime.isBefore(tBusyUntil);
+                if (overlaps) {
                     conflicts.add(String.format("Tài xế %s đã có chuyến #%d (%s → %s) vào thời gian này",
                             driverName,
-                            td.getTrip().getId(),
-                            td.getTrip().getStartLocation(),
-                            td.getTrip().getEndLocation()));
+                            t.getId(),
+                            t.getStartLocation(),
+                            t.getEndLocation()));
                 }
             }
         }
@@ -1387,18 +1418,26 @@ public class BookingServiceImpl implements BookingService {
                     continue;
                 }
                 
-                // Check time overlap
-                if (trip.getStartTime() != null && trip.getEndTime() != null) {
-                    boolean overlaps = !(newEndTime.isBefore(trip.getStartTime()) || newStartTime.isAfter(trip.getEndTime()));
-                    if (overlaps) {
-                        Vehicles vehicle = vehicleRepository.findById(vehicleId).orElse(null);
-                        String vehicleInfo = vehicle != null ? vehicle.getLicensePlate() : "Xe #" + vehicleId;
-                        conflicts.add(String.format("Xe %s đã có chuyến #%d (%s → %s) vào thời gian này",
-                                vehicleInfo,
-                                trip.getId(),
-                                trip.getStartLocation(),
-                                trip.getEndLocation()));
-                    }
+                if (trip.getStartTime() == null) continue;
+                Instant tripBusyUntil = tripOccupancyService.computeBusyUntil(
+                        trip.getBooking() != null && trip.getBooking().getHireType() != null ? trip.getBooking().getHireType().getCode() : null,
+                        trip.getStartTime(),
+                        trip.getEndTime(),
+                        trip.getDistance() != null ? trip.getDistance().doubleValue() : null,
+                        trip.getStartLocation(),
+                        trip.getEndLocation()
+                );
+                if (tripBusyUntil == null) continue;
+
+                boolean overlaps = trip.getStartTime().isBefore(newEndTime) && newStartTime.isBefore(tripBusyUntil);
+                if (overlaps) {
+                    Vehicles vehicle = vehicleRepository.findById(vehicleId).orElse(null);
+                    String vehicleInfo = vehicle != null ? vehicle.getLicensePlate() : "Xe #" + vehicleId;
+                    conflicts.add(String.format("Xe %s đã có chuyến #%d (%s → %s) vào thời gian này",
+                            vehicleInfo,
+                            trip.getId(),
+                            trip.getStartLocation(),
+                            trip.getEndLocation()));
                 }
             }
         }
@@ -1855,23 +1894,38 @@ public class BookingServiceImpl implements BookingService {
             if (!trips.isEmpty()) {
                 Trips firstTrip = trips.get(0);
                 if (firstTrip.getStartTime() != null) {
-                    Instant tripEndTime = firstTrip.getEndTime() != null 
-                            ? firstTrip.getEndTime() 
+                    final String hireTypeCode = booking.getHireType() != null ? booking.getHireType().getCode() : null;
+                    Instant tripBusyUntilTmp = tripOccupancyService.computeBusyUntil(
+                            hireTypeCode,
+                            firstTrip.getStartTime(),
+                            firstTrip.getEndTime(),
+                            firstTrip.getDistance() != null ? firstTrip.getDistance().doubleValue() : null,
+                            firstTrip.getStartLocation(),
+                            firstTrip.getEndLocation()
+                    );
+                    final Instant tripBusyUntil = (tripBusyUntilTmp != null)
+                            ? tripBusyUntilTmp
                             : firstTrip.getStartTime().plusSeconds(3600);
                     
-                    // Kiểm tra overlap với các trips khác (ngoài các trips đang được gán)
-                    List<org.example.ptcmssbackend.entity.TripVehicles> overlaps = 
-                            tripVehicleRepository.findOverlapsForVehicle(
-                                    primaryVehicle.getId(),
-                                    firstTrip.getStartTime(),
-                                    tripEndTime
-                            );
-                    
-                    // Loại bỏ các overlaps với trips đã bị cancel hoặc chính các trips đang được gán
-                    boolean hasConflict = overlaps.stream().anyMatch(tv -> {
+                    // Kiểm tra overlap với các trips khác (ngoài các trips đang được gán) - dùng busy-until theo vận tốc trung bình
+                    List<TripVehicles> vehicleTrips = tripVehicleRepository.findAllByVehicleId(primaryVehicle.getId());
+                    boolean hasConflict = vehicleTrips.stream().anyMatch(tv -> {
                         Trips overlapTrip = tv.getTrip();
-                        return overlapTrip.getStatus() != TripStatus.CANCELLED
-                                && !targetTripIds.contains(overlapTrip.getId());
+                        if (overlapTrip == null || overlapTrip.getBooking() == null) return false;
+                        if (overlapTrip.getStatus() == TripStatus.CANCELLED || overlapTrip.getStatus() == TripStatus.COMPLETED) return false;
+                        if (targetTripIds.contains(overlapTrip.getId())) return false;
+                        if (overlapTrip.getStartTime() == null) return true; // unknown -> treat as busy
+                        
+                        Instant overlapBusyUntil = tripOccupancyService.computeBusyUntil(
+                                overlapTrip.getBooking().getHireType() != null ? overlapTrip.getBooking().getHireType().getCode() : null,
+                                overlapTrip.getStartTime(),
+                                overlapTrip.getEndTime(),
+                                overlapTrip.getDistance() != null ? overlapTrip.getDistance().doubleValue() : null,
+                                overlapTrip.getStartLocation(),
+                                overlapTrip.getEndLocation()
+                        );
+                        if (overlapBusyUntil == null) return true;
+                        return overlapTrip.getStartTime().isBefore(tripBusyUntil) && firstTrip.getStartTime().isBefore(overlapBusyUntil);
                     });
                     
                     if (hasConflict) {
@@ -1949,24 +2003,39 @@ public class BookingServiceImpl implements BookingService {
                     
                     Vehicles selectedVehicle = null;
                     if (currentTrip != null && currentTrip.getStartTime() != null) {
-                        Instant tripEndTime = currentTrip.getEndTime() != null 
-                                ? currentTrip.getEndTime() 
+                        final String hireTypeCode = booking.getHireType() != null ? booking.getHireType().getCode() : null;
+                        Instant tripBusyUntilTmp = tripOccupancyService.computeBusyUntil(
+                                hireTypeCode,
+                                currentTrip.getStartTime(),
+                                currentTrip.getEndTime(),
+                                currentTrip.getDistance() != null ? currentTrip.getDistance().doubleValue() : null,
+                                currentTrip.getStartLocation(),
+                                currentTrip.getEndLocation()
+                        );
+                        final Instant tripBusyUntil = (tripBusyUntilTmp != null)
+                                ? tripBusyUntilTmp
                                 : currentTrip.getStartTime().plusSeconds(3600);
                         
                         for (Vehicles v : availableVehicles) {
-                            // Kiểm tra overlap
-                            List<org.example.ptcmssbackend.entity.TripVehicles> overlaps = 
-                                    tripVehicleRepository.findOverlapsForVehicle(
-                                            v.getId(), 
-                                            currentTrip.getStartTime(), 
-                                            tripEndTime
-                                    );
-                            
-                            // Loại bỏ các overlaps với trips đã bị cancel hoặc chính trip này
-                            boolean hasConflict = overlaps.stream().anyMatch(tv -> {
+                            // Kiểm tra overlap (busy-until) với các trips khác
+                            List<TripVehicles> vehicleTrips = tripVehicleRepository.findAllByVehicleId(v.getId());
+                            boolean hasConflict = vehicleTrips.stream().anyMatch(tv -> {
                                 Trips overlapTrip = tv.getTrip();
-                                return overlapTrip.getStatus() != TripStatus.CANCELLED
-                                        && !targetTripIds.contains(overlapTrip.getId());
+                                if (overlapTrip == null || overlapTrip.getBooking() == null) return false;
+                                if (overlapTrip.getStatus() == TripStatus.CANCELLED || overlapTrip.getStatus() == TripStatus.COMPLETED) return false;
+                                if (targetTripIds.contains(overlapTrip.getId())) return false;
+                                if (overlapTrip.getStartTime() == null) return true;
+                                
+                                Instant overlapBusyUntil = tripOccupancyService.computeBusyUntil(
+                                        overlapTrip.getBooking().getHireType() != null ? overlapTrip.getBooking().getHireType().getCode() : null,
+                                        overlapTrip.getStartTime(),
+                                        overlapTrip.getEndTime(),
+                                        overlapTrip.getDistance() != null ? overlapTrip.getDistance().doubleValue() : null,
+                                        overlapTrip.getStartLocation(),
+                                        overlapTrip.getEndLocation()
+                                );
+                                if (overlapBusyUntil == null) return true;
+                                return overlapTrip.getStartTime().isBefore(tripBusyUntil) && currentTrip.getStartTime().isBefore(overlapBusyUntil);
                             });
                             
                             if (!hasConflict) {

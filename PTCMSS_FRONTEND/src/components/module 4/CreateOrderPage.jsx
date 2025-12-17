@@ -178,6 +178,30 @@ function formatReadableDateTime(isoString) {
     });
 }
 
+function parseLocalInputDate(value, isDateOnly) {
+    if (!value) return null;
+    if (isDateOnly) {
+        const parts = String(value).split("-");
+        if (parts.length !== 3) return null;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) return null;
+        return new Date(y, m - 1, d, 0, 0, 0, 0); // local midnight
+    }
+    const dt = new Date(value);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function formatDurationFromMinutes(totalMinutes) {
+    const mins = Math.max(0, Math.round(totalMinutes || 0));
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h <= 0) return `${m} phút`;
+    if (m === 0) return `${h} giờ`;
+    return `${h} giờ ${m} phút`;
+}
+
 function extractPageItems(payload) {
     if (!payload) return [];
     if (Array.isArray(payload.items)) return payload.items;
@@ -469,6 +493,76 @@ export default function CreateOrderPage() {
     const [calculatingDistance, setCalculatingDistance] = React.useState(false);
     const [distanceError, setDistanceError] = React.useState("");
 
+    const etaInfo = React.useMemo(() => {
+        const dist = Number(distanceKm);
+        if (!dist || Number.isNaN(dist) || dist <= 0) return null;
+        if (!startTime) return null;
+
+        const isDateOnly = hireType === "DAILY" || hireType === "MULTI_DAY";
+        const startDate = parseLocalInputDate(startTime, isDateOnly);
+        if (!startDate) return null;
+
+        const speed = Math.max(1, Number(avgVehicleSpeedKmph || 60));
+        const travelMinutes = Math.max(0, Math.ceil((dist / speed) * 60));
+        const bufferMinutes = 10;
+        const travelText = formatDurationFromMinutes(travelMinutes);
+
+        const addMinutes = (d, mins) => new Date(d.getTime() + mins * 60 * 1000);
+        const fmt = (d) =>
+            d.toLocaleString("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+
+        // ONE_WAY / FIXED_ROUTE
+        if (hireType === "ONE_WAY" || hireType === "FIXED_ROUTE") {
+            const busyUntil = addMinutes(startDate, travelMinutes + bufferMinutes);
+            return {
+                mode: "ONE_WAY",
+                speed,
+                travelMinutes,
+                travelText,
+                bufferMinutes,
+                busyUntilText: fmt(busyUntil),
+            };
+        }
+
+        // ROUND_TRIP: endTime là "thời gian bắt đầu về"
+        if (hireType === "ROUND_TRIP") {
+            const returnStart = endTime ? parseLocalInputDate(endTime, false) : null;
+            const goArrive = addMinutes(startDate, travelMinutes);
+            const busyUntil = returnStart
+                ? addMinutes(returnStart, travelMinutes + bufferMinutes)
+                : addMinutes(startDate, travelMinutes * 2 + bufferMinutes);
+            return {
+                mode: "ROUND_TRIP",
+                speed,
+                travelMinutes,
+                travelText,
+                bufferMinutes,
+                goArriveText: fmt(goArrive),
+                busyUntilText: fmt(busyUntil),
+            };
+        }
+
+        // DAILY / MULTI_DAY: bận tới đầu ngày kế tiếp (sau ngày kết thúc) + buffer
+        const endDate = endTime ? parseLocalInputDate(endTime, true) : startDate;
+        const endDay = endDate ? endDate : startDate;
+        const nextDay = new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate() + 1, 0, 0, 0, 0);
+        const busyUntil = addMinutes(nextDay, bufferMinutes);
+        return {
+            mode: "BY_DAY",
+            speed,
+            travelMinutes,
+            travelText,
+            bufferMinutes,
+            busyUntilText: fmt(busyUntil),
+        };
+    }, [distanceKm, startTime, endTime, hireType, avgVehicleSpeedKmph]);
+
     // Tự động tính discount và quotedPrice khi discountPercent hoặc estPriceSys thay đổi
     React.useEffect(() => {
         const discountAmount = Math.round((estPriceSys * discountPercent) / 100);
@@ -488,6 +582,7 @@ export default function CreateOrderPage() {
     // System settings cho phụ phí (load từ admin settings)
     const [holidaySurchargeRate, setHolidaySurchargeRate] = React.useState(0.25); // Mặc định 25%
     const [weekendSurchargeRate, setWeekendSurchargeRate] = React.useState(0.20); // Mặc định 20%
+    const [avgVehicleSpeedKmph, setAvgVehicleSpeedKmph] = React.useState(60); // Mặc định 60 km/h
     
     // Note cho tài xế (ghi chú điểm đón/trả, hướng dẫn...)
     const [bookingNote, setBookingNote] = React.useState("");
@@ -740,6 +835,7 @@ export default function CreateOrderPage() {
                 if (Array.isArray(settings)) {
                     const holidaySetting = settings.find(s => s.settingKey === "HOLIDAY_SURCHARGE_RATE");
                     const weekendSetting = settings.find(s => s.settingKey === "WEEKEND_SURCHARGE_RATE");
+                    const avgSpeedSetting = settings.find(s => s.settingKey === "AVG_VEHICLE_SPEED_KMPH");
                     
                     if (holidaySetting && holidaySetting.settingValue) {
                         const rate = parseFloat(holidaySetting.settingValue);
@@ -752,6 +848,13 @@ export default function CreateOrderPage() {
                         const rate = parseFloat(weekendSetting.settingValue);
                         if (!isNaN(rate)) {
                             setWeekendSurchargeRate(rate);
+                        }
+                    }
+
+                    if (avgSpeedSetting && avgSpeedSetting.settingValue != null) {
+                        const parsed = Number(avgSpeedSetting.settingValue);
+                        if (!Number.isNaN(parsed) && parsed > 0) {
+                            setAvgVehicleSpeedKmph(Math.round(parsed));
                         }
                     }
                 }
@@ -2061,6 +2164,60 @@ export default function CreateOrderPage() {
                                             <span>{timeError}</span>
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* ETA / Xe bận tới (ước lượng theo km + vận tốc trung bình) */}
+                            {etaInfo && (
+                                <div className="col-span-full">
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="h-4 w-4 text-sky-600" />
+                                                <div className="text-[13px] font-semibold text-slate-900">
+                                                    Ước lượng thời gian (tham khảo)
+                                                </div>
+                                            </div>
+                                            <div className="text-[11px] text-slate-500">
+                                                \(~{etaInfo.speed} km/h + {etaInfo.bufferMinutes}p buffer\)
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-[12px]">
+                                            <div className="rounded-lg bg-white border border-slate-200 p-2">
+                                                <div className="text-[11px] uppercase font-semibold text-slate-500">
+                                                    Thời lượng ước tính
+                                                </div>
+                                                <div className="text-[13px] font-semibold text-slate-900 tabular-nums">
+                                                    {etaInfo.mode === "BY_DAY" ? "Theo ngày" : etaInfo.travelText}
+                                                </div>
+                                                {etaInfo.mode !== "BY_DAY" && (
+                                                    <div className="text-[11px] text-slate-500 mt-0.5">
+                                                        Dựa trên quãng đường & vận tốc trung bình cấu hình.
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="rounded-lg bg-white border border-slate-200 p-2">
+                                                <div className="text-[11px] uppercase font-semibold text-slate-500">
+                                                    Xe rảnh dự kiến
+                                                </div>
+                                                <div className="text-[13px] font-semibold text-slate-900 tabular-nums">
+                                                    {etaInfo.busyUntilText}
+                                                </div>
+                                                {etaInfo.mode === "ROUND_TRIP" && etaInfo.goArriveText && (
+                                                    <div className="text-[11px] text-slate-500 mt-0.5">
+                                                        Dự kiến đến lượt đi: <span className="font-medium">{etaInfo.goArriveText}</span>
+                                                    </div>
+                                                )}
+                                                {etaInfo.mode === "BY_DAY" && (
+                                                    <div className="text-[11px] text-slate-500 mt-0.5">
+                                                        Đặt theo ngày: xe chỉ nhận chuyến mới từ ngày kế tiếp.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 

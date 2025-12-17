@@ -19,6 +19,7 @@ import org.example.ptcmssbackend.repository.*;
 import org.example.ptcmssbackend.service.BookingService;
 import org.example.ptcmssbackend.service.DispatchService;
 import org.example.ptcmssbackend.service.SystemSettingService;
+import org.example.ptcmssbackend.service.TripOccupancyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +69,7 @@ public class DispatchServiceImpl implements DispatchService {
     private final BookingService bookingService; // để tái dùng hàm assign của BookingService
     private final org.example.ptcmssbackend.service.WebSocketNotificationService webSocketNotificationService;
     private final SystemSettingService systemSettingService;
+    private final TripOccupancyService tripOccupancyService;
     private final BookingVehicleDetailsRepository bookingVehicleDetailsRepository;
     private final VehicleCategoryPricingRepository vehicleCategoryRepository;
     private final org.example.ptcmssbackend.repository.InvoiceRepository invoiceRepository;
@@ -608,20 +610,50 @@ public class DispatchServiceImpl implements DispatchService {
             }
             
             // 3) Check time overlap với các trips khác (ngoài cùng booking)
-            List<TripVehicles> overlaps = tripVehicleRepository.findOverlapsForVehicle(
-                    v.getId(),
-                    trip.getStartTime(),
-                    trip.getEndTime()
-            );
-            boolean busy = overlaps.stream().anyMatch(tv ->
-                    tv.getTrip().getStatus() != TripStatus.CANCELLED
-                            && !tv.getTrip().getId().equals(trip.getId())
-            );
-            if (busy) {
+            // IMPORTANT: dùng "busy-until" ước lượng theo distance + vận tốc trung bình + buffer
+            if (trip.getStartTime() == null) {
                 eligible = false;
-                reasons.add("Trùng giờ với chuyến khác");
+                reasons.add("Thiếu thời gian khởi hành");
             } else {
-                reasons.add("Rảnh tại thời điểm này");
+                final Instant targetStart = trip.getStartTime();
+                Instant targetBusyUntilTmp = tripOccupancyService.computeBusyUntil(
+                        trip.getBooking() != null && trip.getBooking().getHireType() != null ? trip.getBooking().getHireType().getCode() : null,
+                        trip.getStartTime(),
+                        trip.getEndTime(),
+                        trip.getDistance() != null ? trip.getDistance().doubleValue() : null,
+                        trip.getStartLocation(),
+                        trip.getEndLocation()
+                );
+                final Instant targetBusyUntil = targetBusyUntilTmp != null ? targetBusyUntilTmp : targetStart.plusSeconds(3600);
+
+                List<TripVehicles> vehicleTrips = tripVehicleRepository.findAllByVehicleId(v.getId());
+                boolean busy = vehicleTrips.stream().anyMatch(tv -> {
+                    Trips other = tv.getTrip();
+                    if (other == null || other.getBooking() == null) return false;
+                    if (other.getStatus() == TripStatus.CANCELLED || other.getStatus() == TripStatus.COMPLETED) return false;
+                    if (other.getId().equals(trip.getId())) return false;
+                    // Nếu cùng booking thì đã bị chặn ở bước 2) nên không cần tính overlap ở đây
+                    if (trip.getBooking() != null && other.getBooking().getId().equals(trip.getBooking().getId())) return false;
+                    if (other.getStartTime() == null) return true;
+
+                    Instant otherBusyUntil = tripOccupancyService.computeBusyUntil(
+                            other.getBooking().getHireType() != null ? other.getBooking().getHireType().getCode() : null,
+                            other.getStartTime(),
+                            other.getEndTime(),
+                            other.getDistance() != null ? other.getDistance().doubleValue() : null,
+                            other.getStartLocation(),
+                            other.getEndLocation()
+                    );
+                    if (otherBusyUntil == null) return true;
+                    return other.getStartTime().isBefore(targetBusyUntil) && targetStart.isBefore(otherBusyUntil);
+                });
+
+                if (busy) {
+                    eligible = false;
+                    reasons.add("Trùng lịch (ước lượng theo km/vận tốc)");
+                } else {
+                    reasons.add("Rảnh tại thời điểm này (ước lượng theo km/vận tốc)");
+                }
             }
 
             // 4) Check capacity vs required seats của trip này (từ category, không phải max của booking)
@@ -2117,16 +2149,39 @@ public class DispatchServiceImpl implements DispatchService {
             }
             
             // Check trùng giờ với các trips khác (ngoài cùng booking)
-            List<TripVehicles> overlaps = tripVehicleRepository.findOverlapsForVehicle(
-                    v.getId(),
+            // IMPORTANT: dùng "busy-until" ước lượng theo distance + vận tốc trung bình + buffer
+            if (trip.getStartTime() == null) continue;
+            final Instant targetStart = trip.getStartTime();
+            Instant targetBusyUntilTmp = tripOccupancyService.computeBusyUntil(
+                    booking.getHireType() != null ? booking.getHireType().getCode() : null,
                     trip.getStartTime(),
-                    trip.getEndTime()
+                    trip.getEndTime(),
+                    trip.getDistance() != null ? trip.getDistance().doubleValue() : null,
+                    trip.getStartLocation(),
+                    trip.getEndLocation()
             );
-            // bỏ các trip đã bị cancel
-            boolean busy = overlaps.stream().anyMatch(tv ->
-                    tv.getTrip().getStatus() != TripStatus.CANCELLED
-                            && !tv.getTrip().getId().equals(trip.getId())
-            );
+            final Instant targetBusyUntil = targetBusyUntilTmp != null ? targetBusyUntilTmp : targetStart.plusSeconds(3600);
+
+            List<TripVehicles> vehicleTrips = tripVehicleRepository.findAllByVehicleId(v.getId());
+            boolean busy = vehicleTrips.stream().anyMatch(tv -> {
+                Trips other = tv.getTrip();
+                if (other == null || other.getBooking() == null) return false;
+                if (other.getStatus() == TripStatus.CANCELLED || other.getStatus() == TripStatus.COMPLETED) return false;
+                if (other.getId().equals(trip.getId())) return false;
+                if (other.getBooking().getId().equals(booking.getId())) return false;
+                if (other.getStartTime() == null) return true;
+
+                Instant otherBusyUntil = tripOccupancyService.computeBusyUntil(
+                        other.getBooking().getHireType() != null ? other.getBooking().getHireType().getCode() : null,
+                        other.getStartTime(),
+                        other.getEndTime(),
+                        other.getDistance() != null ? other.getDistance().doubleValue() : null,
+                        other.getStartLocation(),
+                        other.getEndLocation()
+                );
+                if (otherBusyUntil == null) return true;
+                return other.getStartTime().isBefore(targetBusyUntil) && targetStart.isBefore(otherBusyUntil);
+            });
             if (busy) continue;
 
             if (provisionalAssignments != null) {
@@ -2256,7 +2311,7 @@ public class DispatchServiceImpl implements DispatchService {
             return false; // Không có bằng lái -> không hợp lệ
         }
         if (seats == null || seats <= 0) {
-            return true; // Không có thông tin số ghế -> bỏ qua check
+             return true; // Không có thông tin số ghế -> bỏ qua check
         }
         
         String upperClass = licenseClass.toUpperCase().trim();
@@ -2285,15 +2340,27 @@ public class DispatchServiceImpl implements DispatchService {
         return false;
     }
 
+    private Instant busyUntil(Trips t) {
+        if (t == null || t.getStartTime() == null) return null;
+        String hireTypeCode = t.getBooking() != null && t.getBooking().getHireType() != null ? t.getBooking().getHireType().getCode() : null;
+        Instant busy = tripOccupancyService.computeBusyUntil(
+                hireTypeCode,
+                t.getStartTime(),
+                t.getEndTime(),
+                t.getDistance() != null ? t.getDistance().doubleValue() : null,
+                t.getStartLocation(),
+                t.getEndLocation()
+        );
+        return busy != null ? busy : t.getStartTime().plusSeconds(3600);
+    }
+
     private boolean hasTimeOverlap(Trips t1, Trips t2) {
         if (t1 == null || t2 == null) return true;
         Instant s1 = t1.getStartTime();
-        Instant e1 = t1.getEndTime();
         Instant s2 = t2.getStartTime();
-        Instant e2 = t2.getEndTime();
-        if (s1 == null || e1 == null || s2 == null || e2 == null) {
-            return true;
-        }
+        Instant e1 = busyUntil(t1);
+        Instant e2 = busyUntil(t2);
+        if (s1 == null || e1 == null || s2 == null || e2 == null) return true;
         return s1.isBefore(e2) && s2.isBefore(e1);
     }
     
