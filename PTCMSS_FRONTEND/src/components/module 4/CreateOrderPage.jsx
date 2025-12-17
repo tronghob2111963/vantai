@@ -493,6 +493,9 @@ export default function CreateOrderPage() {
     const [calculatingDistance, setCalculatingDistance] = React.useState(false);
     const [distanceError, setDistanceError] = React.useState("");
 
+    // System settings cho vận tốc trung bình (load từ admin settings)
+    const [avgVehicleSpeedKmph, setAvgVehicleSpeedKmph] = React.useState(60); // Mặc định 60 km/h
+
     const etaInfo = React.useMemo(() => {
         const dist = Number(distanceKm);
         if (!dist || Number.isNaN(dist) || dist <= 0) return null;
@@ -582,7 +585,6 @@ export default function CreateOrderPage() {
     // System settings cho phụ phí (load từ admin settings)
     const [holidaySurchargeRate, setHolidaySurchargeRate] = React.useState(0.25); // Mặc định 25%
     const [weekendSurchargeRate, setWeekendSurchargeRate] = React.useState(0.20); // Mặc định 20%
-    const [avgVehicleSpeedKmph, setAvgVehicleSpeedKmph] = React.useState(60); // Mặc định 60 km/h
     
     // Note cho tài xế (ghi chú điểm đón/trả, hướng dẫn...)
     const [bookingNote, setBookingNote] = React.useState("");
@@ -2080,7 +2082,7 @@ export default function CreateOrderPage() {
                             </div>
 
                             {/* Thời gian đón / Ngày bắt đầu */}
-                            <div>
+                            <div className="relative" style={{ zIndex: 10 }}>
                                 <div className={labelCls}>
                                     <Clock className="h-3.5 w-3.5 text-slate-400" />
                                     <span>
@@ -2109,10 +2111,19 @@ export default function CreateOrderPage() {
                                             setTimeError("");
                                         }
                                     }}
+                                    onClick={(e) => {
+                                        // Đảm bảo click event không bị chặn
+                                        e.stopPropagation();
+                                    }}
+                                    min={hireType === "DAILY" || hireType === "MULTI_DAY" 
+                                        ? new Date().toISOString().split('T')[0]
+                                        : new Date().toISOString().slice(0, 16)}
+                                    step={hireType === "DAILY" || hireType === "MULTI_DAY" ? undefined : "60"}
                                     className={cls(
                                         inputCls,
                                         timeError && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                                     )}
+                                    style={{ position: 'relative', zIndex: 100 }}
                                 />
                                 {timeError && (
                                     <div className="text-[12px] text-red-600 mt-1 flex items-center gap-1">
@@ -2124,7 +2135,7 @@ export default function CreateOrderPage() {
 
                             {/* Kết thúc dự kiến / Ngày kết thúc - Ẩn với ONE_WAY */}
                             {hireType !== "ONE_WAY" && (
-                                <div>
+                                <div className="relative" style={{ zIndex: 10 }}>
                                     <div className={labelCls}>
                                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                         <span>
@@ -2153,10 +2164,19 @@ export default function CreateOrderPage() {
                                                 setTimeError("");
                                             }
                                         }}
+                                        onClick={(e) => {
+                                            // Đảm bảo click event không bị chặn
+                                            e.stopPropagation();
+                                        }}
+                                        min={hireType === "DAILY" || hireType === "MULTI_DAY" 
+                                            ? new Date().toISOString().split('T')[0]
+                                            : new Date().toISOString().slice(0, 16)}
+                                        step={hireType === "DAILY" || hireType === "MULTI_DAY" ? undefined : "60"}
                                         className={cls(
                                             inputCls,
                                             timeError && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                                         )}
+                                        style={{ position: 'relative', zIndex: 100 }}
                                     />
                                     {timeError && (
                                         <div className="text-[12px] text-red-600 mt-1 flex items-center gap-1">

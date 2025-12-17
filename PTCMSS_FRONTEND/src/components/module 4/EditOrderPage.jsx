@@ -1214,7 +1214,7 @@ export default function EditOrderPage() {
         }
         if (status === "COMPLETED") {
             return `Đơn hàng đã hoàn thành. Không thể chỉnh sửa.`;
-        }
+            }
         // Các trạng thái khác: luôn cho phép sửa, không hiển thị cảnh báo khóa
         return null;
     }, [status]);
