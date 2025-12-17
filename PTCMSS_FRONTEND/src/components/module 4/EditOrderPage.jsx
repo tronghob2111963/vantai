@@ -283,53 +283,14 @@ export default function EditOrderPage() {
         React.useState(false);
 
     /* --- quyền sửa --- */
-    // Check: status phải là DRAFT/PENDING/CONFIRMED/ASSIGNED/INPROGRESS
-    // Với ASSIGNED: cho phép sửa nếu chuyến chưa bắt đầu
-    // Với INPROGRESS: cho phép sửa (kéo dài thời gian) - backend sẽ validate resource availability
+    // Yêu cầu mới: cho phép sửa với mọi trạng thái, TRỪ COMPLETED và CANCELLED.
+    // Việc kiểm tra tài xế/xe bận và các ràng buộc khác sẽ do backend xử lý.
     const canEdit = React.useMemo(() => {
-        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT", "INPROGRESS"];
-        const hasDeposit = paidAmount > 0;
-        
-        // Nếu đã hủy (CANCELLED) hoặc hoàn thành (COMPLETED) thì không cho sửa
         if (status === "CANCELLED" || status === "COMPLETED") {
             return false;
         }
-        
-        // Với INPROGRESS: cho phép sửa (vd: kéo dài thời gian, đổi điểm đến)
-        // Backend sẽ validate driver/vehicle có available không
-        if (status === "INPROGRESS") {
-            return true;
-        }
-        
-        // Nếu đơn đặt cọc và chưa bắt đầu chuyến → cho phép sửa/hủy
-        if (hasDeposit) {
-            // Kiểm tra xem chuyến đã bắt đầu chưa
-            const tripTimePassed = startTime ? new Date(startTime) <= new Date() : false;
-            
-            // Nếu chưa bắt đầu (thời gian chưa đến) → cho phép sửa
-            if (!tripTimePassed) {
-                return true; // Cho phép sửa/hủy đơn đặt cọc chưa bắt đầu
-            }
-        }
-        
-        // Logic thông thường: status phải trong danh sách editable
-        if (!editableStatuses.includes(status)) {
-            return false;
-        }
-        
-        // Check thời gian: phải còn >= 12h trước chuyến
-        // TRỪ KHI: đơn đặt cọc (paidAmount > 0) - thì không cần check 12h
-        if (startTime && !hasDeposit) {
-            const tripStart = new Date(startTime);
-            const now = new Date();
-            const hoursUntilTrip = (tripStart - now) / (1000 * 60 * 60);
-            if (hoursUntilTrip < 12) {
-                return false; // Còn < 12h, không cho sửa (trừ khi đã đặt cọc)
-            }
-        }
-        
         return true;
-    }, [status, startTime, paidAmount]);
+    }, [status]);
 
     // helper ISO
     const toIsoZ = (s) => {
@@ -1154,60 +1115,15 @@ export default function EditOrderPage() {
 
     /* ---------------- locked banner ---------------- */
     const lockedReason = React.useMemo(() => {
-        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT", "INPROGRESS"];
-        const hasDeposit = paidAmount > 0;
-        
-        // Nếu đã hủy thì không cho sửa
         if (status === "CANCELLED") {
             return `Đơn hàng đã bị hủy. Không thể chỉnh sửa.`;
         }
-        
-        // Nếu đã hoàn thành thì không cho sửa
         if (status === "COMPLETED") {
             return `Đơn hàng đã hoàn thành. Không thể chỉnh sửa.`;
         }
-        
-        // INPROGRESS: cho phép sửa, không hiển thị locked reason
-        if (status === "INPROGRESS") {
-            return null;
-        }
-        
-        // Nếu đơn đặt cọc và chưa bắt đầu, cho phép sửa
-        if (hasDeposit) {
-            const tripTimePassed = startTime ? new Date(startTime) <= new Date() : false;
-            if (!tripTimePassed) {
-                return null; // Cho phép sửa đơn đặt cọc chưa bắt đầu
-            }
-        }
-        
-        if (!editableStatuses.includes(status)) {
-            return `Đơn hàng ở trạng thái ${ORDER_STATUS_LABEL[status] || status}. Không thể chỉnh sửa.`;
-        }
-        
-        if (startTime && !hasDeposit) {
-            // startTime đã được convert sang local format (YYYY-MM-DDTHH:mm)
-            const tripStart = new Date(startTime);
-            const now = new Date();
-            const diffMs = tripStart.getTime() - now.getTime();
-            const hoursUntilTrip = diffMs / (1000 * 60 * 60);
-
-            // Ngưỡng tối thiểu (giờ) để cho phép sửa đơn, đọc từ System Setting (nếu có)
-            // TODO: thay thế 12 bằng giá trị động từ API system-settings (key, ví dụ: EDIT_BOOKING_MIN_HOURS)
-            const minHoursBeforeEdit = 12;
-            
-            if (hoursUntilTrip < minHoursBeforeEdit) {
-                const absHours = Math.abs(hoursUntilTrip);
-                const hours = Math.floor(absHours);
-                const minutes = Math.floor((absHours - hours) * 60);
-                
-                if (hoursUntilTrip < 0) {
-                    return `Chuyến đi đã diễn ra ${hours} giờ ${minutes} phút trước. Không thể chỉnh sửa.`;
-                }
-                return `Chỉ còn ${hours} giờ ${minutes} phút trước chuyến đi. Cần >= ${minHoursBeforeEdit} giờ để chỉnh sửa.`;
-            }
-        }
+        // Các trạng thái khác: luôn cho phép sửa, không hiển thị cảnh báo khóa
         return null;
-    }, [status, startTime, paidAmount]);
+    }, [status]);
 
     // Warning banner for INPROGRESS orders - cảnh báo rằng thay đổi sẽ được kiểm tra availability
     const inProgressWarning = React.useMemo(() => {

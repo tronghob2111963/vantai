@@ -16,6 +16,7 @@ import {
   getDriverSchedule,
   getDayOffHistory,
 } from "../../api/drivers";
+import { getSystemSettingByKey } from "../../api/systemSettings";
 
 /**
  * DriverSchedulePage (LIGHT THEME + BRAND #0079BC)
@@ -241,6 +242,7 @@ function DriverHeader({
   selectedDate,
   monthlyTripCount,
   monthlyLeaveDays,
+  maxMonthlyLeaveDays,
   viewMode,
   setViewMode,
   schedule,
@@ -319,6 +321,19 @@ function DriverHeader({
             <div className="text-[11px] text-slate-500 leading-none">
               {monthLabel} / {toDMY(selectedDate)}
             </div>
+          </div>
+        </div>
+
+        {/* stats: số buổi nghỉ trong tháng */}
+        <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-left shadow-sm flex flex-col justify-between min-w-[180px]">
+          <div className="text-[11px] text-slate-500 leading-none mb-1">
+            Số buổi nghỉ trong tháng
+          </div>
+          <div className="text-[20px] font-semibold text-slate-900 leading-tight">
+            {monthlyLeaveDays}/{maxMonthlyLeaveDays}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">
+            Đã nghỉ / Cho phép
           </div>
         </div>
       </div>
@@ -615,6 +630,29 @@ export default function DriverSchedulePage() {
     };
   }, [schedule, currentYear, currentMonth]);
 
+  const [maxMonthlyLeaveDays, setMaxMonthlyLeaveDays] = React.useState(2);
+
+  // Load MAX_DRIVER_LEAVE_DAYS từ System Settings (áp dụng cho mọi role tài xế)
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const setting = await getSystemSettingByKey("MAX_DRIVER_LEAVE_DAYS");
+        if (cancelled) return;
+        const raw = setting?.settingValue;
+        const parsed = raw != null ? Number(raw) : NaN;
+        if (!Number.isNaN(parsed) && parsed > 0) {
+          setMaxMonthlyLeaveDays(parsed);
+        }
+      } catch (err) {
+        console.warn("Could not load MAX_DRIVER_LEAVE_DAYS, using default 2", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // load driver + schedule từ backend
   React.useEffect(() => {
     let cancelled = false;
@@ -653,10 +691,10 @@ export default function DriverSchedulePage() {
             const hireType = trip.hireType || "";
             const hireTypeName = trip.hireTypeName || "";
             
-            const routeLabel = 
-              (trip.startLocation || trip.start_location || "—") +
-              " → " +
-              (trip.endLocation || trip.end_location || "—");
+            const startLocation = trip.startLocation || trip.start_location || "—";
+            const endLocation = trip.endLocation || trip.end_location || "—";
+            const routeLabel = `${startLocation} → ${endLocation}`;
+            const returnRouteLabel = `${endLocation} → ${startLocation}`;
             
             // Kiểm tra nếu là chuyến 2 chiều và ngày đi khác ngày về
             const isRoundTrip = hireType === "ROUND_TRIP";
@@ -677,13 +715,13 @@ export default function DriverSchedulePage() {
                 hireTypeName: hireTypeName,
               });
               
-              // Record cho ngày về
+              // Record cho ngày về (đảo chiều B → A)
               tripRecords.push({
                 date: endDateStr,
                 type: "TRIP",
-                title: `Về: ${routeLabel}`,
+                title: `Về: ${returnRouteLabel}`,
                 time: end ? String(end).slice(11, 16) : "",
-                pickup: trip.endLocation || trip.end_location || "",
+                pickup: endLocation,
                 trip_id: trip.tripId || trip.trip_id,
                 hireType: hireType,
                 hireTypeName: hireTypeName,

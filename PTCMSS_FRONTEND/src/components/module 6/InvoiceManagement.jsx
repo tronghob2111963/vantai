@@ -708,12 +708,15 @@ function InvoiceTable({
         const arr = [...items];
         arr.sort((a, b) => {
             let A, B;
-            if (
-                sortKey ===
-                "invoice_no"
-            ) {
-                A = a.invoice_no;
-                B = b.invoice_no;
+            if (sortKey === "invoice_no") {
+                // Sắp xếp theo phần số ở cuối mã hóa đơn (VD: INV-HN-2025-0012 -> 12)
+                const parseSeq = (code) => {
+                    if (!code) return 0;
+                    const match = String(code).match(/(\d+)\s*$/);
+                    return match ? Number(match[1]) : 0;
+                };
+                A = parseSeq(a.invoice_no);
+                B = parseSeq(b.invoice_no);
             } else if (
                 sortKey ===
                 "customer"

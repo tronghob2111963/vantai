@@ -55,8 +55,20 @@ public class RatingServiceImpl implements RatingService {
         }
         
         // Get driver from trip (via TripDrivers)
-        TripDrivers tripDriver = tripDriversRepository.findMainDriverByTripId(request.getTripId())
-            .orElseThrow(() -> new RuntimeException("Chưa có tài xế được phân công cho chuyến đi này"));
+        TripDrivers tripDriver = null;
+        try {
+            tripDriver = tripDriversRepository.findFirstMainDriverByTripId(request.getTripId());
+        } catch (Exception e) {
+            // Fallback: get first driver from trip
+            List<TripDrivers> tripDrivers = tripDriversRepository.findByTrip_Id(request.getTripId());
+            if (!tripDrivers.isEmpty()) {
+                tripDriver = tripDrivers.get(0);
+            }
+        }
+        
+        if (tripDriver == null) {
+            throw new RuntimeException("Chưa có tài xế được phân công cho chuyến đi này");
+        }
         Drivers driver = tripDriver.getDriver();
         
         // Get customer
@@ -233,8 +245,19 @@ public class RatingServiceImpl implements RatingService {
     }
 
     private TripForRatingResponse mapTripToResponse(Trips trip) {
-        // Get main driver
-        TripDrivers tripDriver = tripDriversRepository.findMainDriverByTripId(trip.getId()).orElse(null);
+        // Get main driver - handle case where multiple main drivers exist (take first one)
+        TripDrivers tripDriver = null;
+        try {
+            // Try to get first main driver using native query with LIMIT
+            tripDriver = tripDriversRepository.findFirstMainDriverByTripId(trip.getId());
+        } catch (Exception e) {
+            // Fallback: get first driver from trip if native query fails
+            log.warn("Error getting main driver for trip {}, using first driver: {}", trip.getId(), e.getMessage());
+            List<TripDrivers> tripDrivers = tripDriversRepository.findByTrip_Id(trip.getId());
+            if (!tripDrivers.isEmpty()) {
+                tripDriver = tripDrivers.get(0);
+            }
+        }
         
         String driverName = null;
         Integer driverId = null;
@@ -249,9 +272,14 @@ public class RatingServiceImpl implements RatingService {
         // Get customer
         String customerName = null;
         Integer customerId = null;
+        String customerPhone = null;
+        String customerAddress = null;
         if (trip.getBooking() != null && trip.getBooking().getCustomer() != null) {
-            customerId = trip.getBooking().getCustomer().getId();
-            customerName = trip.getBooking().getCustomer().getFullName();
+            var customer = trip.getBooking().getCustomer();
+            customerId = customer.getId();
+            customerName = customer.getFullName();
+            customerPhone = customer.getPhone();
+            customerAddress = customer.getAddress();
         }
         
         return TripForRatingResponse.builder()
@@ -261,6 +289,8 @@ public class RatingServiceImpl implements RatingService {
             .driverName(driverName)
             .customerId(customerId)
             .customerName(customerName)
+            .customerPhone(customerPhone)
+            .customerAddress(customerAddress)
             .startLocation(trip.getStartLocation())
             .endLocation(trip.getEndLocation())
             .startTime(trip.getStartTime())

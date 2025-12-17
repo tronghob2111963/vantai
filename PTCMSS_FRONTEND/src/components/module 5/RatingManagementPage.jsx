@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Search, Filter, Calendar, User, MapPin } from 'lucide-react';
+import { Star, Search, Filter, Calendar, User, MapPin, Phone } from 'lucide-react';
 import RateDriverDialog from './RateDriverDialog';
 import StarRating from '../common/StarRating';
 import Pagination from '../common/Pagination';
+import CustomerTripsModal from '../common/CustomerTripsModal';
 import { getRatingByTrip, getCompletedTripsForRating } from '../../api/ratings';
+import { getCustomer, getCustomerBookings } from '../../api/customers';
 
 const RatingManagementPage = () => {
     const [trips, setTrips] = useState([]);
@@ -16,6 +18,13 @@ const RatingManagementPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
+
+    // Customer detail modal
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [customerDetail, setCustomerDetail] = useState(null);
+    const [customerTrips, setCustomerTrips] = useState([]);
+    const [loadingCustomerTrips, setLoadingCustomerTrips] = useState(false);
+    const [customerTripsError, setCustomerTripsError] = useState(null);
 
     useEffect(() => {
         loadTrips();
@@ -112,6 +121,85 @@ const RatingManagementPage = () => {
         setTimeout(() => {
             loadTrips(); // Reload to update rating status
         }, 500);
+    };
+
+    // Handle customer click to show detail modal
+    const handleCustomerClick = async (trip) => {
+        const customerId = trip.customerId;
+        if (!customerId) {
+            console.warn('No customerId found in trip:', trip);
+            return;
+        }
+
+        setSelectedCustomer(trip);
+        setLoadingCustomerTrips(true);
+        setCustomerTripsError(null);
+        setCustomerDetail(null);
+        setCustomerTrips([]);
+
+        try {
+            // Fetch customer detail
+            const customerResponse = await getCustomer(customerId);
+            const customerData = customerResponse?.data || customerResponse;
+            setCustomerDetail(customerData);
+
+            // Fetch customer bookings/trips
+            const bookingsResponse = await getCustomerBookings(customerId, { page: 0, size: 100 });
+            const bookingsData = bookingsResponse?.data || bookingsResponse || {};
+            const bookings = bookingsData?.content || bookingsData?.items || (Array.isArray(bookingsData) ? bookingsData : []);
+
+            // Extract all trips from bookings
+            const allTrips = [];
+            for (const booking of bookings) {
+                const trips = Array.isArray(booking.trips) ? booking.trips : [];
+                for (const tripItem of trips) {
+                    allTrips.push({
+                        ...tripItem,
+                        bookingId: booking.id || booking.bookingId,
+                        bookingCode: booking.code || booking.bookingCode,
+                        bookingStatus: booking.status,
+                        bookingCreatedAt: booking.createdAt,
+                    });
+                }
+            }
+
+            // Fetch ratings for each trip
+            const tripsWithRatings = await Promise.all(
+                allTrips.map(async (tripItem) => {
+                    const tripId = tripItem.id || tripItem.tripId;
+                    if (!tripId) return { ...tripItem, rating: null };
+
+                    try {
+                        const ratingResponse = await getRatingByTrip(tripId);
+                        const rating = ratingResponse?.data || ratingResponse || null;
+                        return { ...tripItem, rating };
+                    } catch (err) {
+                        return { ...tripItem, rating: null };
+                    }
+                })
+            );
+
+            // Sort by date (newest first)
+            tripsWithRatings.sort((a, b) => {
+                const dateA = a.pickup_time || a.dropoff_eta || a.bookingCreatedAt || "";
+                const dateB = b.pickup_time || b.dropoff_eta || b.bookingCreatedAt || "";
+                return new Date(dateB) - new Date(dateA);
+            });
+
+            setCustomerTrips(tripsWithRatings);
+        } catch (err) {
+            console.error('Error fetching customer detail:', err);
+            setCustomerTripsError('Không thể tải thông tin khách hàng');
+        } finally {
+            setLoadingCustomerTrips(false);
+        }
+    };
+
+    const handleCloseCustomerModal = () => {
+        setSelectedCustomer(null);
+        setCustomerDetail(null);
+        setCustomerTrips([]);
+        setCustomerTripsError(null);
     };
 
     const getStatusBadge = (hasRating) => {
@@ -254,7 +342,7 @@ const RatingManagementPage = () => {
                                     <th className="w-40 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Tài xế
                                     </th>
-                                    <th className="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="w-48 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Khách hàng
                                     </th>
                                     <th className="w-56 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -292,14 +380,35 @@ const RatingManagementPage = () => {
                                             </div>
                                         </td>
                                         <td className="px-4 py-4">
-                                            <div className="text-sm text-gray-900 truncate">{trip.customerName}</div>
+                                            <div 
+                                                className="text-sm text-gray-900 cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                                                onClick={() => handleCustomerClick(trip)}
+                                                title="Click để xem chi tiết khách hàng"
+                                            >
+                                                <div className="font-medium">{trip.customerName}</div>
+                                                {trip.customerPhone && (
+                                                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                                        <Phone className="h-3 w-3" />
+                                                        <span className="font-mono">{trip.customerPhone}</span>
+                                                    </div>
+                                                )}
+                                                {trip.customerAddress && (
+                                                    <div className="text-xs text-gray-500 mt-1 line-clamp-2" title={trip.customerAddress}>
+                                                        {trip.customerAddress}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-4">
                                             <div className="flex items-start gap-2">
                                                 <MapPin className="text-gray-400 flex-shrink-0 mt-0.5" size={16} />
                                                 <div className="text-sm min-w-0">
-                                                    <div className="text-gray-900 truncate">{trip.startLocation}</div>
-                                                    <div className="text-gray-500 truncate">→ {trip.endLocation}</div>
+                                                    <div className="text-gray-900 line-clamp-2" title={trip.startLocation}>
+                                                        {trip.startLocation}
+                                                    </div>
+                                                    <div className="text-gray-500 line-clamp-2 mt-1" title={trip.endLocation}>
+                                                        → {trip.endLocation}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -408,6 +517,24 @@ const RatingManagementPage = () => {
                         setSelectedTrip(null);
                     }}
                     onSuccess={handleRatingSuccess}
+                />
+            )}
+
+            {/* Customer Detail Modal */}
+            {selectedCustomer && (
+                <CustomerTripsModal
+                    customer={customerDetail || {
+                        fullName: selectedCustomer.customerName,
+                        customerName: selectedCustomer.customerName,
+                        phone: selectedCustomer.customerPhone,
+                        email: null,
+                        address: selectedCustomer.customerAddress,
+                        branchName: null
+                    }}
+                    trips={customerTrips}
+                    loading={loadingCustomerTrips}
+                    error={customerTripsError}
+                    onClose={handleCloseCustomerModal}
                 />
             )}
         </div>

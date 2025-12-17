@@ -353,26 +353,17 @@ public class BookingServiceImpl implements BookingService {
         Bookings booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
         
-        // Cho phép update khi status là DRAFT, PENDING, CONFIRMED, ASSIGNED hoặc INPROGRESS
-        // ASSIGNED: đơn đã phân xe nhưng chưa bắt đầu - cho phép sửa với điều kiện driver/xe vẫn available
-        // INPROGRESS: đơn đang thực hiện - cho phép sửa nếu driver/xe có thể đáp ứng thay đổi (vd: kéo dài thời gian)
-        if (booking.getStatus() != BookingStatus.DRAFT && 
-            booking.getStatus() != BookingStatus.PENDING && 
-            booking.getStatus() != BookingStatus.CONFIRMED &&
-            booking.getStatus() != BookingStatus.ASSIGNED &&
-            booking.getStatus() != BookingStatus.INPROGRESS) {
+        // Cho phép update với tất cả trạng thái, TRỪ COMPLETED và CANCELLED
+        // Yêu cầu mới: chỉ không cho sửa khi đơn đã Hoàn thành hoặc Hủy
+        if (booking.getStatus() == BookingStatus.COMPLETED ||
+            booking.getStatus() == BookingStatus.CANCELLED) {
             throw new RuntimeException("Không thể cập nhật đơn hàng với trạng thái: " + booking.getStatus());
         }
-        
-        // Validation: Kiểm tra loại thay đổi và thời gian cho phép
-        boolean isMajorChange = isMajorModification(booking, request);
         
         // Với đơn ASSIGNED hoặc INPROGRESS, cần kiểm tra resource availability trước
         if (booking.getStatus() == BookingStatus.ASSIGNED || booking.getStatus() == BookingStatus.INPROGRESS) {
             validateAssignedResourceAvailability(booking, request);
         }
-        
-        validateModificationTime(booking, isMajorChange, booking.getStatus());
 
         BookingStatus oldStatus = booking.getStatus();
         
