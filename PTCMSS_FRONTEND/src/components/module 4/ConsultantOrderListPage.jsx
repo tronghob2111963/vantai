@@ -463,20 +463,23 @@ function OrdersTable({
     };
 
     // Cho phép sửa khi:
-    // 1. Status cho phép (DRAFT, PENDING, CONFIRMED, ASSIGNED, QUOTATION_SENT)
-    // 2. Chưa quá thời gian bắt đầu
+    // 1. Status KHÔNG phải COMPLETED hoặc CANCELLED
+    // 2. Chưa quá thời gian bắt đầu (chưa bắt đầu chuyến)
     const canEdit = (status, pickupTime = null) => {
-        // Nếu đã quá thời gian bắt đầu thì không cho sửa
+        const normalized = status ? status.replace(/_/g, '').toUpperCase() : '';
+        
+        // Không cho sửa khi đã hoàn thành hoặc đã hủy
+        if (normalized === 'COMPLETED' || normalized === 'CANCELLED') {
+            return false;
+        }
+        
+        // Nếu đã quá thời gian bắt đầu thì không cho sửa (đã bắt đầu chuyến)
         if (isStartTimePassed(pickupTime)) {
             return false;
         }
         
-        const normalized = status ? status.replace(/_/g, '').toUpperCase() : '';
-        return normalized === 'DRAFT' ||
-            normalized === 'PENDING' ||
-            normalized === 'CONFIRMED' ||
-            normalized === 'ASSIGNED' ||
-            normalized === 'QUOTATIONSENT';
+        // Tất cả các trạng thái khác đều được phép sửa (nếu chưa bắt đầu chuyến)
+        return true;
     };
     
     // Cho phép hủy khi:
@@ -1922,21 +1925,26 @@ export default function ConsultantOrdersPage() {
             const isFullyPaid = Number(paidAmount || 0) >= Number(quotedPrice || 0);
             
             // Map các status về format chuẩn của frontend
-            if (normalizedRawStatus === "INPROGRESS" || normalizedRawStatus === "ONGOING") {
-                rawStatus = ORDER_STATUS.INPROGRESS;
-            } else if (normalizedRawStatus === "COMPLETED") {
-                // Nếu COMPLETED nhưng chưa thu đủ tiền → coi là INPROGRESS
-                if (!isFullyPaid) {
-                    rawStatus = ORDER_STATUS.INPROGRESS;
-                } else {
+            // Workflow: QUOTATION_SENT → CONFIRMED (đặt cọc) → ASSIGNED (phân xe) → INPROGRESS (bắt đầu) → COMPLETED
+            if (normalizedRawStatus === "COMPLETED") {
+                // COMPLETED: chỉ khi đã hoàn thành và thu đủ tiền
+                if (isFullyPaid) {
                     rawStatus = ORDER_STATUS.COMPLETED;
+                } else {
+                    // COMPLETED nhưng chưa thu đủ tiền → vẫn đang thực hiện
+                    rawStatus = ORDER_STATUS.INPROGRESS;
                 }
+            } else if (normalizedRawStatus === "INPROGRESS" || normalizedRawStatus === "ONGOING" || normalizedRawStatus === "IN_PROGRESS") {
+                // INPROGRESS: tài xế đã bắt đầu chuyến
+                rawStatus = ORDER_STATUS.INPROGRESS;
+            } else if (normalizedRawStatus === "ASSIGNED") {
+                // ASSIGNED: đã phân xe/tài xế
+                rawStatus = ORDER_STATUS.ASSIGNED;
             } else if (normalizedRawStatus === "CONFIRMED") {
+                // CONFIRMED: khách đã xác nhận (đã đặt cọc)
                 rawStatus = ORDER_STATUS.CONFIRMED;
             } else if (normalizedRawStatus === "CANCELLED") {
                 rawStatus = ORDER_STATUS.CANCELLED;
-            } else if (normalizedRawStatus === "ASSIGNED") {
-                rawStatus = ORDER_STATUS.ASSIGNED;
             } else if (normalizedRawStatus === "QUOTATIONSENT") {
                 rawStatus = ORDER_STATUS.QUOTATION_SENT;
             } else if (normalizedRawStatus === "DRAFT") {
@@ -1946,7 +1954,7 @@ export default function ConsultantOrdersPage() {
                 rawStatus = ORDER_STATUS.QUOTATION_SENT;
             } else {
                 // Fallback: Nếu không có status hoặc không match, dựa vào deposit
-                // Nếu đã có deposit → CONFIRMED, chưa có → QUOTATION_SENT
+                // Nếu đã có deposit → CONFIRMED (khách đã xác nhận), chưa có → QUOTATION_SENT
                 rawStatus = hasDeposit ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.QUOTATION_SENT;
             }
 

@@ -306,13 +306,12 @@ export default function CoordinatorOrderListPage() {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        const todayLocal = toLocalDateInput();
-                                        setStartDate(todayLocal);
-                                        setEndDate(todayLocal);
+                                        setStartDate("");
+                                        setEndDate("");
                                         setCurrentPage(1);
                                     }}
                                     className="px-3 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                                    title="Reset về hôm nay"
+                                    title="Xóa filter thời gian (hiển thị tất cả đơn)"
                                 >
                                     Reset
                                 </button>

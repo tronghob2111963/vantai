@@ -156,7 +156,14 @@ export default function AdminDashboard() {
 
             // Charts
             setRevenueTrend(trendData || []);
-            setBranchComparison(branchData || []);
+            // Normalize branch comparison data - đảm bảo có field expense
+            const normalizedBranchData = (branchData || []).map(branch => ({
+                ...branch,
+                revenue: branch.revenue || 0,
+                expense: branch.expense !== undefined && branch.expense !== null ? branch.expense : 0,
+                netProfit: branch.netProfit || 0,
+            }));
+            setBranchComparison(normalizedBranchData);
             setTopRoutes(routesData || []);
             setTopVehicleCategories(vehicleCategoriesData || []);
 
@@ -353,7 +360,13 @@ export default function AdminDashboard() {
                                     />
                                     <Legend wrapperStyle={{ fontSize: "12px" }} />
                                     <Bar dataKey="revenue" name="Doanh thu" fill="#10b981" />
-                                    <Bar dataKey="expense" name="Chi phí" fill="#ef4444" />
+                                    <Bar 
+                                        dataKey="expense" 
+                                        name="Chi phí" 
+                                        fill="#ef4444"
+                                        // Đảm bảo hiển thị ngay cả khi giá trị = 0 hoặc null
+                                        isAnimationActive={true}
+                                    />
                                 </BarChart>
                             </ResponsiveContainer>
                             ) : (

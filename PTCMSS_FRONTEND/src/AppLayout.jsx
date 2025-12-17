@@ -195,6 +195,7 @@ function SidebarNav({ collapsed = false, onToggleSidebar }) {
   
   // Load pending payment count for Accountant
   const [pendingPaymentCount, setPendingPaymentCount] = React.useState(0);
+  const [pendingExpenseRequestCount, setPendingExpenseRequestCount] = React.useState(0);
   const isAccountant = role === ROLES.ACCOUNTANT;
   
   React.useEffect(() => {
@@ -219,6 +220,52 @@ function SidebarNav({ collapsed = false, onToggleSidebar }) {
     loadPendingCount();
     // Refresh every 30 seconds
     const interval = setInterval(loadPendingCount, 30000);
+    
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [isAccountant]);
+
+  // Load pending expense request count for Accountant
+  React.useEffect(() => {
+    if (!isAccountant) return;
+    
+    let mounted = true;
+    const loadPendingExpenseCount = async () => {
+      try {
+        const { getPendingExpenseRequests } = await import("./api/expenses");
+        const { getEmployeeByUserId } = await import("./api/employees");
+        const { getStoredUserId } = await import("./utils/session");
+        
+        // Get branchId for accountant
+        const userId = getStoredUserId();
+        let branchId = null;
+        if (userId) {
+          try {
+            const emp = await getEmployeeByUserId(Number(userId));
+            branchId = emp?.branchId || emp?.branch?.id || emp?.branch?.branchId || null;
+          } catch (err) {
+            console.error("Error loading employee branch for expense count:", err);
+          }
+        }
+        
+        const response = await getPendingExpenseRequests(branchId || undefined);
+        const list = Array.isArray(response) ? response : (response?.data || response?.items || []);
+        if (mounted) {
+          setPendingExpenseRequestCount(list.length || 0);
+        }
+      } catch (err) {
+        console.error("Error loading pending expense request count:", err);
+        if (mounted) {
+          setPendingExpenseRequestCount(0);
+        }
+      }
+    };
+    
+    loadPendingExpenseCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadPendingExpenseCount, 30000);
     
     return () => {
       mounted = false;
@@ -317,6 +364,12 @@ function SidebarNav({ collapsed = false, onToggleSidebar }) {
               {isAccountant && item.to === "/accounting/invoices" && pendingPaymentCount > 0 && (
                 <span className="flex-shrink-0 ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500 text-white min-w-[18px] text-center">
                   {pendingPaymentCount > 99 ? "99+" : pendingPaymentCount}
+                </span>
+              )}
+              {/* Badge for pending expense requests */}
+              {isAccountant && item.to === "/accounting/expense-requests" && pendingExpenseRequestCount > 0 && (
+                <span className="flex-shrink-0 ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500 text-white min-w-[18px] text-center">
+                  {pendingExpenseRequestCount > 99 ? "99+" : pendingExpenseRequestCount}
                 </span>
               )}
             </NavLink>

@@ -90,7 +90,16 @@ public class RatingServiceImpl implements RatingService {
         rating.setRatedBy(ratedByUser);
         rating.setRatedAt(Instant.now());
         
-        // Save (trigger will calculate overallRating)
+        // Calculate overallRating as average of 4 criteria
+        BigDecimal overallRating = calculateOverallRating(
+            request.getPunctualityRating(),
+            request.getAttitudeRating(),
+            request.getSafetyRating(),
+            request.getComplianceRating()
+        );
+        rating.setOverallRating(overallRating);
+        
+        // Save
         rating = ratingsRepository.save(rating);
         
         // Update driver's overall rating (30-day average)
@@ -179,6 +188,38 @@ public class RatingServiceImpl implements RatingService {
         }
     }
 
+    /**
+     * Calculate overall rating as average of 4 criteria
+     */
+    private BigDecimal calculateOverallRating(Integer punctuality, Integer attitude, 
+                                             Integer safety, Integer compliance) {
+        int count = 0;
+        BigDecimal sum = BigDecimal.ZERO;
+        
+        if (punctuality != null) {
+            sum = sum.add(BigDecimal.valueOf(punctuality));
+            count++;
+        }
+        if (attitude != null) {
+            sum = sum.add(BigDecimal.valueOf(attitude));
+            count++;
+        }
+        if (safety != null) {
+            sum = sum.add(BigDecimal.valueOf(safety));
+            count++;
+        }
+        if (compliance != null) {
+            sum = sum.add(BigDecimal.valueOf(compliance));
+            count++;
+        }
+        
+        if (count == 0) {
+            return BigDecimal.ZERO;
+        }
+        
+        return sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
+    }
+    
     private BigDecimal calculateAverage(List<DriverRatings> ratings, 
                                        java.util.function.Function<DriverRatings, Object> getter) {
         if (ratings.isEmpty()) {
@@ -234,10 +275,13 @@ public class RatingServiceImpl implements RatingService {
     }
 
     @Override
-    public List<TripForRatingResponse> getCompletedTripsForRating() {
-        log.info("Getting completed trips for rating");
+    public List<TripForRatingResponse> getCompletedTripsForRating(Integer branchId) {
+        log.info("Getting completed trips for rating, branchId: {}", branchId);
         
-        List<Trips> completedTrips = tripsRepository.findByStatusOrderByEndTimeDesc(TripStatus.COMPLETED);
+        List<Trips> completedTrips = tripsRepository.findByStatusAndBranchIdOrderByEndTimeDesc(
+            TripStatus.COMPLETED, 
+            branchId
+        );
         
         return completedTrips.stream()
             .map(this::mapTripToResponse)

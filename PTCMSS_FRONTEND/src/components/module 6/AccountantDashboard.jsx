@@ -31,6 +31,7 @@ import {
     rejectApprovalRequest,
 } from "../../api/notifications";
 import { getPendingPayments, confirmPayment } from "../../api/invoices";
+import { getPendingExpenseRequests, approveExpenseRequest, rejectExpenseRequest } from "../../api/expenses";
 import { getEmployeeByUserId } from "../../api/employees";
 import { getCurrentRole, getStoredUserId, ROLES } from "../../utils/session";
 
@@ -1452,17 +1453,33 @@ export default function AccountantDashboard() {
         setQueueLoading(true);
         setQueueError("");
         try {
-            const approvals = await getPendingApprovals(branchId || undefined);
-            const list = Array.isArray(approvals)
-                ? approvals
-                : approvals?.items || approvals?.data || [];
-            const expenseOnly = list.filter(
-                (item) => item.approvalType === "EXPENSE_REQUEST"
-            );
-            setApprovalQueue(expenseOnly);
+            // Sử dụng API riêng cho expense requests
+            const response = await getPendingExpenseRequests(branchId || undefined);
+            const list = Array.isArray(response)
+                ? response
+                : response?.data || response?.items || [];
+            
+            // Map expense requests sang format tương thích với QueueTable
+            const mappedQueue = list.map((expense) => ({
+                id: expense.id || expense.expenseRequestId,
+                approvalType: "EXPENSE_REQUEST",
+                requestedByName: expense.requesterName || expense.driverName || expense.creatorName || "—",
+                requestedAt: expense.createdAt || expense.requestedAt || expense.created_at,
+                details: {
+                    type: expense.type || expense.expenseType || "EXPENSE",
+                    amount: expense.amount || 0,
+                    note: expense.note || expense.description || "",
+                    requesterName: expense.requesterName || expense.driverName || expense.creatorName || "—",
+                    tripId: expense.tripId || null,
+                    bookingCode: expense.bookingCode || null,
+                },
+                branchName: expense.branchName || null,
+            }));
+            
+            setApprovalQueue(mappedQueue);
         } catch (err) {
-            console.error("Error loading approvals:", err);
-            setQueueError(err.message || "Không tải được hàng đợi duyệt chi.");
+            console.error("Error loading expense requests:", err);
+            setQueueError(err.message || "Không tải được hàng đợi duyệt chi phí.");
             setApprovalQueue([]);
         } finally {
             setQueueLoading(false);
@@ -1522,16 +1539,16 @@ export default function AccountantDashboard() {
     }, [approvalQueue, query, typeFilter]);
 
     const approveOne = React.useCallback(
-        async (historyId) => {
+        async (expenseRequestId) => {
             try {
-                console.log("[AccountantDashboard] Approving request:", historyId);
-                await approveApprovalRequest(historyId, {});
-                push(`Đã duyệt yêu cầu #${historyId}`, "success");
+                console.log("[AccountantDashboard] Approving expense request:", expenseRequestId);
+                await approveExpenseRequest(expenseRequestId);
+                push(`Đã duyệt yêu cầu chi phí #${expenseRequestId}`, "success");
                 // Reload both dashboard and queue
                 loadApprovalQueue();
                 loadDashboard();
             } catch (err) {
-                console.error("Approve request failed:", err);
+                console.error("Approve expense request failed:", err);
                 const errorMsg = err?.response?.data?.message || err.message || "Không thể duyệt yêu cầu";
                 push(errorMsg, "error");
             }
@@ -1540,16 +1557,16 @@ export default function AccountantDashboard() {
     );
 
     const rejectOne = React.useCallback(
-        async (historyId, reason) => {
+        async (expenseRequestId, reason) => {
             try {
-                console.log("[AccountantDashboard] Rejecting request:", historyId, reason);
-                await rejectApprovalRequest(historyId, { note: reason });
-                push(`Đã từ chối yêu cầu #${historyId}${reason ? " · " + reason : ""}`, "info");
+                console.log("[AccountantDashboard] Rejecting expense request:", expenseRequestId, reason);
+                await rejectExpenseRequest(expenseRequestId, reason || "");
+                push(`Đã từ chối yêu cầu chi phí #${expenseRequestId}${reason ? " · " + reason : ""}`, "info");
                 // Reload both dashboard and queue
                 loadApprovalQueue();
                 loadDashboard();
             } catch (err) {
-                console.error("Reject request failed:", err);
+                console.error("Reject expense request failed:", err);
                 const errorMsg = err?.response?.data?.message || err.message || "Không thể từ chối yêu cầu";
                 push(errorMsg, "error");
             }

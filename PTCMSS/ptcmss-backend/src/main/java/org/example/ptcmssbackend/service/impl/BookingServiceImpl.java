@@ -777,11 +777,15 @@ public class BookingServiceImpl implements BookingService {
      * 
      * 1. TÍNH THEO CHIỀU:
      *    a. Một chiều: CT = Số_km × PricePerKm + baseFee
-     *    b. Hai chiều: CT = Số_km × PricePerKm × 1.5 + baseFee
+     *    b. Hai chiều:
+     *       - Cùng ngày: CT = Số_km × PricePerKm × 1.5 + baseFee
+     *       - Khác ngày: CT = 2 × (Số_km × PricePerKm + baseFee) = 2 × Số_km × PricePerKm + 2 × baseFee
      * 
      * 2. TÍNH THEO NGÀY (DAILY):
-     *    CT = (Số_km × PricePerKm × 1.5) + (SameDayFixedPrice × Số_ngày) + BaseFee
-     *    Lưu ý: LUÔN tính km bất kể trong tỉnh hay liên tỉnh, 1 ngày hay nhiều ngày
+     *    - Nếu 1 ngày VÀ khoảng cách <= INTER_PROVINCE_DISTANCE_KM (100km):
+     *      CT = SameDayFixedPrice + BaseFee (KHÔNG tính km)
+     *    - Ngược lại:
+     *      CT = (Số_km × PricePerKm × 1.5) + (SameDayFixedPrice × Số_ngày) + BaseFee
      * 
      * 3. THUÊ NHIỀU NGÀY (MULTI_DAY):
      *    CT = (Số_km × PricePerKm × 1.5) + (SameDayFixedPrice × Số_ngày) + BaseFee
@@ -888,22 +892,28 @@ public class BookingServiceImpl implements BookingService {
             // Áp dụng công thức tính giá theo hình thức thuê
             if ("DAILY".equals(hireTypeCode)) {
                 // THUÊ THEO NGÀY:
-                // Công thức: km × PricePerKm × 1.5 + sameDayFixedPrice × số_ngày + baseFee
-                // LUÔN tính km bất kể trong tỉnh hay liên tỉnh, 1 ngày hay nhiều ngày
                 int days = Math.max(1, numberOfDays);
                 
-                // LUÔN tính km cost cho DAILY
-                BigDecimal kmCost = BigDecimal.ZERO;
+                // Đặc biệt: Nếu thuê 1 ngày VÀ trong bán kính 100km (<= INTER_PROVINCE_DISTANCE_KM)
+                // thì chỉ tính: sameDayFixedPrice + baseFee (KHÔNG tính km)
+                if (days == 1 && distance != null && distance <= interProvinceDistanceKm) {
+                    basePrice = sameDayFixedPrice.add(baseFee);
+                    log.debug("[Price] DAILY (1 ngày, <= {}km): sameDayFixedPrice={}, baseFee={}, total={} (KHÔNG tính km)", 
+                            interProvinceDistanceKm, sameDayFixedPrice, baseFee, basePrice);
+                } else {
+                    // Công thức thông thường: km × PricePerKm × 1.5 + sameDayFixedPrice × số_ngày + baseFee
+                    BigDecimal kmCost = BigDecimal.ZERO;
                     if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
                         kmCost = pricePerKm
                                 .multiply(BigDecimal.valueOf(distance))
                                 .multiply(roundTripMultiplier);
+                    }
+                    
+                    BigDecimal dailyCost = sameDayFixedPrice.multiply(BigDecimal.valueOf(days));
+                    basePrice = kmCost.add(dailyCost).add(baseFee);
+                    log.debug("[Price] DAILY: days={}, km={}, kmCost={}, dailyRate={}, dailyCost={}, baseFee={}, total={}", 
+                            days, distance, kmCost, sameDayFixedPrice, dailyCost, baseFee, basePrice);
                 }
-                
-                BigDecimal dailyCost = sameDayFixedPrice.multiply(BigDecimal.valueOf(days));
-                basePrice = kmCost.add(dailyCost).add(baseFee);
-                log.debug("[Price] DAILY: days={}, km={}, kmCost={}, dailyRate={}, dailyCost={}, baseFee={}, total={}", 
-                        days, distance, kmCost, sameDayFixedPrice, dailyCost, baseFee, basePrice);
                 
             } else if ("MULTI_DAY".equals(hireTypeCode) && numberOfDays > 1) {
                 // THUÊ NHIỀU NGÀY (đi xa): km × PricePerKm × 1.5 + sameDayFixedPrice × số_ngày + baseFee
@@ -930,15 +940,29 @@ public class BookingServiceImpl implements BookingService {
                         distance, pricePerKm, kmCost, baseFee, basePrice);
                 
             } else if ("ROUND_TRIP".equals(hireTypeCode)) {
-                // KHỨ HỒI: km × PricePerKm × 1.5 + baseFee
-                // LUÔN tính theo công thức này khi user chọn "Hai chiều", bất kể isSameDayTrip
-                BigDecimal kmCost = BigDecimal.ZERO;
-                if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
-                    kmCost = pricePerKm.multiply(BigDecimal.valueOf(distance)).multiply(roundTripMultiplier);
+                // KHỨ HỒI (Hai chiều):
+                // - Cùng ngày: km × PricePerKm × 1.5 + baseFee
+                // - Khác ngày: 2 × (km × PricePerKm + baseFee) = 2 × km × PricePerKm + 2 × baseFee
+                if (isSameDayTrip) {
+                    // Cùng ngày: tính như cũ
+                    BigDecimal kmCost = BigDecimal.ZERO;
+                    if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
+                        kmCost = pricePerKm.multiply(BigDecimal.valueOf(distance)).multiply(roundTripMultiplier);
+                    }
+                    basePrice = kmCost.add(baseFee);
+                    log.debug("[Price] ROUND_TRIP (cùng ngày): km={}, kmCost={}, multiplier={}, baseFee={}, total={}", 
+                            distance, kmCost, roundTripMultiplier, baseFee, basePrice);
+                } else {
+                    // Khác ngày: tính 2 lần ONE_WAY
+                    BigDecimal oneWayKmCost = BigDecimal.ZERO;
+                    if (distance != null && distance > 0 && pricePerKm.compareTo(BigDecimal.ZERO) > 0) {
+                        oneWayKmCost = pricePerKm.multiply(BigDecimal.valueOf(distance));
+                    }
+                    BigDecimal oneWayPrice = oneWayKmCost.add(baseFee);
+                    basePrice = oneWayPrice.multiply(BigDecimal.valueOf(2));
+                    log.debug("[Price] ROUND_TRIP (khác ngày): km={}, oneWayKmCost={}, oneWayPrice={}, basePrice (2x)={}", 
+                            distance, oneWayKmCost, oneWayPrice, basePrice);
                 }
-                basePrice = kmCost.add(baseFee);
-                log.debug("[Price] ROUND_TRIP: km={}, kmCost={}, multiplier={}, baseFee={}, total={}", 
-                        distance, kmCost, roundTripMultiplier, baseFee, basePrice);
                 
             } else if (isSameDayTrip && sameDayFixedPrice.compareTo(BigDecimal.ZERO) > 0 && hireTypeCode == null) {
                 // CHUYẾN TRONG NGÀY (chỉ áp dụng khi KHÔNG có hireType cụ thể)
@@ -2590,6 +2614,17 @@ public class BookingServiceImpl implements BookingService {
             
             // Nếu là ROUND_TRIP (Hai chiều), kiểm tra xem có phải trong ngày không
             if ("ROUND_TRIP".equals(hireTypeCode) && !trips.isEmpty()) {
+                // Loại bỏ suffix cũ nếu có (tránh duplicate: "Thuê 2 chiều (trong ngày) (khác ngày)")
+                String cleanBaseName = hireTypeName;
+                if (cleanBaseName != null) {
+                    if (cleanBaseName.contains(" (trong ngày)")) {
+                        cleanBaseName = cleanBaseName.replace(" (trong ngày)", "");
+                    }
+                    if (cleanBaseName.contains(" (khác ngày)")) {
+                        cleanBaseName = cleanBaseName.replace(" (khác ngày)", "");
+                    }
+                }
+                
                 // Lấy startTime sớm nhất và endTime muộn nhất từ tất cả trips
                 Instant startTime = trips.stream()
                         .map(Trips::getStartTime)
@@ -2606,10 +2641,13 @@ public class BookingServiceImpl implements BookingService {
                 if (startTime != null && endTime != null) {
                     boolean isSameDay = isSameDayTrip(startTime, endTime);
                     if (isSameDay) {
-                        hireTypeName = hireTypeName + " (trong ngày)";
+                        hireTypeName = cleanBaseName + " (trong ngày)";
                     } else {
-                        hireTypeName = hireTypeName + " (khác ngày)";
+                        hireTypeName = cleanBaseName + " (khác ngày)";
                     }
+                } else {
+                    // Nếu không có thời gian, giữ nguyên tên gốc (đã loại bỏ suffix)
+                    hireTypeName = cleanBaseName;
                 }
             }
         }

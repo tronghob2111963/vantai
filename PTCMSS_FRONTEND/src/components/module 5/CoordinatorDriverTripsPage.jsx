@@ -118,10 +118,9 @@ export default function CoordinatorDriverTripsPage() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState("");
 
-    // Filter states
+    // Filter states - mặc định không filter (hiển thị tất cả)
     const [startDate, setStartDate] = React.useState("");
     const [endDate, setEndDate] = React.useState("");
-    const [statusFilter, setStatusFilter] = React.useState("ALL");
 
     // Pagination
     const [currentPage, setCurrentPage] = React.useState(1);
@@ -143,18 +142,16 @@ export default function CoordinatorDriverTripsPage() {
             const driverResp = await getDriverProfile(driverId);
             setDriver(driverResp);
 
-            // Load trips with date filter
-            let start = null;
-            let end = null;
-
+            // Load trips - chỉ truyền filter thời gian khi user đã chọn
+            const params = {};
             if (startDate) {
-                start = new Date(startDate + "T00:00:00").toISOString();
+                params.startDate = new Date(startDate + "T00:00:00").toISOString();
             }
             if (endDate) {
-                end = new Date(endDate + "T23:59:59").toISOString();
+                params.endDate = new Date(endDate + "T23:59:59").toISOString();
             }
 
-            const tripsResp = await getDriverSchedule(driverId, start, end);
+            const tripsResp = await getDriverSchedule(driverId, params);
             const tripsList = Array.isArray(tripsResp?.data) ? tripsResp.data : (Array.isArray(tripsResp) ? tripsResp : []);
 
             // Sort by startTime descending (newest first)
@@ -173,11 +170,8 @@ export default function CoordinatorDriverTripsPage() {
         }
     };
 
-    // Filter trips by status
-    const filteredTrips = React.useMemo(() => {
-        if (statusFilter === "ALL") return trips;
-        return trips.filter((t) => t.status === statusFilter);
-    }, [trips, statusFilter]);
+    // Không filter theo status nữa - hiển thị tất cả
+    const filteredTrips = trips;
 
     // Pagination
     const totalPages = Math.max(1, Math.ceil(filteredTrips.length / pageSize));
@@ -187,15 +181,14 @@ export default function CoordinatorDriverTripsPage() {
     // Reset page when filter changes
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, startDate, endDate]);
+    }, [startDate, endDate]);
 
     const clearFilters = () => {
         setStartDate("");
         setEndDate("");
-        setStatusFilter("ALL");
     };
 
-    const hasActiveFilters = startDate || endDate || statusFilter !== "ALL";
+    const hasActiveFilters = startDate || endDate;
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 p-6">
@@ -286,21 +279,6 @@ export default function CoordinatorDriverTripsPage() {
                                 />
                             </div>
 
-                            {/* Status Filter */}
-                            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                <Clock className="h-4 w-4 text-slate-400 shrink-0" />
-                                <select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="flex-1 bg-transparent outline-none text-sm text-slate-700 cursor-pointer"
-                                >
-                                    <option value="ALL">Tất cả trạng thái</option>
-                                    <option value="SCHEDULED">Đã lên lịch</option>
-                                    <option value="ONGOING">Đang thực hiện</option>
-                                    <option value="COMPLETED">Hoàn thành</option>
-                                    <option value="CANCELLED">Đã hủy</option>
-                                </select>
-                            </div>
                         </div>
 
                         {/* Clear Filters */}

@@ -946,10 +946,24 @@ export default function CreateOrderPage() {
                 return;
             }
             
-            if (endDate <= startDate) {
-                setTimeError("Thời gian về phải sau thời gian đi");
+            // Đối với thuê theo ngày (DAILY / MULTI_DAY): chỉ cần ngày kết thúc >= ngày bắt đầu
+            if (hireType === "DAILY" || hireType === "MULTI_DAY") {
+                // So sánh chỉ ngày (bỏ qua giờ)
+                const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+                
+                if (endDay < startDay) {
+                    setTimeError("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu");
+                } else {
+                    setTimeError(""); // Clear error nếu hợp lệ
+                }
             } else {
-                setTimeError(""); // Clear error nếu hợp lệ
+                // ROUND_TRIP: cần thời gian về > thời gian đi (cả giờ)
+                if (endDate <= startDate) {
+                    setTimeError("Thời gian về phải sau thời gian đi");
+                } else {
+                    setTimeError(""); // Clear error nếu hợp lệ
+                }
             }
         } else {
             setTimeError(""); // Chưa đủ thông tin thì chưa validate
@@ -1372,27 +1386,39 @@ export default function CreateOrderPage() {
             if (hireType !== "ONE_WAY" && endTime) {
                 const endDate = new Date(endTime);
                 
-                // Check if end time is after start time
-                if (endDate <= startDate) {
-                    setTimeError("Thời gian về phải sau thời gian đi");
-                    push("Thời gian về phải sau thời gian đi", "error");
-                    return;
-                } else {
-                    setTimeError(""); // Clear error nếu hợp lệ
-                }
-
-                // Check minimum duration based on hire type
-                const durationHours = (endDate - startDate) / (1000 * 60 * 60);
-                let minDuration = 2; // Minimum 2 hours for round trip
-                
+                // Đối với thuê theo ngày (DAILY / MULTI_DAY): chỉ cần ngày kết thúc >= ngày bắt đầu
                 if (hireType === "DAILY" || hireType === "MULTI_DAY") {
-                    minDuration = 8; // Minimum 8 hours for daily hire
-                }
-                
-                if (durationHours < minDuration) {
-                    const hireTypeLabel = hireType === "ROUND_TRIP" ? "hai chiều" : "theo ngày";
-                    push(`Thời gian thuê ${hireTypeLabel} tối thiểu ${minDuration} giờ`, "error");
-                    return;
+                    // So sánh chỉ ngày (bỏ qua giờ)
+                    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+                    
+                    if (endDay < startDay) {
+                        setTimeError("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu");
+                        push("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu", "error");
+                        return;
+                    } else {
+                        setTimeError(""); // Clear error nếu hợp lệ
+                    }
+                    
+                    // Không check tối thiểu X giờ cho thuê theo ngày vì có case thuê trong ngày
+                } else {
+                    // ROUND_TRIP: cần thời gian về > thời gian đi (cả giờ)
+                    if (endDate <= startDate) {
+                        setTimeError("Thời gian về phải sau thời gian đi");
+                        push("Thời gian về phải sau thời gian đi", "error");
+                        return;
+                    } else {
+                        setTimeError(""); // Clear error nếu hợp lệ
+                    }
+
+                    // Check minimum duration for round trip
+                    const durationHours = (endDate - startDate) / (1000 * 60 * 60);
+                    const minDuration = 2; // Minimum 2 hours for round trip
+                    
+                    if (durationHours < minDuration) {
+                        push(`Thời gian thuê hai chiều tối thiểu ${minDuration} giờ`, "error");
+                        return;
+                    }
                 }
             }
         }
@@ -2102,10 +2128,25 @@ export default function CreateOrderPage() {
                                         if (newStartTime && endTime && hireType !== "ONE_WAY") {
                                             const startDate = new Date(newStartTime);
                                             const endDate = new Date(endTime);
-                                            if (endDate <= startDate) {
-                                                setTimeError("Thời gian về phải sau thời gian đi");
+                                            
+                                            // Đối với thuê theo ngày (DAILY / MULTI_DAY): chỉ cần ngày kết thúc >= ngày bắt đầu
+                                            if (hireType === "DAILY" || hireType === "MULTI_DAY") {
+                                                // So sánh chỉ ngày (bỏ qua giờ)
+                                                const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                                                const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+                                                
+                                                if (endDay < startDay) {
+                                                    setTimeError("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu");
+                                                } else {
+                                                    setTimeError("");
+                                                }
                                             } else {
-                                                setTimeError("");
+                                                // ROUND_TRIP: cần thời gian về > thời gian đi (cả giờ)
+                                                if (endDate <= startDate) {
+                                                    setTimeError("Thời gian về phải sau thời gian đi");
+                                                } else {
+                                                    setTimeError("");
+                                                }
                                             }
                                         } else {
                                             setTimeError("");
@@ -2155,10 +2196,25 @@ export default function CreateOrderPage() {
                                             if (newEndTime && startTime) {
                                                 const startDate = new Date(startTime);
                                                 const endDate = new Date(newEndTime);
-                                                if (endDate <= startDate) {
-                                                    setTimeError("Thời gian về phải sau thời gian đi");
+                                                
+                                                // Đối với thuê theo ngày (DAILY / MULTI_DAY): chỉ cần ngày kết thúc >= ngày bắt đầu
+                                                if (hireType === "DAILY" || hireType === "MULTI_DAY") {
+                                                    // So sánh chỉ ngày (bỏ qua giờ)
+                                                    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                                                    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+                                                    
+                                                    if (endDay < startDay) {
+                                                        setTimeError("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu");
+                                                    } else {
+                                                        setTimeError("");
+                                                    }
                                                 } else {
-                                                    setTimeError("");
+                                                    // ROUND_TRIP: cần thời gian về > thời gian đi (cả giờ)
+                                                    if (endDate <= startDate) {
+                                                        setTimeError("Thời gian về phải sau thời gian đi");
+                                                    } else {
+                                                        setTimeError("");
+                                                    }
                                                 }
                                             } else {
                                                 setTimeError("");

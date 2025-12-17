@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Star, Search, Filter, Calendar, User, MapPin, Phone } from 'lucide-react';
 import RateDriverDialog from './RateDriverDialog';
 import StarRating from '../common/StarRating';
@@ -6,8 +6,14 @@ import Pagination from '../common/Pagination';
 import CustomerTripsModal from '../common/CustomerTripsModal';
 import { getRatingByTrip, getCompletedTripsForRating } from '../../api/ratings';
 import { getCustomer, getCustomerBookings } from '../../api/customers';
+import { getBranchByUserId } from '../../api/branches';
+import { getCurrentRole, getStoredUserId, ROLES } from '../../utils/session';
 
 const RatingManagementPage = () => {
+    const role = useMemo(() => getCurrentRole(), []);
+    const userId = useMemo(() => getStoredUserId(), []);
+    const isBranchScoped = role === ROLES.MANAGER || role === ROLES.COORDINATOR || role === ROLES.CONSULTANT;
+    
     const [trips, setTrips] = useState([]);
     const [filteredTrips, setFilteredTrips] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -18,6 +24,10 @@ const RatingManagementPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
+    
+    // Branch state
+    const [branchId, setBranchId] = useState(null);
+    const [branchLoading, setBranchLoading] = useState(true);
 
     // Customer detail modal
     const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -26,9 +36,47 @@ const RatingManagementPage = () => {
     const [loadingCustomerTrips, setLoadingCustomerTrips] = useState(false);
     const [customerTripsError, setCustomerTripsError] = useState(null);
 
+    // Load branch for scoped users
     useEffect(() => {
+        if (!isBranchScoped) {
+            setBranchLoading(false);
+            return;
+        }
+        if (!userId) {
+            setBranchLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        async function loadBranch() {
+            setBranchLoading(true);
+            try {
+                const resp = await getBranchByUserId(Number(userId));
+                if (cancelled) return;
+                
+                // Try multiple possible response formats
+                const id = resp?.branchId ?? resp?.id ?? resp?.data?.branchId ?? resp?.data?.id ?? null;
+                
+                if (id) {
+                    setBranchId(id);
+                }
+            } catch (err) {
+                console.error("[RatingManagementPage] Error loading branch:", err);
+            } finally {
+                if (!cancelled) setBranchLoading(false);
+            }
+        }
+        loadBranch();
+        return () => { cancelled = true; };
+    }, [isBranchScoped, userId]);
+
+    useEffect(() => {
+        if (branchLoading) return;
+        // Nếu là branch scoped nhưng chưa có branchId, đợi thêm
+        if (isBranchScoped && !branchId) return;
+        // Nếu không phải branch scoped hoặc đã có branchId, load trips
         loadTrips();
-    }, []);
+    }, [branchId, branchLoading, isBranchScoped]);
 
     useEffect(() => {
         filterTrips();
@@ -37,8 +85,8 @@ const RatingManagementPage = () => {
     const loadTrips = async () => {
         setLoading(true);
         try {
-            // Call real API to get completed trips
-            const response = await getCompletedTripsForRating();
+            // Call real API to get completed trips with branchId filter if applicable
+            const response = await getCompletedTripsForRating(isBranchScoped ? branchId : null);
             let tripsData = response.data || response || [];
             
             // Double-check: chỉ lấy trips COMPLETED (phòng trường hợp API trả về sai)
