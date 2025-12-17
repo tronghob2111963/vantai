@@ -2199,7 +2199,7 @@ export default function CreateOrderPage() {
                                                 </div>
                                             </div>
                                             <div className="text-[11px] text-slate-500">
-                                                \(~{etaInfo.speed} km/h + {etaInfo.bufferMinutes}p buffer\)
+                                                Vận tốc: {etaInfo.speed} km/h • Dự phòng: {etaInfo.bufferMinutes} phút
                                             </div>
                                         </div>
 
