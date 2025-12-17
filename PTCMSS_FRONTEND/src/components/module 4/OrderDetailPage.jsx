@@ -1137,22 +1137,29 @@ function DispatchInfoCard({ dispatch, dispatchList = [], onAssignClick, showAssi
                         </div>
 
                         {/* Trạng thái điều phối */}
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-1">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2">
                             <div className="text-[11px] uppercase tracking-wide font-medium text-slate-500">
-                                Trạng thái điều
-                                phối
+                                Trạng thái điều phối
                             </div>
                             <div className="text-sm font-medium text-info-700 flex items-center gap-2">
                                 <CheckCircle2 className="h-4 w-4 text-info-600" />
-                                <span>
-                                    Đã phân xe
-                                </span>
+                                <span>Đã phân xe</span>
                             </div>
                             <div className="text-[11px] text-slate-500 leading-relaxed">
-                                Hệ thống đã gửi
-                                thông tin chuyến
-                                cho tài xế.
+                                Hệ thống đã gửi thông tin chuyến cho tài xế.
                             </div>
+
+                            {/* Nút đổi tài xế/xe cho Coordinator khi đơn ở trạng thái đã phân xe */}
+                            {showAssignButton && (
+                                <button
+                                    type="button"
+                                    onClick={onAssignClick}
+                                    className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-700 hover:border-sky-500 hover:text-sky-700 hover:bg-sky-50 transition-colors"
+                                >
+                                    <Truck className="h-3.5 w-3.5 text-sky-600" />
+                                    <span>Đổi tài xế / xe</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                     
@@ -1267,8 +1274,10 @@ export default function OrderDetailPage() {
             tripId: trip.id || trip.tripId || null,
             driver_name: trip.driverName || '',
             driver_phone: trip.driverPhone || '',
+            // Id tài xế/xe hiện tại (dùng cho reassign để lọc khỏi dropdown)
+            driver_id: trip.driverId || trip.driver_id || null,
             vehicle_plate: trip.vehicleLicensePlate || '',
-            vehicle_id: trip.vehicleId || null,
+            vehicle_id: trip.vehicleId || trip.vehicle_id || null,
             vehicle_category: idx < vehicleCategories.length ? vehicleCategories[idx] : '',
         }));
         
@@ -1757,6 +1766,17 @@ export default function OrderDetailPage() {
                             vehicle_type: vehicleCategoryForTrip,
                             vehicle_count: order.trip?.vehicle_count || 1,
                             branch_name: order.branch_name,
+                            // Thông tin tài xế/xe hiện tại của trip đang chọn (dùng cho reassign)
+                            driverId: (() => {
+                                if (!defaultTripId || !order.dispatchList) return null;
+                                const d = order.dispatchList.find(x => x.tripId === defaultTripId);
+                                return d && d.driver_id ? Number(d.driver_id) : null;
+                            })(),
+                            vehicleId: (() => {
+                                if (!defaultTripId || !order.dispatchList) return null;
+                                const d = order.dispatchList.find(x => x.tripId === defaultTripId);
+                                return d && d.vehicle_id ? Number(d.vehicle_id) : null;
+                            })(),
                         }}
                         onClose={() => setAssignDialogOpen(false)}
                         onAssigned={handleAssignSuccess}

@@ -272,6 +272,7 @@ export default function PendingTripsPage() {
                         branch_name: selectedTrip.branchName,
                         vehicle_count: selectedTrip.vehicleCount || (selectedTrip.tripIds ? selectedTrip.tripIds.length : 1),
                         route: `${selectedTrip.startLocation || '?'} → ${selectedTrip.endLocation || '?'}`,
+                        // PendingTrips chỉ gán mới nên không truyền driverId/vehicleId (không ở chế độ reassign)
                     }}
                     onClose={() => setAssignDialogOpen(false)}
                     onAssigned={handleAssigned}

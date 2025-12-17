@@ -61,6 +61,10 @@ export default function AssignDriverDialog({
     const bookingId = order?.bookingId;
     const vehicleCount = order?.vehicle_count || 1; // Số lượng xe trong booking
     const hasMixedVehicleCategories = !!order?.hasMixedVehicleCategories;
+
+    // Thông tin tài xế / xe hiện tại (nếu đang ở chế độ reassign)
+    const currentDriverId = order?.driverId ? Number(order.driverId) : null;
+    const currentVehicleId = order?.vehicleId ? Number(order.vehicleId) : null;
     
     // Tính số trips chưa gán (nếu có nhiều xe)
     const [unassignedTripCount, setUnassignedTripCount] = React.useState(0);
@@ -317,20 +321,28 @@ export default function AssignDriverDialog({
         };
     }, [open, tripId, order, multiMode, multiTripItems, tripIds]);
 
-    // danh sách tài xế (chỉ eligible)
+    // danh sách tài xế (chỉ eligible, và nếu đang reassign thì loại bỏ tài xế hiện tại)
     const driverOptions = React.useMemo(() => {
         const eligible = driverCandidates.filter(d => d.eligible);
         console.log(`[AssignDriverDialog] driverOptions computed:`, {
             totalCandidates: driverCandidates.length,
             eligibleCount: eligible.length,
+            currentDriverId,
         });
-        if (driverCandidates.length > 0 && eligible.length === 0) {
-            console.warn(`[AssignDriverDialog] All ${driverCandidates.length} drivers are not eligible!`, 
+        let filtered = eligible;
+        if (currentDriverId) {
+            filtered = eligible.filter(d => Number(d.id) !== Number(currentDriverId));
+            if (eligible.length !== filtered.length) {
+                console.log(`[AssignDriverDialog] Filtered out currently assigned driverId=${currentDriverId} from options`);
+            }
+        }
+        if (driverCandidates.length > 0 && filtered.length === 0) {
+            console.warn(`[AssignDriverDialog] All ${driverCandidates.length} drivers are not eligible after filtering!`, 
                 driverCandidates.map(d => ({ id: d.id, name: d.name, eligible: d.eligible, reasons: d.reasons }))
             );
         }
-        return eligible;
-    }, [driverCandidates]);
+        return filtered;
+    }, [driverCandidates, currentDriverId]);
 
     // Loại xe khách đã đặt (dùng để lọc danh sách xe phù hợp)
     // Ưu tiên lấy từ summary (từ API) vì đã được map đúng cho trip này
@@ -341,15 +353,23 @@ export default function AssignDriverDialog({
         order?.vehicleType ||
         null;
     
-    // danh sách xe (chỉ eligible & đúng loại xe mà khách đặt)
+    // danh sách xe (chỉ eligible & đúng loại xe mà khách đặt, và loại bỏ xe hiện đang gán nếu reassign)
     const vehicleOptions = React.useMemo(() => {
-        return vehicleCandidates.filter(v => {
+        const base = vehicleCandidates.filter(v => {
             if (!v.eligible) return false;
             if (!expectedVehicleType) return true;
             const vType = v.type || v.categoryName || v.vehicleType || "";
             return vType === expectedVehicleType;
         });
-    }, [vehicleCandidates, expectedVehicleType]);
+        if (currentVehicleId) {
+            const filtered = base.filter(v => Number(v.id) !== Number(currentVehicleId));
+            if (base.length !== filtered.length) {
+                console.log(`[AssignDriverDialog] Filtered out currently assigned vehicleId=${currentVehicleId} from options`);
+            }
+            return filtered;
+        }
+        return base;
+    }, [vehicleCandidates, expectedVehicleType, currentVehicleId]);
     
     // Helper: Lấy vehicle options cho một trip cụ thể trong multi-mode
     const getVehicleOptionsForTrip = React.useCallback((tripId) => {
@@ -518,7 +538,7 @@ export default function AssignDriverDialog({
         setPosting(true);
         setError(""); // Clear previous error
         try {
-            // Check if trip already has assignment (reassign) or new assignment
+            // Check if trip already has assignment (reassign) hoặc gán mới
             const isReassign = order?.driverId || order?.vehicleId;
             
             // Xác định trips cần gán
@@ -536,8 +556,10 @@ export default function AssignDriverDialog({
             
             if (isReassign && tripId) {
                 // Use reassign API - chỉ reassign 1 trip tại một thời điểm
+                // QUAN TRỌNG: luôn truyền bookingId để backend không báo lỗi "Mã đơn hàng là bắt buộc"
                 const result = await reassignTrips({
-                    tripId: Number(tripId),
+                    bookingId: Number(bookingId),
+                    tripIds: [Number(tripId)],
                     driverId: Number(driverId),
                     vehicleId: Number(vehicleId),
                     note: "Reassign từ dialog",

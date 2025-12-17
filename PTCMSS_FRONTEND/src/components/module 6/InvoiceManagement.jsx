@@ -68,27 +68,97 @@ function ConfirmModal({
 
     if (!open) return null;
 
+    const isDestructive =
+        requireReason ||
+        (typeof title === "string" &&
+            /từ chối|chưa nhận/i.test(title));
+
+    const HeaderIcon = isDestructive ? AlertTriangle : CheckCircle;
+
+    const renderMessage = () => {
+        if (React.isValidElement(message)) {
+            return message;
+        }
+
+        if (typeof message === "string") {
+            const lines = message.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+            if (!lines.length) return null;
+
+            return (
+                <div className="space-y-1.5">
+                    {lines.map((line, idx) => (
+                        <p
+                            key={idx}
+                            className={idx === 0 ? "font-medium text-slate-900" : "text-slate-700"}
+                        >
+                            {line}
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+
+        // Fallback: hiển thị object dưới dạng JSON
+        if (message != null) {
+            try {
+                return (
+                    <pre className="text-xs bg-slate-50 text-slate-700 rounded-md px-3 py-2 overflow-x-auto">
+                        {JSON.stringify(message, null, 2)}
+                    </pre>
+                );
+            } catch {
+                return <div className="text-sm text-slate-700">{String(message)}</div>;
+            }
+        }
+
+        return null;
+    };
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             onClick={onCancel}
         >
             <div
-                className="w-full max-w-md rounded-xl bg-white border border-slate-200 text-slate-900 shadow-xl"
+                className="w-full max-w-md rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* header */}
-                <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
-                    <div className="font-semibold text-slate-900">
-                        {title}
+                <div
+                    className={cls(
+                        "px-5 py-4 border-b flex items-center gap-3",
+                        isDestructive
+                            ? "bg-rose-50 border-rose-100 text-rose-700"
+                            : "bg-sky-50 border-sky-100 text-sky-700"
+                    )}
+                >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 shadow-sm">
+                        <HeaderIcon
+                            className={cls(
+                                "h-5 w-5",
+                                isDestructive ? "text-rose-600" : "text-sky-600"
+                            )}
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <div className="font-semibold text-sm md:text-base">
+                            {title}
+                        </div>
+                        {isDestructive && (
+                            <span className="text-xs md:text-[11px] opacity-80">
+                                Hành động này có thể không thể hoàn tác.
+                            </span>
+                        )}
                     </div>
                 </div>
 
                 {/* body */}
-                <div className="px-5 py-4 text-sm text-slate-700 space-y-3">
-                    <div className="flex items-start gap-2">
+                <div className="px-5 py-4 text-sm text-slate-700 space-y-4">
+                    <div className="flex items-start gap-3">
                         <Info className="h-4 w-4 mt-0.5 text-slate-400 flex-shrink-0" />
-                        <div className="flex-1">{message}</div>
+                        <div className="flex-1">
+                            {renderMessage()}
+                        </div>
                     </div>
 
                     {requireReason ? (
@@ -110,7 +180,12 @@ function ConfirmModal({
                 </div>
 
                 {/* footer */}
-                <div className="px-5 py-3 border-t border-slate-200 bg-slate-50/50 flex justify-end gap-2">
+                <div className="px-5 py-3 border-t border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    {requireReason && (
+                        <p className="text-[11px] text-slate-500">
+                            Vui lòng ghi rõ lý do để hệ thống lưu lại cho việc đối soát sau này.
+                        </p>
+                    )}
                     <button
                         onClick={onCancel}
                         className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
@@ -125,7 +200,12 @@ function ConfirmModal({
                                     : undefined
                             )
                         }
-                        className="rounded-md bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 text-sm font-medium shadow-sm transition-colors"
+                        className={cls(
+                            "rounded-md px-3 py-2 text-sm font-medium shadow-sm transition-colors",
+                            isDestructive
+                                ? "bg-rose-600 hover:bg-rose-500 text-white"
+                                : "bg-sky-600 hover:bg-sky-500 text-white"
+                        )}
                     >
                         Xác nhận
                     </button>
