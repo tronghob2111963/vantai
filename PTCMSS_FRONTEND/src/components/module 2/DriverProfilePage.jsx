@@ -462,7 +462,7 @@ export default function DriverProfilePage() {
      RENDER
   =========================================== */
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/40 to-emerald-50/40 text-slate-900 p-6">
       <Toasts toasts={toasts} />
 
       {/* Error banner */}
@@ -481,7 +481,9 @@ export default function DriverProfilePage() {
       {!loading && profile && (
         <>
           {/* ================= HERO CARD ================= */}
-          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 p-6 mb-8">
+          <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-100 bg-gradient-to-r from-white/90 via-emerald-50 to-sky-50 shadow-xl shadow-emerald-100/50 p-6 mb-8">
+            <div className="absolute -right-12 -top-12 w-44 h-44 bg-emerald-200/30 rounded-full blur-3xl" />
+            <div className="absolute -left-10 bottom-0 w-32 h-32 bg-sky-200/25 rounded-full blur-2xl" />
             <div className="relative flex flex-col lg:flex-row lg:items-start gap-6">
               {/* Avatar + info */}
               <div className="flex items-start gap-4 min-w-[220px]">
