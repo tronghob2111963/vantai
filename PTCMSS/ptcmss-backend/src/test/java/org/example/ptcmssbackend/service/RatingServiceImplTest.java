@@ -70,7 +70,7 @@ class RatingServiceImplTest {
         Users user = createTestUser(userId);
 
         when(tripsRepository.findById(200)).thenReturn(Optional.of(trip));
-        when(tripDriversRepository.findMainDriverByTripId(200)).thenReturn(Optional.of(tripDriver));
+        when(tripDriversRepository.findFirstMainDriverByTripId(200)).thenReturn(tripDriver);
         when(ratingsRepository.findByTrip_Id(200)).thenReturn(Optional.empty());
         when(usersRepository.findById(userId)).thenReturn(Optional.of(user));
         when(ratingsRepository.save(any())).thenAnswer(inv -> {
@@ -281,7 +281,7 @@ class RatingServiceImplTest {
         List<Trips> trips = List.of(trip1, trip2);
 
         when(tripsRepository.findByStatusOrderByEndTimeDesc(TripStatus.COMPLETED)).thenReturn(trips);
-        when(tripDriversRepository.findMainDriverByTripId(anyInt())).thenReturn(Optional.empty());
+        when(tripDriversRepository.findFirstMainDriverByTripId(anyInt())).thenReturn(null);
 
         // When
         List<TripForRatingResponse> result = ratingService.getCompletedTripsForRating();
