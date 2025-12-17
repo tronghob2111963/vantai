@@ -27,15 +27,15 @@ export default function CoordinatorOrderListPage() {
     const [branchLoading, setBranchLoading] = useState(true);
     const [branchError, setBranchError] = useState("");
 
-    // Time filter - Default to today (local) to avoid timezone drift
+     // Time filter - Default to empty (all dates); user có thể chọn "Hôm nay" khi cần
     const toLocalDateInput = () => {
         const d = new Date();
         d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
         return d.toISOString().slice(0, 10);
     };
     const today = toLocalDateInput();
-    const [startDate, setStartDate] = useState(today);
-    const [endDate, setEndDate] = useState(today);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
     // Load branch for scoped users
     useEffect(() => {

@@ -232,22 +232,40 @@ function TripCard({
 }) {
   if (!activeTrip) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 p-6">
-        <div className="flex flex-col gap-4">
-          <div>
-            <div className="text-sm text-slate-500">Không có chuyến nào sắp tới</div>
-            <div className="text-xl font-semibold text-slate-900 mt-1">
-              Bạn đang rảnh 🎉
+      <div className="rounded-2xl border-2 border-emerald-200/60 bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 shadow-xl shadow-emerald-100/50 p-8 relative overflow-hidden">
+        {/* Decorative background elements */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-200/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="flex flex-col gap-5 relative z-10">
+          <div className="flex items-start gap-4">
+            {/* Icon với background vui tươi */}
+            <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-400 shadow-lg shadow-emerald-200/50 flex items-center justify-center">
+              <span className="text-3xl">😌</span>
             </div>
-            <div className="text-xs text-slate-500 mt-2 leading-relaxed">
-              Khi Điều phối gán chuyến, thông tin sẽ hiện ở đây.
+            
+            <div className="flex-1">
+              <div className="text-sm font-medium text-emerald-700 mb-1.5">
+                Không có chuyến nào sắp tới
+              </div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent mt-1">
+                Bạn đang rảnh 🎉
+              </div>
+              <div className="text-sm text-emerald-700/80 mt-3 leading-relaxed">
+                Khi Điều phối gán chuyến, thông tin sẽ hiện ở đây.
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-            <span className="rounded-lg border border-slate-300 bg-slate-100 px-2 py-1 text-slate-600">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <span className="inline-flex items-center gap-2 rounded-xl border-2 border-emerald-300/60 bg-white/80 backdrop-blur-sm px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Chờ phân công
             </span>
+            <div className="flex items-center gap-1 text-xs text-emerald-600/70">
+              <span>✨</span>
+              <span>Thời gian nghỉ ngơi</span>
+            </div>
           </div>
         </div>
       </div>
@@ -473,17 +491,49 @@ function TripCard({
 
 /* ---------------- Stats Card ---------------- */
 function StatsCard({ icon: Icon, label, value, sublabel }) {
+  const palette = {
+    "Số chuyến hôm nay": {
+      bg: "from-sky-50 to-cyan-50",
+      border: "border-sky-200",
+      iconBg: "bg-white/70",
+      iconColor: "text-sky-600",
+      valueColor: "text-sky-900",
+    },
+    "Số chuyến trong tháng": {
+      bg: "from-indigo-50 to-purple-50",
+      border: "border-indigo-200",
+      iconBg: "bg-white/70",
+      iconColor: "text-indigo-600",
+      valueColor: "text-indigo-900",
+    },
+    "Số buổi nghỉ trong tháng": {
+      bg: "from-amber-50 to-orange-50",
+      border: "border-amber-200",
+      iconBg: "bg-white/70",
+      iconColor: "text-amber-600",
+      valueColor: "text-amber-900",
+    },
+  };
+  const c =
+    palette[label] || {
+      bg: "from-slate-50 to-slate-50",
+      border: "border-slate-200",
+      iconBg: "bg-white",
+      iconColor: "text-slate-600",
+      valueColor: "text-slate-900",
+    };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className={`rounded-2xl border-2 ${c.border} bg-gradient-to-br ${c.bg} p-4 shadow-md shadow-slate-200/50`}>
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center">
-          <Icon className="h-5 w-5 text-[#0079BC]" />
+        <div className={`h-11 w-11 rounded-xl ${c.iconBg} flex items-center justify-center`}>
+          <Icon className={`h-5 w-5 ${c.iconColor}`} />
         </div>
         <div className="flex-1">
-          <div className="text-xs text-slate-500">{label}</div>
-          <div className="text-2xl font-semibold text-slate-900">{value}</div>
+          <div className="text-xs font-medium text-slate-600">{label}</div>
+          <div className={`text-2xl font-bold ${c.valueColor}`}>{value}</div>
           {sublabel && (
-            <div className="text-xs text-slate-500 mt-0.5">{sublabel}</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">{sublabel}</div>
           )}
         </div>
       </div>
@@ -865,29 +915,36 @@ export default function DriverDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/40 to-emerald-50/40 text-slate-900 p-6">
       <Toasts toasts={toasts} />
 
       {/* HEADER */}
       <div className="flex flex-wrap items-start gap-4 mb-6">
-        <div className="flex items-start gap-3 min-w-[200px]">
-          <DriverAvatar name={driverName} />
-
-          <div className="flex flex-col leading-tight">
-            <div className="text-sm text-slate-600">
-              Xin chào,
-              <span className="text-slate-900 font-semibold ml-1">
-                {driverName}
-              </span>
-            </div>
-
-            <div className="text-[11px] text-slate-500 leading-relaxed">
-              {branchName}
-            </div>
-
-            <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-info-300 bg-info-50 px-2 py-1 text-[11px] text-info-700 font-medium shadow-sm">
-              <span className="inline-flex h-2 w-2 rounded-full bg-info-500 animate-pulse" />
-              Sẵn sàng nhận chuyến
+        <div className="flex-1 min-w-[240px]">
+          <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-100 bg-gradient-to-r from-white/90 via-emerald-50 to-sky-50 shadow-xl shadow-emerald-100/40 p-5">
+            <div className="absolute -right-10 -top-10 w-36 h-36 bg-emerald-200/30 rounded-full blur-3xl" />
+            <div className="absolute -left-8 bottom-0 w-28 h-28 bg-sky-200/25 rounded-full blur-2xl" />
+            <div className="relative flex items-start gap-4">
+              <DriverAvatar name={driverName} />
+              <div className="flex flex-col leading-tight">
+                <div className="text-sm text-emerald-700">
+                  Xin chào,
+                  <span className="text-slate-900 font-semibold ml-1">
+                    {driverName}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 leading-relaxed">
+                  {branchName}
+                </div>
+                <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white/70 backdrop-blur px-3 py-1.5 text-[11px] text-emerald-700 font-semibold shadow-sm">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Sẵn sàng nhận chuyến
+                  <span className="text-lg leading-none">✨</span>
+                </div>
+                <div className="mt-2 text-xs text-emerald-700/80">
+                  Tâm trạng: vui tươi, sẵn sàng nhận chuyến mới!
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -30,21 +30,36 @@ const SEVERITIES = [
   {
     value: "MINOR",
     label: "Nhẹ",
-    color: "text-blue-700 bg-blue-50 border-blue-200",
+    color: "text-emerald-700",
+    bgColor: "bg-gradient-to-br from-emerald-50 to-green-50",
+    borderColor: "border-emerald-300",
+    borderColorSelected: "border-emerald-500",
+    iconColor: "text-emerald-600",
+    shadowColor: "shadow-emerald-100",
     icon: Info,
     description: "Sự cố nhỏ, không ảnh hưởng đến an toàn"
   },
   {
     value: "MAJOR",
     label: "Trung bình",
-    color: "text-info-700 bg-info-50 border-info-200",
+    color: "text-amber-700",
+    bgColor: "bg-gradient-to-br from-amber-50 to-orange-50",
+    borderColor: "border-amber-300",
+    borderColorSelected: "border-amber-500",
+    iconColor: "text-amber-600",
+    shadowColor: "shadow-amber-100",
     icon: AlertCircle,
     description: "Sự cố cần xử lý, có thể ảnh hưởng đến lịch trình"
   },
   {
     value: "CRITICAL",
     label: "Nghiêm trọng",
-    color: "text-rose-700 bg-rose-50 border-rose-200",
+    color: "text-red-700",
+    bgColor: "bg-gradient-to-br from-red-50 to-rose-50",
+    borderColor: "border-red-300",
+    borderColorSelected: "border-red-500",
+    iconColor: "text-red-600",
+    shadowColor: "shadow-red-100",
     icon: AlertTriangle,
     description: "Sự cố nghiêm trọng, cần xử lý khẩn cấp"
   },
@@ -123,10 +138,10 @@ const getSeverityLabel = (severity) => {
 };
 
 const SEVERITY_COLORS = {
-  MINOR: { color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" },
+  MINOR: { color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
   NORMAL: { color: "text-slate-700", bg: "bg-slate-50", border: "border-slate-200" },
-  MAJOR: { color: "text-info-700", bg: "bg-info-50", border: "border-info-200" },
-  CRITICAL: { color: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200" },
+  MAJOR: { color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
+  CRITICAL: { color: "text-red-700", bg: "bg-red-50", border: "border-red-200" },
 };
 
 export default function DriverIncidentManagementPage() {
@@ -158,6 +173,7 @@ export default function DriverIncidentManagementPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [tripsLoaded, setTripsLoaded] = useState(false);
 
   // Format time helper
   const fmtHM = (iso) => {
@@ -187,11 +203,7 @@ export default function DriverIncidentManagementPage() {
         const data = await getDriverProfileByUser(Number(userId));
         if (cancelled) return;
         setDriver(data);
-        
-        // Load current trip and available trips
-        if (data?.driverId) {
-          await loadTrips(data.driverId);
-        }
+        // Không load trips ngay, chỉ load khi user vào tab "report"
       } catch (err) {
         if (cancelled) return;
         console.error("Không tải được thông tin tài xế:", err);
@@ -204,7 +216,7 @@ export default function DriverIncidentManagementPage() {
     };
   }, [userId]);
 
-  // Load trips for reporting
+  // Load trips for reporting - chỉ load khi vào tab "report"
   const loadTrips = async (driverId) => {
     try {
       const dash = await getDriverDashboard(driverId);
@@ -237,11 +249,28 @@ export default function DriverIncidentManagementPage() {
         setTripSelectionMode("dropdown");
       }
 
-      const schedule = await getDriverSchedule(driverId);
+      // Tối ưu: chỉ load schedule trong khoảng thời gian cần thiết (hôm qua đến 2 giờ sau)
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const yesterday = new Date(today);
+      const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
+      const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      
+      const toLocalDateInput = (date) => {
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+      
+      const schedule = await getDriverSchedule(driverId, {
+        startDate: toLocalDateInput(yesterday),
+        endDate: toLocalDateInput(twoHoursLater),
+      });
+      
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterdayDate = new Date(today);
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
       
       const reportableTrips = Array.isArray(schedule)
         ? schedule
@@ -258,9 +287,9 @@ export default function DriverIncidentManagementPage() {
               
               const isYesterdayOngoing =
                 tripStatus === "ONGOING" &&
-                tripDate.getDate() === yesterday.getDate() &&
-                tripDate.getMonth() === yesterday.getMonth() &&
-                tripDate.getFullYear() === yesterday.getFullYear();
+                tripDate.getDate() === yesterdayDate.getDate() &&
+                tripDate.getMonth() === yesterdayDate.getMonth() &&
+                tripDate.getFullYear() === yesterdayDate.getFullYear();
               
               const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
               const isUpcoming = tripDate <= twoHoursFromNow && tripDate >= now;
@@ -289,6 +318,7 @@ export default function DriverIncidentManagementPage() {
       setAvailableTrips(reportableTrips);
     } catch (err) {
       console.error("Lỗi khi tải danh sách chuyến đi:", err);
+      throw err;
     }
   };
 
@@ -345,11 +375,23 @@ export default function DriverIncidentManagementPage() {
     setLocationSuggestions([]);
   };
 
+  // Load trips khi chuyển sang tab "report" (lazy load)
+  useEffect(() => {
+    if (activeTab === "report" && driver?.driverId && !driverLoading && !tripsLoaded) {
+      loadTrips(driver.driverId).then(() => {
+        setTripsLoaded(true);
+      }).catch(() => {
+        setTripsLoaded(false);
+      });
+    }
+  }, [activeTab, driver?.driverId, driverLoading, tripsLoaded]);
+
   // Load incidents list
   useEffect(() => {
     if (driverLoading || !driver?.driverId || activeTab !== "list") return;
     fetchIncidents();
-  }, [driver, driverLoading, filter, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driver?.driverId, driverLoading, filter, activeTab]);
 
   const fetchIncidents = async () => {
     if (!driver?.driverId) return;
@@ -558,7 +600,6 @@ export default function DriverIncidentManagementPage() {
         <button
           onClick={() => {
             setActiveTab("list");
-            if (driver?.driverId) fetchIncidents();
           }}
           className={`px-6 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
             activeTab === "list"
@@ -709,27 +750,45 @@ export default function DriverIncidentManagementPage() {
                   <Info className="h-4 w-4 text-slate-400" />
                   Mức độ nghiêm trọng <span className="text-rose-500">*</span>
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {SEVERITIES.map((sev) => {
                     const Icon = sev.icon;
+                    const isSelected = severity === sev.value;
                     return (
                       <button
                         key={sev.value}
                         type="button"
                         onClick={() => setSeverity(sev.value)}
-                        className={`p-4 border-2 rounded-lg text-left transition-all ${
-                          severity === sev.value
-                            ? `${sev.color} border-current shadow-md`
-                            : "border-slate-200 hover:border-slate-300 bg-white"
+                        className={`relative p-5 border-2 rounded-xl text-left transition-all duration-200 ${
+                          isSelected
+                            ? `${sev.bgColor} ${sev.borderColorSelected} ${sev.shadowColor} shadow-lg scale-[1.02]`
+                            : `${sev.bgColor} ${sev.borderColor} hover:${sev.borderColorSelected} hover:shadow-md bg-white`
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          <Icon className={`h-5 w-5 ${severity === sev.value ? sev.color.split(' ')[0] : 'text-slate-400'}`} />
-                          <div className="flex-1">
-                            <div className="font-medium">{sev.label}</div>
-                            <div className="text-xs mt-1">{sev.description}</div>
+                        <div className="flex items-start gap-4">
+                          <div className={`flex-shrink-0 p-2.5 rounded-lg transition-colors ${
+                            isSelected 
+                              ? `bg-white/60 ${sev.iconColor}` 
+                              : "bg-slate-100 text-slate-400"
+                          }`}>
+                            <Icon className={`h-5 w-5 ${isSelected ? sev.iconColor : 'text-slate-400'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-semibold text-base mb-1.5 ${isSelected ? sev.color : 'text-slate-700'}`}>
+                              {sev.label}
+                            </div>
+                            <div className={`text-xs leading-relaxed ${isSelected ? 'text-slate-600' : 'text-slate-500'}`}>
+                              {sev.description}
+                            </div>
                           </div>
                         </div>
+                        {isSelected && (
+                          <div className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${
+                            sev.value === "MINOR" ? "bg-emerald-500" :
+                            sev.value === "MAJOR" ? "bg-amber-500" :
+                            "bg-red-500"
+                          } shadow-sm ring-2 ring-white`} />
+                        )}
                       </button>
                     );
                   })}

@@ -2089,8 +2089,9 @@ export default function ConsultantOrdersPage() {
     }, [location, navigate, push, fetchBookings]);
 
     // paging / sort
-    const [sortKey, setSortKey] =
-        React.useState("created_at");
+    // Mặc định sắp xếp theo mã đơn (mã lớn hơn = đơn mới hơn) giảm dần
+    // để đảm bảo danh sách đơn của tư vấn viên hiển thị đúng thứ tự như mong muốn.
+    const [sortKey, setSortKey] = React.useState("code");
     const [sortDir, setSortDir] = React.useState("desc");
     const [page, setPage] = React.useState(1);
     const [pageSize, setPageSize] = React.useState(10);

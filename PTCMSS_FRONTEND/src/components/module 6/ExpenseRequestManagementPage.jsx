@@ -50,6 +50,21 @@ const STATUS_LABELS = {
     REJECTED: "Đã từ chối",
 };
 
+// Chuẩn hoá URL ảnh chứng từ để luôn truy cập đúng backend (kể cả khi chỉ lưu relative path)
+const buildImageUrl = (path) => {
+    if (!path) return "";
+    const raw = String(path).trim();
+    if (!raw) return "";
+
+    // Nếu đã là absolute URL (http/https) thì dùng luôn
+    if (/^https?:\/\//i.test(raw)) return raw;
+
+    // Ngược lại: ghép với API_BASE (backend) để tránh trỏ nhầm sang origin của frontend (5173)
+    const apiBase = (import.meta?.env?.VITE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
+    const normalizedPath = raw.startsWith("/") ? raw : `/${raw}`;
+    return `${apiBase}${normalizedPath}`;
+};
+
 function StatusBadge({ status }) {
     return (
         <span
@@ -375,6 +390,9 @@ export default function ExpenseRequestManagementPage() {
                                                   .map((s) => s.trim())
                                                   .filter(Boolean)
                                             : [];
+                                    const imageUrls = images
+                                        .map((u) => buildImageUrl(u))
+                                        .filter(Boolean);
 
                                     return (
                                         <tr key={req.id} className="hover:bg-gray-50 align-top">
@@ -397,14 +415,14 @@ export default function ExpenseRequestManagementPage() {
                                                 {req.requesterName || "—"}
                                             </td>
                                             <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
-                                                {images.length === 0 ? (
+                                                {imageUrls.length === 0 ? (
                                                     <span className="inline-flex items-center gap-1 text-gray-400">
                                                         <ImageIcon className="h-3.5 w-3.5" />
                                                         <span>Không có</span>
                                                     </span>
                                                 ) : (
                                                     <div className="flex flex-wrap gap-1 max-w-[160px]">
-                                                        {images.slice(0, 3).map((url, idx) => (
+                                                        {imageUrls.slice(0, 3).map((url, idx) => (
                                                             <button
                                                                 key={idx}
                                                                 type="button"
@@ -420,9 +438,9 @@ export default function ExpenseRequestManagementPage() {
                                                                 <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                                                             </button>
                                                         ))}
-                                                        {images.length > 3 && (
+                                                        {imageUrls.length > 3 && (
                                                             <div className="flex items-center justify-center h-10 px-2 rounded-md border border-dashed border-gray-300 text-[11px] text-gray-500 bg-gray-50">
-                                                                +{images.length - 3} ảnh
+                                                                +{imageUrls.length - 3} ảnh
                                                             </div>
                                                         )}
                                                     </div>
@@ -544,8 +562,11 @@ export default function ExpenseRequestManagementPage() {
                                                   .map((s) => s.trim())
                                                   .filter(Boolean)
                                             : [];
+                                    const imageUrls = images
+                                        .map((u) => buildImageUrl(u))
+                                        .filter(Boolean);
 
-                                    if (!images.length) return null;
+                                    if (!imageUrls.length) return null;
 
                                     return (
                                         <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
@@ -554,7 +575,7 @@ export default function ExpenseRequestManagementPage() {
                                                 <span>Ảnh chứng từ</span>
                                             </div>
                                             <div className="grid grid-cols-3 gap-2">
-                                                {images.map((url, idx) => (
+                                                {imageUrls.map((url, idx) => (
                                                     <button
                                                         key={idx}
                                                         type="button"

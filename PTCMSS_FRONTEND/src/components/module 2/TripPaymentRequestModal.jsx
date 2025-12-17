@@ -119,12 +119,7 @@ export default function TripPaymentRequestModal({
     }
   }, [open, calculatedRemainingAmount]);
 
-  // Khi chọn TRANSFER, tự động set amount = remaining amount
-  React.useEffect(() => {
-    if (paymentMethod === "TRANSFER" && calculatedRemainingAmount.amount > 0) {
-      setAmountStr(String(calculatedRemainingAmount.amount));
-    }
-  }, [paymentMethod, calculatedRemainingAmount.amount]);
+  // Cho phép chỉnh số tiền cả với CHUYỂN KHOẢN (không auto-lock theo remaining)
 
   async function loadPaymentHistory() {
     setHistoryLoading(true);
@@ -182,17 +177,13 @@ export default function TripPaymentRequestModal({
   const amount = Number(cleanDigits(amountStr || "") || 0);
   
   // Validation:
-  // 1. Không được tạo yêu cầu mới nếu đã có yêu cầu PENDING
-  // 2. Tổng pending + amount mới <= remaining amount
-  const canCreateNewRequest = !calculatedRemainingAmount.hasPending;
+  // Cho phép tạo nhiều request nếu tổng PENDING + request mới <= số tiền cần thu ban đầu
   const totalWithNewAmount = calculatedRemainingAmount.pendingTotal + amount;
   const exceedsRemaining = totalWithNewAmount > calculatedRemainingAmount.originalRemaining;
   
   const valid = amount > 0 
-    && amount <= calculatedRemainingAmount.amount 
     && paymentMethod 
     && !calculatedRemainingAmount.isOverLimit
-    && canCreateNewRequest
     && !exceedsRemaining;
 
   async function handleSubmit() {
@@ -203,16 +194,14 @@ export default function TripPaymentRequestModal({
     }
 
     if (!valid) {
-      if (calculatedRemainingAmount.hasPending) {
-        setError(`Không thể tạo yêu cầu mới. Đã có ${calculatedRemainingAmount.pendingCount} yêu cầu thanh toán đang chờ duyệt (tổng ${fmtVND(calculatedRemainingAmount.pendingTotal)}đ). Vui lòng đợi kế toán xác nhận các yêu cầu trước.`);
+      if (exceedsRemaining) {
+        setError(`Tổng số tiền yêu cầu (${fmtVND(totalWithNewAmount)}đ) vượt quá số tiền cần thu (${fmtVND(calculatedRemainingAmount.originalRemaining)}đ). Hiện đang có ${fmtVND(calculatedRemainingAmount.pendingTotal)}đ chờ duyệt.`);
       } else if (calculatedRemainingAmount.isOverLimit) {
-        setError(`Đã có ${fmtVND(calculatedRemainingAmount.pendingTotal)}đ đang chờ duyệt, vượt quá số tiền còn lại (${fmtVND(calculatedRemainingAmount.originalRemaining)}đ). Vui lòng đợi kế toán xác nhận các yêu cầu trước.`);
-      } else if (totalWithNewAmount > calculatedRemainingAmount.originalRemaining) {
-        setError(`Tổng số tiền yêu cầu (${fmtVND(calculatedRemainingAmount.pendingTotal + amount)}đ) vượt quá số tiền còn lại (${fmtVND(calculatedRemainingAmount.originalRemaining)}đ). Số tiền có thể tạo thêm: ${fmtVND(calculatedRemainingAmount.amount)}đ.`);
-      } else if (amount > calculatedRemainingAmount.amount) {
-        setError(`Số tiền vượt quá số tiền còn lại (${fmtVND(calculatedRemainingAmount.amount)}đ). Đã có ${calculatedRemainingAmount.pendingCount} yêu cầu đang chờ duyệt.`);
-      } else {
+        setError(`Số tiền đang chờ duyệt (${fmtVND(calculatedRemainingAmount.pendingTotal)}đ) đã vượt quá số tiền cần thu (${fmtVND(calculatedRemainingAmount.originalRemaining)}đ).`);
+      } else if (amount <= 0) {
         setError("Vui lòng nhập số tiền hợp lệ.");
+      } else {
+        setError("Không thể tạo yêu cầu. Vui lòng kiểm tra lại số tiền.");
       }
       return;
     }
