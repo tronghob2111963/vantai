@@ -353,16 +353,26 @@ public class BookingServiceImpl implements BookingService {
         Bookings booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + bookingId));
         
-        // Chỉ cho phép update khi status là DRAFT, PENDING hoặc CONFIRMED
+        // Cho phép update khi status là DRAFT, PENDING, CONFIRMED, ASSIGNED hoặc INPROGRESS
+        // ASSIGNED: đơn đã phân xe nhưng chưa bắt đầu - cho phép sửa với điều kiện driver/xe vẫn available
+        // INPROGRESS: đơn đang thực hiện - cho phép sửa nếu driver/xe có thể đáp ứng thay đổi (vd: kéo dài thời gian)
         if (booking.getStatus() != BookingStatus.DRAFT && 
             booking.getStatus() != BookingStatus.PENDING && 
-            booking.getStatus() != BookingStatus.CONFIRMED) {
+            booking.getStatus() != BookingStatus.CONFIRMED &&
+            booking.getStatus() != BookingStatus.ASSIGNED &&
+            booking.getStatus() != BookingStatus.INPROGRESS) {
             throw new RuntimeException("Không thể cập nhật đơn hàng với trạng thái: " + booking.getStatus());
         }
         
         // Validation: Kiểm tra loại thay đổi và thời gian cho phép
         boolean isMajorChange = isMajorModification(booking, request);
-        validateModificationTime(booking, isMajorChange);
+        
+        // Với đơn ASSIGNED hoặc INPROGRESS, cần kiểm tra resource availability trước
+        if (booking.getStatus() == BookingStatus.ASSIGNED || booking.getStatus() == BookingStatus.INPROGRESS) {
+            validateAssignedResourceAvailability(booking, request);
+        }
+        
+        validateModificationTime(booking, isMajorChange, booking.getStatus());
 
         BookingStatus oldStatus = booking.getStatus();
         
@@ -1190,8 +1200,9 @@ public class BookingServiceImpl implements BookingService {
      * Validation thời gian cho phép sửa đổi
      * - Thay đổi nhỏ: >= 24h trước khởi hành
      * - Thay đổi lớn: >= 72h trước khởi hành
+     * - ASSIGNED/INPROGRESS: nới lỏng validation thời gian, nhưng cần kiểm tra resource availability
      */
-    private void validateModificationTime(Bookings booking, boolean isMajorChange) {
+    private void validateModificationTime(Bookings booking, boolean isMajorChange, BookingStatus currentStatus) {
         List<Trips> trips = tripRepository.findByBooking_Id(booking.getId());
         if (trips == null || trips.isEmpty()) {
             return; // Chưa có trip, cho phép sửa
@@ -1209,7 +1220,34 @@ public class BookingServiceImpl implements BookingService {
         
         Instant now = Instant.now();
         
-        // Check đã khởi hành chưa
+        // Với đơn INPROGRESS: cho phép sửa đổi thời gian kết thúc (kéo dài chuyến)
+        // miễn là driver/vehicle vẫn available (đã được check ở validateAssignedResourceAvailability)
+        if (currentStatus == BookingStatus.INPROGRESS) {
+            log.info("[Booking] INPROGRESS booking modification - allowing time extension if resources available");
+            // Không chặn thay đổi, đã validate resource availability trước đó
+            return;
+        }
+        
+        // Với đơn ASSIGNED: cho phép sửa nếu chuyến chưa bắt đầu
+        if (currentStatus == BookingStatus.ASSIGNED) {
+            // Check xem đã có trip nào ONGOING chưa
+            boolean hasOngoingTrip = trips.stream()
+                    .anyMatch(t -> t.getStatus() == TripStatus.ONGOING);
+            if (hasOngoingTrip) {
+                throw new RuntimeException("Không thể sửa đổi đơn hàng khi có chuyến đang diễn ra. " +
+                        "Vui lòng sử dụng chức năng cập nhật cho đơn đang thực hiện.");
+            }
+            
+            // Check đã khởi hành chưa (theo thời gian)
+            if (now.isAfter(earliestStartTime)) {
+                throw new RuntimeException("Không thể sửa đổi đơn hàng sau khi đã khởi hành");
+            }
+            
+            log.info("[Booking] ASSIGNED booking modification allowed - trip not yet started");
+            return;
+        }
+        
+        // Check đã khởi hành chưa (cho các trạng thái khác)
         if (now.isAfter(earliestStartTime)) {
             throw new RuntimeException("Không thể sửa đổi đơn hàng sau khi đã khởi hành");
         }
@@ -1244,6 +1282,144 @@ public class BookingServiceImpl implements BookingService {
         }
         
         log.info("[Booking] Modification allowed: isMajorChange={}, hoursUntilStart={}", isMajorChange, hoursUntilStart);
+    }
+    
+    /**
+     * Kiểm tra xem driver/vehicle đã được gán có thể đáp ứng thay đổi mới không
+     * - Nếu thay đổi thời gian (kéo dài chuyến), kiểm tra driver/vehicle không có chuyến khác trùng
+     * - Dùng cho booking đã ở trạng thái ASSIGNED hoặc INPROGRESS
+     */
+    private void validateAssignedResourceAvailability(Bookings booking, UpdateBookingRequest request) {
+        log.info("[Booking] Validating resource availability for ASSIGNED/INPROGRESS booking: {}", booking.getId());
+        
+        // Lấy trips hiện tại của booking
+        List<Trips> currentTrips = tripRepository.findByBooking_Id(booking.getId());
+        if (currentTrips == null || currentTrips.isEmpty()) {
+            return; // Không có trip, không cần validate
+        }
+        
+        // Lấy thời gian mới từ request (nếu có)
+        Instant newEndTime = null;
+        Instant newStartTime = null;
+        if (request.getTrips() != null && !request.getTrips().isEmpty()) {
+            // Lấy thời gian cuối cùng từ tất cả trips mới
+            for (TripRequest tripReq : request.getTrips()) {
+                if (tripReq.getEndTime() != null) {
+                    if (newEndTime == null || tripReq.getEndTime().isAfter(newEndTime)) {
+                        newEndTime = tripReq.getEndTime();
+                    }
+                }
+                if (tripReq.getStartTime() != null) {
+                    if (newStartTime == null || tripReq.getStartTime().isBefore(newStartTime)) {
+                        newStartTime = tripReq.getStartTime();
+                    }
+                }
+            }
+        }
+        
+        // Nếu không có thời gian mới, lấy từ trips hiện tại
+        if (newEndTime == null) {
+            newEndTime = currentTrips.stream()
+                    .map(Trips::getEndTime)
+                    .filter(java.util.Objects::nonNull)
+                    .max(Instant::compareTo)
+                    .orElse(null);
+        }
+        if (newStartTime == null) {
+            newStartTime = currentTrips.stream()
+                    .map(Trips::getStartTime)
+                    .filter(java.util.Objects::nonNull)
+                    .min(Instant::compareTo)
+                    .orElse(null);
+        }
+        
+        if (newStartTime == null || newEndTime == null) {
+            log.warn("[Booking] Cannot validate resource availability - missing time range");
+            return;
+        }
+        
+        // Lấy danh sách drivers đã được gán
+        Set<Integer> assignedDriverIds = currentTrips.stream()
+                .flatMap(t -> tripDriverRepository.findByTripId(t.getId()).stream())
+                .map(td -> td.getDriver().getId())
+                .collect(Collectors.toSet());
+        
+        // Lấy danh sách vehicles đã được gán
+        Set<Integer> assignedVehicleIds = currentTrips.stream()
+                .flatMap(t -> tripVehicleRepository.findByTripId(t.getId()).stream())
+                .map(tv -> tv.getVehicle().getId())
+                .collect(Collectors.toSet());
+        
+        log.info("[Booking] Checking availability for {} drivers and {} vehicles, timeRange: {} - {}",
+                assignedDriverIds.size(), assignedVehicleIds.size(), newStartTime, newEndTime);
+        
+        // Kiểm tra từng driver có conflict không
+        List<String> conflicts = new ArrayList<>();
+        
+        for (Integer driverId : assignedDriverIds) {
+            List<TripDrivers> conflictingTrips = tripDriverRepository.findConflictingTrips(
+                    driverId, newStartTime, newEndTime);
+            
+            // Loại trừ các trips của chính booking này
+            List<TripDrivers> externalConflicts = conflictingTrips.stream()
+                    .filter(td -> !td.getTrip().getBooking().getId().equals(booking.getId()))
+                    .collect(Collectors.toList());
+            
+            if (!externalConflicts.isEmpty()) {
+                Drivers driver = driverRepository.findById(driverId).orElse(null);
+                String driverName = driver != null && driver.getEmployee() != null && driver.getEmployee().getUser() != null
+                        ? driver.getEmployee().getUser().getFullName()
+                        : "Tài xế #" + driverId;
+                
+                for (TripDrivers td : externalConflicts) {
+                    conflicts.add(String.format("Tài xế %s đã có chuyến #%d (%s → %s) vào thời gian này",
+                            driverName,
+                            td.getTrip().getId(),
+                            td.getTrip().getStartLocation(),
+                            td.getTrip().getEndLocation()));
+                }
+            }
+        }
+        
+        // Kiểm tra từng vehicle có conflict không
+        for (Integer vehicleId : assignedVehicleIds) {
+            List<TripVehicles> allVehicleTrips = tripVehicleRepository.findAllByVehicleId(vehicleId);
+            
+            for (TripVehicles tv : allVehicleTrips) {
+                Trips trip = tv.getTrip();
+                // Bỏ qua trips của chính booking này
+                if (trip.getBooking().getId().equals(booking.getId())) {
+                    continue;
+                }
+                // Bỏ qua trips đã CANCELLED hoặc COMPLETED
+                if (trip.getStatus() == TripStatus.CANCELLED || trip.getStatus() == TripStatus.COMPLETED) {
+                    continue;
+                }
+                
+                // Check time overlap
+                if (trip.getStartTime() != null && trip.getEndTime() != null) {
+                    boolean overlaps = !(newEndTime.isBefore(trip.getStartTime()) || newStartTime.isAfter(trip.getEndTime()));
+                    if (overlaps) {
+                        Vehicles vehicle = vehicleRepository.findById(vehicleId).orElse(null);
+                        String vehicleInfo = vehicle != null ? vehicle.getLicensePlate() : "Xe #" + vehicleId;
+                        conflicts.add(String.format("Xe %s đã có chuyến #%d (%s → %s) vào thời gian này",
+                                vehicleInfo,
+                                trip.getId(),
+                                trip.getStartLocation(),
+                                trip.getEndLocation()));
+                    }
+                }
+            }
+        }
+        
+        if (!conflicts.isEmpty()) {
+            throw new RuntimeException(
+                    "Không thể cập nhật đơn hàng do tài xế/xe đã được phân công có lịch trình trùng:\n- " +
+                    String.join("\n- ", conflicts) +
+                    "\n\nVui lòng chọn thời gian khác hoặc đổi tài xế/xe trước khi cập nhật.");
+        }
+        
+        log.info("[Booking] Resource availability check passed for booking: {}", booking.getId());
     }
     
     /**

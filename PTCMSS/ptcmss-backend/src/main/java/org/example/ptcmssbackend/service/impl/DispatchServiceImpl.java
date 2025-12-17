@@ -1391,21 +1391,52 @@ public class DispatchServiceImpl implements DispatchService {
         log.info("[Dispatch] Reassigning - bookingId: {}, tripIds: {}, driverId: {}, vehicleId: {}", 
                 request.getBookingId(), request.getTripIds(), request.getDriverId(), request.getVehicleId());
         
+        // Validate: Chỉ cho phép reassign cho chuyến đã gán (ASSIGNED) nhưng chưa bắt đầu
+        // Không cho phép reassign chuyến ONGOING hoặc COMPLETED
+        List<Trips> tripsToReassign = new java.util.ArrayList<>();
+        if (request.getTripIds() != null && !request.getTripIds().isEmpty()) {
+            for (Integer tid : request.getTripIds()) {
+                Trips trip = tripRepository.findById(tid)
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy chuyến: " + tid));
+                tripsToReassign.add(trip);
+            }
+        } else if (request.getBookingId() != null) {
+            tripsToReassign = tripRepository.findByBooking_Id(request.getBookingId());
+        }
+        
+        // Validate trip status - chỉ cho phép reassign SCHEDULED hoặc ASSIGNED
+        for (Trips trip : tripsToReassign) {
+            if (trip.getStatus() == TripStatus.ONGOING) {
+                throw new RuntimeException(
+                        String.format("Không thể đổi tài xế/xe cho chuyến #%d đang thực hiện. " +
+                                "Vui lòng chờ chuyến hoàn thành hoặc liên hệ quản lý.", trip.getId()));
+            }
+            if (trip.getStatus() == TripStatus.COMPLETED) {
+                throw new RuntimeException(
+                        String.format("Không thể đổi tài xế/xe cho chuyến #%d đã hoàn thành.", trip.getId()));
+            }
+            if (trip.getStatus() == TripStatus.CANCELLED) {
+                throw new RuntimeException(
+                        String.format("Không thể đổi tài xế/xe cho chuyến #%d đã bị hủy.", trip.getId()));
+            }
+            
+            // Kiểm tra chuyến chưa bắt đầu (theo thời gian)
+            if (trip.getStartTime() != null && java.time.Instant.now().isAfter(trip.getStartTime())) {
+                throw new RuntimeException(
+                        String.format("Không thể đổi tài xế/xe cho chuyến #%d đã quá thời gian khởi hành (%s). " +
+                                "Vui lòng cập nhật trạng thái chuyến trước.", 
+                                trip.getId(), trip.getStartTime()));
+            }
+        }
+        
         // Validate vehicle category if changing vehicle
         if (request.getVehicleId() != null) {
             validateVehicleCategoryForReassign(request);
         }
         
         // Unassign current assignments
-        if (request.getTripIds() != null && !request.getTripIds().isEmpty()) {
-            for (Integer tid : request.getTripIds()) {
-                unassign(tid, request.getNote());
-            }
-        } else if (request.getBookingId() != null) {
-            List<Trips> trips = tripRepository.findByBooking_Id(request.getBookingId());
-            for (Trips t : trips) {
-                unassign(t.getId(), request.getNote());
-            }
+        for (Trips t : tripsToReassign) {
+            unassign(t.getId(), request.getNote());
         }
         
         // Assign with new driver/vehicle

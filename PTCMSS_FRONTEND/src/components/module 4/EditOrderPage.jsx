@@ -283,25 +283,31 @@ export default function EditOrderPage() {
         React.useState(false);
 
     /* --- quyền sửa --- */
-    // Check: status phải là DRAFT/PENDING/CONFIRMED/ASSIGNED và còn >= 12h trước chuyến
-    // HOẶC: đơn đặt cọc (paidAmount > 0) nhưng chưa bắt đầu chuyến (status chưa ONGOING/COMPLETED và startTime chưa đến)
+    // Check: status phải là DRAFT/PENDING/CONFIRMED/ASSIGNED/INPROGRESS
+    // Với ASSIGNED: cho phép sửa nếu chuyến chưa bắt đầu
+    // Với INPROGRESS: cho phép sửa (kéo dài thời gian) - backend sẽ validate resource availability
     const canEdit = React.useMemo(() => {
-        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT"];
+        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT", "INPROGRESS"];
         const hasDeposit = paidAmount > 0;
         
-        // Nếu đã hủy (CANCELLED) thì không cho sửa
-        if (status === "CANCELLED") {
+        // Nếu đã hủy (CANCELLED) hoặc hoàn thành (COMPLETED) thì không cho sửa
+        if (status === "CANCELLED" || status === "COMPLETED") {
             return false;
+        }
+        
+        // Với INPROGRESS: cho phép sửa (vd: kéo dài thời gian, đổi điểm đến)
+        // Backend sẽ validate driver/vehicle có available không
+        if (status === "INPROGRESS") {
+            return true;
         }
         
         // Nếu đơn đặt cọc và chưa bắt đầu chuyến → cho phép sửa/hủy
         if (hasDeposit) {
             // Kiểm tra xem chuyến đã bắt đầu chưa
-            const tripStarted = status === "ONGOING" || status === "COMPLETED";
             const tripTimePassed = startTime ? new Date(startTime) <= new Date() : false;
             
-            // Nếu chưa bắt đầu (status chưa ONGOING/COMPLETED và thời gian chưa đến)
-            if (!tripStarted && !tripTimePassed) {
+            // Nếu chưa bắt đầu (thời gian chưa đến) → cho phép sửa
+            if (!tripTimePassed) {
                 return true; // Cho phép sửa/hủy đơn đặt cọc chưa bắt đầu
             }
         }
@@ -1148,7 +1154,7 @@ export default function EditOrderPage() {
 
     /* ---------------- locked banner ---------------- */
     const lockedReason = React.useMemo(() => {
-        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT"];
+        const editableStatuses = ["DRAFT", "PENDING", "CONFIRMED", "ASSIGNED", "QUOTATION_SENT", "INPROGRESS"];
         const hasDeposit = paidAmount > 0;
         
         // Nếu đã hủy thì không cho sửa
@@ -1156,19 +1162,21 @@ export default function EditOrderPage() {
             return `Đơn hàng đã bị hủy. Không thể chỉnh sửa.`;
         }
         
+        // Nếu đã hoàn thành thì không cho sửa
+        if (status === "COMPLETED") {
+            return `Đơn hàng đã hoàn thành. Không thể chỉnh sửa.`;
+        }
+        
+        // INPROGRESS: cho phép sửa, không hiển thị locked reason
+        if (status === "INPROGRESS") {
+            return null;
+        }
+        
         // Nếu đơn đặt cọc và chưa bắt đầu, cho phép sửa
         if (hasDeposit) {
-            const tripStarted = status === "ONGOING" || status === "COMPLETED";
             const tripTimePassed = startTime ? new Date(startTime) <= new Date() : false;
-            if (!tripStarted && !tripTimePassed) {
+            if (!tripTimePassed) {
                 return null; // Cho phép sửa đơn đặt cọc chưa bắt đầu
-            }
-            // Nếu đã bắt đầu thì hiển thị lý do
-            if (tripStarted) {
-                return `Chuyến đi đã bắt đầu (${ORDER_STATUS_LABEL[status] || status}). Không thể chỉnh sửa.`;
-            }
-            if (tripTimePassed) {
-                return `Thời gian chuyến đi đã đến. Không thể chỉnh sửa.`;
             }
         }
         
@@ -1201,11 +1209,32 @@ export default function EditOrderPage() {
         return null;
     }, [status, startTime, paidAmount]);
 
+    // Warning banner for INPROGRESS orders - cảnh báo rằng thay đổi sẽ được kiểm tra availability
+    const inProgressWarning = React.useMemo(() => {
+        if (status === "INPROGRESS") {
+            return "Đơn hàng đang thực hiện. Bạn có thể cập nhật thông tin (ví dụ: kéo dài thời gian). " +
+                   "Hệ thống sẽ kiểm tra tài xế/xe đang phụ trách có đáp ứng được thay đổi hay không.";
+        }
+        if (status === "ASSIGNED") {
+            return "Đơn hàng đã được phân tài xế/xe. Thay đổi thông tin sẽ được kiểm tra tính khả dụng của tài xế và xe.";
+        }
+        return null;
+    }, [status]);
+
     const lockedBanner = !canEdit && lockedReason ? (
         <div className="rounded-lg border border-info-200 bg-info-50 text-info-700 text-[12px] flex items-start gap-2 px-3 py-2">
             <AlertTriangle className="h-4 w-4 text-primary-600 shrink-0" />
             <div className="leading-relaxed">
                 {lockedReason}
+            </div>
+        </div>
+    ) : null;
+    
+    const inProgressBanner = canEdit && inProgressWarning ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[12px] flex items-start gap-2 px-3 py-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="leading-relaxed">
+                {inProgressWarning}
             </div>
         </div>
     ) : null;
@@ -1243,6 +1272,7 @@ export default function EditOrderPage() {
                     </div>
 
                     {lockedBanner}
+                    {inProgressBanner}
                 </div>
 
                 <div className="flex flex-col gap-2 w-full max-w-[250px]">
