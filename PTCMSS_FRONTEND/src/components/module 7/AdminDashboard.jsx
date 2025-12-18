@@ -364,7 +364,8 @@ export default function AdminDashboard() {
                                         dataKey="expense" 
                                         name="Chi phí" 
                                         fill="#ef4444"
-                                        // Đảm bảo hiển thị ngay cả khi giá trị = 0 hoặc null
+                                        // Hiển thị rõ cột chi phí khi > 0 (dù rất nhỏ), 0 thì không vẽ
+                                        minPointSize={6}
                                         isAnimationActive={true}
                                     />
                                 </BarChart>

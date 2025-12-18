@@ -32,7 +32,10 @@ export async function getRevenueTrend(params = {}) {
 
 /**
  * Get branch performance comparison
- * @param {Object} params - { startDate, endDate }
+ * @param {Object} params - { period: 'TODAY'|'THIS_WEEK'|'THIS_MONTH'|'THIS_QUARTER'|'YTD' }
+ * Note: Backend expects `period`, *not* startDate/endDate. Default is THIS_MONTH.
+ * Admin dashboard sẽ truyền đúng period đang chọn để đảm bảo số liệu chi phí/doanh thu
+ * trùng với bộ lọc thời gian trên giao diện.
  * @returns {Promise}
  */
 export async function getBranchComparison(params = {}) {

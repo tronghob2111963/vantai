@@ -651,13 +651,11 @@ export default function AssignDriverDialog({
             onClick={onClose}
         >
             <div
-                className="w-full max-w-3xl rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-2xl"
-                onClick={(e) =>
-                    e.stopPropagation()
-                }
+                className="w-full max-w-3xl max-h-[90vh] rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-2xl flex flex-col"
+                onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-200">
+                <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-200 flex-shrink-0">
                     <Sparkles className="h-5 w-5 text-primary-600" />
                     <div className="font-semibold text-slate-900 text-sm">
                         Gán chuyến (Assign
@@ -673,8 +671,9 @@ export default function AssignDriverDialog({
                     </button>
                 </div>
 
-                {/* Summary */}
-            <div className="px-5 pt-4">
+                {/* Scrollable content (Summary + Body) */}
+                <div className="px-5 pt-4 pb-4 space-y-5 overflow-y-auto flex-1">
+                    {/* Summary */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px]">
                         <div className="flex items-center gap-2">
                             <CalendarDays className="h-4 w-4 text-slate-500" />
@@ -754,10 +753,8 @@ export default function AssignDriverDialog({
                             </div>
                         </div>
                     )}
-                </div>
-
                 {/* Body */}
-                <div className="p-5 space-y-5">
+                <div className="space-y-5">
                     {/* Suggestions block */}
                     <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
                             <div className="px-3 py-2 text-[11px] text-slate-500 border-b border-slate-200 bg-slate-50 font-medium uppercase tracking-wide">
@@ -1228,9 +1225,10 @@ export default function AssignDriverDialog({
                         )}
                     </div>
                 </div>
+                </div>
 
                 {/* Footer actions */}
-                <div className="px-5 py-4 border-t border-slate-200 flex flex-wrap items-center gap-2 justify-end text-[13px]">
+                <div className="px-5 py-4 border-t border-slate-200 flex flex-wrap items-center gap-2 justify-end text-[13px] flex-shrink-0">
                     {/* Auto-assign */}
                     <button
                         disabled={
