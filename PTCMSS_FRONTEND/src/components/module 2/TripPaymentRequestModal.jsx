@@ -486,9 +486,9 @@ export default function TripPaymentRequestModal({
                   {fmtVND(calculatedRemainingAmount.amount)} đ
                 </span>
               </div>
-              {calculatedRemainingAmount.hasPending && (
-                <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded px-2 py-1 mt-1">
-                  ⚠️ Đã có {calculatedRemainingAmount.pendingCount} yêu cầu thanh toán đang chờ duyệt (tổng {fmtVND(calculatedRemainingAmount.pendingTotal)}đ). Vui lòng đợi kế toán xác nhận trước khi tạo yêu cầu mới.
+              {calculatedRemainingAmount.hasPending && !calculatedRemainingAmount.isOverLimit && (
+                <div className="text-xs text-primary-600 bg-primary-50 border border-primary-200 rounded px-2 py-1 mt-1">
+                  ℹ️ Đã có {calculatedRemainingAmount.pendingCount} yêu cầu thanh toán đang chờ duyệt (tổng {fmtVND(calculatedRemainingAmount.pendingTotal)}đ). Bạn có thể tạo thêm yêu cầu miễn tổng không vượt quá số tiền còn lại.
                 </div>
               )}
               {calculatedRemainingAmount.isOverLimit && !calculatedRemainingAmount.hasPending && (

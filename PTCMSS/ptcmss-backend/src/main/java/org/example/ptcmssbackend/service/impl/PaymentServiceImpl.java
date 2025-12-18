@@ -61,19 +61,14 @@ public class PaymentServiceImpl implements PaymentService {
             BigDecimal remainingAmount = getRemainingAmount(bookingId);
             BigDecimal totalPendingAmount = getTotalPendingPaymentAmount(bookingId);
             
-            // Ràng buộc 1: Không được tạo yêu cầu mới nếu đã có yêu cầu PENDING
-            if (totalPendingAmount.compareTo(BigDecimal.ZERO) > 0) {
-                throw new RuntimeException(String.format(
-                    "Không thể tạo yêu cầu thanh toán mới. Đã có yêu cầu thanh toán đang chờ duyệt (tổng %s). Vui lòng đợi kế toán xác nhận các yêu cầu trước.", 
-                    totalPendingAmount));
-            }
-            
-            // Ràng buộc 2: Tổng pending + amount mới <= remaining amount
+            // Ràng buộc: Tổng pending + amount mới <= remaining amount
+            // Cho phép tạo nhiều request miễn tổng không vượt quá số tiền còn lại
             BigDecimal totalWithNewAmount = totalPendingAmount.add(amount);
             if (totalWithNewAmount.compareTo(remainingAmount) > 0) {
+                BigDecimal availableAmount = remainingAmount.subtract(totalPendingAmount);
                 throw new RuntimeException(String.format(
-                    "Tổng số tiền yêu cầu (%s) vượt quá số tiền còn lại (%s). Số tiền có thể tạo thêm: %s", 
-                    totalWithNewAmount, remainingAmount, remainingAmount.subtract(totalPendingAmount)));
+                    "Tổng số tiền yêu cầu (%s) vượt quá số tiền còn lại (%s). Hiện đang có %s đang chờ duyệt. Số tiền có thể tạo thêm: %s", 
+                    totalWithNewAmount, remainingAmount, totalPendingAmount, availableAmount.compareTo(BigDecimal.ZERO) > 0 ? availableAmount : BigDecimal.ZERO));
             }
         }
 
