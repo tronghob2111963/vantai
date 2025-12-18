@@ -98,7 +98,10 @@ public class SystemSettingServiceImpl implements SystemSettingService {
         setting.setValueType(request.getValueType());
         setting.setCategory(request.getCategory());
         setting.setDescription(request.getDescription());
-        setting.setStatus(request.getStatus());
+        // Nếu không truyền status từ frontend thì giữ nguyên status hiện tại (thường là ACTIVE)
+        if (request.getStatus() != null) {
+            setting.setStatus(request.getStatus());
+        }
         setting.setUpdatedBy(updater);
 
         SystemSetting updated = systemSettingRepository.save(setting);
