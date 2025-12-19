@@ -99,7 +99,24 @@ function buildWeekArray(dateObj) {
   return [arr];
 }
 
-const fmtTime = (t) => t || "—";
+// Format time từ ISO string sang HH:mm (convert timezone)
+const fmtTime = (isoTime) => {
+  if (!isoTime) return "—";
+  try {
+    // Parse ISO string và convert sang local timezone
+    const d = new Date(isoTime);
+    if (isNaN(d.getTime())) return isoTime; // Nếu không parse được, trả về nguyên bản
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  } catch (e) {
+    // Fallback: nếu là string đã format sẵn (HH:mm), trả về nguyên bản
+    if (typeof isoTime === "string" && /^\d{2}:\d{2}$/.test(isoTime)) {
+      return isoTime;
+    }
+    return isoTime || "—";
+  }
+};
 
 /* =========================================================
    Subcomponents
@@ -708,7 +725,7 @@ export default function DriverSchedulePage() {
                 date: startDateStr,
                 type: "TRIP",
                 title: `Đi: ${routeLabel}`,
-                time: start ? String(start).slice(11, 16) : "",
+                time: fmtTime(start), // ✅ Convert timezone đúng cách
                 pickup: trip.startLocation || trip.start_location || "",
                 trip_id: trip.tripId || trip.trip_id,
                 hireType: hireType,
@@ -720,7 +737,7 @@ export default function DriverSchedulePage() {
                 date: endDateStr,
                 type: "TRIP",
                 title: `Về: ${returnRouteLabel}`,
-                time: end ? String(end).slice(11, 16) : "",
+                time: fmtTime(end), // ✅ Convert timezone đúng cách
                 pickup: endLocation,
                 trip_id: trip.tripId || trip.trip_id,
                 hireType: hireType,
@@ -754,7 +771,7 @@ export default function DriverSchedulePage() {
                   date: currentDateStr,
                   type: "TRIP",
                   title: title,
-                  time: isFirstDay ? (start ? String(start).slice(11, 16) : "") : "",
+                  time: isFirstDay ? fmtTime(start) : "", // ✅ Convert timezone đúng cách
                   pickup: trip.startLocation || trip.start_location || "",
                   trip_id: trip.tripId || trip.trip_id,
                   hireType: hireType,
@@ -768,7 +785,7 @@ export default function DriverSchedulePage() {
                   date: startDateStr,
                   type: "TRIP",
                   title: routeLabel,
-                  time: start ? String(start).slice(11, 16) : "",
+                  time: fmtTime(start), // ✅ Convert timezone đúng cách
                   pickup: trip.startLocation || trip.start_location || "",
                   trip_id: trip.tripId || trip.trip_id,
                   hireType: hireType,
