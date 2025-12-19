@@ -1028,6 +1028,24 @@ export default function CoordinatorTimelinePro() {
                     branchId: branchNumeric,
                 });
                 console.log("[CoordinatorTimelinePro] Dashboard payload:", payload);
+                console.log("[CoordinatorTimelinePro] Payload keys:", payload ? Object.keys(payload) : "null");
+
+                // Kiểm tra payload có tồn tại không
+                if (!payload) {
+                    console.warn("[CoordinatorTimelinePro] Payload is null or undefined");
+                    setPending([]);
+                    setIncidents([]);
+                    setStats({
+                        pendingCount: 0,
+                        assignedCount: 0,
+                        cancelledCount: 0,
+                        completedCount: 0,
+                        inProgressCount: 0,
+                        incidentsCount: 0,
+                    });
+                    setError("Không nhận được dữ liệu từ server. Vui lòng thử lại.");
+                    return;
+                }
 
                 const pendingRows =
                     payload?.pendingTrips ??
@@ -1038,7 +1056,14 @@ export default function CoordinatorTimelinePro() {
                     payload?.incidents ??
                     payload?.tripIncidents ??
                     [];
-                setPending(normalizePendingTrips(pendingRows));
+                
+                console.log("[CoordinatorTimelinePro] Pending rows count:", pendingRows.length);
+                console.log("[CoordinatorTimelinePro] Incident rows count:", incidentRows.length);
+                
+                const normalizedPending = normalizePendingTrips(pendingRows);
+                console.log("[CoordinatorTimelinePro] Normalized pending count:", normalizedPending.length);
+                
+                setPending(normalizedPending);
                 setIncidents(incidentRows);
 
                 // Cập nhật thống kê
@@ -1083,7 +1108,12 @@ export default function CoordinatorTimelinePro() {
     );
 
     React.useEffect(() => {
-        if (!branchId || branchLoading) return;
+        console.log("[CoordinatorTimelinePro] useEffect triggered - branchId:", branchId, "branchLoading:", branchLoading);
+        if (!branchId || branchLoading) {
+            console.log("[CoordinatorTimelinePro] Skipping fetchData - branchId:", branchId, "branchLoading:", branchLoading);
+            return;
+        }
+        console.log("[CoordinatorTimelinePro] Calling fetchData with branchId:", branchId);
         fetchData(branchId);
     }, [branchId, branchLoading, fetchData]);
 

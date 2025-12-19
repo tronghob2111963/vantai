@@ -96,30 +96,66 @@ public class DispatchServiceImpl implements DispatchService {
         List<Trips> scheduledTrips = tripRepository.findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.SCHEDULED, from, to);
         List<Trips> assignedTrips = tripRepository.findByBooking_Branch_IdAndStatusAndStartTimeBetween(branchId, TripStatus.ASSIGNED, from, to);
         
+        log.info("[Dispatch] Found {} SCHEDULED trips and {} ASSIGNED trips", scheduledTrips.size(), assignedTrips.size());
+        
         List<Trips> trips = new ArrayList<>();
         trips.addAll(scheduledTrips);
         trips.addAll(assignedTrips);
 
         List<PendingTripResponse> result = new ArrayList<>();
+        int skippedAlreadyAssigned = 0;
+        int skippedInvalidStatus = 0;
+        int skippedNoDeposit = 0;
 
         for (Trips t : trips) {
             // Chỉ lấy các trip CHƯA gán driver và CHƯA gán vehicle
             List<TripDrivers> tripDrivers = tripDriverRepository.findByTripId(t.getId());
             List<TripVehicles> tripVehicles = tripVehicleRepository.findByTripId(t.getId());
             if (!tripDrivers.isEmpty() || !tripVehicles.isEmpty()) {
+                skippedAlreadyAssigned++;
                 continue; // đã gán rồi -> không nằm trong pending queue
             }
 
             Bookings b = t.getBooking();
             // Skip bookings that are not eligible for dispatch (e.g. cancelled)
             if (!DISPATCHABLE_BOOKING_STATUSES.contains(b.getStatus())) {
+                skippedInvalidStatus++;
+                log.info("[Dispatch] Skipping trip {} - booking {} has invalid status: {} (allowed: {})", 
+                        t.getId(), b.getId(), b.getStatus(), DISPATCHABLE_BOOKING_STATUSES);
                 continue;
             }
 
             // CHỈ HIỂN THỊ CÁC TRIPS CÓ BOOKING ĐÃ ĐẶT CỌC
             // Lý do: Tránh hiển thị các đơn chưa cọc, chỉ điều phối các đơn đã cọc
-            if (!hasDepositPaid(b)) {
-                log.debug("[Dispatch] Skipping trip {} - booking {} has no confirmed deposit", t.getId(), b.getId());
+            boolean depositPaid = hasDepositPaid(b);
+            if (!depositPaid) {
+                skippedNoDeposit++;
+                log.info("[Dispatch] Skipping trip {} - booking {} has no confirmed deposit (booking status: {}, trip status: {})", 
+                        t.getId(), b.getId(), b.getStatus(), t.getStatus());
+                // Debug: Log chi tiết về invoice và payment để debug
+                try {
+                    var invoices = invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(b.getId());
+                    log.info("[Dispatch]   Booking {} has {} invoices", b.getId(), invoices != null ? invoices.size() : 0);
+                    if (invoices != null && !invoices.isEmpty()) {
+                        for (var inv : invoices) {
+                            boolean isDeposit = Boolean.TRUE.equals(inv.getIsDeposit());
+                            var payments = paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(inv.getId());
+                            int confirmedCount = 0;
+                            if (payments != null) {
+                                confirmedCount = (int) payments.stream()
+                                        .filter(p -> p.getConfirmationStatus() == 
+                                                org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED)
+                                        .count();
+                            }
+                            log.info("[Dispatch]     Invoice {}: isDeposit={}, totalPayments={}, confirmedPayments={}", 
+                                    inv.getId(), isDeposit, payments != null ? payments.size() : 0, confirmedCount);
+                        }
+                    } else {
+                        log.info("[Dispatch]     Booking {} has NO invoices at all", b.getId());
+                    }
+                } catch (Exception e) {
+                    log.warn("[Dispatch] Error checking invoice details for booking {}", b.getId(), e);
+                }
                 continue;
             }
 
@@ -138,6 +174,9 @@ public class DispatchServiceImpl implements DispatchService {
                     .build()
             );
         }
+
+        log.info("[Dispatch] Pending trips filter results: total trips={}, skipped (already assigned)={}, skipped (invalid status)={}, skipped (no deposit)={}, final pending={}", 
+                trips.size(), skippedAlreadyAssigned, skippedInvalidStatus, skippedNoDeposit, result.size());
 
         // Ưu tiên các chuyến có phân khúc cao hơn (nhiều chỗ ngồi hơn) trước, sau đó mới tới thời gian
         result.sort((a, b) -> {
@@ -757,7 +796,10 @@ public class DispatchServiceImpl implements DispatchService {
 
     @Override
     public DispatchDashboardResponse getDashboard(Integer branchId, LocalDate date) {
+        log.info("[Dispatch] ===== getDashboard START - branchId: {}, date: {} =====", branchId, date);
+        
         if (branchId == null) {
+            log.error("[Dispatch] BranchId is null!");
             throw new IllegalArgumentException("Mã chi nhánh là bắt buộc");
         }
         
@@ -770,13 +812,29 @@ public class DispatchServiceImpl implements DispatchService {
             targetDate = date;
             from = targetDate.atStartOfDay(DEFAULT_ZONE).toInstant();
             to = targetDate.plusDays(1).atStartOfDay(DEFAULT_ZONE).toInstant();
+            log.info("[Dispatch] getDashboard - Using specific date: {} (from {} to {})", targetDate, from, to);
         } else {
             // Nếu không có date: lấy từ hiện tại đến tương lai (1 năm)
-            targetDate = LocalDate.now();
-            from = Instant.now();
-            to = LocalDate.now().plusYears(1).atStartOfDay(DEFAULT_ZONE).toInstant();
+            // Bắt đầu từ đầu ngày hôm nay để bao gồm các chuyến trong ngày
+            targetDate = LocalDate.now(DEFAULT_ZONE);
+            from = targetDate.atStartOfDay(DEFAULT_ZONE).toInstant();
+            to = targetDate.plusYears(1).atStartOfDay(DEFAULT_ZONE).toInstant();
+            log.info("[Dispatch] getDashboard - Loading trips from {} (start of today) to {} (1 year future)", from, to);
         }
 
+        log.info("[Dispatch] getDashboard - Querying trips for branch {} from {} to {}", branchId, from, to);
+        
+        // Debug: Kiểm tra tổng số trips trong khoảng thời gian (không filter status)
+        List<Trips> allTripsInRange = tripRepository.findByBooking_Branch_IdAndStartTimeBetween(branchId, from, to);
+        log.info("[Dispatch] getDashboard - Found {} total trips in time range (any status)", allTripsInRange.size());
+        if (!allTripsInRange.isEmpty()) {
+            log.info("[Dispatch] getDashboard - Trip statuses breakdown:");
+            Map<TripStatus, Long> statusCount = allTripsInRange.stream()
+                    .collect(Collectors.groupingBy(Trips::getStatus, Collectors.counting()));
+            statusCount.forEach((status, count) -> 
+                    log.info("[Dispatch]   - {}: {} trips", status, count));
+        }
+        
         List<PendingTripResponse> pending = getPendingTrips(branchId, from, to);
         List<Drivers> drivers = driverRepository.findByBranchId(branchId);
         List<Vehicles> vehicles = vehicleRepository.filterVehicles(null, branchId, null);
@@ -2233,11 +2291,13 @@ public class DispatchServiceImpl implements DispatchService {
      */
     private boolean hasDepositPaid(Bookings booking) {
         if (booking == null) {
+            log.debug("[Dispatch] hasDepositPaid: booking is null");
             return false;
         }
         
         // Nếu booking đã COMPLETED, cho phép hiển thị (đã hoàn thành nên không cần check cọc)
         if (booking.getStatus() == BookingStatus.COMPLETED) {
+            log.debug("[Dispatch] hasDepositPaid: booking {} is COMPLETED, allowing", booking.getId());
             return true;
         }
         
@@ -2246,28 +2306,38 @@ public class DispatchServiceImpl implements DispatchService {
             invoiceRepository.findByBooking_IdOrderByCreatedAtDesc(booking.getId());
         
         if (allInvoices == null || allInvoices.isEmpty()) {
+            log.debug("[Dispatch] hasDepositPaid: booking {} has no invoices", booking.getId());
             return false;
         }
+        
+        log.debug("[Dispatch] hasDepositPaid: booking {} has {} invoices", booking.getId(), allInvoices.size());
         
         // Kiểm tra có invoice deposit nào đã được xác nhận thanh toán không
         for (var inv : allInvoices) {
             // Chỉ kiểm tra invoice deposit (isDeposit = true)
             if (Boolean.TRUE.equals(inv.getIsDeposit())) {
+                log.debug("[Dispatch] hasDepositPaid: found deposit invoice {} for booking {}", inv.getId(), booking.getId());
+                
                 // Kiểm tra có payment nào đã được CONFIRMED không
                 var payments = paymentHistoryRepository.findByInvoice_IdOrderByPaymentDateDesc(inv.getId());
-                if (payments != null) {
+                if (payments != null && !payments.isEmpty()) {
+                    log.debug("[Dispatch] hasDepositPaid: invoice {} has {} payments", inv.getId(), payments.size());
                     for (var payment : payments) {
                         if (payment.getConfirmationStatus() == 
                             org.example.ptcmssbackend.enums.PaymentConfirmationStatus.CONFIRMED) {
-                            log.debug("[Dispatch] Booking {} has confirmed deposit payment", booking.getId());
+                            log.debug("[Dispatch] hasDepositPaid: booking {} has confirmed deposit payment (invoice {}, payment {})", 
+                                    booking.getId(), inv.getId(), payment.getId());
                             return true;
                         }
                     }
+                    log.debug("[Dispatch] hasDepositPaid: invoice {} has payments but none are CONFIRMED", inv.getId());
+                } else {
+                    log.debug("[Dispatch] hasDepositPaid: invoice {} has no payments", inv.getId());
                 }
             }
         }
         
-        log.debug("[Dispatch] Booking {} has no confirmed deposit", booking.getId());
+        log.debug("[Dispatch] hasDepositPaid: booking {} has no confirmed deposit payment", booking.getId());
         return false;
     }
     
