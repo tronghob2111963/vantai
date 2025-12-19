@@ -1916,13 +1916,14 @@ export default function ConsultantOrdersPage() {
             // Chuẩn hoá status theo logic mới:
             // - Đơn chưa đặt cọc: "Đã gửi báo giá" (QUOTATION_SENT)
             // - Đơn đã đặt cọc: "Khách đã xác nhận" (CONFIRMED)
-            // - Đơn đã được phân công tài xế/xe: "Đã phân xe" (ASSIGNED)
+            // - Đơn đã được phân công tài xế/xe: "Đã phân xe" (ASSIGNED) - QUAN TRỌNG: check isAssigned
             // - Đơn được tài xế xác nhận bắt đầu: "Đang thực hiện" (INPROGRESS)
             // - Đơn được tài xế đánh dấu hoàn thành + Thu đủ tiền: "Hoàn thành" (COMPLETED)
             let rawStatus = b.status || "QUOTATION_SENT";
             const normalizedRawStatus = normalizeStatusValue(rawStatus);
             const hasDeposit = Number(paidAmount || 0) > 0 || Number(b.depositAmount || b.deposit_amount || 0) > 0;
             const isFullyPaid = Number(paidAmount || 0) >= Number(quotedPrice || 0);
+            const isAssigned = b.isAssigned === true || b.is_assigned === true; // Check field isAssigned từ backend
             
             // Map các status về format chuẩn của frontend
             // Workflow: QUOTATION_SENT → CONFIRMED (đặt cọc) → ASSIGNED (phân xe) → INPROGRESS (bắt đầu) → COMPLETED
@@ -1937,8 +1938,9 @@ export default function ConsultantOrdersPage() {
             } else if (normalizedRawStatus === "INPROGRESS" || normalizedRawStatus === "ONGOING" || normalizedRawStatus === "IN_PROGRESS") {
                 // INPROGRESS: tài xế đã bắt đầu chuyến
                 rawStatus = ORDER_STATUS.INPROGRESS;
-            } else if (normalizedRawStatus === "ASSIGNED") {
+            } else if (normalizedRawStatus === "ASSIGNED" || isAssigned) {
                 // ASSIGNED: đã phân xe/tài xế
+                // QUAN TRỌNG: Nếu isAssigned = true thì dù status là CONFIRMED hay QUOTATION_SENT cũng convert thành ASSIGNED
                 rawStatus = ORDER_STATUS.ASSIGNED;
             } else if (normalizedRawStatus === "CONFIRMED") {
                 // CONFIRMED: khách đã xác nhận (đã đặt cọc)
@@ -1956,6 +1958,13 @@ export default function ConsultantOrdersPage() {
                 // Fallback: Nếu không có status hoặc không match, dựa vào deposit
                 // Nếu đã có deposit → CONFIRMED (khách đã xác nhận), chưa có → QUOTATION_SENT
                 rawStatus = hasDeposit ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.QUOTATION_SENT;
+            }
+            
+            // Override: Nếu isAssigned = true, luôn hiển thị ASSIGNED (đã phân xe)
+            // Điều này đảm bảo đơn đã được phân công tài xế/xe luôn hiển thị "Đã phân xe"
+            if (isAssigned && rawStatus !== ORDER_STATUS.COMPLETED && rawStatus !== ORDER_STATUS.CANCELLED 
+                && rawStatus !== ORDER_STATUS.INPROGRESS) {
+                rawStatus = ORDER_STATUS.ASSIGNED;
             }
 
                     return {
