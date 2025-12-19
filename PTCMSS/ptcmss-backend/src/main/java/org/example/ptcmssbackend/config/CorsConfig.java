@@ -17,7 +17,14 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         
         config.setAllowCredentials(true);
-        config.setAllowedOriginPatterns(Arrays.asList("*")); // Allow all origins in dev
+        // Cho phép cả localhost và domain production
+        config.setAllowedOrigins(Arrays.asList(
+            "http://localhost:5173",
+            "http://localhost:8080",
+            "https://hethongvantai.site",
+            "https://www.hethongvantai.site",
+            "https://api.hethongvantai.site"
+        ));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));

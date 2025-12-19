@@ -81,7 +81,13 @@ public class AppConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173", "http://localhost:8080")
+                .allowedOrigins(
+                    "http://localhost:5173", 
+                    "http://localhost:8080",
+                    "https://hethongvantai.site",
+                    "https://www.hethongvantai.site",
+                    "https://api.hethongvantai.site"
+                )
                 // Cho phép thêm cả PATCH để các API cập nhật profile (và các PATCH khác) không bị chặn CORS
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
